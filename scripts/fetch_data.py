@@ -5,7 +5,7 @@ import requests
 import json
 from typing import Dict, List, Any
 
-LEAGUE_ID = "1227033344391254016"
+LEAGUE_ID = "1323741311471194112"
 BASE_URL = "https://api.sleeper.app/v1"
 
 def fetch_league_info() -> Dict[str, Any]:

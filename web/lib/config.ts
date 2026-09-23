@@ -10,7 +10,7 @@ export const SLEEPER_CONFIG = {
    * League ID - can be overridden via NEXT_PUBLIC_LEAGUE_ID environment variable
    * Default: Tangy Football league
    */
-  leagueId: process.env.NEXT_PUBLIC_LEAGUE_ID || '1227033344391254016',
+  leagueId: process.env.NEXT_PUBLIC_LEAGUE_ID || '1323741311471194112',
 
   /**
    * Base URL for Sleeper API

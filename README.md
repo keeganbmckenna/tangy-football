@@ -1,4 +1,4 @@
-# Fantasy Football 2025 - Tangy Football
+# Fantasy Football 2026 - Tangy Football
 
 A modern Next.js web application for analyzing Sleeper fantasy football league data with comprehensive statistics, interactive charts, and postseason brackets.
 

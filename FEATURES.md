@@ -1,4 +1,4 @@
-# Fantasy Football 2025 - Complete Feature List
+# Fantasy Football 2026 - Complete Feature List
 
 ## 🎉 Comprehensive Fantasy Football Analytics Platform
 
