@@ -12,3 +12,7 @@ wheels/
 # Local artifacts
 .DS_Store
 .tmp/
+
+# generated data artifacts (regenerate with scripts/fetch_data.py)
+league_data.json
+fantasy_analysis.xlsx

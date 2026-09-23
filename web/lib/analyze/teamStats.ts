@@ -23,8 +23,6 @@ import { getAvatarUrl, getCustomTeamName, getTeamName } from './teamIdentity';
  */
 export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): TeamStats[] {
   const stats: Record<number, TeamStats> = {};
-  // Track opponent scores for margin calculations
-  const weeklyOpponentScores: Record<number, number[]> = {};
 
   // Initialize stats from rosters
   data.rosters.forEach((roster) => {
@@ -54,7 +52,6 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
       divisionName: data.divisionNames?.[division || 0],
       avatarUrl: getAvatarUrl(user),
     };
-    weeklyOpponentScores[roster.roster_id] = [];
   });
 
   // Calculate weekly scores and results
@@ -79,9 +76,7 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
         stats[team1.roster_id].weeklyScores.push(points1);
         stats[team2.roster_id].weeklyScores.push(points2);
 
-        // Track opponent scores for margin calculations (both in local map and TeamStats)
-        weeklyOpponentScores[team1.roster_id].push(points2);
-        weeklyOpponentScores[team2.roster_id].push(points1);
+        // Track opponent scores for margin calculations
         stats[team1.roster_id].weeklyOpponentScores.push(points2);
         stats[team2.roster_id].weeklyOpponentScores.push(points1);
 
@@ -113,58 +108,55 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
     const winMargins: number[] = [];
     const lossMargins: number[] = [];
 
-    // Find the roster_id for this team
-    const rosterId = Object.keys(stats).find(key => stats[parseInt(key)].username === team.username);
-    if (rosterId) {
-      const opponentScores = weeklyOpponentScores[parseInt(rosterId)];
+    const opponentScores = team.weeklyOpponentScores;
 
-      // Determine how many weeks to analyze
-      const weeksToAnalyze = lastScoredWeek !== undefined
-        ? Math.min(lastScoredWeek, team.weeklyResults.length)
-        : team.weeklyResults.length;
+    // Determine how many weeks to analyze
+    const weeksToAnalyze = lastScoredWeek !== undefined
+      ? Math.min(lastScoredWeek, team.weeklyResults.length)
+      : team.weeklyResults.length;
 
-      // Only loop through completed weeks
-      for (let index = 0; index < weeksToAnalyze; index++) {
-        const result = team.weeklyResults[index];
-        const score = team.weeklyScores[index];
-        const opponentScore = opponentScores[index];
+    // Only loop through completed weeks
+    for (let index = 0; index < weeksToAnalyze; index++) {
+      const result = team.weeklyResults[index];
+      const score = team.weeklyScores[index];
+      const opponentScore = opponentScores[index];
 
-        if (result === 'W') {
-          winScores.push(score);
-          winMargins.push(score - opponentScore);
-        } else if (result === 'L') {
-          lossScores.push(score);
-          lossMargins.push(score - opponentScore); // Will be negative
-        }
+      if (result === 'W') {
+        winScores.push(score);
+        winMargins.push(score - opponentScore);
+      } else if (result === 'L') {
+        lossScores.push(score);
+        lossMargins.push(score - opponentScore); // Will be negative
       }
+    }
 
-      // Calculate means and medians
-      if (winScores.length > 0) {
-        team.avgPointsInWins = winScores.reduce((a, b) => a + b, 0) / winScores.length;
-        const sortedWinScores = [...winScores].sort((a, b) => a - b);
-        team.medianPointsInWins = sortedWinScores[Math.floor(sortedWinScores.length / 2)];
+    // Calculate means and medians
+    if (winScores.length > 0) {
+      team.avgPointsInWins = winScores.reduce((a, b) => a + b, 0) / winScores.length;
+      const sortedWinScores = [...winScores].sort((a, b) => a - b);
+      team.medianPointsInWins = sortedWinScores[Math.floor(sortedWinScores.length / 2)];
 
-        team.avgWinMargin = winMargins.reduce((a, b) => a + b, 0) / winMargins.length;
-        const sortedWinMargins = [...winMargins].sort((a, b) => a - b);
-        team.medianWinMargin = sortedWinMargins[Math.floor(sortedWinMargins.length / 2)];
-      }
+      team.avgWinMargin = winMargins.reduce((a, b) => a + b, 0) / winMargins.length;
+      const sortedWinMargins = [...winMargins].sort((a, b) => a - b);
+      team.medianWinMargin = sortedWinMargins[Math.floor(sortedWinMargins.length / 2)];
+    }
 
-      if (lossScores.length > 0) {
-        team.avgPointsInLosses = lossScores.reduce((a, b) => a + b, 0) / lossScores.length;
-        const sortedLossScores = [...lossScores].sort((a, b) => a - b);
-        team.medianPointsInLosses = sortedLossScores[Math.floor(sortedLossScores.length / 2)];
+    if (lossScores.length > 0) {
+      team.avgPointsInLosses = lossScores.reduce((a, b) => a + b, 0) / lossScores.length;
+      const sortedLossScores = [...lossScores].sort((a, b) => a - b);
+      team.medianPointsInLosses = sortedLossScores[Math.floor(sortedLossScores.length / 2)];
 
-        team.avgLossMargin = lossMargins.reduce((a, b) => a + b, 0) / lossMargins.length;
-        const sortedLossMargins = [...lossMargins].sort((a, b) => a - b);
-        team.medianLossMargin = sortedLossMargins[Math.floor(sortedLossMargins.length / 2)];
-      }
+      team.avgLossMargin = lossMargins.reduce((a, b) => a + b, 0) / lossMargins.length;
+      const sortedLossMargins = [...lossMargins].sort((a, b) => a - b);
+      team.medianLossMargin = sortedLossMargins[Math.floor(sortedLossMargins.length / 2)];
     }
   });
 
-  // Calculate standing value (wins + decimal from total points)
+  // Standing order: wins first, total points breaks ties.
+  // The fractional part is always < 1, so a team can never outrank a team with more wins.
   const maxPoints = Math.max(...teamStatsArray.map((t) => t.totalPoints));
   teamStatsArray.forEach((team) => {
-    team.standingValue = team.wins + (team.totalPoints / maxPoints) * 0.999999;
+    team.standingValue = team.wins + team.totalPoints / (maxPoints + 1);
   });
 
   // Sort by standing value and assign standings

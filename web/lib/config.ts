@@ -33,23 +33,18 @@ export const APP_CONFIG = {
 } as const;
 
 /**
- * Cache configuration (in milliseconds)
+ * Cache configuration (in seconds — Next.js `revalidate` durations)
  */
 export const CACHE_CONFIG = {
   /**
-   * Default cache duration for player data and FantasyCalc API (24 hours)
+   * Default cache duration for player data (24 hours)
    */
-  playerData: 24 * 60 * 60 * 1000,
+  playerData: 24 * 60 * 60,
 
   /**
    * League data revalidation (5 minutes)
    */
   leagueData: 300,
-
-  /**
-   * Transaction data revalidation (30 minutes)
-   */
-  transactionData: 1800,
 
   /**
    * Completed week matchups (1 day)
@@ -60,19 +55,4 @@ export const CACHE_CONFIG = {
    * Current week matchups (no cache - real-time)
    */
   currentWeek: 0,
-} as const;
-
-/**
- * API retry configuration
- */
-export const RETRY_CONFIG = {
-  /**
-   * Maximum number of retry attempts for failed API calls
-   */
-  maxRetries: 4,
-
-  /**
-   * Initial delay between retries in milliseconds
-   */
-  initialDelay: 100,
 } as const;
