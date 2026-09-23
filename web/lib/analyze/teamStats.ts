@@ -98,8 +98,13 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
   // Calculate averages and standing values
   const teamStatsArray = Object.values(stats);
   teamStatsArray.forEach((team) => {
-    if (team.weeklyScores.length > 0) {
-      team.avgPoints = team.totalPoints / team.weeklyScores.length;
+    // Average over completed (scored) weeks only: weeklyScores can include the
+    // current unscored week, which would drag the average down.
+    const weeksToAnalyze = lastScoredWeek !== undefined
+      ? Math.min(lastScoredWeek, team.weeklyScores.length)
+      : team.weeklyScores.length;
+    if (weeksToAnalyze > 0) {
+      team.avgPoints = team.totalPoints / weeksToAnalyze;
     }
 
     // Calculate performance breakdown metrics (only for completed weeks)
@@ -109,11 +114,6 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
     const lossMargins: number[] = [];
 
     const opponentScores = team.weeklyOpponentScores;
-
-    // Determine how many weeks to analyze
-    const weeksToAnalyze = lastScoredWeek !== undefined
-      ? Math.min(lastScoredWeek, team.weeklyResults.length)
-      : team.weeklyResults.length;
 
     // Only loop through completed weeks
     for (let index = 0; index < weeksToAnalyze; index++) {

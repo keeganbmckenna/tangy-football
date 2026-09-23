@@ -246,6 +246,50 @@ describe('calculateTeamStats', () => {
     expect(stats[2].totalPoints).toBe(1200);
     expect(stats[2].standing).toBe(3);
   });
+
+  it('should average points over scored weeks only, ignoring the current unscored week', () => {
+    const roster1 = createMockRoster({
+      roster_id: 1,
+      owner_id: 'user1',
+      settings: { wins: 2, losses: 0, ties: 0, fpts: 300 },
+    });
+    const roster2 = createMockRoster({
+      roster_id: 2,
+      owner_id: 'user2',
+      settings: { wins: 0, losses: 2, ties: 0, fpts: 200 },
+    });
+
+    const user1 = createMockUser({ user_id: 'user1', display_name: 'Team 1' });
+    const user2 = createMockUser({ user_id: 'user2', display_name: 'Team 2' });
+
+    const data = createMockLeagueData({
+      rosters: [roster1, roster2],
+      users: [user1, user2],
+      userMap: { user1: user1, user2: user2 },
+      rosterToUserMap: { 1: 'user1', 2: 'user2' },
+      // Two scored weeks plus the current unscored week (points 0)
+      matchups: {
+        1: [
+          { roster_id: 1, matchup_id: 1, points: 150 },
+          { roster_id: 2, matchup_id: 1, points: 100 },
+        ],
+        2: [
+          { roster_id: 1, matchup_id: 1, points: 150 },
+          { roster_id: 2, matchup_id: 1, points: 100 },
+        ],
+        3: [
+          { roster_id: 1, matchup_id: 1, points: 0 },
+          { roster_id: 2, matchup_id: 1, points: 0 },
+        ],
+      },
+    });
+
+    const stats = calculateTeamStats(data, 2);
+
+    expect(stats[0].weeklyScores).toHaveLength(3);
+    expect(stats[0].avgPoints).toBe(150);
+    expect(stats[1].avgPoints).toBe(100);
+  });
 });
 
 describe('calculateWeeklyMedians', () => {
