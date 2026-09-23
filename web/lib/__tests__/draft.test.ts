@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   median,
   buildSnakeBoard,
+  buildSnakeSlotTeams,
   buildAuctionBoardByTeam,
   summarizeDraftByTeam,
   positionBadgeClass,
@@ -73,6 +74,23 @@ describe('buildSnakeBoard', () => {
 
   it('returns no rows for no picks', () => {
     expect(buildSnakeBoard([], 12)).toEqual([]);
+  });
+});
+
+describe('buildSnakeSlotTeams', () => {
+  it('maps each slot to the roster holding it in round 1', () => {
+    const picks = [
+      makePick({ pick_no: 1, round: 1, draft_slot: 1, roster_id: 7 }),
+      makePick({ pick_no: 2, round: 1, draft_slot: 2, roster_id: 3 }),
+      makePick({ pick_no: 3, round: 2, draft_slot: 2, roster_id: 3 }),
+      makePick({ pick_no: 4, round: 2, draft_slot: 1, roster_id: 7 }),
+    ];
+    expect(buildSnakeSlotTeams(picks, 3)).toEqual([7, 3, null]);
+  });
+
+  it('ignores later rounds when deriving slot holders', () => {
+    const picks = [makePick({ pick_no: 24, round: 2, draft_slot: 1, roster_id: 9 })];
+    expect(buildSnakeSlotTeams(picks, 2)).toEqual([null, null]);
   });
 });
 

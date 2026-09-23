@@ -19,5 +19,5 @@ export { calculatePlayEveryoneStats, calculateWeeklyPlayAll } from './playEveryo
 export { simulateScheduleLuck } from './scheduleLuck';
 export { calculateDivisionStandings, calculateWildCardStandings } from './playoffs';
 export { buildPostseasonBrackets } from './brackets';
-export { median, buildSnakeBoard, buildAuctionBoardByTeam, summarizeDraftByTeam, positionBadgeClass } from './draft';
+export { median, buildSnakeBoard, buildSnakeSlotTeams, buildAuctionBoardByTeam, summarizeDraftByTeam, positionBadgeClass } from './draft';
 export type { DraftData, DraftPickData, SnakeBoardRow, AuctionTeamBoard, DraftTeamSummary } from './draft';

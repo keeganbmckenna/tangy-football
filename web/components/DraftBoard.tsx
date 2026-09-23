@@ -6,7 +6,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import {
   DraftData,
   DraftPickData,
-  buildSnakeBoard,
+  buildSnakeBoard, buildSnakeSlotTeams,
   buildAuctionBoardByTeam,
   summarizeDraftByTeam,
   positionBadgeClass,
@@ -50,6 +50,7 @@ function PickCell({ pick }: { pick: DraftPickData }) {
 
 function SnakeBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueData | null }) {
   const rows = buildSnakeBoard(data.picks, data.teams);
+  const slotTeams = buildSnakeSlotTeams(data.picks, data.teams);
   const slots = Array.from({ length: data.teams }, (_, i) => i + 1);
 
   return (
@@ -60,14 +61,19 @@ function SnakeBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueD
             <th className="px-3 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase sticky left-0 bg-[var(--surface)] z-10">
               Rd
             </th>
-            {slots.map((slot) => (
-              <th
-                key={slot}
-                className="px-2 py-2 text-center text-xs font-medium text-[var(--muted)] uppercase whitespace-nowrap"
-              >
-                Slot {slot}
-              </th>
-            ))}
+            {slots.map((slot) => {
+              const rosterId = slotTeams[slot - 1];
+              const label = rosterId !== null ? teamNameForRoster(leagueData, rosterId) : `Slot ${slot}`;
+              return (
+                <th
+                  key={slot}
+                  className="px-2 py-2 text-center text-xs font-medium text-[var(--muted)] uppercase whitespace-nowrap max-w-[140px] overflow-hidden text-ellipsis"
+                  title={label}
+                >
+                  {label}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">

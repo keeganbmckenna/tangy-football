@@ -125,6 +125,21 @@ export function buildAuctionBoardByTeam(picks: DraftPickData[]): AuctionTeamBoar
 }
 
 /**
+ * Maps draft slot (1..teams) to the roster that holds it, derived from the
+ * round-1 picks. With no draft-pick trades a slot is always held by the same
+ * roster, so each column of the snake board belongs to one team.
+ */
+export function buildSnakeSlotTeams(picks: DraftPickData[], teams: number): (number | null)[] {
+  const slots: (number | null)[] = Array.from({ length: teams }, () => null);
+  for (const pick of picks) {
+    if (pick.round === 1 && pick.draft_slot !== null && pick.draft_slot >= 1 && pick.draft_slot <= teams) {
+      slots[pick.draft_slot - 1] = pick.roster_id;
+    }
+  }
+  return slots;
+}
+
+/**
  * Per-team draft summary: picks, typical weekly haul (sum of median ppg),
  * auction spend, and the best pick by median weekly points.
  */
