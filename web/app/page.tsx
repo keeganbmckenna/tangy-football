@@ -296,7 +296,7 @@ export default function Home() {
             </ErrorBoundary>
             <ErrorBoundary>
               <section>
-                <WeeklyMatchups matchups={matchups} />
+                <WeeklyMatchups matchups={matchups} lastScoredWeek={leagueData?.lastScoredWeek} />
               </section>
             </ErrorBoundary>
           </>

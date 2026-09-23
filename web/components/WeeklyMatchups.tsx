@@ -5,13 +5,16 @@ import { WeekMatchup } from '@/lib/types';
 
 interface WeeklyMatchupsProps {
   matchups: Record<number, WeekMatchup[]>;
+  lastScoredWeek?: number;
 }
 
-export default function WeeklyMatchups({ matchups }: WeeklyMatchupsProps) {
+export default function WeeklyMatchups({ matchups, lastScoredWeek }: WeeklyMatchupsProps) {
   const weeks = Object.keys(matchups)
     .map(Number)
+    // Only show completed weeks: the current unscored week's matchups are 0-0 "ties"
+    .filter((week) => lastScoredWeek === undefined || week <= lastScoredWeek)
     .sort((a, b) => a - b); // Sort ascending (1, 2, 3, ...)
-  const [selectedWeek, setSelectedWeek] = useState(weeks[weeks.length - 1] || 1); // Default to most recent week
+  const [selectedWeek, setSelectedWeek] = useState(weeks[weeks.length - 1] || 1); // Default to most recent completed week
 
   const currentMatchups = matchups[selectedWeek] || [];
 
