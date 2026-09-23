@@ -15,6 +15,7 @@ import WeeklyRankingsHeatmap from '@/components/WeeklyRankingsHeatmap';
 import PlayEveryoneAnalysis from '@/components/PlayEveryoneAnalysis';
 import ScheduleLuckDistribution from '@/components/ScheduleLuckDistribution';
 import WeeklyPlayAll from '@/components/WeeklyPlayAll';
+import DraftBoard from '@/components/DraftBoard';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -153,6 +154,7 @@ export default function Home() {
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: '📊' },
+    { id: 'draft', name: 'Draft', icon: '📋' },
     { id: 'postseason', name: 'Postseason', icon: '🏆' },
     { id: 'weekly', name: 'Weekly Performance', icon: '📈' },
     { id: 'trends', name: 'Season Trends', icon: '📉' },
@@ -298,6 +300,18 @@ export default function Home() {
               </section>
             </ErrorBoundary>
           </>
+        )}
+
+        {/* Draft Tab */}
+        {activeTab === 'draft' && (selectedSeason || leagueData?.league?.season) && (
+          <ErrorBoundary>
+            <section>
+              <DraftBoard
+                season={selectedSeason || leagueData!.league.season}
+                leagueData={leagueData}
+              />
+            </section>
+          </ErrorBoundary>
         )}
 
         {/* Postseason Tab */}
