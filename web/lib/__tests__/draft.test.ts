@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   median,
   buildSnakeBoard,
-  buildAuctionBoard,
+  buildAuctionBoardByTeam,
   summarizeDraftByTeam,
   positionBadgeClass,
   type DraftPickData,
@@ -76,19 +76,32 @@ describe('buildSnakeBoard', () => {
   });
 });
 
-describe('buildAuctionBoard', () => {
-  it('groups nomination-order picks into rounds of `teams`', () => {
-    const picks = [1, 2, 3, 4, 5].map((n) => makePick({ pick_no: n }));
-    const rounds = buildAuctionBoard(picks, 2);
-    expect(rounds).toHaveLength(3);
-    expect(rounds[0].picks.map((p) => p.pick_no)).toEqual([1, 2]);
-    expect(rounds[2].picks.map((p) => p.pick_no)).toEqual([5]);
+describe('buildAuctionBoardByTeam', () => {
+  it('groups picks by roster, sorted by price descending', () => {
+    const picks = [
+      makePick({ pick_no: 1, roster_id: 1, amount: 5, name: 'Cheap' }),
+      makePick({ pick_no: 2, roster_id: 1, amount: 50, name: 'Star' }),
+      makePick({ pick_no: 3, roster_id: 2, amount: 40, name: 'Mid' }),
+    ];
+    const boards = buildAuctionBoardByTeam(picks);
+    expect(boards).toHaveLength(2);
+    const team1 = boards.find((b) => b.rosterId === 1)!;
+    expect(team1.picks.map((p) => p.name)).toEqual(['Star', 'Cheap']);
+    expect(team1.spent).toBe(55);
   });
 
-  it('sorts by pick_no regardless of input order', () => {
-    const picks = [makePick({ pick_no: 3 }), makePick({ pick_no: 1 }), makePick({ pick_no: 2 })];
-    const rounds = buildAuctionBoard(picks, 12);
-    expect(rounds[0].picks.map((p) => p.pick_no)).toEqual([1, 2, 3]);
+  it('orders teams by typical weekly haul descending', () => {
+    const picks = [
+      makePick({ pick_no: 1, roster_id: 1, median_ppg: 5, amount: 50 }),
+      makePick({ pick_no: 2, roster_id: 2, median_ppg: 20, amount: 40 }),
+    ];
+    const boards = buildAuctionBoardByTeam(picks);
+    expect(boards.map((b) => b.rosterId)).toEqual([2, 1]);
+    expect(boards[0].haulMedian).toBe(20);
+  });
+
+  it('returns an empty board for no picks', () => {
+    expect(buildAuctionBoardByTeam([])).toEqual([]);
   });
 });
 

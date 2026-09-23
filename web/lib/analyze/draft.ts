@@ -43,9 +43,14 @@ export interface SnakeBoardRow {
   cells: (DraftPickData | null)[];
 }
 
-export interface AuctionBoardRound {
-  round: number;
+export interface AuctionTeamBoard {
+  rosterId: number | null;
+  /** Picks sorted by auction price, highest first */
   picks: DraftPickData[];
+  /** Sum of median weekly points: the team's "typical weekly haul" */
+  haulMedian: number;
+  /** Total dollars spent */
+  spent: number;
 }
 
 export interface DraftTeamSummary {
@@ -94,16 +99,29 @@ export function buildSnakeBoard(picks: DraftPickData[], teams: number): SnakeBoa
 }
 
 /**
- * Builds an auction draft board: picks in nomination order, grouped into
- * rounds of `teams` nominations each (matching how Sleeper runs auction drafts).
+ * Builds an auction draft board grouped by team: each team's drafted roster,
+ * sorted by auction price (big-money picks first). Teams are ordered by
+ * typical weekly haul, matching the Draft Results summary.
  */
-export function buildAuctionBoard(picks: DraftPickData[], teams: number): AuctionBoardRound[] {
-  const ordered = [...picks].sort((a, b) => a.pick_no - b.pick_no);
-  const rounds: AuctionBoardRound[] = [];
-  for (let i = 0; i < ordered.length; i += teams) {
-    rounds.push({ round: Math.floor(i / teams) + 1, picks: ordered.slice(i, i + teams) });
+export function buildAuctionBoardByTeam(picks: DraftPickData[]): AuctionTeamBoard[] {
+  const byRoster = new Map<number | null, DraftPickData[]>();
+  for (const pick of picks) {
+    const list = byRoster.get(pick.roster_id) ?? [];
+    list.push(pick);
+    byRoster.set(pick.roster_id, list);
   }
-  return rounds;
+
+  const boards: AuctionTeamBoard[] = [];
+  for (const [rosterId, teamPicks] of byRoster) {
+    const ordered = [...teamPicks].sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0) || a.pick_no - b.pick_no);
+    boards.push({
+      rosterId,
+      picks: ordered,
+      haulMedian: ordered.reduce((sum, p) => sum + p.median_ppg, 0),
+      spent: ordered.reduce((sum, p) => sum + (p.amount ?? 0), 0),
+    });
+  }
+  return boards.sort((a, b) => b.haulMedian - a.haulMedian);
 }
 
 /**

@@ -7,7 +7,7 @@ import {
   DraftData,
   DraftPickData,
   buildSnakeBoard,
-  buildAuctionBoard,
+  buildAuctionBoardByTeam,
   summarizeDraftByTeam,
   positionBadgeClass,
 } from '@/lib/analyze/draft';
@@ -94,18 +94,21 @@ function SnakeBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueD
 }
 
 function AuctionBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueData | null }) {
-  const rounds = buildAuctionBoard(data.picks, data.teams);
+  const teams = buildAuctionBoardByTeam(data.picks);
 
   return (
     <div className="space-y-6">
-      {rounds.map((round) => (
-        <div key={round.round} className="overflow-x-auto">
-          <h3 className="px-6 pt-4 pb-2 text-sm font-bold text-[var(--muted)] uppercase tracking-wider">
-            Nominations {round.picks[0]?.pick_no}–{round.picks[round.picks.length - 1]?.pick_no}
+      {teams.map((team) => (
+        <div key={team.rosterId ?? 'none'} className="overflow-x-auto">
+          <h3 className="px-6 pt-4 pb-2 text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">
+            {teamNameForRoster(leagueData, team.rosterId)}
+            <span className="ml-2 text-xs font-normal normal-case text-[var(--muted)]">
+              {team.picks.length} picks · ${team.spent} spent · {team.haulMedian.toFixed(1)}/wk typical
+            </span>
           </h3>
           <table className="min-w-full divide-y divide-[var(--border)]">
             <tbody className="divide-y divide-[var(--border)]">
-              {round.picks.map((pick) => (
+              {team.picks.map((pick) => (
                 <tr key={pick.pick_no} className="hover:bg-[var(--surface)]">
                   <td className="px-6 py-2 whitespace-nowrap text-sm font-bold text-[var(--accent)] w-16">
                     ${pick.amount ?? '—'}
@@ -116,9 +119,6 @@ function AuctionBoard({ data, leagueData }: { data: DraftData; leagueData: Leagu
                     </span>
                     <span className="text-sm font-medium text-[var(--foreground)]">{pick.name}</span>
                     <span className="text-xs text-[var(--muted)] ml-2">{pick.nfl_team}</span>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-[var(--muted)]">
-                    {teamNameForRoster(leagueData, pick.roster_id)}
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-[var(--foreground)]">
                     <span className="font-semibold">{pick.median_ppg.toFixed(1)}</span>
