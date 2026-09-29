@@ -10,6 +10,8 @@ import {
   buildAuctionBoardByTeam,
   summarizeDraftByTeam,
   positionBadgeClass,
+  ppwOf,
+  withAvailability,
 } from '@/lib/analyze/draft';
 import type { LeagueData } from '@/lib/types';
 
@@ -31,7 +33,7 @@ function PickCell({ pick }: { pick: DraftPickData }) {
       <div className="flex items-center justify-between gap-1">
         <span className="text-[10px] text-[var(--muted)]">#{pick.pick_no}</span>
         <span className="text-[11px] font-semibold text-[var(--foreground)]">
-          {pick.median_ppg.toFixed(1)}<span className="font-normal text-[var(--muted)]">/wk</span>
+          {ppwOf(pick).toFixed(1)}<span className="font-normal text-[var(--muted)]">/wk</span>
         </span>
       </div>
       <div className="text-xs font-medium text-[var(--foreground)] truncate" title={pick.name}>
@@ -44,6 +46,7 @@ function PickCell({ pick }: { pick: DraftPickData }) {
         <span className="text-[10px] text-[var(--muted)]">{pick.nfl_team}</span>
         <span className="text-[10px] text-[var(--muted)]">· {pick.games}g</span>
       </div>
+      <div className="text-[10px] text-[var(--muted)]">{pick.median_ppg.toFixed(1)} healthy</div>
     </div>
   );
 }
@@ -109,7 +112,8 @@ function AuctionBoard({ data, leagueData }: { data: DraftData; leagueData: Leagu
           <h3 className="px-6 pt-4 pb-2 text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">
             {teamNameForRoster(leagueData, team.rosterId)}
             <span className="ml-2 text-xs font-normal normal-case text-[var(--muted)]">
-              {team.picks.length} picks · ${team.spent} spent · {team.haulMedian.toFixed(1)}/wk typical
+              {team.picks.length} picks · ${team.spent} spent · {team.haul.toFixed(1)}/wk
+              ({team.haulHealthy.toFixed(1)} healthy)
             </span>
           </h3>
           <table className="min-w-full divide-y divide-[var(--border)]">
@@ -127,8 +131,11 @@ function AuctionBoard({ data, leagueData }: { data: DraftData; leagueData: Leagu
                     <span className="text-xs text-[var(--muted)] ml-2">{pick.nfl_team}</span>
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-[var(--foreground)]">
-                    <span className="font-semibold">{pick.median_ppg.toFixed(1)}</span>
-                    <span className="text-[var(--muted)]">/wk · {pick.games}g</span>
+                    <span className="font-semibold">{ppwOf(pick).toFixed(1)}</span>
+                    <span className="text-[var(--muted)]">
+                      /wk · {pick.median_ppg.toFixed(1)} healthy · {pick.games}g
+                      {pick.available_weeks !== undefined && `/${pick.available_weeks}`}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -157,7 +164,10 @@ function TeamSummary({ data, leagueData }: { data: DraftData; leagueData: League
               </>
             )}
             <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-              Typical haul/wk
+              Haul/wk
+            </th>
+            <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              Healthy/wk
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Best pick</th>
           </tr>
@@ -183,13 +193,16 @@ function TeamSummary({ data, leagueData }: { data: DraftData; leagueData: League
                 </>
               )}
               <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-[var(--foreground)]">
-                {s.haulMedian.toFixed(1)}
+                {s.haul.toFixed(1)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
+                {s.haulHealthy.toFixed(1)}
               </td>
               <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)]">
                 {s.bestPick ? (
                   <>
                     {s.bestPick.name}
-                    <span className="text-xs"> ({s.bestPick.median_ppg.toFixed(1)}/wk{s.bestPick.amount ? `, $${s.bestPick.amount}` : ''})</span>
+                    <span className="text-xs"> ({ppwOf(s.bestPick).toFixed(1)}/wk{s.bestPick.amount ? `, $${s.bestPick.amount}` : ''})</span>
                   </>
                 ) : '—'}
               </td>
@@ -230,7 +243,7 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
     request
       .then((json) => {
         if (!cancelled) {
-          setData(json);
+          setData(withAvailability(json));
           setLoading(false);
         }
       })
@@ -270,11 +283,13 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
         gradientType="warning"
         footer={
           <span>
-            <strong>Median weekly points</strong> (half-PPR) over games played — the typical week each
-            pick produced, resistant to single boom-week spikes. <strong>Typical haul/wk</strong> sums
-            every pick&apos;s median: roughly what the draft class produces in an average week.
+            <strong>/wk</strong> is half-PPR points per available week: total points divided by the weeks
+            the player could have played (weeks scored minus their bye), so games missed to injury,
+            suspension or benching count as zeros. <strong>Healthy</strong> is the median over games
+            actually played: how good they were on the field. <strong>Haul/wk</strong> sums every
+            pick&apos;s /wk: what the draft class delivered in an average week.
             {data.type === 'auction' && (
-              <> <strong>$/pt</strong> is dollars spent per typical weekly point (lower is better).</>
+              <> <strong>$/pt</strong> is dollars spent per point of weekly haul (lower is better).</>
             )}
           </span>
         }

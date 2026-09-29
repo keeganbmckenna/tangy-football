@@ -1,10 +1,17 @@
 /**
  * Draft board builders for snake and auction drafts.
  *
- * Per-player production is the median weekly half-PPR points over games played.
- * Median is used instead of mean because weekly fantasy scores are right-skewed:
- * a single 40-point spike inflates the mean and makes a boom-bust player look
- * better than the steady producer he was most weeks.
+ * Each pick carries two production numbers:
+ * - median_ppg: median weekly half-PPR points over games played, "how good was
+ *   he when he played". Median rather than mean because weekly scores are
+ *   right-skewed: one 40-point spike would make a boom-bust player look better
+ *   than the steady producer he was most weeks.
+ * - ppw: total points / available weeks (weeks elapsed minus his team's byes),
+ *   "what did this pick give the team each week". Missed games count as zeros,
+ *   so a star who got hurt in week 4 grades as the bust he was. This is a mean
+ *   on purpose: each missed week should cost its share, and a median over a
+ *   mostly-zero season collapses to 0 regardless of how he played.
+ * Team-level grades (haul, best pick, $/pt) use ppw.
  */
 
 import type { SleeperDraft, SleeperDraftPick, SleeperPlayerWeekStats, SleeperRoster } from '../types';
@@ -24,6 +31,10 @@ export interface DraftPickData {
   games: number;
   median_ppg: number;
   total: number;
+  /** Weeks elapsed minus bye weeks; absent in files built before it existed */
+  available_weeks?: number;
+  /** Points per available week (total / available_weeks) */
+  ppw?: number;
 }
 
 export interface DraftData {
@@ -49,8 +60,10 @@ export interface AuctionTeamBoard {
   rosterId: number | null;
   /** Picks sorted by auction price, highest first */
   picks: DraftPickData[];
-  /** Sum of median weekly points: the team's "typical weekly haul" */
-  haulMedian: number;
+  /** Sum of points per available week: what the class delivered each week */
+  haul: number;
+  /** Sum of median weekly points when playing: the class at full health */
+  haulHealthy: number;
   /** Total dollars spent */
   spent: number;
 }
@@ -59,11 +72,13 @@ export interface DraftTeamSummary {
   rosterId: number | null;
   picks: DraftPickData[];
   count: number;
-  /** Sum of median weekly points across all picks: the "typical weekly haul" */
-  haulMedian: number;
+  /** Sum of points per available week across all picks */
+  haul: number;
+  /** Sum of median weekly points when playing across all picks */
+  haulHealthy: number;
   /** Auction only: total dollars spent */
   spent: number;
-  /** Auction only: dollars per typical weekly point (lower is better) */
+  /** Auction only: dollars per weekly haul point (lower is better) */
   dollarsPerPoint: number | null;
   bestPick: DraftPickData | null;
 }
@@ -81,6 +96,36 @@ export function median(values: number[]): number {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Points per available week for a pick, from the pick's own fields */
+export function pointsPerAvailableWeek(total: number, availableWeeks: number): number {
+  return availableWeeks > 0 ? round2(total / availableWeeks) : 0;
+}
+
+/**
+ * Fills available_weeks/ppw on picks from files built before those fields
+ * existed. NFL byes fall in weeks 5-14 and every team has exactly one, so a
+ * season scored through week 14+ loses one week per player; earlier than that
+ * the bye may not have happened yet, so none is assumed. Exact for completed
+ * seasons except players traded across bye weeks.
+ */
+export function withAvailability(data: DraftData): DraftData {
+  if (data.picks.every((p) => p.available_weeks !== undefined && p.ppw !== undefined)) return data;
+  const assumedAvailable = data.weeks_scored - (data.weeks_scored >= 14 ? 1 : 0);
+  return {
+    ...data,
+    picks: data.picks.map((p) => {
+      if (p.available_weeks !== undefined && p.ppw !== undefined) return p;
+      const available = Math.max(assumedAvailable, p.games);
+      return { ...p, available_weeks: available, ppw: pointsPerAvailableWeek(p.total, available) };
+    }),
+  };
+}
+
+/** Points per available week, tolerating picks not run through withAvailability */
+export function ppwOf(pick: DraftPickData): number {
+  return pick.ppw ?? pick.median_ppg;
+}
 
 /**
  * Builds a season's DraftData from raw Sleeper responses. Mirrors
@@ -100,6 +145,18 @@ export function buildDraftData(
     Object.entries(draft.slot_to_roster_id ?? {}).map(([slot, rosterId]) => [Number(slot), rosterId])
   );
 
+  // A team is on bye (or its game was cancelled) in a week its defense didn't
+  // play. Defense stats are keyed by team abbreviation. Teams never seen
+  // playing (unknown abbreviation) get no bye detection: every week counts.
+  const teamPlayed = (stats: Record<string, SleeperPlayerWeekStats>, team: string) =>
+    (stats[team]?.gp ?? 0) >= 1;
+  const knownTeams = new Set<string>();
+  for (const stats of weeklyStats) {
+    for (const [id, s] of Object.entries(stats)) {
+      if (/^[A-Z]{2,3}$/.test(id) && (s.gp ?? 0) >= 1) knownTeams.add(id);
+    }
+  }
+
   const out = [...picks]
     .sort((a, b) => (a.pick_no ?? 0) - (b.pick_no ?? 0))
     .map((p): DraftPickData => {
@@ -107,10 +164,18 @@ export function buildDraftData(
       const pid = p.player_id ?? '';
       // Games played only (gp >= 1): bye weeks and inactive weeks don't count as zeros
       const weekly: number[] = [];
+      let availableWeeks = 0;
+      const team = meta.team ?? '';
       for (const stats of weeklyStats) {
         const s = pid ? stats[pid] : undefined;
-        if (s && (s.gp ?? 0) >= 1) weekly.push(round2(Number(s.pts_half_ppr ?? 0)));
+        const played = !!s && (s.gp ?? 0) >= 1;
+        if (played) weekly.push(round2(Number(s.pts_half_ppr ?? 0)));
+        // A week counts unless he sat it out because his (draft-time) team was
+        // on bye. Playing always counts, which covers mid-season trades.
+        const onBye = knownTeams.has(team) && !teamPlayed(stats, team);
+        if (played || !onBye) availableWeeks++;
       }
+      const total = round2(weekly.reduce((sum, v) => sum + v, 0));
       const rosterId =
         type === 'auction'
           ? userToRoster.get(p.picked_by ?? '') ?? null
@@ -131,7 +196,9 @@ export function buildDraftData(
         weekly,
         games: weekly.length,
         median_ppg: round2(median(weekly)),
-        total: round2(weekly.reduce((sum, v) => sum + v, 0)),
+        total,
+        available_weeks: availableWeeks,
+        ppw: pointsPerAvailableWeek(total, availableWeeks),
       };
     });
 
@@ -145,7 +212,9 @@ export function buildDraftData(
     budget: budget ? Math.trunc(budget) : null,
     weeks_scored: weeklyStats.length,
     scoring: 'half_ppr',
-    stat_note: 'median weekly half-PPR points over games played (gp >= 1)',
+    stat_note:
+      'median_ppg: median weekly half-PPR points over games played (gp >= 1); ' +
+      'ppw: total points per available week (weeks elapsed minus byes)',
     picks: out,
   };
 }
@@ -173,7 +242,7 @@ export function buildSnakeBoard(picks: DraftPickData[], teams: number): SnakeBoa
 /**
  * Builds an auction draft board grouped by team: each team's drafted roster,
  * sorted by auction price (big-money picks first). Teams are ordered by
- * typical weekly haul, matching the Draft Results summary.
+ * weekly haul, matching the Draft Results summary.
  */
 export function buildAuctionBoardByTeam(picks: DraftPickData[]): AuctionTeamBoard[] {
   const byRoster = new Map<number | null, DraftPickData[]>();
@@ -189,11 +258,12 @@ export function buildAuctionBoardByTeam(picks: DraftPickData[]): AuctionTeamBoar
     boards.push({
       rosterId,
       picks: ordered,
-      haulMedian: ordered.reduce((sum, p) => sum + p.median_ppg, 0),
+      haul: ordered.reduce((sum, p) => sum + ppwOf(p), 0),
+      haulHealthy: ordered.reduce((sum, p) => sum + p.median_ppg, 0),
       spent: ordered.reduce((sum, p) => sum + (p.amount ?? 0), 0),
     });
   }
-  return boards.sort((a, b) => b.haulMedian - a.haulMedian);
+  return boards.sort((a, b) => b.haul - a.haul);
 }
 
 /**
@@ -212,8 +282,9 @@ export function buildSnakeSlotTeams(picks: DraftPickData[], teams: number): (num
 }
 
 /**
- * Per-team draft summary: picks, typical weekly haul (sum of median ppg),
- * auction spend, and the best pick by median weekly points.
+ * Per-team draft summary: picks, weekly haul (sum of points per available
+ * week), the at-full-health haul (sum of median ppg), auction spend, and the
+ * best pick by points per available week.
  */
 export function summarizeDraftByTeam(picks: DraftPickData[]): DraftTeamSummary[] {
   const byRoster = new Map<number | null, DraftPickData[]>();
@@ -226,23 +297,25 @@ export function summarizeDraftByTeam(picks: DraftPickData[]): DraftTeamSummary[]
   const summaries: DraftTeamSummary[] = [];
   for (const [rosterId, teamPicks] of byRoster) {
     const ordered = [...teamPicks].sort((a, b) => a.pick_no - b.pick_no);
-    const haulMedian = ordered.reduce((sum, p) => sum + p.median_ppg, 0);
+    const haul = ordered.reduce((sum, p) => sum + ppwOf(p), 0);
+    const haulHealthy = ordered.reduce((sum, p) => sum + p.median_ppg, 0);
     const spent = ordered.reduce((sum, p) => sum + (p.amount ?? 0), 0);
     const bestPick = ordered.reduce<DraftPickData | null>(
-      (best, p) => (!best || p.median_ppg > best.median_ppg ? p : best),
+      (best, p) => (!best || ppwOf(p) > ppwOf(best) ? p : best),
       null
     );
     summaries.push({
       rosterId,
       picks: ordered,
       count: ordered.length,
-      haulMedian: Math.round(haulMedian * 100) / 100,
+      haul: round2(haul),
+      haulHealthy: round2(haulHealthy),
       spent,
-      dollarsPerPoint: spent > 0 && haulMedian > 0 ? Math.round((spent / haulMedian) * 100) / 100 : null,
+      dollarsPerPoint: spent > 0 && haul > 0 ? round2(spent / haul) : null,
       bestPick,
     });
   }
-  return summaries.sort((a, b) => b.haulMedian - a.haulMedian);
+  return summaries.sort((a, b) => b.haul - a.haul);
 }
 
 /** Tailwind classes for position badges */

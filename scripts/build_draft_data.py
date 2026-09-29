@@ -7,12 +7,15 @@ For each season (2022-2026) this fetches:
 
 and writes a compact JSON file per season to web/public/data/drafts/{season}.json.
 
-Per-player production is summarized as the MEDIAN weekly fantasy points over
-games played (gp >= 1). Median is used instead of mean because weekly fantasy
-scores are right-skewed: one 40-point spike inflates the mean and makes a
-boom-bust player look better than the steady producer he was most weeks.
-Median answers "what did this pick give you in a typical week." Games played
-and total points are included alongside so availability isn't hidden.
+Per-player production is summarized two ways (see web/lib/analyze/draft.ts):
+  - median_ppg: MEDIAN weekly fantasy points over games played (gp >= 1), i.e.
+    how good the player was when on the field. Median rather than mean because
+    weekly scores are right-skewed: one 40-point spike would make a boom-bust
+    player look better than the steady producer they were most weeks.
+  - ppw: total points / available weeks (weeks scored minus the team's bye),
+    i.e. what the pick delivered each week. Injured weeks count as zeros.
+Byes are detected from team defense lines (keyed by team abbreviation): a week
+the player's team defense didn't play is a bye.
 
 Completed seasons never change. The in-progress season is built live by the
 web app's /api/draft/[season] route (same logic, see buildDraftData in
@@ -21,6 +24,7 @@ if that live build fails. Re-run after a season ends to freeze its final data.
 """
 
 import json
+import re
 import statistics
 import sys
 import time
@@ -81,15 +85,31 @@ def build_season(season: str, league_id: str, draft_id: str) -> dict:
 
     # player_id -> list of weekly half-PPR points (games played only)
     weekly: dict[str, list[float]] = {pid: [] for pid in drafted_ids}
+    # player_id -> weeks played, per week (for availability)
+    played_weeks: dict[str, set[int]] = {pid: set() for pid in drafted_ids}
+    # team abbreviation -> weeks its defense played
+    team_weeks: dict[str, set[int]] = {}
     for week in weeks:
         stats = get(f"{BASE}/stats/nfl/regular/{season}/{week}")
+        for sid, s in stats.items():
+            if re.fullmatch(r"[A-Z]{2,3}", sid) and (s.get("gp") or 0) >= 1:
+                team_weeks.setdefault(sid, set()).add(week)
         for pid in drafted_ids:
             s = stats.get(pid)
             if not s:
                 continue
             if (s.get("gp") or 0) >= 1:
                 weekly[pid].append(round(float(s.get("pts_half_ppr") or 0), 2))
+                played_weeks[pid].add(week)
         time.sleep(0.05)  # be polite to the free API
+
+    def available_weeks(pid: str | None, team: str | None) -> int:
+        # A week counts unless the player sat it out because their (draft-time)
+        # team was on bye. Playing always counts, which covers mid-season trades.
+        # Teams never seen playing get no bye detection.
+        tw = team_weeks.get(team or "")
+        played = played_weeks.get(pid or "", set())
+        return sum(1 for w in weeks if w in played or tw is None or w in tw)
 
     out_picks = []
     for p in sorted(picks, key=lambda x: x.get("pick_no", 0)):
@@ -99,6 +119,8 @@ def build_season(season: str, league_id: str, draft_id: str) -> dict:
         games = len(w)
         median_ppg = round(statistics.median(w), 2) if w else 0.0
         total = round(sum(w), 2)
+        avail = available_weeks(pid, meta.get("team"))
+        ppw = round(total / avail, 2) if avail else 0.0
 
         if draft_type == "auction":
             roster_id = user_to_roster.get(p.get("picked_by"))
@@ -123,6 +145,8 @@ def build_season(season: str, league_id: str, draft_id: str) -> dict:
                 "games": games,
                 "median_ppg": median_ppg,
                 "total": total,
+                "available_weeks": avail,
+                "ppw": ppw,
             }
         )
 
@@ -135,7 +159,10 @@ def build_season(season: str, league_id: str, draft_id: str) -> dict:
         "budget": int(budget) if budget else None,
         "weeks_scored": len(weeks),
         "scoring": "half_ppr",
-        "stat_note": "median weekly half-PPR points over games played (gp >= 1)",
+        "stat_note": (
+            "median_ppg: median weekly half-PPR points over games played (gp >= 1); "
+            "ppw: total points per available week (weeks elapsed minus byes)"
+        ),
         "picks": out_picks,
     }
 

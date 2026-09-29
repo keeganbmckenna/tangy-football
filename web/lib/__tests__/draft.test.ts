@@ -7,6 +7,8 @@ import {
   buildAuctionBoardByTeam,
   summarizeDraftByTeam,
   positionBadgeClass,
+  withAvailability,
+  type DraftData,
   type DraftPickData,
 } from '../analyze/draft';
 import type { SleeperDraft, SleeperDraftPick, SleeperPlayerWeekStats, SleeperRoster } from '../types';
@@ -110,14 +112,15 @@ describe('buildAuctionBoardByTeam', () => {
     expect(team1.spent).toBe(55);
   });
 
-  it('orders teams by typical weekly haul descending', () => {
+  it('orders teams by weekly haul descending', () => {
     const picks = [
       makePick({ pick_no: 1, roster_id: 1, median_ppg: 5, amount: 50 }),
       makePick({ pick_no: 2, roster_id: 2, median_ppg: 20, amount: 40 }),
     ];
     const boards = buildAuctionBoardByTeam(picks);
     expect(boards.map((b) => b.rosterId)).toEqual([2, 1]);
-    expect(boards[0].haulMedian).toBe(20);
+    expect(boards[0].haul).toBe(20);
+    expect(boards[0].haulHealthy).toBe(20);
   });
 
   it('returns an empty board for no picks', () => {
@@ -136,11 +139,29 @@ describe('summarizeDraftByTeam', () => {
     expect(summaries).toHaveLength(2);
     // sorted by haul descending
     expect(summaries[0].rosterId).toBe(1);
-    expect(summaries[0].haulMedian).toBe(28);
+    expect(summaries[0].haul).toBe(28);
+    expect(summaries[0].haulHealthy).toBe(28);
     expect(summaries[0].spent).toBe(55);
     expect(summaries[0].dollarsPerPoint).toBeCloseTo(55 / 28, 2);
     expect(summaries[0].bestPick?.name).toBe('Star');
     expect(summaries[1].bestPick?.name).toBe('Mid');
+  });
+
+  it('grades by points per available week, not median when healthy', () => {
+    const picks = [
+      // 25/game but hurt after week 2 of 16 available
+      makePick({ pick_no: 1, roster_id: 1, median_ppg: 25, ppw: 3.13, amount: 60, name: 'Hurt Star' }),
+      makePick({ pick_no: 2, roster_id: 2, median_ppg: 12, ppw: 11.5, amount: 20, name: 'Steady' }),
+    ];
+    const summaries = summarizeDraftByTeam(picks);
+    expect(summaries.map((s) => s.rosterId)).toEqual([2, 1]);
+    expect(summaries[1].haul).toBe(3.13);
+    expect(summaries[1].haulHealthy).toBe(25);
+    expect(summaries[1].dollarsPerPoint).toBeCloseTo(60 / 3.13, 2);
+    expect(buildAuctionBoardByTeam(picks).map((b) => b.rosterId)).toEqual([2, 1]);
+
+    const both = picks.map((p) => ({ ...p, roster_id: 1 }));
+    expect(summarizeDraftByTeam(both)[0].bestPick?.name).toBe('Steady');
   });
 
   it('handles snake drafts with no amounts', () => {
@@ -231,5 +252,81 @@ describe('buildDraftData', () => {
     const data = buildDraftData(snakeDraft, picks, rosters, []);
     expect(data.weeks_scored).toBe(0);
     expect(data.picks[0]).toMatchObject({ weekly: [], games: 0, median_ppg: 0, total: 0 });
+  });
+});
+
+describe('buildDraftData availability', () => {
+  const draft: SleeperDraft = {
+    draft_id: 'd1',
+    season: '2026',
+    type: 'snake',
+    status: 'complete',
+    settings: { teams: 1, rounds: 2 },
+    slot_to_roster_id: { '1': 1 },
+  };
+  const pick = (pick_no: number, player_id: string, team: string): SleeperDraftPick => ({
+    pick_no, round: pick_no, draft_slot: 1, player_id, picked_by: 'u1',
+    metadata: { first_name: player_id, last_name: '', position: 'WR', team },
+  });
+
+  // Week 2 is KC's bye (no KC defense line); BUF plays every week
+  const weeklyStats: Record<string, SleeperPlayerWeekStats>[] = [
+    { KC: { gp: 1 }, BUF: { gp: 1 }, hurt: { gp: 1, pts_half_ppr: 25 }, kc: { gp: 1, pts_half_ppr: 10 } },
+    { BUF: { gp: 1 } },
+    { KC: { gp: 1 }, BUF: { gp: 1 }, kc: { gp: 1, pts_half_ppr: 14 } },
+    { KC: { gp: 1 }, BUF: { gp: 1 }, kc: { gp: 1, pts_half_ppr: 12 } },
+  ];
+
+  it('counts injured weeks as zeros but excludes bye weeks', () => {
+    const data = buildDraftData(draft, [pick(1, 'hurt', 'BUF'), pick(2, 'kc', 'KC')], [], weeklyStats);
+    const [hurt, kc] = data.picks;
+
+    // Played week 1 only, BUF had no bye: 25 over 4 available weeks
+    expect(hurt).toMatchObject({ games: 1, median_ppg: 25, available_weeks: 4, ppw: 6.25 });
+    // Played every non-bye week: the bye doesn't count against them
+    expect(kc).toMatchObject({ games: 3, median_ppg: 12, available_weeks: 3, ppw: 12 });
+  });
+
+  it('counts a week played during the draft-time team\'s bye (traded player)', () => {
+    const stats = weeklyStats.map((w, i) => (i === 1 ? { ...w, kc: { gp: 1, pts_half_ppr: 8 } } : w));
+    const [kc] = buildDraftData(draft, [pick(1, 'kc', 'KC')], [], stats).picks;
+    expect(kc).toMatchObject({ games: 4, available_weeks: 4, ppw: 11 });
+  });
+
+  it('skips bye detection for a team never seen playing', () => {
+    const [p] = buildDraftData(draft, [pick(1, 'hurt', 'XYZ')], [], weeklyStats).picks;
+    expect(p.available_weeks).toBe(4);
+  });
+
+  it('gives zero ppw when no weeks are scored', () => {
+    const [p] = buildDraftData(draft, [pick(1, 'hurt', 'BUF')], [], []).picks;
+    expect(p).toMatchObject({ available_weeks: 0, ppw: 0 });
+  });
+});
+
+describe('withAvailability', () => {
+  const base = (weeks_scored: number, picks: DraftPickData[]): DraftData => ({
+    season: '2024', draft_id: 'd', type: 'auction', rounds: 1, teams: 1, budget: 200,
+    weeks_scored, scoring: 'half_ppr', stat_note: '', picks,
+  });
+
+  it('assumes one bye for seasons scored through week 14+', () => {
+    const data = withAvailability(base(17, [makePick({ games: 4, total: 40 })]));
+    expect(data.picks[0]).toMatchObject({ available_weeks: 16, ppw: 2.5 });
+  });
+
+  it('assumes no bye before week 14', () => {
+    const data = withAvailability(base(3, [makePick({ games: 2, total: 30 })]));
+    expect(data.picks[0]).toMatchObject({ available_weeks: 3, ppw: 10 });
+  });
+
+  it('never assumes fewer available weeks than games played', () => {
+    const data = withAvailability(base(17, [makePick({ games: 17, total: 170 })]));
+    expect(data.picks[0]).toMatchObject({ available_weeks: 17, ppw: 10 });
+  });
+
+  it('leaves picks that already have availability untouched', () => {
+    const input = base(17, [makePick({ available_weeks: 12, ppw: 4 })]);
+    expect(withAvailability(input)).toBe(input);
   });
 });
