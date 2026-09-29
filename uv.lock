@@ -52,7 +52,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fantasy-football-2025"
+name = "fantasy-football-2026"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
