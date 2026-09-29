@@ -14,7 +14,10 @@ boom-bust player look better than the steady producer he was most weeks.
 Median answers "what did this pick give you in a typical week." Games played
 and total points are included alongside so availability isn't hidden.
 
-Re-run to refresh the in-progress season (2026); completed seasons never change.
+Completed seasons never change. The in-progress season is built live by the
+web app's /api/draft/[season] route (same logic, see buildDraftData in
+web/lib/analyze/draft.ts), so its JSON here is only a fallback snapshot used
+if that live build fails. Re-run after a season ends to freeze its final data.
 """
 
 import json

@@ -55,4 +55,11 @@ export const CACHE_CONFIG = {
    * Current week matchups (no cache - real-time)
    */
   currentWeek: 0,
+
+  /**
+   * Live draft data for an in-progress season (1 hour). The cache key also
+   * includes the last scored week, so a newly scored week shows up right away;
+   * this only bounds how long mid-week stat corrections take to appear.
+   */
+  draftData: 3600,
 } as const;

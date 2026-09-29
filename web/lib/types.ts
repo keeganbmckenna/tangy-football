@@ -79,6 +79,45 @@ export interface SleeperLeague {
   bracket_id?: string | null;
   loser_bracket_id?: string | null;
   previous_league_id?: string | null;
+  draft_id?: string | null;
+}
+
+// Draft Types
+export interface SleeperDraft {
+  draft_id: string;
+  season: string;
+  type: string;
+  status: string;
+  settings?: {
+    teams?: number;
+    rounds?: number;
+    budget?: number;
+  };
+  /** Draft slot (as a string key) -> roster_id */
+  slot_to_roster_id?: Record<string, number> | null;
+}
+
+export interface SleeperDraftPick {
+  pick_no: number;
+  round: number | null;
+  draft_slot: number | null;
+  player_id: string | null;
+  /** user_id of the drafter */
+  picked_by: string | null;
+  metadata?: {
+    first_name?: string;
+    last_name?: string;
+    position?: string;
+    team?: string;
+    /** Auction price, as a string */
+    amount?: string;
+  } | null;
+}
+
+/** One player's line from /stats/nfl/regular/{season}/{week} */
+export interface SleeperPlayerWeekStats {
+  gp?: number;
+  pts_half_ppr?: number;
 }
 
 export interface LeagueData {

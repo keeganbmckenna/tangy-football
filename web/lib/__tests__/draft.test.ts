@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   median,
+  buildDraftData,
   buildSnakeBoard,
   buildSnakeSlotTeams,
   buildAuctionBoardByTeam,
@@ -8,6 +9,7 @@ import {
   positionBadgeClass,
   type DraftPickData,
 } from '../analyze/draft';
+import type { SleeperDraft, SleeperDraftPick, SleeperPlayerWeekStats, SleeperRoster } from '../types';
 
 function makePick(overrides: Partial<DraftPickData> = {}): DraftPickData {
   return {
@@ -155,5 +157,79 @@ describe('positionBadgeClass', () => {
     expect(positionBadgeClass('WR')).toContain('blue');
     expect(positionBadgeClass('XX')).toContain('zinc');
     expect(positionBadgeClass(null)).toContain('zinc');
+  });
+});
+
+describe('buildDraftData', () => {
+  const rosters = [
+    { roster_id: 1, owner_id: 'u1' },
+    { roster_id: 2, owner_id: 'u2' },
+  ] as SleeperRoster[];
+
+  const snakeDraft: SleeperDraft = {
+    draft_id: 'd1',
+    season: '2026',
+    type: 'snake',
+    status: 'complete',
+    settings: { teams: 2, rounds: 1 },
+    slot_to_roster_id: { '1': 2, '2': 1 },
+  };
+
+  const picks: SleeperDraftPick[] = [
+    {
+      pick_no: 2, round: 1, draft_slot: 2, player_id: 'p2', picked_by: 'u1',
+      metadata: { first_name: 'Bo', last_name: 'Nix', position: 'QB', team: 'DEN', amount: '' },
+    },
+    {
+      pick_no: 1, round: 1, draft_slot: 1, player_id: 'p1', picked_by: 'u2',
+      metadata: { first_name: 'Bijan', last_name: 'Robinson', position: 'RB', team: 'ATL', amount: '' },
+    },
+  ];
+
+  const weeklyStats: Record<string, SleeperPlayerWeekStats>[] = [
+    { p1: { gp: 1, pts_half_ppr: 20.456 }, p2: { gp: 1, pts_half_ppr: 18 } },
+    { p1: { gp: 1, pts_half_ppr: 10 }, p2: { gp: 0, pts_half_ppr: 0 } },
+    { p1: { gp: 1, pts_half_ppr: 30 } },
+  ];
+
+  it('counts every scored week passed in', () => {
+    expect(buildDraftData(snakeDraft, picks, rosters, weeklyStats).weeks_scored).toBe(3);
+  });
+
+  it('builds per-pick production from games played only', () => {
+    const data = buildDraftData(snakeDraft, picks, rosters, weeklyStats);
+    expect(data.picks.map((p) => p.pick_no)).toEqual([1, 2]);
+
+    const [bijan, nix] = data.picks;
+    expect(bijan.weekly).toEqual([20.46, 10, 30]);
+    expect(bijan.games).toBe(3);
+    expect(bijan.median_ppg).toBe(20.46);
+    expect(bijan.total).toBe(60.46);
+    expect(bijan.name).toBe('Bijan Robinson');
+    expect(bijan.amount).toBeNull();
+
+    // gp 0 in week 2 and absent in week 3: only week 1 counts
+    expect(nix.weekly).toEqual([18]);
+    expect(nix.games).toBe(1);
+  });
+
+  it('maps snake picks to rosters by draft slot', () => {
+    const data = buildDraftData(snakeDraft, picks, rosters, weeklyStats);
+    expect(data.picks.map((p) => p.roster_id)).toEqual([2, 1]);
+    expect(data.budget).toBeNull();
+  });
+
+  it('maps auction picks to rosters by drafter and parses prices', () => {
+    const auction: SleeperDraft = { ...snakeDraft, type: 'auction', settings: { teams: 2, rounds: 1, budget: 200 } };
+    const auctionPicks = picks.map((p, i) => ({ ...p, metadata: { ...p.metadata, amount: String(50 - i) } }));
+    const data = buildDraftData(auction, auctionPicks, rosters, weeklyStats);
+    expect(data.budget).toBe(200);
+    expect(data.picks.map((p) => [p.roster_id, p.amount])).toEqual([[2, 49], [1, 50]]);
+  });
+
+  it('handles a player with no games', () => {
+    const data = buildDraftData(snakeDraft, picks, rosters, []);
+    expect(data.weeks_scored).toBe(0);
+    expect(data.picks[0]).toMatchObject({ weekly: [], games: 0, median_ppg: 0, total: 0 });
   });
 });

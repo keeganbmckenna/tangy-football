@@ -1,33 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
-import type { SleeperLeague, SleeperUser, SleeperRoster, SleeperMatchup, SleeperBracketMatchup } from '@/lib/types';
-
-const fetchLeague = async (baseUrl: string, leagueId: string) => {
-  const response = await fetch(`${baseUrl}/league/${leagueId}`, {
-    next: { revalidate: CACHE_CONFIG.leagueData },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch league ${leagueId}`);
-  }
-
-  return response.json() as Promise<SleeperLeague>;
-};
-
-const buildLeagueChain = async (baseUrl: string, leagueId: string) => {
-  const leagues: SleeperLeague[] = [];
-  const visited = new Set<string>();
-  let currentLeagueId: string | null | undefined = leagueId;
-
-  while (currentLeagueId && !visited.has(currentLeagueId)) {
-    visited.add(currentLeagueId);
-    const league = await fetchLeague(baseUrl, currentLeagueId);
-    leagues.push(league);
-    currentLeagueId = league.previous_league_id;
-  }
-
-  return leagues;
-};
+import { buildLeagueChain } from '@/lib/sleeper';
+import type { SleeperUser, SleeperRoster, SleeperMatchup, SleeperBracketMatchup } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {

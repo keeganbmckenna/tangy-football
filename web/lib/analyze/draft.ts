@@ -7,6 +7,8 @@
  * better than the steady producer he was most weeks.
  */
 
+import type { SleeperDraft, SleeperDraftPick, SleeperPlayerWeekStats, SleeperRoster } from '../types';
+
 export interface DraftPickData {
   pick_no: number;
   round: number | null;
@@ -76,6 +78,76 @@ export function median(values: number[]): number {
   return sorted.length % 2 === 0
     ? (sorted[mid - 1] + sorted[mid]) / 2
     : sorted[mid];
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Builds a season's DraftData from raw Sleeper responses. Mirrors
+ * scripts/build_draft_data.py so live and pre-built seasons have the same shape.
+ *
+ * @param weeklyStats one stats map per scored week (index 0 = week 1)
+ */
+export function buildDraftData(
+  draft: SleeperDraft,
+  picks: SleeperDraftPick[],
+  rosters: SleeperRoster[],
+  weeklyStats: Record<string, SleeperPlayerWeekStats>[]
+): DraftData {
+  const type = draft.type || 'snake';
+  const userToRoster = new Map(rosters.map((r) => [r.owner_id, r.roster_id]));
+  const slotToRoster = new Map(
+    Object.entries(draft.slot_to_roster_id ?? {}).map(([slot, rosterId]) => [Number(slot), rosterId])
+  );
+
+  const out = [...picks]
+    .sort((a, b) => (a.pick_no ?? 0) - (b.pick_no ?? 0))
+    .map((p): DraftPickData => {
+      const meta = p.metadata ?? {};
+      const pid = p.player_id ?? '';
+      // Games played only (gp >= 1): bye weeks and inactive weeks don't count as zeros
+      const weekly: number[] = [];
+      for (const stats of weeklyStats) {
+        const s = pid ? stats[pid] : undefined;
+        if (s && (s.gp ?? 0) >= 1) weekly.push(round2(Number(s.pts_half_ppr ?? 0)));
+      }
+      const rosterId =
+        type === 'auction'
+          ? userToRoster.get(p.picked_by ?? '') ?? null
+          : slotToRoster.get(p.draft_slot ?? -1) ?? null;
+      const name = `${meta.first_name ?? ''} ${meta.last_name ?? ''}`.trim() || pid;
+      const amount = meta.amount === undefined || meta.amount === '' ? null : parseInt(meta.amount, 10);
+
+      return {
+        pick_no: p.pick_no,
+        round: p.round,
+        draft_slot: p.draft_slot,
+        roster_id: rosterId,
+        player_id: pid,
+        name,
+        position: meta.position ?? null,
+        nfl_team: meta.team ?? null,
+        amount: Number.isNaN(amount) ? null : amount,
+        weekly,
+        games: weekly.length,
+        median_ppg: round2(median(weekly)),
+        total: round2(weekly.reduce((sum, v) => sum + v, 0)),
+      };
+    });
+
+  const budget = draft.settings?.budget;
+  return {
+    season: draft.season,
+    draft_id: draft.draft_id,
+    type,
+    rounds: draft.settings?.rounds ?? 0,
+    teams: draft.settings?.teams ?? 12,
+    budget: budget ? Math.trunc(budget) : null,
+    weeks_scored: weeklyStats.length,
+    scoring: 'half_ppr',
+    stat_note: 'median weekly half-PPR points over games played (gp >= 1)',
+    picks: out,
+  };
 }
 
 /**

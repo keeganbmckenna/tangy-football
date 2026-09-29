@@ -206,15 +206,28 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  // The in-progress season is built live from Sleeper so it tracks the latest
+  // scored week; completed seasons never change and use pre-built JSON.
+  const isLive =
+    leagueData?.league.season === season && leagueData.league.status !== 'complete';
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setNotFound(false);
-    fetch(`/data/drafts/${season}.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error('not found');
-        return res.json() as Promise<DraftData>;
-      })
+
+    const load = async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('not found');
+      return res.json() as Promise<DraftData>;
+    };
+    const staticUrl = `/data/drafts/${season}.json`;
+    // If the live build fails, fall back to the last pre-built snapshot
+    const request = isLive
+      ? load(`/api/draft/${season}`).catch(() => load(staticUrl))
+      : load(staticUrl);
+
+    request
       .then((json) => {
         if (!cancelled) {
           setData(json);
@@ -230,7 +243,7 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
     return () => {
       cancelled = true;
     };
-  }, [season]);
+  }, [season, isLive]);
 
   if (loading) {
     return <LoadingSpinner message={`Loading ${season} draft...`} />;
