@@ -80,6 +80,8 @@ export interface SleeperLeague {
   loser_bracket_id?: string | null;
   previous_league_id?: string | null;
   draft_id?: string | null;
+  /** Lineup slots, e.g. ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'K', 'DEF', 'BN', ...] */
+  roster_positions?: string[];
 }
 
 // Draft Types

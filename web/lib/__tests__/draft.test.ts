@@ -8,6 +8,7 @@ import {
   summarizeDraftByTeam,
   positionBadgeClass,
   withAvailability,
+  buildDraftCore,
   type DraftData,
   type DraftPickData,
 } from '../analyze/draft';
@@ -328,5 +329,72 @@ describe('withAvailability', () => {
   it('leaves picks that already have availability untouched', () => {
     const input = base(17, [makePick({ available_weeks: 12, ppw: 4 })]);
     expect(withAvailability(input)).toBe(input);
+  });
+});
+
+describe('buildDraftCore', () => {
+  const data = (type: string, picks: DraftPickData[]): DraftData => ({
+    season: '2025', draft_id: 'd', type, rounds: 1, teams: 2, budget: 200,
+    weeks_scored: 17, scoring: 'half_ppr', stat_note: '', picks,
+  });
+  const p = (pick_no: number, roster_id: number, position: string, amount: number | null, ppw: number, name = `${position}${pick_no}`) =>
+    makePick({ pick_no, roster_id, position, amount, ppw, name });
+
+  it('takes the most expensive players per slot in an auction, flex last', () => {
+    const picks = [
+      p(1, 1, 'RB', 10, 8, 'Cheap RB'),
+      p(2, 1, 'RB', 60, 15, 'Stud RB'),
+      p(3, 1, 'RB', 30, 9, 'RB2'),
+      p(4, 1, 'WR', 40, 12, 'WR1'),
+      p(5, 1, 'QB', 5, 18, 'QB1'),
+      p(6, 1, 'QB', 20, 3, 'Pricey QB'),
+      p(7, 1, 'K', 1, 9, 'Kicker'),
+    ];
+    const { labels, teams } = buildDraftCore(data('auction', picks), ['QB', 'RB', 'RB', 'WR', 'FLEX', 'K', 'BN']);
+    expect(labels).toEqual(['QB', 'RB1', 'RB2', 'WR', 'FLEX']);
+    expect(teams[0].slots.map((s) => s.pick?.name)).toEqual(['Pricey QB', 'Stud RB', 'RB2', 'WR1', 'Cheap RB']);
+    expect(teams[0].total).toBe(3 + 15 + 9 + 12 + 8);
+  });
+
+  it('takes the earliest picks in a snake draft', () => {
+    const picks = [p(9, 1, 'QB', null, 20, 'Late QB'), p(2, 1, 'QB', null, 10, 'Early QB')];
+    const { teams } = buildDraftCore(data('snake', picks), ['QB']);
+    expect(teams[0].slots[0].pick?.name).toBe('Early QB');
+  });
+
+  it('leaves unfilled slots empty and ranks teams by total', () => {
+    const picks = [p(1, 1, 'QB', 10, 10), p(2, 2, 'QB', 10, 12), p(3, 2, 'WR', 10, 5)];
+    const { teams } = buildDraftCore(data('auction', picks), ['QB', 'WR', 'WR']);
+    expect(teams.map((t) => [t.rosterId, t.total])).toEqual([[2, 17], [1, 10]]);
+    expect(teams[1].slots.map((s) => s.pick)).toEqual([expect.anything(), null, null]);
+    expect(teams[0].slots.map((s) => s.label)).toEqual(['QB', 'WR1', 'WR2']);
+  });
+
+  it('follows each season\'s lineup rules', () => {
+    const picks = [p(1, 1, 'QB', 30, 20), p(2, 1, 'QB', 20, 15), p(3, 1, 'TE', 5, 6)];
+    const { labels, teams } = buildDraftCore(data('auction', picks), ['QB', 'TE', 'SUPER_FLEX']);
+    expect(labels).toEqual(['QB', 'TE', 'SF']);
+    expect(teams[0].total).toBe(41);
+  });
+
+  it('uses the default lineup when roster positions are missing', () => {
+    const { labels } = buildDraftCore(data('auction', [p(1, 1, 'QB', 1, 1)]), undefined);
+    expect(labels).toEqual(['QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLEX']);
+  });
+
+  it('ranks summaries and auction boards by Core/wk', () => {
+    const picks = [
+      p(1, 1, 'QB', 60, 5, 'Bust QB'),
+      p(2, 1, 'RB', 1, 20, 'Late-round RB'), // outside the core: only one slot
+      p(3, 2, 'QB', 40, 15, 'Solid QB'),
+      p(4, 1, 'K', 1, 30, 'Kicker'),
+    ];
+    const core = buildDraftCore(data('auction', picks), ['QB']).teams;
+    const summaries = summarizeDraftByTeam(picks, core);
+    expect(summaries.map((s) => [s.rosterId, s.core])).toEqual([[2, 15], [1, 5]]);
+    expect(summaries[1].dollarsPerPoint).toBe(62 / 5);
+    // Best pick ignores kickers and defenses
+    expect(summaries[1].bestPick?.name).toBe('Late-round RB');
+    expect(buildAuctionBoardByTeam(picks, core).map((b) => b.rosterId)).toEqual([2, 1]);
   });
 });

@@ -11,7 +11,11 @@
  *   so a star who got hurt in week 4 grades as the bust he was. This is a mean
  *   on purpose: each missed week should cost its share, and a median over a
  *   mostly-zero season collapses to 0 regardless of how he played.
- * Team-level grades (haul, best pick, $/pt) use ppw.
+ *
+ * Teams are graded by their draft core (buildDraftCore): the players they
+ * invested in for each starting slot, i.e. did the draft's big bets pay off.
+ * Kickers and defenses aren't graded: they're often left undrafted and
+ * streamed off waivers, which says nothing about the draft.
  */
 
 import type { SleeperDraft, SleeperDraftPick, SleeperPlayerWeekStats, SleeperRoster } from '../types';
@@ -66,6 +70,8 @@ export interface AuctionTeamBoard {
   haulHealthy: number;
   /** Total dollars spent */
   spent: number;
+  /** Core/wk (see buildDraftCore); null when not provided */
+  core: number | null;
 }
 
 export interface DraftTeamSummary {
@@ -76,9 +82,11 @@ export interface DraftTeamSummary {
   haul: number;
   /** Sum of median weekly points when playing across all picks */
   haulHealthy: number;
+  /** Core/wk (see buildDraftCore); null when not provided */
+  core: number | null;
   /** Auction only: total dollars spent */
   spent: number;
-  /** Auction only: dollars per weekly haul point (lower is better) */
+  /** Auction only: dollars per Core/wk point, or per haul point without it (lower is better) */
   dollarsPerPoint: number | null;
   bestPick: DraftPickData | null;
 }
@@ -219,6 +227,115 @@ export function buildDraftData(
   };
 }
 
+/** Positions each graded starting slot accepts. K, DEF, bench, IR and IDP slots aren't graded. */
+export const LINEUP_SLOT_POSITIONS: Record<string, string[]> = {
+  QB: ['QB'],
+  RB: ['RB'],
+  WR: ['WR'],
+  TE: ['TE'],
+  WRRB_FLEX: ['RB', 'WR'],
+  REC_FLEX: ['WR', 'TE'],
+  FLEX: ['RB', 'WR', 'TE'],
+  SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'],
+};
+
+/** Used only if the league's roster_positions are unavailable */
+export const DEFAULT_ROSTER_POSITIONS = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX'];
+
+export interface GradedSlot {
+  /** Sleeper slot name, e.g. 'RB' or 'FLEX' */
+  slot: string;
+  /** Positions the slot accepts */
+  eligible: string[];
+}
+
+/**
+ * The league's graded starting slots (QB/RB/WR/TE and flex; no K/DEF), in fill
+ * order: dedicated slots first, then flex from most to least restrictive, so
+ * a flex slot never takes a player a dedicated slot needs.
+ */
+export function gradedSlots(rosterPositions?: string[] | null): GradedSlot[] {
+  const positions = rosterPositions && rosterPositions.length > 0 ? rosterPositions : DEFAULT_ROSTER_POSITIONS;
+  return positions
+    .filter((slot) => slot in LINEUP_SLOT_POSITIONS)
+    .map((slot) => ({ slot, eligible: LINEUP_SLOT_POSITIONS[slot] }))
+    .sort((a, b) => a.eligible.length - b.eligible.length);
+}
+
+const SLOT_LABELS: Record<string, string> = {
+  FLEX: 'FLEX',
+  SUPER_FLEX: 'SF',
+  REC_FLEX: 'WR/TE',
+  WRRB_FLEX: 'RB/WR',
+};
+
+export interface CoreSlot {
+  /** Column label, e.g. 'QB', 'RB1', 'FLEX' */
+  label: string;
+  pick: DraftPickData | null;
+}
+
+export interface TeamCore {
+  rosterId: number | null;
+  /** One entry per graded starting slot, in column order */
+  slots: CoreSlot[];
+  /** Sum of the core players' points per available week */
+  total: number;
+}
+
+/**
+ * Each team's intended starters: the players it invested in for each starting
+ * slot. In an auction that's the most expensive at the position, in a snake
+ * draft the earliest pick. Dedicated slots fill first (QB = top QB, RB1/RB2 =
+ * top two RBs, ...), then flex slots take the top remaining eligible player.
+ * Graded by ppw, so injuries count against the pick and byes don't.
+ */
+export function buildDraftCore(data: DraftData, rosterPositions?: string[] | null): {
+  labels: string[];
+  teams: TeamCore[];
+} {
+  const slots = gradedSlots(rosterPositions);
+  const counts = new Map<string, number>();
+  for (const { slot } of slots) counts.set(slot, (counts.get(slot) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  const labels = slots.map(({ slot }) => {
+    const n = (seen.get(slot) ?? 0) + 1;
+    seen.set(slot, n);
+    const base = SLOT_LABELS[slot] ?? slot;
+    return (counts.get(slot) ?? 0) > 1 ? `${base}${n}` : base;
+  });
+
+  // Most invested first: auction price, then draft order
+  const invested = (a: DraftPickData, b: DraftPickData) =>
+    data.type === 'auction' ? (b.amount ?? 0) - (a.amount ?? 0) || a.pick_no - b.pick_no : a.pick_no - b.pick_no;
+
+  const byRoster = new Map<number | null, DraftPickData[]>();
+  for (const pick of data.picks) {
+    const list = byRoster.get(pick.roster_id) ?? [];
+    if (isGradedPosition(pick.position)) list.push(pick);
+    byRoster.set(pick.roster_id, list);
+  }
+
+  const teams: TeamCore[] = [];
+  for (const [rosterId, teamPicks] of byRoster) {
+    const ranked = [...teamPicks].sort(invested);
+    const used = new Set<number>();
+    const filled = slots.map(({ eligible }, i): CoreSlot => {
+      const pick = ranked.find((p) => !used.has(p.pick_no) && eligible.includes(p.position ?? '')) ?? null;
+      if (pick) used.add(pick.pick_no);
+      return { label: labels[i], pick };
+    });
+    const total = round2(filled.reduce((sum, c) => sum + (c.pick ? ppwOf(c.pick) : 0), 0));
+    teams.push({ rosterId, slots: filled, total });
+  }
+  teams.sort((a, b) => b.total - a.total);
+  return { labels, teams };
+}
+
+export function isGradedPosition(position: string | null): boolean {
+  return position === 'QB' || position === 'RB' || position === 'WR' || position === 'TE';
+}
+
 /**
  * Builds a snake draft board: one row per round, one column per draft slot.
  * Serpentine order is inherent in the data (each pick carries its draft_slot),
@@ -242,9 +359,10 @@ export function buildSnakeBoard(picks: DraftPickData[], teams: number): SnakeBoa
 /**
  * Builds an auction draft board grouped by team: each team's drafted roster,
  * sorted by auction price (big-money picks first). Teams are ordered by
- * weekly haul, matching the Draft Results summary.
+ * Core/wk (or haul without it), matching the Draft Results summary.
  */
-export function buildAuctionBoardByTeam(picks: DraftPickData[]): AuctionTeamBoard[] {
+export function buildAuctionBoardByTeam(picks: DraftPickData[], core?: TeamCore[]): AuctionTeamBoard[] {
+  const coreTotals = new Map(core?.map((t) => [t.rosterId, t.total]));
   const byRoster = new Map<number | null, DraftPickData[]>();
   for (const pick of picks) {
     const list = byRoster.get(pick.roster_id) ?? [];
@@ -261,9 +379,10 @@ export function buildAuctionBoardByTeam(picks: DraftPickData[]): AuctionTeamBoar
       haul: ordered.reduce((sum, p) => sum + ppwOf(p), 0),
       haulHealthy: ordered.reduce((sum, p) => sum + p.median_ppg, 0),
       spent: ordered.reduce((sum, p) => sum + (p.amount ?? 0), 0),
+      core: core ? coreTotals.get(rosterId) ?? 0 : null,
     });
   }
-  return boards.sort((a, b) => b.haul - a.haul);
+  return boards.sort((a, b) => (b.core ?? b.haul) - (a.core ?? a.haul));
 }
 
 /**
@@ -284,9 +403,11 @@ export function buildSnakeSlotTeams(picks: DraftPickData[], teams: number): (num
 /**
  * Per-team draft summary: picks, weekly haul (sum of points per available
  * week), the at-full-health haul (sum of median ppg), auction spend, and the
- * best pick by points per available week.
+ * best QB/RB/WR/TE pick by points per available week. With core totals,
+ * teams are ranked by Core/wk and $/pt is per Core/wk point.
  */
-export function summarizeDraftByTeam(picks: DraftPickData[]): DraftTeamSummary[] {
+export function summarizeDraftByTeam(picks: DraftPickData[], core?: TeamCore[]): DraftTeamSummary[] {
+  const coreTotals = new Map(core?.map((t) => [t.rosterId, t.total]));
   const byRoster = new Map<number | null, DraftPickData[]>();
   for (const pick of picks) {
     const list = byRoster.get(pick.roster_id) ?? [];
@@ -300,22 +421,24 @@ export function summarizeDraftByTeam(picks: DraftPickData[]): DraftTeamSummary[]
     const haul = ordered.reduce((sum, p) => sum + ppwOf(p), 0);
     const haulHealthy = ordered.reduce((sum, p) => sum + p.median_ppg, 0);
     const spent = ordered.reduce((sum, p) => sum + (p.amount ?? 0), 0);
-    const bestPick = ordered.reduce<DraftPickData | null>(
-      (best, p) => (!best || ppwOf(p) > ppwOf(best) ? p : best),
-      null
-    );
+    const bestPick = ordered
+      .filter((p) => isGradedPosition(p.position))
+      .reduce<DraftPickData | null>((best, p) => (!best || ppwOf(p) > ppwOf(best) ? p : best), null);
+    const coreTotal = core ? coreTotals.get(rosterId) ?? 0 : null;
+    const graded = coreTotal ?? haul;
     summaries.push({
       rosterId,
       picks: ordered,
       count: ordered.length,
       haul: round2(haul),
       haulHealthy: round2(haulHealthy),
+      core: coreTotal,
       spent,
-      dollarsPerPoint: spent > 0 && haul > 0 ? round2(spent / haul) : null,
+      dollarsPerPoint: spent > 0 && graded > 0 ? round2(spent / graded) : null,
       bestPick,
     });
   }
-  return summaries.sort((a, b) => b.haul - a.haul);
+  return summaries.sort((a, b) => (b.core ?? b.haul) - (a.core ?? a.haul));
 }
 
 /** Tailwind classes for position badges */

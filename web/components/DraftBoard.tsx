@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import {
@@ -12,6 +12,8 @@ import {
   positionBadgeClass,
   ppwOf,
   withAvailability,
+  buildDraftCore,
+  type TeamCore,
 } from '@/lib/analyze/draft';
 import type { LeagueData } from '@/lib/types';
 
@@ -102,8 +104,8 @@ function SnakeBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueD
   );
 }
 
-function AuctionBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueData | null }) {
-  const teams = buildAuctionBoardByTeam(data.picks);
+function AuctionBoard({ data, leagueData, core }: { data: DraftData; leagueData: LeagueData | null; core: TeamCore[] }) {
+  const teams = buildAuctionBoardByTeam(data.picks, core);
 
   return (
     <div className="space-y-6">
@@ -112,8 +114,7 @@ function AuctionBoard({ data, leagueData }: { data: DraftData; leagueData: Leagu
           <h3 className="px-6 pt-4 pb-2 text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">
             {teamNameForRoster(leagueData, team.rosterId)}
             <span className="ml-2 text-xs font-normal normal-case text-[var(--muted)]">
-              {team.picks.length} picks · ${team.spent} spent · {team.haul.toFixed(1)}/wk
-              ({team.haulHealthy.toFixed(1)} healthy)
+              {team.picks.length} picks · ${team.spent} spent · {(team.core ?? 0).toFixed(1)}/wk core
             </span>
           </h3>
           <table className="min-w-full divide-y divide-[var(--border)]">
@@ -147,8 +148,70 @@ function AuctionBoard({ data, leagueData }: { data: DraftData; leagueData: Leagu
   );
 }
 
-function TeamSummary({ data, leagueData }: { data: DraftData; leagueData: LeagueData | null }) {
-  const summaries = summarizeDraftByTeam(data.picks);
+function DraftCore({ data, leagueData, core }: {
+  data: DraftData;
+  leagueData: LeagueData | null;
+  core: { labels: string[]; teams: TeamCore[] };
+}) {
+  const { labels, teams } = core;
+  const isAuction = data.type === 'auction';
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-[var(--border)]">
+        <thead className="bg-[var(--surface)]">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sticky left-0 bg-[var(--surface)] z-10">
+              Team
+            </th>
+            {labels.map((label) => (
+              <th key={label} className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                {label}
+              </th>
+            ))}
+            <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              Core/wk
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--border)]">
+          {teams.map((team) => (
+            <tr key={team.rosterId ?? 'none'}>
+              <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-[var(--foreground)] sticky left-0 bg-[var(--surface-elevated)] z-10">
+                {teamNameForRoster(leagueData, team.rosterId)}
+              </td>
+              {team.slots.map(({ label, pick }) => (
+                <td key={label} className="px-3 py-2 align-top">
+                  {pick ? (
+                    <div className="min-w-[110px] max-w-[150px]">
+                      <div className="text-xs font-medium text-[var(--foreground)] truncate" title={pick.name}>
+                        {pick.name}
+                      </div>
+                      <div className="text-[10px] text-[var(--muted)] whitespace-nowrap">
+                        <span className="font-semibold text-[var(--foreground)]">{ppwOf(pick).toFixed(1)}</span>/wk
+                        {' · '}
+                        {isAuction ? `$${pick.amount ?? 0}` : `#${pick.pick_no}`}
+                        {/^(QB|RB|WR|TE)\d*$/.test(label) ? '' : ` · ${pick.position}`}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-[var(--muted)]">—</span>
+                  )}
+                </td>
+              ))}
+              <td className="px-4 py-2 whitespace-nowrap text-sm text-right font-semibold text-[var(--foreground)]">
+                {team.total.toFixed(1)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: LeagueData | null; core: TeamCore[] }) {
+  const summaries = summarizeDraftByTeam(data.picks, core);
   const isAuction = data.type === 'auction';
 
   return (
@@ -164,10 +227,10 @@ function TeamSummary({ data, leagueData }: { data: DraftData; leagueData: League
               </>
             )}
             <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-              Haul/wk
+              Core/wk
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-              Healthy/wk
+              All picks/wk
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Best pick</th>
           </tr>
@@ -193,10 +256,10 @@ function TeamSummary({ data, leagueData }: { data: DraftData; leagueData: League
                 </>
               )}
               <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-[var(--foreground)]">
-                {s.haul.toFixed(1)}
+                {(s.core ?? 0).toFixed(1)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
-                {s.haulHealthy.toFixed(1)}
+                {s.haul.toFixed(1)}
               </td>
               <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)]">
                 {s.bestPick ? (
@@ -223,6 +286,13 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
   // scored week; completed seasons never change and use pre-built JSON.
   const isLive =
     leagueData?.league.season === season && leagueData.league.status !== 'complete';
+  // Lineup rules have changed over the years, so use this season's own slots
+  const rosterPositions =
+    leagueData?.league.season === season ? leagueData.league.roster_positions : undefined;
+  const core = useMemo(
+    () => (data ? buildDraftCore(data, rosterPositions) : null),
+    [data, rosterPositions]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -262,7 +332,7 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
     return <LoadingSpinner message={`Loading ${season} draft...`} />;
   }
 
-  if (notFound || !data) {
+  if (notFound || !data || !core) {
     return (
       <SectionCard title={`${season} Draft`} subtitle="Draft board">
         <p className="px-6 py-8 text-[var(--muted)]">
@@ -286,23 +356,42 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
             <strong>/wk</strong> is half-PPR points per available week: total points divided by the weeks
             the player could have played (weeks scored minus their bye), so games missed to injury,
             suspension or benching count as zeros. <strong>Healthy</strong> is the median over games
-            actually played: how good they were on the field. <strong>Haul/wk</strong> sums every
-            pick&apos;s /wk: what the draft class delivered in an average week.
+            actually played: how good they were on the field. Teams are ranked by{' '}
+            <strong>Core/wk</strong> (see Draft Core below).
             {data.type === 'auction' && (
-              <> <strong>$/pt</strong> is dollars spent per point of weekly haul (lower is better).</>
+              <> <strong>$/pt</strong> is dollars spent per Core/wk point (lower is better).</>
             )}
           </span>
         }
       >
         {data.type === 'auction' ? (
-          <AuctionBoard data={data} leagueData={leagueData} />
+          <AuctionBoard data={data} leagueData={leagueData} core={core.teams} />
         ) : (
           <SnakeBoard data={data} leagueData={leagueData} />
         )}
       </SectionCard>
 
-      <SectionCard title="Draft Results" subtitle="Per-team haul from this draft" gradientType="info">
-        <TeamSummary data={data} leagueData={leagueData} />
+      <SectionCard
+        title="Draft Core"
+        subtitle={data.type === 'auction'
+          ? 'Most expensive player drafted for each starting slot'
+          : 'Earliest pick for each starting slot'}
+        gradientType="info"
+        footer={
+          <span>
+            The players each team invested in to start: the {data.type === 'auction' ? 'most expensive' : 'earliest-drafted'}{' '}
+            QB for QB, the top two RBs for RB1/RB2, and so on, with flex taking the top remaining eligible
+            player. Slots follow this season&apos;s lineup rules; kickers and defenses aren&apos;t included.
+            Each shows the player&apos;s /wk (injuries count as zeros, byes don&apos;t), and{' '}
+            <strong>Core/wk</strong> adds them up: did the draft&apos;s big bets pay off?
+          </span>
+        }
+      >
+        <DraftCore data={data} leagueData={leagueData} core={core} />
+      </SectionCard>
+
+      <SectionCard title="Draft Results" subtitle="Teams ranked by Core/wk" gradientType="info">
+        <TeamSummary data={data} leagueData={leagueData} core={core.teams} />
       </SectionCard>
     </div>
   );
