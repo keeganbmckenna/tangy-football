@@ -3,19 +3,11 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
-
-interface PlayEveryoneData {
-  username: string;
-  teamName: string;
-  actualWins: number;
-  actualLosses: number;
-  playAllWins: number;
-  playAllLosses: number;
-  difference: number;
-}
+import { formatRecord } from '@/lib/analyze/playEveryone';
+import type { PlayEveryoneStats } from '@/lib/types';
 
 interface PlayEveryoneAnalysisProps {
-  data: PlayEveryoneData[];
+  data: PlayEveryoneStats[];
 }
 
 interface BarChartTooltipProps {
@@ -56,14 +48,14 @@ function BarChartTooltip({ active, payload }: BarChartTooltipProps) {
 }
 
 export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps) {
-  // Sort by play-all wins
-  const sortedData = [...data].sort((a, b) => b.playAllWins - a.playAllWins);
+  // Sort by expected wins (play-all results, ties as half a win)
+  const sortedData = [...data].sort((a, b) => b.expectedWins - a.expectedWins);
 
   // Transform for bar chart
   const chartData = sortedData.map(team => ({
     name: team.teamName,
     'Actual Wins': team.actualWins,
-    'Play-All Wins': Math.round(team.playAllWins / 11), // Normalize to equivalent weekly wins
+    'Play-All Wins': Math.round(team.expectedWins), // Normalized to equivalent weekly wins
   }));
 
   return (
@@ -74,8 +66,9 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
       footer={
         <p className="text-xs text-[var(--muted)]">
           <strong>How to read:</strong> Play-All Wins shows total wins if each team played all
-          other teams every week. Luck Factor = Actual Wins - (Play-All Wins / 11). Positive =
-          lucky matchups, Negative = unlucky matchups.
+          other teams every week. Expected Wins = play-all results divided by the number of
+          opponents, and Luck Factor = Actual Wins - Expected Wins. Ties count as half a win.
+          Positive = lucky matchups, Negative = unlucky matchups.
         </p>
       }
     >
@@ -139,9 +132,6 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
               const isLucky = team.difference >= 1;
               const isUnlucky = team.difference <= -1;
 
-              // Calculate expected wins (play-all wins normalized to weekly basis)
-              const numTeams = sortedData.length;
-              const expectedWins = team.playAllWins / (numTeams - 1);
 
               return (
                 <tr key={team.username}>
@@ -155,13 +145,13 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
                     <div className="text-sm text-[var(--muted)]">@{team.username}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-[var(--foreground)]">
-                    {team.playAllWins}-{team.playAllLosses}
+                    {formatRecord(team.playAllWins, team.playAllLosses, team.playAllTies)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-[var(--foreground)]">
-                    {team.actualWins}-{team.actualLosses}
+                    {formatRecord(team.actualWins, team.actualLosses, team.actualTies)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-[var(--muted)]">
-                    {expectedWins.toFixed(2)}
+                    {team.expectedWins.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span

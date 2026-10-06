@@ -15,7 +15,7 @@ export {
   calculateWeeklyRankings,
 } from './timeSeries';
 export { calculateWeeklyMedians, calculateDifferenceFromMedian } from './median';
-export { calculatePlayEveryoneStats, calculateWeeklyPlayAll } from './playEveryone';
+export { calculatePlayEveryoneStats, calculateWeeklyPlayAll, formatRecord, winPercentage } from './playEveryone';
 export { simulateScheduleLuck } from './scheduleLuck';
 export { calculateDivisionStandings, calculateWildCardStandings } from './playoffs';
 export { buildPostseasonBrackets } from './brackets';

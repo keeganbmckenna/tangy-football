@@ -193,8 +193,13 @@ export interface PlayEveryoneStats {
   teamName: string;
   actualWins: number;
   actualLosses: number;
+  actualTies: number;
   playAllWins: number;
   playAllLosses: number;
+  playAllTies: number;
+  /** Play-all results per week (ties as half a win) / number of opponents */
+  expectedWins: number;
+  /** Actual wins (ties as half) minus expected wins: positive = lucky */
   difference: number;
 }
 
@@ -221,6 +226,8 @@ export interface WeeklyPlayAllRecord {
   week: number;
   wins: number;
   losses: number;
+  ties: number;
+  /** Ties count as half a win */
   winPct: number;
   actualResult?: 'W' | 'L' | 'T' | null;
 }
@@ -231,6 +238,7 @@ export interface WeeklyPlayAllStats {
   weeklyRecords: WeeklyPlayAllRecord[];
   totalWins: number;
   totalLosses: number;
+  totalTies: number;
   overallWinPct: number;
 }
 

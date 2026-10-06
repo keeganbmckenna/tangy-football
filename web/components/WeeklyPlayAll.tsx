@@ -2,6 +2,7 @@
 
 import { getHeatmapColorByRatio, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
 import { WeeklyPlayAllStats } from '@/lib/types';
+import { formatRecord } from '@/lib/analyze/playEveryone';
 
 interface WeeklyPlayAllProps {
   data: WeeklyPlayAllStats[];
@@ -38,7 +39,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                 </th>
               ))}
               <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
-                Total W-L
+                Total
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Win %
@@ -55,9 +56,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                   <div className="text-xs text-[var(--muted)]">@{team.username}</div>
                 </td>
                 {team.weeklyRecords.map((record) => {
-                  const totalGames = record.wins + record.losses;
-                  const winRatio = totalGames ? record.wins / totalGames : 0;
-                  const { backgroundColor, textColor } = getHeatmapColorByRatio(winRatio);
+                  const { backgroundColor, textColor } = getHeatmapColorByRatio(record.winPct);
                   const actualResult = record.actualResult;
                   const resultLabel = actualResult === 'W' ? 'Win' : actualResult === 'L' ? 'Loss' : actualResult === 'T' ? 'Tie' : 'Unknown';
                   const resultColor = actualResult === 'W'
@@ -74,7 +73,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                       title={`${(record.winPct * 100).toFixed(1)}% win rate • Actual: ${resultLabel}`}
                     >
                       <div className="flex flex-col items-center gap-1">
-                        <span>{record.wins}-{record.losses}</span>
+                        <span>{formatRecord(record.wins, record.losses, record.ties)}</span>
                         <span
                           className="h-3 w-3 rounded-full ring-2 ring-white/70"
                           style={{ backgroundColor: resultColor }}
@@ -85,7 +84,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                   );
                 })}
                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-bold bg-[var(--surface)] text-[var(--foreground)]">
-                  {team.totalWins}-{team.totalLosses}
+                  {formatRecord(team.totalWins, team.totalLosses, team.totalTies)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-bold bg-[var(--surface)] text-[var(--foreground)]">
                   {(team.overallWinPct * 100).toFixed(1)}%
