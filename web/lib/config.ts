@@ -62,4 +62,10 @@ export const CACHE_CONFIG = {
    * this only bounds how long mid-week stat corrections take to appear.
    */
   draftData: 3600,
+
+  /**
+   * Live tab: current-week league and matchup data (30 seconds). Shared by
+   * everyone viewing, so polling clients don't multiply Sleeper requests.
+   */
+  liveData: 30,
 } as const;

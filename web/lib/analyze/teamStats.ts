@@ -152,18 +152,24 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
     }
   });
 
-  // Standing order: wins first, total points breaks ties.
-  // The fractional part is always < 1, so a team can never outrank a team with more wins.
-  const maxPoints = Math.max(...teamStatsArray.map((t) => t.totalPoints));
-  teamStatsArray.forEach((team) => {
+  return rankTeams(teamStatsArray);
+}
+
+/**
+ * Sets standingValue and standing on each team and sorts them by standing.
+ * Standing order: wins first, total points breaks ties. The fractional part
+ * is always < 1, so a team can never outrank a team with more wins.
+ */
+export function rankTeams(teams: TeamStats[]): TeamStats[] {
+  const maxPoints = Math.max(...teams.map((t) => t.totalPoints));
+  teams.forEach((team) => {
     team.standingValue = team.wins + team.totalPoints / (maxPoints + 1);
   });
 
-  // Sort by standing value and assign standings
-  teamStatsArray.sort((a, b) => b.standingValue - a.standingValue);
-  teamStatsArray.forEach((team, index) => {
+  teams.sort((a, b) => b.standingValue - a.standingValue);
+  teams.forEach((team, index) => {
     team.standing = index + 1;
   });
 
-  return teamStatsArray;
+  return teams;
 }

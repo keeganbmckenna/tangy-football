@@ -1,6 +1,6 @@
 'use client';
 
-import { getHeatmapColorByRatio, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
+import { getHeatmapColorByRatio, RESULT_DOT_COLORS, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
 import { WeeklyPlayAllStats } from '@/lib/types';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 
@@ -59,11 +59,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                   const { backgroundColor, textColor } = getHeatmapColorByRatio(record.winPct);
                   const actualResult = record.actualResult;
                   const resultLabel = actualResult === 'W' ? 'Win' : actualResult === 'L' ? 'Loss' : actualResult === 'T' ? 'Tie' : 'Unknown';
-                  const resultColor = actualResult === 'W'
-                    ? '#22c55e'
-                    : actualResult === 'L'
-                      ? '#ef4444'
-                      : '#94a3b8';
+                  const resultColor = RESULT_DOT_COLORS[actualResult ?? 'T'];
 
                   return (
                     <td

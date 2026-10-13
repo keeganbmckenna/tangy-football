@@ -141,3 +141,10 @@ export const getRankingColor = (ranking: number, totalTeams: number) => {
  * Color utility to get heatmap colors by ratio.
  */
 export const getHeatmapColorByRatio = (ratio: number) => getViridisColor(ratio);
+
+/** Dot colors for a real matchup result (or, live, who's currently ahead) */
+export const RESULT_DOT_COLORS: Record<'W' | 'L' | 'T', string> = {
+  W: '#22c55e',
+  L: '#ef4444',
+  T: '#94a3b8',
+};
