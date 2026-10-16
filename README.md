@@ -1,6 +1,6 @@
 # Fantasy Football 2026 - Tangy Football
 
-A Next.js web app for analyzing a Sleeper fantasy football league: standings, live scoring views, playoff odds, weekly and season analytics, and draft grades, across every season of the league's history.
+A Next.js web app for analyzing a Sleeper fantasy football league: standings, live scoring views, playoff odds, weekly and season analytics, draft grades, and a trade analyzer with graded trade history, across every season of the league's history.
 
 ## Features
 
@@ -50,6 +50,21 @@ Hovering a team on these charts highlights it.
 
 Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`. The season in progress is built live from Sleeper, falling back to its JSON file if that fails.
 
+### Trades
+- 🔄 **Trade Analyzer** (current season, until the trade deadline) - Pick two teams and the players each sends. Shows:
+  - **Win odds each week** - a line chart of each team's chance to win each remaining game, without the trade (dashed) and with it (solid); hover for the opponent.
+  - **Season outlook** - expected wins for the rest of the regular season, and playoff, division, playoff bye, title, toilet bowl bye and losing-the-toilet-bowl odds, before → after for both teams, from 20,000 simulated seasons run on the same random draws with and without the trade.
+  - **Lineup changes** - each team's projected lineup before → after if nothing else changes, who enters and leaves next week's lineup, and forced roster moves (a full roster drops the player who costs the lineup least; an open spot picks up the free agent who helps it most).
+  - **Market value** - each player's [FantasyCalc](https://fantasycalc.com) redraft value (kickers and defenses aren't valued) and what each side gives and gets.
+  - **Other teams affected** - teams whose odds move by a point or more.
+
+  A trade moves a team's expected score by part of its projected lineup change: 70% next week, 45% two to three weeks out and 25% after, which is how much showed up across the league's 94 trades in 2022-2025. Weekly win odds use a wider spread for games more than a week out, fitted on the same seasons. See `scripts/backtests/`.
+- 📜 **Trade History** (every season) - Each completed trade with what each team got, graded two ways:
+  - **At the time:** playoff, title and losing-the-toilet-bowl odds without and with the trade, re-run the week it counted from with that week's records, rosters and projections (5,000 seasons each), plus the raw projected lineup change.
+  - **Hindsight:** points the players each team got scored in its starting lineup afterward, and where the team finished.
+
+  Trades that went through after a week's games count from the next week. Completed seasons are pre-built JSON in `web/public/data/trades/`; the season in progress is built live.
+
 ### UI
 - 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage.
 - 🎯 **Custom Tooltips** - Sorted, scrollable tooltips for crowded charts.
@@ -65,24 +80,29 @@ Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`.
 │   │   │   ├── league/           # League, users, rosters, matchups and brackets for a season
 │   │   │   ├── live/             # Current week's matchups (Live tab)
 │   │   │   ├── playoff-odds/     # Playoff picture, simulated odds and scenarios
+│   │   │   ├── trade-data/       # Rosters, projections and market values for the trade analyzer
+│   │   │   ├── trades/[season]/  # Graded trade history for a season
 │   │   │   └── draft/[season]/   # Draft data for the season in progress
 │   │   ├── page.tsx              # Main page and tabs
 │   │   ├── layout.tsx            # Layout and theme bootstrap
 │   │   └── icon.tsx              # Favicon from the league avatar
-│   ├── components/               # Tab sections (standings, charts, brackets, Live, playoff picture, draft)
+│   ├── components/               # Tab sections (standings, charts, brackets, Live, playoff picture, draft, trades)
 │   │   └── ui/                   # Shared pieces (cards, theme toggle, loading, error boundary)
 │   ├── hooks/                    # Theme, chart hover and team color hooks
 │   ├── lib/
-│   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft
+│   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft, trades
 │   │   ├── __tests__/            # Vitest tests
 │   │   ├── config.ts             # League ID and cache durations
 │   │   ├── sleeper.ts            # Shared Sleeper fetch helpers
+│   │   ├── oddsData.ts           # Playoff-odds inputs shared by the odds and trade routes
+│   │   ├── tradeHistory.ts       # Builds a season's graded trade history
 │   │   ├── leagueSettings.ts
 │   │   ├── constants.ts
 │   │   ├── theme.ts
 │   │   └── types.ts
-│   └── public/data/drafts/       # Pre-built draft data per season
+│   └── public/data/              # Pre-built draft data and trade history per season
 ├── scripts/                      # Python data scripts
+│   └── backtests/                # Backtests behind the playoff odds and trade analyzer
 ├── docs/                         # Research notes
 ├── FEATURES.md, FUTURE_FEATURES.md, LEAGUE_SETTINGS_UPDATE.md
 └── pyproject.toml, uv.lock       # Python project (uv)
@@ -124,6 +144,9 @@ Run the scripts from the repo root:
 | `uv run python scripts/fetch_data.py` | Fetches league info, users, rosters and matchups from week 1 to the current week into `league_data.json` |
 | `uv run python scripts/analyze_data.py` | Reads `league_data.json` and writes `fantasy_analysis.xlsx` (Raw Scores, Raw Records, Scores, Standings sheets) |
 | `uv run python scripts/build_draft_data.py [season ...]` | Rebuilds `web/public/data/drafts/{season}.json` from Sleeper (all of 2022-2026 if no season is given) |
+| `uv run python scripts/build_trade_history.py [season ...] [--url URL]` | Rebuilds `web/public/data/trades/{season}.json` for completed seasons from a running app's `/api/trades/{season}` (default `http://localhost:3000`; all completed seasons if none given) |
+
+The backtests in `scripts/backtests/` have their own README.
 
 `league_data.json` and `fantasy_analysis.xlsx` are generated files and are gitignored. `scripts/main.py` is an unused placeholder.
 
@@ -151,6 +174,9 @@ Sleeper data is fetched by the app's server routes and cached. Durations are set
 | Live tab data | 30 seconds |
 | Playoff odds | 30 minutes, rebuilt as soon as a new week is scored |
 | Draft data for the season in progress | 1 hour, rebuilt as soon as a new week is scored |
+| Trade analyzer rosters and projections | 10 minutes, rebuilt as soon as a new week is scored |
+| FantasyCalc values | 6 hours |
+| Trade history for the season in progress | 1 hour, rebuilt as soon as a new week is scored |
 | League avatar favicon | 1 hour |
 
 ## Deployment
@@ -164,7 +190,8 @@ The site is hosted on Netlify. There's no Netlify config file in the repo, so bu
 - **Tailwind CSS 4**
 - **Recharts 3** for charts
 - **Vitest 4** with Testing Library for tests
-- **Sleeper API** (`api.sleeper.app/v1`) for leagues, users, rosters, matchups, brackets, drafts and weekly player stats, plus weekly player projections from `api.sleeper.com` for playoff odds. The projections endpoint isn't part of Sleeper's documented API.
+- **Sleeper API** (`api.sleeper.app/v1`) for leagues, users, rosters, matchups, transactions, brackets, drafts and weekly player stats, plus weekly player projections and the NFL schedule from `api.sleeper.com` for playoff odds and trades. The `api.sleeper.com` endpoints aren't part of Sleeper's documented API.
+- **FantasyCalc** (`api.fantasycalc.com`) for redraft trade values in the trade analyzer. Also undocumented; the analyzer works without it.
 - **Python 3.13** with requests, pandas and openpyxl for the data scripts
 
 ## License

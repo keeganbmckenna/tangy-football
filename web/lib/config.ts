@@ -75,4 +75,21 @@ export const CACHE_CONFIG = {
    * reach the projections.
    */
   playoffOdds: 1800,
+
+  /**
+   * Trade analyzer inputs (10 minutes, and rebuilt as soon as a new week is
+   * scored): rosters and projections, so completed trades and pickups show up.
+   */
+  tradeData: 600,
+
+  /**
+   * FantasyCalc redraft values (6 hours); they move with the trade market daily.
+   */
+  marketValues: 6 * 60 * 60,
+
+  /**
+   * Trade history for the season in progress (1 hour, and rebuilt as soon as a
+   * new week is scored or a trade completes).
+   */
+  tradeHistory: 3600,
 } as const;

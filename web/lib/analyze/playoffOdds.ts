@@ -163,30 +163,47 @@ const SLOT_POSITIONS: Record<string, string[]> = {
 };
 const NON_STARTING = new Set(['BN', 'IR', 'TAXI']);
 
-/** Projected points of the best lineup a roster can start */
-export function bestLineupPoints(
+export interface LineupSlot {
+  slot: string;
+  playerId: string;
+  points: number;
+}
+
+/** The best lineup a roster can start: each starting slot's player, most restrictive slots first */
+export function bestLineup(
   players: string[],
   projections: Record<string, { position: string; points: number }>,
   rosterPositions: string[]
-): number {
+): { total: number; starters: LineupSlot[] } {
   const pool = players
     .filter((p) => projections[p])
     .map((p) => ({ id: p, ...projections[p] }))
     .sort((a, b) => b.points - a.points);
   const slots = rosterPositions
     .filter((s) => !NON_STARTING.has(s))
-    .map((s) => SLOT_POSITIONS[s] ?? [s])
-    .sort((a, b) => a.length - b.length);
+    .map((s) => ({ slot: s, eligible: SLOT_POSITIONS[s] ?? [s] }))
+    .sort((a, b) => a.eligible.length - b.eligible.length);
   const used = new Set<string>();
+  const starters: LineupSlot[] = [];
   let total = 0;
-  for (const eligible of slots) {
+  for (const { slot, eligible } of slots) {
     const pick = pool.find((p) => !used.has(p.id) && eligible.includes(p.position));
     if (pick) {
       used.add(pick.id);
       total += pick.points;
+      starters.push({ slot, playerId: pick.id, points: pick.points });
     }
   }
-  return total;
+  return { total, starters };
+}
+
+/** Projected points of the best lineup a roster can start */
+export function bestLineupPoints(
+  players: string[],
+  projections: Record<string, { position: string; points: number }>,
+  rosterPositions: string[]
+): number {
+  return bestLineup(players, projections, rosterPositions).total;
 }
 
 export const PROJECTION_WEIGHT = 0.75;

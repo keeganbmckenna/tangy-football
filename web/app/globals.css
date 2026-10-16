@@ -35,6 +35,8 @@
   --rank-lower-text: #f8fafc;
   --rank-bottom-bg: #440154;
   --rank-bottom-text: #f8fafc;
+  --trade-a: #2563eb;
+  --trade-b: #ea580c;
   color-scheme: light;
 }
 
@@ -74,6 +76,8 @@
     --rank-lower-text: #f8fafc;
     --rank-bottom-bg: #440154;
     --rank-bottom-text: #f8fafc;
+    --trade-a: #3b82f6;
+    --trade-b: #e8650f;
     color-scheme: dark;
   }
 }
@@ -113,6 +117,8 @@
   --rank-lower-text: #f8fafc;
   --rank-bottom-bg: #440154;
   --rank-bottom-text: #f8fafc;
+  --trade-a: #2563eb;
+  --trade-b: #ea580c;
   color-scheme: light;
 }
 
@@ -151,6 +157,8 @@
   --rank-lower-text: #f8fafc;
   --rank-bottom-bg: #440154;
   --rank-bottom-text: #f8fafc;
+  --trade-a: #3b82f6;
+  --trade-b: #e8650f;
   color-scheme: dark;
 }
 

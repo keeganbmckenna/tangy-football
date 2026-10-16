@@ -13,6 +13,8 @@ export interface SleeperRoster {
   roster_id: number;
   owner_id: string;
   players: string[];
+  /** Players in IR slots (also listed in players) */
+  reserve?: string[] | null;
   settings: {
     wins: number;
     losses: number;
@@ -75,6 +77,8 @@ export interface SleeperLeague {
     playoff_round_type?: number;
     start_week?: number;
     num_teams?: number;
+    /** Last week trades are allowed (0 = no deadline) */
+    trade_deadline?: number;
   };
   bracket_id?: string | null;
   loser_bracket_id?: string | null;
@@ -82,6 +86,8 @@ export interface SleeperLeague {
   draft_id?: string | null;
   /** Lineup slots, e.g. ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'K', 'DEF', 'BN', ...] */
   roster_positions?: string[];
+  /** Points per stat, e.g. { rec: 0.5 } for half PPR */
+  scoring_settings?: Record<string, number>;
 }
 
 // Draft Types
@@ -273,6 +279,8 @@ export interface SleeperTransaction {
   type: 'trade' | 'waiver' | 'free_agent';
   transaction_id: string;
   status: string;
+  /** Week the transaction was processed in */
+  leg: number;
   settings: {
     waiver_bid?: number;
   } | null;
