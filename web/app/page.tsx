@@ -66,6 +66,9 @@ export default function Home() {
   const leagueSettings = leagueData ? getLeagueSettings(leagueData.league) : null;
   // Current season's regular season still being played: the Postseason tab
   // shows the playoff picture instead of empty brackets
+  // The newest season is the current one; Live only applies to it
+  const isCurrentSeason = availableSeasons.length === 0
+    || (selectedSeason || leagueData?.league.season) === availableSeasons[0];
   const regularSeasonInProgress = !!leagueData && !!leagueSettings
     && leagueData.league.season === availableSeasons[0]
     && leagueData.league.status !== 'complete'
@@ -138,6 +141,10 @@ export default function Home() {
   const handleSeasonChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const season = event.target.value;
     setSelectedSeason(season);
+    // Live is hidden for past seasons, so don't leave the user on it
+    if (activeTab === 'live' && availableSeasons.length > 0 && season !== availableSeasons[0]) {
+      setActiveTab('overview');
+    }
     fetchData(season);
   };
 
@@ -168,7 +175,7 @@ export default function Home() {
     { id: 'weekly', name: 'Weekly Performance', icon: '📈' },
     { id: 'trends', name: 'Season Trends', icon: '📉' },
     { id: 'advanced', name: 'Advanced Stats', icon: '🔬' },
-  ];
+  ].filter((tab) => tab.id !== 'live' || isCurrentSeason);
 
   const seasonOptions = availableSeasons.length
     ? availableSeasons
@@ -318,7 +325,7 @@ export default function Home() {
         )}
 
         {/* Live Tab */}
-        {activeTab === 'live' && leagueData && leagueSettings && (
+        {activeTab === 'live' && isCurrentSeason && leagueData && leagueSettings && (
           <ErrorBoundary>
             <section>
               <LiveTab
