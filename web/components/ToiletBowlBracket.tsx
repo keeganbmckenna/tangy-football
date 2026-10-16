@@ -1,6 +1,6 @@
 'use client';
 
-import BracketView from './BracketView';
+import { RealBracketCard } from './PlayoffBracket';
 import type { PostseasonBrackets } from '@/lib/analyze/brackets';
 
 interface ToiletBowlBracketProps {
@@ -9,9 +9,9 @@ interface ToiletBowlBracketProps {
 
 export default function ToiletBowlBracket({ brackets }: ToiletBowlBracketProps) {
   return (
-    <BracketView
+    <RealBracketCard
       title="Toilet Bowl"
-      subtitle="Battle to avoid last place"
+      subtitle="Battle to avoid last place: the loser of each game advances, and the final's loser finishes last"
       rounds={brackets?.losersRounds ?? []}
       placements={brackets?.losersPlacements ?? []}
       gradientType="warning"

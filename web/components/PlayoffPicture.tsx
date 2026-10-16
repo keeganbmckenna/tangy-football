@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
@@ -176,57 +177,38 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     </>
   );
 
-  const slot = (side: ProjectedBracketGame['top'], caption: (id: number) => string | null) =>
-    'from' in side ? (
-      <div className="text-sm italic text-[var(--muted)]">{side.from}</div>
-    ) : (
-      <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--neutral-bg)] text-[10px] font-bold text-[var(--foreground)]">
-          {side.seed}
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-[var(--foreground)]">{name(side.rosterId)}</div>
-          <div className="text-xs text-[var(--muted)]">
-            {record(teams.get(side.rosterId)!)}
-            {caption(side.rosterId) && <> · {caption(side.rosterId)}</>}
-          </div>
-        </div>
-      </div>
-    );
+  const boardTeam = (side: ProjectedBracketGame['top'], caption: (id: number) => string | null): BoardTeam =>
+    'from' in side
+      ? { rosterId: null, name: side.from, placeholder: side.from }
+      : {
+          rosterId: side.rosterId,
+          name: name(side.rosterId),
+          username: user(side.rosterId),
+          avatarUrl: stats.get(side.rosterId)?.avatarUrl,
+          seed: side.seed,
+          caption: [record(teams.get(side.rosterId)!), caption(side.rosterId)].filter(Boolean).join(' · '),
+        };
 
-  /** Rounds of a projected bracket as columns, with the byes listed under round 1 */
-  const bracketColumns = (
+  /** A projected bracket as board columns, with the byes listed under round 1 */
+  const projectedColumns = (
     games: ProjectedBracketGame[],
     rounds: string[],
     byes: number[],
     caption: (id: number) => string | null
-  ) => (
-    <div className="grid gap-4 md:grid-cols-3">
-      {rounds.map((round) => {
-        const roundGames = games.filter((g) => g.label === round);
-        return (
-          <div key={round} className="space-y-3">
-            <div>
-              <div className="text-sm font-semibold text-[var(--foreground)]">{round}</div>
-              <div className="text-xs text-[var(--muted)]">Week {roundGames[0]?.week}</div>
-            </div>
-            {round === rounds[0] && (
-              <div className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]">
-                Byes: {byes.map((id, i) => `${i + 1}. ${name(id)}`).join(' · ')}
-              </div>
-            )}
-            {roundGames.map((g, i) => (
-              <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 space-y-2">
-                {slot(g.top, caption)}
-                <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">vs</div>
-                {slot(g.bottom, caption)}
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
+  ): BoardColumn[] =>
+    rounds.map((round, i) => {
+      const roundGames = games.filter((g) => g.label === round);
+      return {
+        title: round,
+        subtitle: roundGames[0] ? `Week ${roundGames[0].week}` : undefined,
+        note: i === 0 ? `Byes: ${byes.map((id, j) => `${j + 1}. ${name(id)}`).join(' · ')}` : undefined,
+        games: roundGames.map((g, j) => ({
+          id: `${round}-${j}`,
+          top: boardTeam(g.top, caption),
+          bottom: boardTeam(g.bottom, caption),
+        })),
+      };
+    });
   const hasToilet = data.toiletBracket.length > 0 && Object.values(odds).some((o) => o.lastPlace !== null);
   const hasTitle = Object.values(odds).some((o) => o.champion !== null);
 
@@ -238,11 +220,13 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
         gradientType="primary"
       >
         <div className="p-6 space-y-6">
-          {bracketColumns(data.bracket, ['Round 1', 'Semifinal', 'Final'], data.seeds.slice(0, 2), (id) =>
-            odds[id]
-              ? `${pct(odds[id].playoffs)} to make it${odds[id].champion != null ? ` · ${pct(odds[id].champion!)} title` : ''}`
-              : null
-          )}
+          <BracketBoard
+            columns={projectedColumns(data.bracket, ['Round 1', 'Semifinal', 'Final'], data.seeds.slice(0, 2), (id) =>
+              odds[id]
+                ? `${pct(odds[id].playoffs)} to make it${odds[id].champion != null ? ` · ${pct(odds[id].champion!)} title` : ''}`
+                : null
+            )}
+          />
           {firstOut.length > 0 && (
             <div className="text-sm text-[var(--muted)]">
               <span className="font-medium text-[var(--foreground)]">First out:</span>{' '}
@@ -259,9 +243,11 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           gradientType="warning"
         >
           <div className="p-6">
-            {bracketColumns(data.toiletBracket, ['Round 1', 'Semifinal', 'Last-place game'], data.toiletSeeds.slice(0, 2), (id) =>
-              odds[id]?.lastPlace != null ? `${pct(odds[id].lastPlace!)} last place` : null
-            )}
+            <BracketBoard
+              columns={projectedColumns(data.toiletBracket, ['Round 1', 'Semifinal', 'Last-place game'], data.toiletSeeds.slice(0, 2), (id) =>
+                odds[id]?.lastPlace != null ? `${pct(odds[id].lastPlace!)} last place` : null
+              )}
+            />
           </div>
         </SectionCard>
       )}
