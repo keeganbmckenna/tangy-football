@@ -11,12 +11,12 @@ The season picker in the header switches every tab between seasons; past seasons
 - 🎯 **Wild Card Race** - Non-division leaders ranked for the remaining playoff spots, with the cutoff line.
 - 🏈 **Weekly Matchups** - Results for any completed week (week picker; defaults to the most recent).
 
-Standings are ranked by wins, then points for.
+Standings are ranked by wins (ties count as half a win), then points for.
 
 ### Live (current season only)
 Shown only for the current season. It's active while a regular-season week is in progress, and refreshes every minute while the tab is visible.
 - 🔴 **Live Play-All** - Each team's record against every other team at the current scores (equal scores are ties), colored by win rate, with a dot for whether the team is winning, losing or tied in its real matchup, the real margin, and season play-all counting this week as if it ended now.
-- 📊 **Live Standings** - The Overview standings as if the week ended now: each record shown before → now, the live matchup dot, and teams moving into or dropping out of a playoff spot flagged. Real matchups still at 0-0 count as not started.
+- 📊 **Live Standings** - The Overview standings as if the week ended now: each record shown before → now, the live matchup dot, and teams moving into or dropping out of a playoff spot flagged. Equal scores, including 0-0, are ties, and ties count as half a win in the ranking.
 
 ### Playoffs
 - 🔮 **Playoff Picture** - Shown instead of the brackets while the current season's regular season is in progress:

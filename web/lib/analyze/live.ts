@@ -29,11 +29,10 @@ export function liveWeekNumber(week: number, lastScoredWeek: number, regularSeas
 }
 
 /**
- * Live result of a real matchup: two teams both still at 0 haven't started,
- * so that's not a tie yet (for the standings and the matchup dot).
+ * Live result of a real matchup at the current scores. Equal scores,
+ * including two teams both still at 0, are a tie.
  */
-export function liveResult(score: number, opponentScore: number): 'W' | 'L' | 'T' | null {
-  if (score === 0 && opponentScore === 0) return null;
+export function liveResult(score: number, opponentScore: number): 'W' | 'L' | 'T' {
   return score > opponentScore ? 'W' : score < opponentScore ? 'L' : 'T';
 }
 
@@ -103,8 +102,6 @@ export function livePlayAll(teams: TeamStats[], week: number): LivePlayAllRow[] 
       return {
         team,
         score,
-        // Play-all is the record at the current scores, so equal scores
-        // (including two teams both still at 0) are ties
         week: { ...record, actualResult: opponent === undefined ? null : liveResult(score, opponent) },
         seasonWins: row.totalWins,
         seasonLosses: row.totalLosses,

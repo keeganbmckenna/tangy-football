@@ -7,7 +7,8 @@ import {
   liveTeamStats,
   type LiveWeekData,
 } from '../analyze/live';
-import type { LeagueData, SleeperMatchup, SleeperRoster, SleeperUser } from '../types';
+import { rankTeams } from '../analyze/teamStats';
+import type { LeagueData, SleeperMatchup, SleeperRoster, SleeperUser, TeamStats } from '../types';
 
 const m = (roster_id: number, matchup_id: number, points: number): SleeperMatchup => ({ roster_id, matchup_id, points });
 
@@ -84,16 +85,16 @@ describe('livePlayAll', () => {
   });
 });
 
-describe('not-started matchups', () => {
+describe('matchups level at 0', () => {
   // Thursday night: only teams 1 and 3 have points; 2 and 4 are both still at 0
   const live = liveWeek([m(1, 1, 10), m(2, 1, 0), m(3, 2, 0), m(4, 2, 0)]);
 
-  it('are not ties in the real matchup or the standings', () => {
-    expect(liveMatchupStatus(live.matchups).get(3)?.result).toBeNull();
+  it('are ties in the real matchup and the standings', () => {
+    expect(liveMatchupStatus(live.matchups).get(3)?.result).toBe('T');
     const { rows } = liveStandings(liveTeamStats(league(), live), 2, 2, true);
     const team3 = rows.find((r) => r.team.rosterId === 3)!;
-    expect(team3.liveResult).toBeNull();
-    expect(team3.now).toMatchObject({ wins: 0, losses: 1, ties: 0 });
+    expect(team3.liveResult).toBe('T');
+    expect(team3.now).toMatchObject({ wins: 0, losses: 1, ties: 1 });
     // Team 1 is ahead 10-0, which does count
     expect(rows.find((r) => r.team.rosterId === 1)?.now.wins).toBe(2);
   });
@@ -104,10 +105,17 @@ describe('not-started matchups', () => {
     // Lost to team 1 (10 > 0); level at 0 with teams 2 and 4
     expect(team3.week).toMatchObject({ wins: 0, losses: 1, ties: 2 });
     expect(team3.week.winPct).toBeCloseTo(1 / 3);
-    // The real matchup (0-0 with team 4) hasn't started: no dot result
-    expect(team3.week.actualResult).toBeNull();
+    // The real matchup is level at 0 with team 4
+    expect(team3.week.actualResult).toBe('T');
     // Season play-all includes this week's ties
     expect(team3.seasonTies).toBe(2);
+  });
+
+  it('rank a tie as half a win, ahead of points for', () => {
+    const team = (rosterId: number, wins: number, ties: number, totalPoints: number) =>
+      ({ rosterId, wins, losses: 2 - wins - ties, ties, totalPoints }) as TeamStats;
+    const ranked = rankTeams([team(1, 1, 0, 500), team(2, 1, 1, 100), team(3, 0, 1, 900)]);
+    expect(ranked.map((t) => t.rosterId)).toEqual([2, 1, 3]);
   });
 
   it('counts genuine non-zero ties too', () => {

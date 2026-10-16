@@ -163,7 +163,7 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
 export function rankTeams(teams: TeamStats[]): TeamStats[] {
   const maxPoints = Math.max(...teams.map((t) => t.totalPoints));
   teams.forEach((team) => {
-    team.standingValue = team.wins + team.totalPoints / (maxPoints + 1);
+    team.standingValue = team.wins + team.ties / 2 + team.totalPoints / (maxPoints + 1);
   });
 
   teams.sort((a, b) => b.standingValue - a.standingValue);

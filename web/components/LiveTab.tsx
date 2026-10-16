@@ -248,8 +248,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           <h2 className="text-2xl font-bold text-[var(--foreground)]">Live Standings</h2>
           <p className="text-sm text-[var(--muted)]">
             If week {week} ended now: this week&apos;s real matchups decided at the current scores, laid out like the
-            Overview tab. Each record shows before → now, with the dot for the real matchup right now, and teams moving
-            into or dropping out of a playoff spot are flagged.
+            Overview tab. Each record shows before → now, with the dot for the real matchup right now (equal scores, including 0-0, are ties),
+            and teams moving into or dropping out of a playoff spot are flagged.
           </p>
         </div>
         <PlayoffRace
