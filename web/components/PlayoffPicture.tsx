@@ -157,6 +157,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       }
       if (best) lines.push({ tone: 'neutral', text: best.text });
     }
+    if (o?.champion != null && o.champion >= 0.01) {
+      lines.push({ tone: 'good', text: `${pct(o.champion)} chance of winning the league.` });
+    }
     const lp = lastPlaceLine();
     if (lp) lines.push(lp);
     return lines;
@@ -229,6 +232,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     </div>
   );
   const hasToilet = data.toiletBracket.length > 0 && Object.values(odds).some((o) => o.lastPlace !== null);
+  const hasTitle = Object.values(odds).some((o) => o.champion !== null);
 
   return (
     <div className="space-y-8">
@@ -239,7 +243,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       >
         <div className="p-6 space-y-6">
           {bracketColumns(data.bracket, ['Round 1', 'Semifinal', 'Final'], data.seeds.slice(0, 2), (id) =>
-            odds[id] ? `${pct(odds[id].playoffs)} to make it` : null
+            odds[id]
+              ? `${pct(odds[id].playoffs)} to make it${odds[id].champion != null ? ` · ${pct(odds[id].champion!)} title` : ''}`
+              : null
           )}
           {firstOut.length > 0 && (
             <div className="text-sm text-[var(--muted)]">
@@ -276,9 +282,17 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
               2022–2025, these odds beat reading the standings by 30–50% (Brier score) and were well calibrated: teams
               given 40–60% made it 51% of the time, teams given 80–95% made it 88% of the time. Bye odds were overconfident
               in testing, so treat them as rougher. The win/loss column shows the odds after a win or a loss this week.
+              {hasTitle && (
+                <> Title odds play out the playoff bracket (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}, higher score
+                  advances) with the same model.</>
+              )}
               {hasToilet && (
                 <> Last place plays out the toilet bowl too (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}) with the same
-                  model; with only four past last-place finishes it couldn&apos;t be backtested, so treat it as a rough guide.</>
+                  model.</>
+              )}
+              {(hasTitle || hasToilet) && (
+                <> With only four past champions and last-place finishes, these couldn&apos;t be backtested, so treat them as a rough
+                  guide.</>
               )}
             </span>
           }
@@ -295,6 +309,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                     <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</th>
                   )}
                   <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Bye*</th>
+                  {hasTitle && (
+                    <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Title</th>
+                  )}
                   {hasToilet && (
                     <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Last place</th>
                   )}
@@ -331,6 +348,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                       <OddsCell p={o?.playoffs ?? 0} />
                       {data.format.hasDivisions && <OddsCell p={o?.division ?? 0} />}
                       <OddsCell p={o?.bye ?? 0} muted />
+                      {hasTitle && <OddsCell p={o?.champion ?? 0} />}
                       {hasToilet && (
                         <td
                           className="px-3 py-2 whitespace-nowrap text-center text-sm font-semibold"

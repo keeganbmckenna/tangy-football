@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
 
 const PROJECTIONS_URL = 'https://api.sleeper.com/projections/nfl';
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 const fetchJson = async <T,>(url: string, revalidate: number | false): Promise<T> => {
@@ -108,7 +108,7 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
   });
 
   // Each remaining week's projections, so byes only count in the week they happen;
-  // the three playoff weeks too, for the toilet bowl
+  // the three playoff weeks too, for the championship and toilet bowl
   const remainingWeeks = [...new Set(remaining.map((g) => g.week))].sort((a, b) => a - b);
   const playoffWeeks = remaining.length ? [playoffWeekStart, playoffWeekStart + 1, playoffWeekStart + 2] : [];
   const strengthWeeks = [...remainingWeeks, ...playoffWeeks];
@@ -145,7 +145,7 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
     toiletSeeds: toilet,
     toiletBracket: hasToiletBowl ? projectedToiletBracket(toilet, playoffWeekStart) : [],
     odds: remaining.length
-      ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 10000, 2026, hasToiletBowl ? playoffWeekStart : undefined)
+      ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 10000, 2026, playoffWeekStart, hasToiletBowl)
       : null,
     scenarios: playoffScenarios(teams, remaining, format),
     pointsRaces: pointsRaces(teams, format),

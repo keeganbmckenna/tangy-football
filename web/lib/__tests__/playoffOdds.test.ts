@@ -266,8 +266,28 @@ describe('toilet bowl', () => {
     expect(ranked[0].rosterId).toBe(12);
   });
 
+  it('simulates the championship: higher score advances', () => {
+    // 12 is far stronger than everyone this time
+    const strong: Record<number, number> = {};
+    for (let i = 1; i <= 12; i++) strong[i] = i === 12 ? 200 : 100;
+    const m = { 14: strong, 15: strong, 16: strong, 17: strong };
+    const { teams: odds } = simulatePlayoffOdds(twelve, games, big, m, 20, 4000, 1, 15);
+    const total = Object.values(odds).reduce((s, o) => s + (o.champion ?? 0), 0);
+    expect(total).toBeCloseTo(1);
+    // Champion must have made the playoffs
+    for (const o of Object.values(odds)) expect(o.champion!).toBeLessThanOrEqual(o.playoffs + 1e-9);
+    expect(odds[12].champion!).toBeGreaterThan(0.8);
+  });
+
+  it('can skip the toilet bowl but still simulate the championship', () => {
+    const { teams: odds } = simulatePlayoffOdds(twelve, games, big, means(12), 20, 500, 1, 15, false);
+    expect(odds[1].lastPlace).toBeNull();
+    expect(odds[1].champion).not.toBeNull();
+  });
+
   it('leaves last place out without a playoff start week or a six-team toilet bowl', () => {
     expect(simulatePlayoffOdds(twelve, games, big, means(12), 20, 500, 1).teams[1].lastPlace).toBeNull();
+    expect(simulatePlayoffOdds(twelve, games, big, means(12), 20, 500, 1).teams[1].champion).toBeNull();
     const t6 = twelve.slice(0, 6);
     const g6: RemainingGame[] = [{ week: 14, a: 1, b: 2 }];
     expect(simulatePlayoffOdds(t6, g6, { playoffTeams: 3, hasDivisions: false, byes: 1 }, means(6), 20, 500, 1, 15).teams[1].lastPlace).toBeNull();
