@@ -98,12 +98,24 @@ describe('not-started matchups', () => {
     expect(rows.find((r) => r.team.rosterId === 1)?.now.wins).toBe(2);
   });
 
-  it('are not ties in play-all', () => {
+  it('are ties in play-all, which is the record at the current scores', () => {
     const rows = livePlayAll(liveTeamStats(league(), live), 2);
     const team3 = rows.find((r) => r.team.rosterId === 3)!;
-    // Lost to team 1 (10 > 0); 0-0 against teams 2 and 4 doesn't count
-    expect(team3.week).toMatchObject({ wins: 0, losses: 1, ties: 0, actualResult: null });
-    expect(team3.seasonTies).toBe(0);
+    // Lost to team 1 (10 > 0); level at 0 with teams 2 and 4
+    expect(team3.week).toMatchObject({ wins: 0, losses: 1, ties: 2 });
+    expect(team3.week.winPct).toBeCloseTo(1 / 3);
+    // The real matchup (0-0 with team 4) hasn't started: no dot result
+    expect(team3.week.actualResult).toBeNull();
+    // Season play-all includes this week's ties
+    expect(team3.seasonTies).toBe(2);
+  });
+
+  it('counts genuine non-zero ties too', () => {
+    const tied = liveWeek([m(1, 1, 50), m(2, 1, 50), m(3, 2, 40), m(4, 2, 60)]);
+    const rows = livePlayAll(liveTeamStats(league(), tied), 2);
+    const team1 = rows.find((r) => r.team.rosterId === 1)!;
+    expect(team1.week).toMatchObject({ wins: 1, losses: 1, ties: 1, actualResult: 'T' });
+    expect(liveMatchupStatus(tied.matchups).get(1)?.result).toBe('T');
   });
 });
 

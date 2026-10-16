@@ -6,7 +6,7 @@
 import type { DivisionStanding, LeagueData, SleeperMatchup, TeamStats, WeeklyPlayAllRecord, WildCardStanding } from '../types';
 import { calculateTeamStats, rankTeams } from './teamStats';
 import { calculateDivisionStandings, calculateWildCardStandings } from './playoffs';
-import { calculateWeeklyPlayAll, winPercentage } from './playEveryone';
+import { calculateWeeklyPlayAll } from './playEveryone';
 
 /** Response of /api/live */
 export interface LiveWeekData {
@@ -29,8 +29,8 @@ export function liveWeekNumber(week: number, lastScoredWeek: number, regularSeas
 }
 
 /**
- * Live result of a comparison: two teams both still at 0 haven't started,
- * so that's not a tie yet. Only applies to the live week.
+ * Live result of a real matchup: two teams both still at 0 haven't started,
+ * so that's not a tie yet (for the standings and the matchup dot).
  */
 export function liveResult(score: number, opponentScore: number): 'W' | 'L' | 'T' | null {
   if (score === 0 && opponentScore === 0) return null;
@@ -93,31 +93,23 @@ export interface LivePlayAllRow {
  * the live week's matchups (see withLiveMatchups). Sorted by current score.
  */
 export function livePlayAll(teams: TeamStats[], week: number): LivePlayAllRow[] {
-  const scoreOf = (t: TeamStats) => t.weeklyScores[week - 1] ?? 0;
   return calculateWeeklyPlayAll(teams, week)
     .filter((row) => row.weeklyRecords[week - 1] !== undefined)
     .map((row) => {
       const team = teams.find((t) => t.username === row.username)!;
       const record = row.weeklyRecords[week - 1];
-      const score = scoreOf(team);
-      // Pairs where both teams are still at 0 haven't started: not ties yet
-      const notStarted = score === 0 ? teams.filter((t) => t !== team && scoreOf(t) === 0).length : 0;
-      const ties = record.ties - notStarted;
-      const seasonTies = row.totalTies - notStarted;
+      const score = team.weeklyScores[week - 1] ?? 0;
       const opponent = team.weeklyOpponentScores[week - 1];
       return {
         team,
         score,
-        week: {
-          ...record,
-          ties,
-          winPct: winPercentage(record.wins, record.losses, ties),
-          actualResult: opponent === undefined ? null : liveResult(score, opponent),
-        },
+        // Play-all is the record at the current scores, so equal scores
+        // (including two teams both still at 0) are ties
+        week: { ...record, actualResult: opponent === undefined ? null : liveResult(score, opponent) },
         seasonWins: row.totalWins,
         seasonLosses: row.totalLosses,
-        seasonTies,
-        seasonWinPct: winPercentage(row.totalWins, row.totalLosses, seasonTies),
+        seasonTies: row.totalTies,
+        seasonWinPct: row.overallWinPct,
       };
     })
     .sort((a, b) => b.score - a.score);

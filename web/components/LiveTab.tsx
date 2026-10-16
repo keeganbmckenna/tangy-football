@@ -174,8 +174,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         gradientType="info"
         footer={
           <span>
-            The cell is this week&apos;s play-all record at the current scores, colored by win rate (ties count as half;
-            teams both still at 0 haven&apos;t played each other yet, so that isn&apos;t a tie).
+            The cell is this week&apos;s play-all record at the current scores, colored by win rate. Equal scores are
+            ties (including teams both still at 0) and count as half a win.
             The dot shows the real matchup right now: <span style={{ color: RESULT_DOT_COLORS.W }}>●</span> winning,{' '}
             <span style={{ color: RESULT_DOT_COLORS.L }}>●</span> losing, <span style={{ color: RESULT_DOT_COLORS.T }}>●</span> tied.
             Season play-all counts this week as if it ended now.
@@ -200,10 +200,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             <tbody className="divide-y divide-[var(--border)]">
               {view.playAll.map((row) => {
                 const s = view.statuses.get(row.team.rosterId);
-                const decided = row.week.wins + row.week.losses + row.week.ties > 0;
-                const { backgroundColor, textColor } = decided
-                  ? getHeatmapColorByRatio(row.week.winPct)
-                  : { backgroundColor: 'transparent', textColor: 'var(--muted)' };
+                const { backgroundColor, textColor } = getHeatmapColorByRatio(row.week.winPct);
                 const margin = s && s.opponentScore !== null ? s.score - s.opponentScore : null;
                 return (
                   <tr key={row.team.rosterId}>
@@ -214,10 +211,10 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                     <td
                       className="px-4 py-3 whitespace-nowrap text-center text-sm font-semibold"
                       style={{ backgroundColor, color: textColor }}
-                      title={decided ? `${(row.week.winPct * 100).toFixed(1)}% win rate` : 'No points yet'}
+                      title={`${(row.week.winPct * 100).toFixed(1)}% win rate`}
                     >
                       <div className="flex items-center justify-center gap-2">
-                        <span>{decided ? formatRecord(row.week.wins, row.week.losses, row.week.ties) : '—'}</span>
+                        <span>{formatRecord(row.week.wins, row.week.losses, row.week.ties)}</span>
                         <ResultDot result={s?.result ?? null} live />
                       </div>
                     </td>
