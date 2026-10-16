@@ -9,7 +9,12 @@ A modern Next.js web application for analyzing Sleeper fantasy football league d
 - 🎯 **Wild Card Race** - Playoff picture with IN/OUT status and cutoff line
 - 🏈 **Weekly Matchups** - Expandable week-by-week results with scores and winners
 
-### Postseason Tab
+### Live Tab (current season)
+- 🔴 **Live Play-All** - Each team's record against every other team at the current scores, refreshed every minute
+- 📊 **Live Standings** - Division and wild card standings as if the week ended now, with teams moving in or dropping out flagged
+
+### Playoffs Tab
+- 🔮 **Playoff Picture** (during the regular season) - Seeds and bracket if the season ended now, simulated playoff / division / bye odds, and what each team needs (clinched, eliminated, win-and-in, points races)
 - 🏆 **Playoff Bracket** - Round-by-round playoff progression
 - 🚽 **Toilet Bowl Bracket** - Bracket for non-playoff teams with placement games
 
@@ -26,6 +31,10 @@ A modern Next.js web application for analyzing Sleeper fantasy football league d
 - 🎲 **Play Everyone Analysis** - Hypothetical records if teams played all opponents weekly
 - 📋 **Weekly Play All** - Week-by-week theoretical records for consistency checks
 - 🎯 **Schedule Luck Distribution** - Simulated win distributions with actual record highlight
+
+### Draft Tab
+- 📋 **Draft Board** - Snake or auction board with each pick's points per available week and median when healthy
+- 🎯 **Draft Core** - Each team's intended starters (most expensive / earliest pick per slot), ranked by Core/wk
 
 ### UI & Experience
 - 🎨 **Theme Toggle** - Light, dark, and system theme support

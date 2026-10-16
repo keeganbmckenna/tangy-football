@@ -64,7 +64,7 @@ export default function Home() {
   const [postseasonBrackets, setPostseasonBrackets] = useState<PostseasonBrackets | null>(null);
 
   const leagueSettings = leagueData ? getLeagueSettings(leagueData.league) : null;
-  // Current season's regular season still being played: the Postseason tab
+  // Current season's regular season still being played: the Playoffs tab
   // shows the playoff picture instead of empty brackets
   // The newest season is the current one; Live only applies to it
   const isCurrentSeason = availableSeasons.length === 0
@@ -168,13 +168,14 @@ export default function Home() {
   }
 
   const tabs = [
+    // Most-checked in season first; the draft is reference material, so last
     { id: 'overview', name: 'Overview', icon: '📊' },
     { id: 'live', name: 'Live', icon: '🔴' },
-    { id: 'draft', name: 'Draft', icon: '📋' },
-    { id: 'postseason', name: 'Postseason', icon: '🏆' },
+    { id: 'postseason', name: 'Playoffs', icon: '🏆' },
     { id: 'weekly', name: 'Weekly Performance', icon: '📈' },
     { id: 'trends', name: 'Season Trends', icon: '📉' },
     { id: 'advanced', name: 'Advanced Stats', icon: '🔬' },
+    { id: 'draft', name: 'Draft', icon: '📋' },
   ].filter((tab) => tab.id !== 'live' || isCurrentSeason);
 
   const seasonOptions = availableSeasons.length
