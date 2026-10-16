@@ -134,7 +134,8 @@ describe('simulatePlayoffOdds', () => {
   it('reports how this week changes the odds', () => {
     const { teams: odds, nextWeekGames } = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 4000);
     expect(nextWeekGames.map((g) => g.week)).toEqual([5, 5, 5]);
-    expect(odds[2].ifWin!).toBeGreaterThan(odds[2].ifLoss!);
+    expect(odds[2].ifWin!.playoffs).toBeGreaterThan(odds[2].ifLoss!.playoffs);
+    expect(odds[2].ifWin!.division).toBeGreaterThanOrEqual(odds[2].ifLoss!.division);
   });
 });
 
@@ -278,6 +279,21 @@ describe('toilet bowl', () => {
     // Champion must have made the playoffs
     for (const o of Object.values(odds)) expect(o.champion!).toBeLessThanOrEqual(o.playoffs + 1e-9);
     expect(odds[12].champion!).toBeGreaterThan(0.8);
+  });
+
+  it('splits every outcome by this week\'s result, consistent with the overall odds', () => {
+    const { teams: odds } = simulatePlayoffOdds(twelve, games, big, means(12), 20, 6000, 3, 15);
+    const o = odds[12];
+    // Team 12 plays team 6 in week 14: winning helps the title, losing hurts in the toilet bowl
+    expect(o.ifWin!.champion!).toBeGreaterThanOrEqual(o.ifLoss!.champion!);
+    expect(o.ifLoss!.lastPlace!).toBeGreaterThan(o.ifWin!.lastPlace!);
+    // Overall odds sit between the two branches
+    for (const k of ['playoffs', 'lastPlace'] as const) {
+      const lo = Math.min(o.ifWin![k]!, o.ifLoss![k]!) - 1e-9;
+      const hi = Math.max(o.ifWin![k]!, o.ifLoss![k]!) + 1e-9;
+      expect(o[k]!).toBeGreaterThanOrEqual(lo);
+      expect(o[k]!).toBeLessThanOrEqual(hi);
+    }
   });
 
   it('can skip the toilet bowl but still simulate the championship', () => {

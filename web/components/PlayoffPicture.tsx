@@ -95,7 +95,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     else if (sc.clinchedPlayoffs) lines.push({ tone: 'good', text: 'Clinched a playoff spot.' });
     const lastPlaceLine = (): Line | null =>
       o?.lastPlace != null && o.lastPlace >= 0.05
-        ? { tone: 'bad', text: `${pct(o.lastPlace)} chance of finishing last (losing the toilet bowl's last-place game).` }
+        ? { tone: 'bad', text: `${pct(o.lastPlace)} chance of losing the toilet bowl.` }
         : null;
     if (sc.eliminated) {
       lines.push({ tone: 'bad', text: 'Eliminated from playoff contention.' });
@@ -136,12 +136,6 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     }
 
     if (o && o.ifWin !== null && o.ifLoss !== null && !sc.clinchedPlayoffs) {
-      const game = data.odds!.nextWeekGames.find((g) => g.a === id || g.b === id);
-      const opp = game ? (game.a === id ? game.b : game.a) : null;
-      lines.push({
-        tone: 'neutral',
-        text: `Week ${nextWeek}${opp ? ` vs ${name(opp)}` : ''}: a win → ${pct(o.ifWin)}, a loss → ${pct(o.ifLoss)}.`,
-      });
       // Biggest rooting interest among other games this week
       let best: { text: string; swing: number } | null = null;
       for (const g of data.odds!.nextWeekGames) {
@@ -160,6 +154,51 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     const lp = lastPlaceLine();
     if (lp) lines.push(lp);
     return lines;
+  };
+
+  /** Now vs after a win / loss this week, for every outcome that this week can change */
+  const thisWeekTable = (id: number) => {
+    const o = odds[id];
+    if (!o || !o.ifWin || !o.ifLoss) return null;
+    const game = data.odds!.nextWeekGames.find((g) => g.a === id || g.b === id);
+    const opp = game ? (game.a === id ? game.b : game.a) : null;
+    const rows: { label: string; now: number; win: number; loss: number; bad?: boolean }[] = [
+      { label: 'Playoffs', now: o.playoffs, win: o.ifWin.playoffs, loss: o.ifLoss.playoffs },
+      ...(data.format.hasDivisions ? [{ label: 'Division', now: o.division, win: o.ifWin.division, loss: o.ifLoss.division }] : []),
+      { label: 'Bye', now: o.bye, win: o.ifWin.bye, loss: o.ifLoss.bye },
+      ...(o.champion !== null && o.ifWin.champion !== null && o.ifLoss.champion !== null
+        ? [{ label: 'Win the league', now: o.champion, win: o.ifWin.champion, loss: o.ifLoss.champion }]
+        : []),
+      ...(o.lastPlace !== null && o.ifWin.lastPlace !== null && o.ifLoss.lastPlace !== null
+        ? [{ label: 'Lose the toilet bowl', now: o.lastPlace, win: o.ifWin.lastPlace, loss: o.ifLoss.lastPlace, bad: true }]
+        : []),
+    ].filter((r) => !(r.win === r.loss && (r.now === 0 || r.now === 1)));
+    if (!rows.length) return null;
+    // Green for the better result: higher odds, or lower for losing the toilet bowl
+    const tone = (r: (typeof rows)[number], v: number, other: number) =>
+      v === other ? 'var(--foreground)' : (r.bad ? v < other : v > other) ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L;
+    return (
+      <table className="mt-3 w-full text-sm">
+        <thead>
+          <tr className="text-xs text-[var(--muted)]">
+            <th className="py-1 text-left font-medium">Week {nextWeek}{opp ? ` vs ${name(opp)}` : ''}</th>
+            <th className="py-1 text-right font-medium">Now</th>
+            <th className="py-1 text-right font-medium">Win</th>
+            <th className="py-1 text-right font-medium">Loss</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label} className="border-t border-[var(--border)]">
+              <td className="py-1 text-[var(--foreground)]">{r.label}</td>
+              <td className="py-1 text-right text-[var(--muted)]">{pct(r.now)}</td>
+              <td className="py-1 text-right font-medium" style={{ color: tone(r, r.win, r.loss) }}>{pct(r.win)}</td>
+              <td className="py-1 text-right font-medium" style={{ color: tone(r, r.loss, r.win) }}>{pct(r.loss)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
   };
 
   const status = (id: number) => {
@@ -239,13 +278,13 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       {hasToilet && (
         <SectionCard
           title="Toilet Bowl If the Season Ended Now"
-          subtitle="The six teams out of the playoffs, worst record first (ties go to fewer points for). The lower score advances; the last-place game's loser finishes last."
+          subtitle="The six teams out of the playoffs, worst record first (ties go to fewer points for). The lower score advances, and the final's loser loses the toilet bowl."
           gradientType="warning"
         >
           <div className="p-6">
             <BracketBoard
               columns={projectedColumns(data.toiletBracket, ['Round 1', 'Semifinal', 'Last-place game'], data.toiletSeeds.slice(0, 2), (id) =>
-                odds[id]?.lastPlace != null ? `${pct(odds[id].lastPlace!)} last place` : null
+                odds[id]?.lastPlace != null ? `${pct(odds[id].lastPlace!)} to lose it` : null
               )}
             />
           </div>
@@ -269,11 +308,11 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                   advances) with the same model.</>
               )}
               {hasToilet && (
-                <> Last place plays out the toilet bowl too (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}) with the same
+                <> Toilet bowl odds play out the toilet bowl too (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}) with the same
                   model.</>
               )}
               {(hasTitle || hasToilet) && (
-                <> With only four past champions and last-place finishes, these couldn&apos;t be backtested, so treat them as a rough
+                <> With only four past champions and toilet bowl losers, these couldn&apos;t be backtested, so treat them as a rough
                   guide.</>
               )}
             </span>
@@ -295,9 +334,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                     <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Title</th>
                   )}
                   {hasToilet && (
-                    <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Last place</th>
+                    <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Lose toilet bowl</th>
                   )}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Week {nextWeek}: win / loss</th>
+                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Week {nextWeek}: playoffs with a win / loss</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -342,9 +381,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                       <td className="px-3 py-2 whitespace-nowrap text-center text-sm">
                         {o && o.ifWin !== null && o.ifLoss !== null ? (
                           <>
-                            <span style={{ color: RESULT_DOT_COLORS.W }}>{pct(o.ifWin)}</span>
+                            <span style={{ color: RESULT_DOT_COLORS.W }}>{pct(o.ifWin.playoffs)}</span>
                             <span className="text-[var(--muted)]"> / </span>
-                            <span style={{ color: RESULT_DOT_COLORS.L }}>{pct(o.ifLoss)}</span>
+                            <span style={{ color: RESULT_DOT_COLORS.L }}>{pct(o.ifLoss.playoffs)}</span>
                           </>
                         ) : (
                           <span className="text-[var(--muted)]">—</span>
@@ -399,6 +438,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                     <li className="text-sm text-[var(--muted)]">Nothing decided yet.</li>
                   )}
                 </ul>
+                {thisWeekTable(t.rosterId)}
               </div>
             );
           })}

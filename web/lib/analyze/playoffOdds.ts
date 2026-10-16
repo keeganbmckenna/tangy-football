@@ -271,6 +271,17 @@ function rng(seed: number) {
   };
 }
 
+/** Odds of each outcome, given some condition (e.g. winning this week) */
+export interface OutcomeOdds {
+  playoffs: number;
+  division: number;
+  bye: number;
+  /** null if the playoffs aren't simulated */
+  champion: number | null;
+  /** Losing the toilet bowl; null if the toilet bowl isn't simulated */
+  lastPlace: number | null;
+}
+
 export interface TeamOdds {
   rosterId: number;
   playoffs: number;
@@ -278,9 +289,9 @@ export interface TeamOdds {
   bye: number;
   /** seedOdds[i] = chance of finishing as seed i + 1 */
   seedOdds: number[];
-  /** Playoff odds after a win / loss in the next remaining week (null if no game) */
-  ifWin: number | null;
-  ifLoss: number | null;
+  /** Every outcome's odds after a win / loss in the next remaining week (null if no game) */
+  ifWin: OutcomeOdds | null;
+  ifLoss: OutcomeOdds | null;
   /** Chance of losing the toilet bowl final (null if the toilet bowl isn't simulated) */
   lastPlace: number | null;
   /** Chance of winning the championship (null if the playoffs aren't simulated) */
@@ -339,9 +350,18 @@ export function simulatePlayoffOdds(
   const division = new Map(ids.map((id) => [id, 0]));
   const bye = new Map(ids.map((id) => [id, 0]));
   const seedCounts = new Map(ids.map((id) => [id, new Array(format.playoffTeams).fill(0)]));
-  // Next-week conditionals: [game][a won?][roster] -> playoff count, plus sims per branch
-  const branchIn = nextGames.map(() => [new Map(ids.map((id) => [id, 0])), new Map(ids.map((id) => [id, 0]))]);
+  // Next-week conditionals: [game][a won? 0 : 1] -> per-outcome counts per roster, plus sims per branch
+  type Counts = Record<keyof OutcomeOdds, Map<number, number>>;
+  const newCounts = (): Counts => ({
+    playoffs: new Map(ids.map((id) => [id, 0])),
+    division: new Map(ids.map((id) => [id, 0])),
+    bye: new Map(ids.map((id) => [id, 0])),
+    champion: new Map(ids.map((id) => [id, 0])),
+    lastPlace: new Map(ids.map((id) => [id, 0])),
+  });
+  const branch = nextGames.map(() => [newCounts(), newCounts()]);
   const branchN = nextGames.map(() => [0, 0]);
+  const bump = (m: Map<number, number>, id: number) => m.set(id, m.get(id)! + 1);
 
   for (let s = 0; s < sims; s++) {
     const sim = teams.map((t) => ({ ...t }));
@@ -371,14 +391,16 @@ export function simulatePlayoffOdds(
       if (i < format.byes) bye.set(id, bye.get(id)! + 1);
     });
     divisionWinners.forEach((id) => division.set(id, division.get(id)! + 1));
+    let champ: number | null = null;
+    let last: number | null = null;
     if (simulateChampion) {
       // Higher score advances: 4 v 5 and 3 v 6, then 1 and 2 host, then the final
       const w = playoffWeekStart!;
       const higher = (week: number, a: number, b: number) => (score(week, a) > score(week, b) ? a : b);
       const r1a = higher(w, seeds[3], seeds[4]);
       const r1b = higher(w, seeds[2], seeds[5]);
-      const champ = higher(w + 2, higher(w + 1, seeds[0], r1a), higher(w + 1, seeds[1], r1b));
-      champion.set(champ, champion.get(champ)! + 1);
+      champ = higher(w + 2, higher(w + 1, seeds[0], r1a), higher(w + 1, seeds[1], r1b));
+      bump(champion, champ);
     }
     if (simulateToilet) {
       // Lower score advances; the final's lower scorer finishes last
@@ -387,13 +409,20 @@ export function simulatePlayoffOdds(
       const lower = (week: number, a: number, b: number) => (score(week, a) < score(week, b) ? a : b);
       const r1a = lower(w, t[3], t[4]);
       const r1b = lower(w, t[2], t[5]);
-      const last = lower(w + 2, lower(w + 1, t[0], r1a), lower(w + 1, t[1], r1b));
-      lastPlace.set(last, lastPlace.get(last)! + 1);
+      last = lower(w + 2, lower(w + 1, t[0], r1a), lower(w + 1, t[1], r1b));
+      bump(lastPlace, last);
     }
     nextWinners.forEach((aWon, gi) => {
       const side = aWon ? 0 : 1;
       branchN[gi][side]++;
-      seeds.forEach((id) => branchIn[gi][side].set(id, branchIn[gi][side].get(id)! + 1));
+      const c = branch[gi][side];
+      seeds.forEach((id, i) => {
+        bump(c.playoffs, id);
+        if (i < format.byes) bump(c.bye, id);
+      });
+      divisionWinners.forEach((id) => bump(c.division, id));
+      if (champ !== null) bump(c.champion, champ);
+      if (last !== null) bump(c.lastPlace, last);
     });
   }
 
@@ -401,23 +430,38 @@ export function simulatePlayoffOdds(
     const ifAWins: Record<number, number> = {};
     const ifBWins: Record<number, number> = {};
     ids.forEach((id) => {
-      ifAWins[id] = branchN[gi][0] ? branchIn[gi][0].get(id)! / branchN[gi][0] : 0;
-      ifBWins[id] = branchN[gi][1] ? branchIn[gi][1].get(id)! / branchN[gi][1] : 0;
+      ifAWins[id] = branchN[gi][0] ? branch[gi][0].playoffs.get(id)! / branchN[gi][0] : 0;
+      ifBWins[id] = branchN[gi][1] ? branch[gi][1].playoffs.get(id)! / branchN[gi][1] : 0;
     });
     return { week: g.week, a: g.a, b: g.b, ifAWins, ifBWins };
   });
 
+  // Every outcome's odds for a roster in one branch of a next-week game
+  const branchOdds = (gi: number, side: number, id: number): OutcomeOdds => {
+    const n = branchN[gi][side] || 1;
+    const c = branch[gi][side];
+    return {
+      playoffs: c.playoffs.get(id)! / n,
+      division: format.hasDivisions ? c.division.get(id)! / n : 0,
+      bye: c.bye.get(id)! / n,
+      champion: simulateChampion ? c.champion.get(id)! / n : null,
+      lastPlace: simulateToilet ? c.lastPlace.get(id)! / n : null,
+    };
+  };
+
   const result: Record<number, TeamOdds> = {};
   for (const id of ids) {
-    const own = nextWeekGames.find((g) => g.a === id || g.b === id);
+    const gi = nextGames.findIndex((g) => g.a === id || g.b === id);
+    const own = gi >= 0 ? nextGames[gi] : null;
     result[id] = {
       rosterId: id,
       playoffs: playoffs.get(id)! / sims,
       division: format.hasDivisions ? division.get(id)! / sims : 0,
       bye: bye.get(id)! / sims,
       seedOdds: seedCounts.get(id)!.map((c) => c / sims),
-      ifWin: own ? (own.a === id ? own.ifAWins[id] : own.ifBWins[id]) : null,
-      ifLoss: own ? (own.a === id ? own.ifBWins[id] : own.ifAWins[id]) : null,
+      // Branch 0 is "a won"
+      ifWin: own ? branchOdds(gi, own.a === id ? 0 : 1, id) : null,
+      ifLoss: own ? branchOdds(gi, own.a === id ? 1 : 0, id) : null,
       lastPlace: simulateToilet ? lastPlace.get(id)! / sims : null,
       champion: simulateChampion ? champion.get(id)! / sims : null,
     };
