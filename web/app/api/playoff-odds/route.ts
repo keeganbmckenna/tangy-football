@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
 
 const PROJECTIONS_URL = 'https://api.sleeper.com/projections/nfl';
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 const fetchJson = async <T,>(url: string, revalidate: number | false): Promise<T> => {

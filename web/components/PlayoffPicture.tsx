@@ -6,7 +6,7 @@ import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/Bra
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
-import { formatOdds, type OddsTeam, type PlayoffOddsResponse, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
+import { formatOdds, type OutcomeOdds, type OddsTeam, type PlayoffOddsResponse, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
 import type { TeamStats } from '@/lib/types';
 
 interface PlayoffPictureProps {
@@ -43,6 +43,8 @@ function OddsCell({ p, muted = false }: { p: number; muted?: boolean }) {
 export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
   const [data, setData] = useState<PlayoffOddsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Which outcome the "this week: win / loss" column shows
+  const [swingOutcome, setSwingOutcome] = useState<keyof OutcomeOdds>('playoffs');
 
   useEffect(() => {
     let cancelled = false;
@@ -165,9 +167,13 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     const rows: { label: string; now: number; win: number; loss: number; bad?: boolean }[] = [
       { label: 'Playoffs', now: o.playoffs, win: o.ifWin.playoffs, loss: o.ifLoss.playoffs },
       ...(data.format.hasDivisions ? [{ label: 'Division', now: o.division, win: o.ifWin.division, loss: o.ifLoss.division }] : []),
-      { label: 'Bye', now: o.bye, win: o.ifWin.bye, loss: o.ifLoss.bye },
+      { label: 'Playoff bye', now: o.bye, win: o.ifWin.bye, loss: o.ifLoss.bye },
       ...(o.champion !== null && o.ifWin.champion !== null && o.ifLoss.champion !== null
         ? [{ label: 'Win the league', now: o.champion, win: o.ifWin.champion, loss: o.ifLoss.champion }]
+        : []),
+      // A toilet bowl bye is bad: two losses, not three, lose the toilet bowl
+      ...(o.toiletBye !== null && o.ifWin.toiletBye !== null && o.ifLoss.toiletBye !== null
+        ? [{ label: 'Toilet bowl bye', now: o.toiletBye, win: o.ifWin.toiletBye, loss: o.ifLoss.toiletBye, bad: true }]
         : []),
       ...(o.lastPlace !== null && o.ifWin.lastPlace !== null && o.ifLoss.lastPlace !== null
         ? [{ label: 'Lose the toilet bowl', now: o.lastPlace, win: o.ifWin.lastPlace, loss: o.ifLoss.lastPlace, bad: true }]
@@ -250,6 +256,15 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     });
   const hasToilet = data.toiletBracket.length > 0 && Object.values(odds).some((o) => o.lastPlace !== null);
   const hasTitle = Object.values(odds).some((o) => o.champion !== null);
+  const swingOptions: { key: keyof OutcomeOdds; label: string }[] = [
+    { key: 'playoffs', label: 'playoff' },
+    ...(data.format.hasDivisions ? [{ key: 'division' as const, label: 'division' }] : []),
+    { key: 'bye', label: 'playoff bye' },
+    ...(hasTitle ? [{ key: 'champion' as const, label: 'winning the league' }] : []),
+    ...(hasToilet ? [{ key: 'toiletBye' as const, label: 'toilet bowl bye' }] : []),
+    ...(hasToilet ? [{ key: 'lastPlace' as const, label: 'losing the toilet bowl' }] : []),
+  ];
+  const swingLabel = swingOptions.find((o) => o.key === swingOutcome)?.label ?? 'playoff';
 
   return (
     <div className="space-y-8">
@@ -301,8 +316,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
               Each simulated week, a team scores around a strength that is 75% its projected best lineup for that week
               (so byes count) and 25% its scoring this season, with this season&apos;s week-to-week spread. Backtested on
               2022–2025, these odds beat reading the standings by 30–50% (Brier score) and were well calibrated: teams
-              given 40–60% made it 51% of the time, teams given 80–95% made it 88% of the time. Bye odds were overconfident
-              in testing, so treat them as rougher. The win/loss column shows the odds after a win or a loss this week.
+              given 40–60% made it 51% of the time, teams given 80–95% made it 88% of the time. Playoff bye odds were
+              overconfident in testing, so treat them as rougher. The win/loss column shows the selected odds after a win or a loss
+              this week.
               {hasTitle && (
                 <> Title odds play out the playoff bracket (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}, higher score
                   advances) with the same model.</>
@@ -318,6 +334,19 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
             </span>
           }
         >
+          <label className="flex flex-wrap items-center gap-2 px-6 pt-4 text-sm text-[var(--foreground)]">
+            How a win or loss in week {nextWeek} changes
+            <select
+              value={swingOutcome}
+              onChange={(e) => setSwingOutcome(e.target.value as keyof OutcomeOdds)}
+              className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            >
+              {swingOptions.map((opt) => (
+                <option key={opt.key} value={opt.key}>{opt.label}</option>
+              ))}
+            </select>
+            odds
+          </label>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[var(--border)]">
               <thead className="bg-[var(--surface)]">
@@ -329,14 +358,17 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                   {data.format.hasDivisions && (
                     <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</th>
                   )}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Bye*</th>
+                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoff bye*</th>
                   {hasTitle && (
                     <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Title</th>
                   )}
                   {hasToilet && (
                     <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Lose toilet bowl</th>
                   )}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Week {nextWeek}: playoffs with a win / loss</th>
+                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Week {nextWeek}: win / loss
+                    <div className="normal-case tracking-normal">{swingLabel}</div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -379,11 +411,11 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                         </td>
                       )}
                       <td className="px-3 py-2 whitespace-nowrap text-center text-sm">
-                        {o && o.ifWin !== null && o.ifLoss !== null ? (
+                        {o && o.ifWin !== null && o.ifLoss !== null && o.ifWin[swingOutcome] !== null && o.ifLoss[swingOutcome] !== null ? (
                           <>
-                            <span style={{ color: RESULT_DOT_COLORS.W }}>{pct(o.ifWin.playoffs)}</span>
+                            <span style={{ color: RESULT_DOT_COLORS.W }}>{pct(o.ifWin[swingOutcome]!)}</span>
                             <span className="text-[var(--muted)]"> / </span>
-                            <span style={{ color: RESULT_DOT_COLORS.L }}>{pct(o.ifLoss.playoffs)}</span>
+                            <span style={{ color: RESULT_DOT_COLORS.L }}>{pct(o.ifLoss[swingOutcome]!)}</span>
                           </>
                         ) : (
                           <span className="text-[var(--muted)]">—</span>

@@ -280,6 +280,8 @@ export interface OutcomeOdds {
   champion: number | null;
   /** Losing the toilet bowl; null if the toilet bowl isn't simulated */
   lastPlace: number | null;
+  /** Toilet bowl seed 1 or 2 (one of the two worst teams); null if no toilet bowl */
+  toiletBye: number | null;
 }
 
 export interface TeamOdds {
@@ -296,6 +298,8 @@ export interface TeamOdds {
   lastPlace: number | null;
   /** Chance of winning the championship (null if the playoffs aren't simulated) */
   champion: number | null;
+  /** Chance of a toilet bowl bye: seed 1 or 2, the two worst teams (null if no toilet bowl) */
+  toiletBye: number | null;
 }
 
 export interface GameImpact {
@@ -343,6 +347,7 @@ export function simulatePlayoffOdds(
   const score = (week: number, id: number) => meanFor(week, id) + spread * normal();
   const lastPlace = new Map(ids.map((id) => [id, 0]));
   const champion = new Map(ids.map((id) => [id, 0]));
+  const toiletBye = new Map(ids.map((id) => [id, 0]));
   const nextWeek = remaining.length ? Math.min(...remaining.map((g) => g.week)) : null;
   const nextGames = remaining.filter((g) => g.week === nextWeek);
 
@@ -358,6 +363,7 @@ export function simulatePlayoffOdds(
     bye: new Map(ids.map((id) => [id, 0])),
     champion: new Map(ids.map((id) => [id, 0])),
     lastPlace: new Map(ids.map((id) => [id, 0])),
+    toiletBye: new Map(ids.map((id) => [id, 0])),
   });
   const branch = nextGames.map(() => [newCounts(), newCounts()]);
   const branchN = nextGames.map(() => [0, 0]);
@@ -393,6 +399,7 @@ export function simulatePlayoffOdds(
     divisionWinners.forEach((id) => division.set(id, division.get(id)! + 1));
     let champ: number | null = null;
     let last: number | null = null;
+    let toiletByes: number[] = [];
     if (simulateChampion) {
       // Higher score advances: 4 v 5 and 3 v 6, then 1 and 2 host, then the final
       const w = playoffWeekStart!;
@@ -405,6 +412,8 @@ export function simulatePlayoffOdds(
     if (simulateToilet) {
       // Lower score advances; the final's lower scorer finishes last
       const t = toiletSeeds(sim, seeds);
+      toiletByes = [t[0], t[1]];
+      toiletByes.forEach((id) => bump(toiletBye, id));
       const w = playoffWeekStart!;
       const lower = (week: number, a: number, b: number) => (score(week, a) < score(week, b) ? a : b);
       const r1a = lower(w, t[3], t[4]);
@@ -423,6 +432,7 @@ export function simulatePlayoffOdds(
       divisionWinners.forEach((id) => bump(c.division, id));
       if (champ !== null) bump(c.champion, champ);
       if (last !== null) bump(c.lastPlace, last);
+      toiletByes.forEach((id) => bump(c.toiletBye, id));
     });
   }
 
@@ -446,6 +456,7 @@ export function simulatePlayoffOdds(
       bye: c.bye.get(id)! / n,
       champion: simulateChampion ? c.champion.get(id)! / n : null,
       lastPlace: simulateToilet ? c.lastPlace.get(id)! / n : null,
+      toiletBye: simulateToilet ? c.toiletBye.get(id)! / n : null,
     };
   };
 
@@ -464,6 +475,7 @@ export function simulatePlayoffOdds(
       ifLoss: own ? branchOdds(gi, own.a === id ? 1 : 0, id) : null,
       lastPlace: simulateToilet ? lastPlace.get(id)! / sims : null,
       champion: simulateChampion ? champion.get(id)! / sims : null,
+      toiletBye: simulateToilet ? toiletBye.get(id)! / sims : null,
     };
   }
   return { teams: result, nextWeekGames, sims };

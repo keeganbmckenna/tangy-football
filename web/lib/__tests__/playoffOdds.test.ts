@@ -263,6 +263,10 @@ describe('toilet bowl', () => {
     const { teams: odds } = simulatePlayoffOdds(twelve, games, big, means(12), 20, 4000, 1, 15);
     const total = Object.values(odds).reduce((s, o) => s + (o.lastPlace ?? 0), 0);
     expect(total).toBeCloseTo(1);
+    // Two toilet bowl byes per season
+    expect(Object.values(odds).reduce((s, o) => s + (o.toiletBye ?? 0), 0)).toBeCloseTo(2);
+    // The far weakest team is the most likely to be one of the two worst
+    expect(odds[12].toiletBye!).toBeGreaterThan(0.5);
     const ranked = Object.values(odds).sort((a, b) => (b.lastPlace ?? 0) - (a.lastPlace ?? 0));
     // The far weakest team is the most likely to finish last
     expect(ranked[0].rosterId).toBe(12);
@@ -299,6 +303,7 @@ describe('toilet bowl', () => {
   it('can skip the toilet bowl but still simulate the championship', () => {
     const { teams: odds } = simulatePlayoffOdds(twelve, games, big, means(12), 20, 500, 1, 15, false);
     expect(odds[1].lastPlace).toBeNull();
+    expect(odds[1].toiletBye).toBeNull();
     expect(odds[1].champion).not.toBeNull();
   });
 
