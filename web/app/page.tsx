@@ -219,23 +219,29 @@ export default function Home() {
         {/* Tabs */}
         <div className="border-b border-[var(--border)]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Desktop Navigation */}
-            <nav className="-mb-px hidden md:flex space-x-8" aria-label="Tabs">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`${
-                    activeTab === tab.id
-                      ? 'border-[var(--accent)] text-[var(--accent)]'
-                      : 'border-transparent text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--border)]'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-                >
-                  <span className="mr-2">{tab.icon}</span>
-                  {tab.name}
-                </button>
-              ))}
+            {/* Desktop Navigation: compact pills, centered; scrolls within itself if the window is narrow */}
+            <nav
+              className="hidden md:flex overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              aria-label="Tabs"
+            >
+              <div className="mx-auto flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    aria-current={activeTab === tab.id ? 'page' : undefined}
+                    className={`${
+                      activeTab === tab.id
+                        ? 'bg-[var(--info-bg)] text-[var(--info-text)] shadow-sm'
+                        : 'text-[var(--muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]'
+                    } whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors lg:px-3.5`}
+                  >
+                    <span className="mr-1.5 hidden lg:inline">{tab.icon}</span>
+                    {tab.name}
+                  </button>
+                ))}
+              </div>
             </nav>
 
             {/* Mobile Navigation */}
