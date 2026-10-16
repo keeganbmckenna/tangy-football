@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
+import ResultDot from '@/components/ui/ResultDot';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import {
@@ -25,27 +27,8 @@ interface LiveTabProps {
   hasDivisions: boolean;
 }
 
-const STATUS_LABEL: Record<PlayoffStatus, string> = {
-  division: 'Division leader',
-  wildcard: 'Wild card',
-  in: 'In',
-  out: 'Out',
-};
-
 function isIn(status: PlayoffStatus) {
   return status !== 'out';
-}
-
-function ResultDot({ result }: { result: 'W' | 'L' | 'T' | null }) {
-  const label = result === 'W' ? 'Winning' : result === 'L' ? 'Losing' : result === 'T' ? 'Tied' : 'No matchup';
-  return (
-    <span
-      className="inline-block h-3 w-3 rounded-full ring-2 ring-white/70 shrink-0"
-      style={{ backgroundColor: RESULT_DOT_COLORS[result ?? 'T'] }}
-      title={`Real matchup: ${label}`}
-      aria-label={`Real matchup: ${label}`}
-    />
-  );
 }
 
 function TeamCell({ team }: { team: TeamStats }) {
@@ -112,9 +95,21 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     const teams = liveTeamStats(leagueData, live);
     const statuses = liveMatchupStatus(live.matchups);
     const names = new Map(teams.map((t) => [t.rosterId, t.teamName]));
+    const standings = liveStandings(teams, week, playoffTeams, hasDivisions);
+    const annotations = new Map<number, StandingAnnotation>(
+      standings.rows.map((row) => [
+        row.team.rosterId,
+        {
+          previousRecord: formatRecord(row.before.wins, row.before.losses, row.before.ties),
+          liveResult: row.liveResult,
+          playoffChange: isIn(row.before.status) === isIn(row.now.status) ? null : isIn(row.now.status) ? 'in' : 'out',
+        },
+      ])
+    );
     return {
       playAll: livePlayAll(teams, week),
-      standings: liveStandings(teams, week, playoffTeams, hasDivisions),
+      standings,
+      annotations,
       statuses,
       names,
       started: live.matchups.some((m) => (m.points ?? 0) > 0),
@@ -179,7 +174,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         gradientType="info"
         footer={
           <span>
-            The cell is this week&apos;s play-all record at the current scores, colored by win rate (ties count as half).
+            The cell is this week&apos;s play-all record at the current scores, colored by win rate (ties count as half;
+            teams both still at 0 haven&apos;t played each other yet, so that isn&apos;t a tie).
             The dot shows the real matchup right now: <span style={{ color: RESULT_DOT_COLORS.W }}>●</span> winning,{' '}
             <span style={{ color: RESULT_DOT_COLORS.L }}>●</span> losing, <span style={{ color: RESULT_DOT_COLORS.T }}>●</span> tied.
             Season play-all counts this week as if it ended now.
@@ -204,7 +200,10 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             <tbody className="divide-y divide-[var(--border)]">
               {view.playAll.map((row) => {
                 const s = view.statuses.get(row.team.rosterId);
-                const { backgroundColor, textColor } = getHeatmapColorByRatio(row.week.winPct);
+                const decided = row.week.wins + row.week.losses + row.week.ties > 0;
+                const { backgroundColor, textColor } = decided
+                  ? getHeatmapColorByRatio(row.week.winPct)
+                  : { backgroundColor: 'transparent', textColor: 'var(--muted)' };
                 const margin = s && s.opponentScore !== null ? s.score - s.opponentScore : null;
                 return (
                   <tr key={row.team.rosterId}>
@@ -215,11 +214,11 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                     <td
                       className="px-4 py-3 whitespace-nowrap text-center text-sm font-semibold"
                       style={{ backgroundColor, color: textColor }}
-                      title={`${(row.week.winPct * 100).toFixed(1)}% win rate`}
+                      title={decided ? `${(row.week.winPct * 100).toFixed(1)}% win rate` : 'No points yet'}
                     >
                       <div className="flex items-center justify-center gap-2">
-                        <span>{formatRecord(row.week.wins, row.week.losses, row.week.ties)}</span>
-                        <ResultDot result={s?.result ?? null} />
+                        <span>{decided ? formatRecord(row.week.wins, row.week.losses, row.week.ties) : '—'}</span>
+                        <ResultDot result={s?.result ?? null} live />
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-[var(--muted)]">
@@ -247,79 +246,23 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         </div>
       </SectionCard>
 
-      <SectionCard
-        title="Live Standings"
-        subtitle={`If week ${week} ended now`}
-        gradientType="success"
-        footer={
-          <span>
-            Standings with this week&apos;s real matchups decided at the current scores, ranked the same way as the
-            Overview tab (wins, then points for). Arrows show the change from before this week.
-          </span>
-        }
-      >
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-[var(--border)]">
-            <thead className="bg-[var(--surface)]">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">#</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Record</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Points for</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoffs</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {view.standings.map((row) => {
-                const move = row.before.rank - row.now.rank;
-                const statusChanged = isIn(row.before.status) !== isIn(row.now.status);
-                return (
-                  <tr key={row.team.rosterId} className={isIn(row.now.status) ? '' : 'opacity-80'}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-[var(--foreground)]">
-                      {row.now.rank}
-                      {move !== 0 && (
-                        <span
-                          className="ml-1 text-xs font-medium"
-                          style={{ color: move > 0 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L }}
-                          title={`Was ${row.before.rank}`}
-                        >
-                          {move > 0 ? `▲${move}` : `▼${-move}`}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3 whitespace-nowrap"><TeamCell team={row.team} /></td>
-                    <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-[var(--foreground)]">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-[var(--muted)]">
-                          {formatRecord(row.before.wins, row.before.losses, row.before.ties)} →
-                        </span>
-                        <span className="font-semibold">{formatRecord(row.now.wins, row.now.losses, row.now.ties)}</span>
-                        <ResultDot result={row.liveResult} />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-[var(--foreground)]">
-                      {row.team.totalPoints.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className={isIn(row.now.status) ? 'font-medium text-[var(--foreground)]' : 'text-[var(--muted)]'}>
-                        {STATUS_LABEL[row.now.status]}
-                      </span>
-                      {statusChanged && (
-                        <span
-                          className="ml-2 text-xs font-medium"
-                          style={{ color: isIn(row.now.status) ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L }}
-                        >
-                          {isIn(row.now.status) ? 'moving in' : 'dropping out'}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-2xl font-bold text-[var(--foreground)]">Live Standings</h2>
+          <p className="text-sm text-[var(--muted)]">
+            If week {week} ended now: this week&apos;s real matchups decided at the current scores, laid out like the
+            Overview tab. Each record shows before → now, with the dot for the real matchup right now, and teams moving
+            into or dropping out of a playoff spot are flagged.
+          </p>
         </div>
-      </SectionCard>
+        <PlayoffRace
+          divisions={view.standings.divisions}
+          wildCard={view.standings.wildCard}
+          standings={view.standings.standings}
+          playoffTeams={playoffTeams}
+          annotations={view.annotations}
+        />
+      </div>
     </div>
   );
 }

@@ -84,10 +84,33 @@ describe('livePlayAll', () => {
   });
 });
 
+describe('not-started matchups', () => {
+  // Thursday night: only teams 1 and 3 have points; 2 and 4 are both still at 0
+  const live = liveWeek([m(1, 1, 10), m(2, 1, 0), m(3, 2, 0), m(4, 2, 0)]);
+
+  it('are not ties in the real matchup or the standings', () => {
+    expect(liveMatchupStatus(live.matchups).get(3)?.result).toBeNull();
+    const { rows } = liveStandings(liveTeamStats(league(), live), 2, 2, true);
+    const team3 = rows.find((r) => r.team.rosterId === 3)!;
+    expect(team3.liveResult).toBeNull();
+    expect(team3.now).toMatchObject({ wins: 0, losses: 1, ties: 0 });
+    // Team 1 is ahead 10-0, which does count
+    expect(rows.find((r) => r.team.rosterId === 1)?.now.wins).toBe(2);
+  });
+
+  it('are not ties in play-all', () => {
+    const rows = livePlayAll(liveTeamStats(league(), live), 2);
+    const team3 = rows.find((r) => r.team.rosterId === 3)!;
+    // Lost to team 1 (10 > 0); 0-0 against teams 2 and 4 doesn't count
+    expect(team3.week).toMatchObject({ wins: 0, losses: 1, ties: 0, actualResult: null });
+    expect(team3.seasonTies).toBe(0);
+  });
+});
+
 describe('liveStandings', () => {
   it('applies the live result as if the week ended now', () => {
     const live = liveWeek([m(1, 1, 40), m(2, 1, 70), m(3, 2, 60), m(4, 2, 80)]);
-    const rows = liveStandings(liveTeamStats(league(), live), 2, 2, true);
+    const { rows, divisions, wildCard } = liveStandings(liveTeamStats(league(), live), 2, 2, true);
     const byId = new Map(rows.map((r) => [r.team.rosterId, r]));
 
     // Team 2 wins: 2-0 and first
@@ -100,6 +123,10 @@ describe('liveStandings', () => {
     expect(byId.get(4)?.liveResult).toBe('W');
     // Points for include the live score
     expect(byId.get(2)?.team.totalPoints).toBe(180);
+    // Division and wild card picture as if the week ended now
+    expect(divisions.map((d) => d.leader.rosterId)).toEqual([1, 2]);
+    // 2 playoff spots, both taken by division leaders: no wild cards
+    expect(wildCard).toEqual([]);
   });
 
   it('does not change the teams it was given', () => {
@@ -110,10 +137,19 @@ describe('liveStandings', () => {
     expect(teams.map((t) => ({ id: t.rosterId, wins: t.wins, standing: t.standing }))).toEqual(before);
   });
 
+  it('builds the wild card race like the Overview tab', () => {
+    const live = liveWeek([m(1, 1, 40), m(2, 1, 70), m(3, 2, 60), m(4, 2, 80)]);
+    const { wildCard, rows } = liveStandings(liveTeamStats(league(), live), 2, 3, true);
+    // 3 spots: 2 division leaders + 1 wild card; team 4 (1-1) beats team 3 (0-2)
+    expect(wildCard.map((w) => [w.team.rosterId, w.isIn])).toEqual([[4, true], [3, false]]);
+    expect(rows.find((r) => r.team.rosterId === 4)?.now.status).toBe('wildcard');
+  });
+
   it('uses overall rank for playoff spots without divisions', () => {
     const live = liveWeek([m(1, 1, 40), m(2, 1, 70), m(3, 2, 60), m(4, 2, 80)]);
-    const rows = liveStandings(liveTeamStats(league(), live), 2, 2, false);
+    const { rows, divisions } = liveStandings(liveTeamStats(league(), live), 2, 2, false);
     // 2 is 2-0; 4 and 1 are both 1-1, and 4 has more points (170 vs 160)
     expect(rows.filter((r) => r.now.status === 'in').map((r) => r.team.rosterId)).toEqual([2, 4]);
+    expect(divisions).toEqual([]);
   });
 });

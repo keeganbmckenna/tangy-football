@@ -2,12 +2,26 @@
 
 import { TeamStats, DivisionStanding, WildCardStanding } from '@/lib/types';
 import SectionCard from './ui/SectionCard';
+import ResultDot from './ui/ResultDot';
+import { RESULT_DOT_COLORS } from '@/lib/constants';
+
+/** Extra per-team info for live standings ("if the week ended now") */
+export interface StandingAnnotation {
+  /** Record before the live week, shown as "2-2 →" */
+  previousRecord: string;
+  /** Real matchup this week: currently winning, losing or tied */
+  liveResult: 'W' | 'L' | 'T' | null;
+  /** Moving into or dropping out of a playoff spot compared with before the week */
+  playoffChange: 'in' | 'out' | null;
+}
 
 interface PlayoffRaceProps {
   divisions: DivisionStanding[];
   wildCard: WildCardStanding[];
   standings: TeamStats[];
   playoffTeams: number;
+  /** Keyed by roster ID; when given, rows show live-week details */
+  annotations?: Map<number, StandingAnnotation>;
 }
 
 interface TeamRowProps {
@@ -19,6 +33,7 @@ interface TeamRowProps {
   showDivision?: boolean;
   isInPlayoffs?: boolean;
   showCutoffLine?: boolean;
+  annotation?: StandingAnnotation;
 }
 
 function TeamRow({
@@ -30,6 +45,7 @@ function TeamRow({
   showDivision = false,
   isInPlayoffs = false,
   showCutoffLine = false,
+  annotation,
 }: TeamRowProps) {
   return (
     <>
@@ -62,13 +78,25 @@ function TeamRow({
               <div className="text-sm font-medium text-[var(--foreground)]">
                 {team.teamName}
               </div>
-              <div className="text-xs text-[var(--muted)]">@{team.username}</div>
+              <div className="text-xs text-[var(--muted)]">
+                @{team.username}
+                {annotation?.playoffChange && (
+                  <span
+                    className="ml-2 font-medium"
+                    style={{ color: RESULT_DOT_COLORS[annotation.playoffChange === 'in' ? 'W' : 'L'] }}
+                  >
+                    {annotation.playoffChange === 'in' ? 'moving in' : 'dropping out'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </td>
-        <td className="px-4 py-3 text-sm text-[var(--foreground)]">
+        <td className="px-4 py-3 text-sm text-[var(--foreground)] whitespace-nowrap">
+          {annotation && <span className="text-[var(--muted)] font-normal">{annotation.previousRecord} → </span>}
           {team.wins}-{team.losses}
           {team.ties > 0 && `-${team.ties}`}
+          {annotation && <span className="ml-2"><ResultDot result={annotation.liveResult} live /></span>}
         </td>
         <td className="px-4 py-3 text-sm text-[var(--foreground)]">
           {team.totalPoints.toFixed(2)}
@@ -107,7 +135,7 @@ function TeamRow({
   );
 }
 
-function DivisionCard({ division }: { division: DivisionStanding }) {
+function DivisionCard({ division, annotations }: { division: DivisionStanding; annotations?: Map<number, StandingAnnotation> }) {
   const leaderPoints = Math.max(...division.teams.map(t => t.totalPoints));
   return (
     <div className="bg-[var(--surface-elevated)] rounded-lg shadow overflow-hidden">
@@ -137,6 +165,7 @@ function DivisionCard({ division }: { division: DivisionStanding }) {
                 gamesBack={team.gamesBack}
                 pointsBack={team.totalPoints - leaderPoints}
                 isLeader={team.isDivisionLeader}
+                annotation={annotations?.get(team.rosterId)}
               />
             ))}
           </tbody>
@@ -149,9 +178,11 @@ function DivisionCard({ division }: { division: DivisionStanding }) {
 function OverallStandingsCard({
   standings,
   playoffTeams,
+  annotations,
 }: {
   standings: TeamStats[];
   playoffTeams: number;
+  annotations?: Map<number, StandingAnnotation>;
 }) {
   const hasCutoff = playoffTeams > 0 && standings.length > 0;
   const cutoffIndex = hasCutoff ? Math.min(playoffTeams, standings.length) - 1 : -1;
@@ -196,6 +227,7 @@ function OverallStandingsCard({
                 isLeader={team.standing === 1}
                 isInPlayoffs={hasCutoff && team.standing <= playoffTeams}
                 showCutoffLine={hasCutoff && index === cutoffIndex}
+                annotation={annotations?.get(team.rosterId)}
               />
             ))}
           </tbody>
@@ -207,8 +239,10 @@ function OverallStandingsCard({
 
 function WildCardCard({
   wildCard,
+  annotations,
 }: {
   wildCard: WildCardStanding[];
+  annotations?: Map<number, StandingAnnotation>;
 }) {
   const lastInPoints = wildCard.filter(wc => wc.isIn).slice(-1)[0]?.team.totalPoints || 0;
   return (
@@ -259,6 +293,7 @@ function WildCardCard({
                   showDivision={true}
                   isInPlayoffs={standing.isIn}
                   showCutoffLine={isLastIn}
+                  annotation={annotations?.get(standing.team.rosterId)}
                 />
               );
             })}
@@ -269,23 +304,23 @@ function WildCardCard({
   );
 }
 
-export default function PlayoffRace({ divisions, wildCard, standings, playoffTeams }: PlayoffRaceProps) {
+export default function PlayoffRace({ divisions, wildCard, standings, playoffTeams, annotations }: PlayoffRaceProps) {
   return (
     <div className="space-y-6">
       {/* Division Standings or Overall Standings */}
       {divisions.length > 0 ? (
         <div className="space-y-6">
           {divisions.map((division) => (
-            <DivisionCard key={division.division} division={division} />
+            <DivisionCard key={division.division} division={division} annotations={annotations} />
           ))}
         </div>
       ) : (
-        <OverallStandingsCard standings={standings} playoffTeams={playoffTeams} />
+        <OverallStandingsCard standings={standings} playoffTeams={playoffTeams} annotations={annotations} />
       )}
 
       {/* Wild Card Race */}
       {wildCard.length > 0 && (
-        <WildCardCard wildCard={wildCard} />
+        <WildCardCard wildCard={wildCard} annotations={annotations} />
       )}
     </div>
   );

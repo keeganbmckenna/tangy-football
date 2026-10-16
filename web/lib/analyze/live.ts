@@ -3,10 +3,10 @@
  * as if the week ended now.
  */
 
-import type { LeagueData, SleeperMatchup, TeamStats, WeeklyPlayAllRecord } from '../types';
+import type { DivisionStanding, LeagueData, SleeperMatchup, TeamStats, WeeklyPlayAllRecord, WildCardStanding } from '../types';
 import { calculateTeamStats, rankTeams } from './teamStats';
 import { calculateDivisionStandings, calculateWildCardStandings } from './playoffs';
-import { calculateWeeklyPlayAll } from './playEveryone';
+import { calculateWeeklyPlayAll, winPercentage } from './playEveryone';
 
 /** Response of /api/live */
 export interface LiveWeekData {
@@ -26,6 +26,15 @@ export interface LiveWeekData {
 export function liveWeekNumber(week: number, lastScoredWeek: number, regularSeasonEnd: number): number | null {
   if (week <= 0 || week <= lastScoredWeek || week > regularSeasonEnd) return null;
   return week;
+}
+
+/**
+ * Live result of a comparison: two teams both still at 0 haven't started,
+ * so that's not a tie yet. Only applies to the live week.
+ */
+export function liveResult(score: number, opponentScore: number): 'W' | 'L' | 'T' | null {
+  if (score === 0 && opponentScore === 0) return null;
+  return score > opponentScore ? 'W' : score < opponentScore ? 'L' : 'T';
 }
 
 /** League data with the given week's matchups replaced by live ones */
@@ -61,7 +70,7 @@ export function liveMatchupStatus(matchups: SleeperMatchup[]): Map<number, LiveM
       score,
       opponentRosterId: opp?.roster_id ?? null,
       opponentScore: oppScore,
-      result: oppScore === null ? null : score > oppScore ? 'W' : score < oppScore ? 'L' : 'T',
+      result: oppScore === null ? null : liveResult(score, oppScore),
     });
   }
   return status;
@@ -84,21 +93,33 @@ export interface LivePlayAllRow {
  * the live week's matchups (see withLiveMatchups). Sorted by current score.
  */
 export function livePlayAll(teams: TeamStats[], week: number): LivePlayAllRow[] {
+  const scoreOf = (t: TeamStats) => t.weeklyScores[week - 1] ?? 0;
   return calculateWeeklyPlayAll(teams, week)
+    .filter((row) => row.weeklyRecords[week - 1] !== undefined)
     .map((row) => {
       const team = teams.find((t) => t.username === row.username)!;
       const record = row.weeklyRecords[week - 1];
+      const score = scoreOf(team);
+      // Pairs where both teams are still at 0 haven't started: not ties yet
+      const notStarted = score === 0 ? teams.filter((t) => t !== team && scoreOf(t) === 0).length : 0;
+      const ties = record.ties - notStarted;
+      const seasonTies = row.totalTies - notStarted;
+      const opponent = team.weeklyOpponentScores[week - 1];
       return {
         team,
-        score: team.weeklyScores[week - 1] ?? 0,
-        week: record,
+        score,
+        week: {
+          ...record,
+          ties,
+          winPct: winPercentage(record.wins, record.losses, ties),
+          actualResult: opponent === undefined ? null : liveResult(score, opponent),
+        },
         seasonWins: row.totalWins,
         seasonLosses: row.totalLosses,
-        seasonTies: row.totalTies,
-        seasonWinPct: row.overallWinPct,
+        seasonTies,
+        seasonWinPct: winPercentage(row.totalWins, row.totalLosses, seasonTies),
       };
     })
-    .filter((row) => row.week !== undefined)
     .sort((a, b) => b.score - a.score);
 }
 
@@ -112,20 +133,31 @@ export interface LiveStandingRow {
   liveResult: 'W' | 'L' | 'T' | null;
 }
 
-/** Playoff status per roster for teams that have been ranked */
-function playoffStatus(teams: TeamStats[], playoffTeams: number, hasDivisions: boolean): Map<number, PlayoffStatus> {
+export interface LiveStandings {
+  rows: LiveStandingRow[];
+  /** As if the week ended now, same shape as the Overview tab's standings */
+  standings: TeamStats[];
+  divisions: DivisionStanding[];
+  wildCard: WildCardStanding[];
+}
+
+/**
+ * Playoff picture for ranked teams, built the same way as the Overview tab:
+ * division leaders, then the wild card race among everyone else.
+ */
+function playoffPicture(teams: TeamStats[], playoffTeams: number, hasDivisions: boolean) {
   const status = new Map<number, PlayoffStatus>();
   if (!hasDivisions) {
     teams.forEach((t) => status.set(t.rosterId, t.standing <= playoffTeams ? 'in' : 'out'));
-    return status;
+    return { status, divisions: [] as DivisionStanding[], wildCard: [] as WildCardStanding[] };
   }
-  calculateDivisionStandings(teams);
+  const divisions = calculateDivisionStandings(teams);
   const wildCard = calculateWildCardStandings(teams, playoffTeams);
   teams.forEach((t) => status.set(t.rosterId, t.isDivisionLeader ? 'division' : 'out'));
   wildCard.forEach((w) => {
     if (w.isIn) status.set(w.team.rosterId, 'wildcard');
   });
-  return status;
+  return { status, divisions, wildCard };
 }
 
 /**
@@ -138,15 +170,16 @@ export function liveStandings(
   week: number,
   playoffTeams: number,
   hasDivisions: boolean
-): LiveStandingRow[] {
+): LiveStandings {
   // Copies, since ranking and playoff calculations mutate teams
   const before = rankTeams(teams.map((t) => ({ ...t })));
-  const beforeStatus = playoffStatus(before, playoffTeams, hasDivisions);
+  const beforeStatus = playoffPicture(before, playoffTeams, hasDivisions).status;
 
   const now = rankTeams(
     teams.map((t) => {
-      const result = t.weeklyResults[week - 1];
       const score = t.weeklyScores[week - 1] ?? 0;
+      const opponent = t.weeklyOpponentScores[week - 1];
+      const result = opponent === undefined ? null : liveResult(score, opponent);
       return {
         ...t,
         wins: t.wins + (result === 'W' ? 1 : 0),
@@ -156,18 +189,23 @@ export function liveStandings(
       };
     })
   );
-  const nowStatus = playoffStatus(now, playoffTeams, hasDivisions);
+  const picture = playoffPicture(now, playoffTeams, hasDivisions);
+  const nowStatus = picture.status;
 
   const beforeById = new Map(before.map((t) => [t.rosterId, t]));
-  return now.map((t) => {
+  const rows = now.map((t) => {
     const b = beforeById.get(t.rosterId)!;
     return {
       team: t,
       before: { rank: b.standing, wins: b.wins, losses: b.losses, ties: b.ties, status: beforeStatus.get(t.rosterId)! },
       now: { rank: t.standing, wins: t.wins, losses: t.losses, ties: t.ties, status: nowStatus.get(t.rosterId)! },
-      liveResult: t.weeklyResults[week - 1] ?? null,
+      liveResult: (() => {
+        const opponent = t.weeklyOpponentScores[week - 1];
+        return opponent === undefined ? null : liveResult(t.weeklyScores[week - 1] ?? 0, opponent);
+      })(),
     };
   });
+  return { rows, standings: now, divisions: picture.divisions, wildCard: picture.wildCard };
 }
 
 /** Team stats including the live week's scores (wins/losses still pre-week) */
