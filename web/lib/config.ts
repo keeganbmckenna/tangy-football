@@ -68,4 +68,11 @@ export const CACHE_CONFIG = {
    * everyone viewing, so polling clients don't multiply Sleeper requests.
    */
   liveData: 30,
+
+  /**
+   * Playoff odds (30 minutes). Also keyed on the last scored week, so a newly
+   * scored week shows up right away; this bounds how long roster moves take to
+   * reach the projections.
+   */
+  playoffOdds: 1800,
 } as const;

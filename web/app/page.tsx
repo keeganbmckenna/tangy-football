@@ -17,6 +17,7 @@ import ScheduleLuckDistribution from '@/components/ScheduleLuckDistribution';
 import WeeklyPlayAll from '@/components/WeeklyPlayAll';
 import DraftBoard from '@/components/DraftBoard';
 import LiveTab from '@/components/LiveTab';
+import PlayoffPicture from '@/components/PlayoffPicture';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -63,6 +64,12 @@ export default function Home() {
   const [postseasonBrackets, setPostseasonBrackets] = useState<PostseasonBrackets | null>(null);
 
   const leagueSettings = leagueData ? getLeagueSettings(leagueData.league) : null;
+  // Current season's regular season still being played: the Postseason tab
+  // shows the playoff picture instead of empty brackets
+  const regularSeasonInProgress = !!leagueData && !!leagueSettings
+    && leagueData.league.season === availableSeasons[0]
+    && leagueData.league.status !== 'complete'
+    && leagueData.lastScoredWeek < leagueSettings.regularSeasonEnd;
   const regularSeasonWeekCap = leagueData && leagueSettings
     ? Math.min(leagueData.lastScoredWeek, leagueSettings.regularSeasonEnd)
     : undefined;
@@ -333,12 +340,20 @@ export default function Home() {
         {/* Postseason Tab */}
         {activeTab === 'postseason' && (
           <>
-            <ErrorBoundary>
-              <section>
-                <PlayoffBracket brackets={postseasonBrackets} />
-              </section>
-            </ErrorBoundary>
-            {leagueSettings?.hasToiletBowl && (
+            {regularSeasonInProgress ? (
+              <ErrorBoundary>
+                <section>
+                  <PlayoffPicture teamStats={teamStats} />
+                </section>
+              </ErrorBoundary>
+            ) : (
+              <ErrorBoundary>
+                <section>
+                  <PlayoffBracket brackets={postseasonBrackets} />
+                </section>
+              </ErrorBoundary>
+            )}
+            {!regularSeasonInProgress && leagueSettings?.hasToiletBowl && (
               <ErrorBoundary>
                 <section>
                   <ToiletBowlBracket brackets={postseasonBrackets} />
