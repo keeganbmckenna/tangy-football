@@ -5,7 +5,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
-import type { OddsTeam, PlayoffOddsResponse, ProjectedBracketGame, TeamScenarios } from '@/lib/analyze/playoffOdds';
+import { formatOdds, type OddsTeam, type PlayoffOddsResponse, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
 import type { TeamStats } from '@/lib/types';
 
 interface PlayoffPictureProps {
@@ -13,11 +13,7 @@ interface PlayoffPictureProps {
   teamStats: TeamStats[];
 }
 
-const pct = (p: number) => {
-  if (p >= 0.995 && p < 1) return '>99%';
-  if (p > 0 && p < 0.005) return '<1%';
-  return `${Math.round(p * 100)}%`;
-};
+const pct = formatOdds;
 
 type Tone = 'good' | 'bad' | 'neutral';
 interface Line {

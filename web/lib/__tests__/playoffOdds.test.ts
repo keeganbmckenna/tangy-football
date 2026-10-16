@@ -10,6 +10,7 @@ import {
   pointsRaces,
   toiletSeeds,
   projectedToiletBracket,
+  formatOdds,
   type OddsTeam,
   type PlayoffFormat,
   type RemainingGame,
@@ -291,5 +292,25 @@ describe('toilet bowl', () => {
     const t6 = twelve.slice(0, 6);
     const g6: RemainingGame[] = [{ week: 14, a: 1, b: 2 }];
     expect(simulatePlayoffOdds(t6, g6, { playoffTeams: 3, hasDivisions: false, byes: 1 }, means(6), 20, 500, 1, 15).teams[1].lastPlace).toBeNull();
+  });
+});
+
+describe('formatOdds', () => {
+  it('uses one decimal under 10% and over 90%, whole numbers between', () => {
+    expect(formatOdds(0.014)).toBe('1.4%');
+    expect(formatOdds(0.073)).toBe('7.3%');
+    expect(formatOdds(0.36)).toBe('36%');
+    expect(formatOdds(0.497)).toBe('50%');
+    expect(formatOdds(0.984)).toBe('98.4%');
+    expect(formatOdds(0.9961)).toBe('99.6%');
+  });
+
+  it('handles the edges', () => {
+    expect(formatOdds(0)).toBe('0%');
+    expect(formatOdds(1)).toBe('100%');
+    expect(formatOdds(0.0004)).toBe('<0.1%');
+    expect(formatOdds(0.9996)).toBe('>99.9%');
+    expect(formatOdds(0.0996)).toBe('10%');
+    expect(formatOdds(0.9004)).toBe('90%');
   });
 });

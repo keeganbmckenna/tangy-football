@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
 
 const PROJECTIONS_URL = 'https://api.sleeper.com/projections/nfl';
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 const fetchJson = async <T,>(url: string, revalidate: number | false): Promise<T> => {
@@ -145,7 +145,7 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
     toiletSeeds: toilet,
     toiletBracket: hasToiletBowl ? projectedToiletBracket(toilet, playoffWeekStart) : [],
     odds: remaining.length
-      ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 10000, 2026, playoffWeekStart, hasToiletBowl)
+      ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 20000, 2026, playoffWeekStart, hasToiletBowl)
       : null,
     scenarios: playoffScenarios(teams, remaining, format),
     pointsRaces: pointsRaces(teams, format),

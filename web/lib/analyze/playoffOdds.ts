@@ -43,6 +43,30 @@ export interface PlayoffFormat {
 }
 
 // ---------------------------------------------------------------------------
+// Display
+
+/**
+ * A simulated probability as a percentage. One decimal under 10% and over 90%,
+ * where 20,000 runs measure it precisely and the difference matters (1.4% vs
+ * 1.9%, 98.4% vs 99.6%); whole numbers in between, where a decimal would be
+ * false precision. "0%"/"100%" only when it never/always happened.
+ */
+export function formatOdds(p: number): string {
+  if (p <= 0) return '0%';
+  if (p >= 1) return '100%';
+  if (p < 0.001) return '<0.1%';
+  if (p > 0.999) return '>99.9%';
+  const v = p * 100;
+  if (v < 10 || v > 90) {
+    const r = Math.round(v * 10) / 10;
+    // e.g. 9.96 rounds to 10.0: show it like the whole-number band
+    if (r >= 10 && r <= 90) return `${Math.round(v)}%`;
+    return `${r.toFixed(1)}%`;
+  }
+  return `${Math.round(v)}%`;
+}
+
+// ---------------------------------------------------------------------------
 // Seeding
 
 /** Record as a single number: ties count as half a win */
@@ -284,7 +308,7 @@ export function simulatePlayoffOdds(
   format: PlayoffFormat,
   meanByWeek: Record<number, Record<number, number>>,
   spread: number,
-  sims = 10000,
+  sims = 20000,
   seed = 2026,
   /**
    * First playoff week. When set, the 6-team playoff bracket is played out for
