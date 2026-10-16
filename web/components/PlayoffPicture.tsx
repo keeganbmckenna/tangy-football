@@ -402,14 +402,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                       {data.format.hasDivisions && <OddsCell p={o?.division ?? 0} />}
                       <OddsCell p={o?.bye ?? 0} muted />
                       {hasTitle && <OddsCell p={o?.champion ?? 0} />}
-                      {hasToilet && (
-                        <td
-                          className="px-3 py-2 whitespace-nowrap text-center text-sm font-semibold"
-                          style={{ color: (o?.lastPlace ?? 0) >= 0.1 ? RESULT_DOT_COLORS.L : 'var(--muted)' }}
-                        >
-                          {pct(o?.lastPlace ?? 0)}
-                        </td>
-                      )}
+                      {hasToilet && <OddsCell p={o?.lastPlace ?? 0} />}
                       <td className="px-3 py-2 whitespace-nowrap text-center text-sm">
                         {o && o.ifWin !== null && o.ifLoss !== null && o.ifWin[swingOutcome] !== null && o.ifLoss[swingOutcome] !== null ? (
                           <>
