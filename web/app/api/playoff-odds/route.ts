@@ -7,7 +7,9 @@ import {
   playoffScenarios,
   pointsRaces,
   projectedBracket,
+  projectedToiletBracket,
   seedTeams,
+  toiletSeeds,
   simulatePlayoffOdds,
   teamStrength,
   type OddsTeam,
@@ -20,7 +22,7 @@ export const dynamic = 'force-dynamic';
 
 const PROJECTIONS_URL = 'https://api.sleeper.com/projections/nfl';
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v4';
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 const fetchJson = async <T,>(url: string, revalidate: number | false): Promise<T> => {
@@ -105,18 +107,28 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
     });
   });
 
-  // Each remaining week's projections, so byes only count in the week they happen
+  // Each remaining week's projections, so byes only count in the week they happen;
+  // the three playoff weeks too, for the toilet bowl
   const remainingWeeks = [...new Set(remaining.map((g) => g.week))].sort((a, b) => a - b);
+  const playoffWeeks = remaining.length ? [playoffWeekStart, playoffWeekStart + 1, playoffWeekStart + 2] : [];
+  const strengthWeeks = [...remainingWeeks, ...playoffWeeks];
   const perWeek = await Promise.all(
-    remainingWeeks.map((w) => rosterProjections(league.season, w, rosters, league.roster_positions ?? []))
+    strengthWeeks.map((w) => rosterProjections(league.season, w, rosters, league.roster_positions ?? []))
   );
   const projections: Record<number, Record<number, number>> = {};
-  remainingWeeks.forEach((w, i) => {
+  strengthWeeks.forEach((w, i) => {
     if (perWeek[i]) projections[w] = perWeek[i]!;
   });
   const projectionWeeks = Object.keys(projections).map(Number);
-  const { meanByWeek, spread } = teamStrength(weeklyScores, remainingWeeks, projectionWeeks.length ? projections : null);
+  const { meanByWeek, spread } = teamStrength(weeklyScores, strengthWeeks, projectionWeeks.length ? projections : null);
   const { seeds, divisionWinners } = seedTeams(teams, format);
+  const toilet = toiletSeeds(teams, seeds);
+  // Sleeper only creates this season's losers bracket when the playoffs start,
+  // so go by last season's league too
+  const previous = league.previous_league_id
+    ? await fetchJson<SleeperLeague>(`${baseUrl}/league/${league.previous_league_id}`, CACHE_CONFIG.completedWeek).catch(() => null)
+    : null;
+  const hasToiletBowl = !!league.loser_bracket_id || !!previous?.loser_bracket_id;
   const status = lastScoredWeek >= regularSeasonEnd ? 'complete' : lastScoredWeek === 0 ? 'not_started' : 'in_progress';
 
   return {
@@ -130,7 +142,11 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
     seeds,
     divisionWinners: [...divisionWinners],
     bracket: projectedBracket(seeds, playoffWeekStart),
-    odds: remaining.length ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread) : null,
+    toiletSeeds: toilet,
+    toiletBracket: hasToiletBowl ? projectedToiletBracket(toilet, playoffWeekStart) : [],
+    odds: remaining.length
+      ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 10000, 2026, hasToiletBowl ? playoffWeekStart : undefined)
+      : null,
     scenarios: playoffScenarios(teams, remaining, format),
     pointsRaces: pointsRaces(teams, format),
     remainingWeeks: remainingWeeks.length,

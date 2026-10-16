@@ -96,8 +96,14 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     if (!sc) return lines;
     if (sc.clinchedDivision) lines.push({ tone: 'good', text: 'Clinched the division (a top-3 seed).' });
     else if (sc.clinchedPlayoffs) lines.push({ tone: 'good', text: 'Clinched a playoff spot.' });
+    const lastPlaceLine = (): Line | null =>
+      o?.lastPlace != null && o.lastPlace >= 0.05
+        ? { tone: 'bad', text: `${pct(o.lastPlace)} chance of finishing last (losing the toilet bowl's last-place game).` }
+        : null;
     if (sc.eliminated) {
       lines.push({ tone: 'bad', text: 'Eliminated from playoff contention.' });
+      const lp = lastPlaceLine();
+      if (lp) lines.push(lp);
       return lines;
     }
     if (sc.eliminatedFromDivision && !sc.clinchedPlayoffs && data.format.hasDivisions) {
@@ -151,6 +157,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       }
       if (best) lines.push({ tone: 'neutral', text: best.text });
     }
+    const lp = lastPlaceLine();
+    if (lp) lines.push(lp);
     return lines;
   };
 
@@ -169,7 +177,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     </>
   );
 
-  const slot = (side: ProjectedBracketGame['top']) =>
+  const slot = (side: ProjectedBracketGame['top'], caption: (id: number) => string | null) =>
     'from' in side ? (
       <div className="text-sm italic text-[var(--muted)]">{side.from}</div>
     ) : (
@@ -181,13 +189,46 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           <div className="truncate text-sm font-medium text-[var(--foreground)]">{name(side.rosterId)}</div>
           <div className="text-xs text-[var(--muted)]">
             {record(teams.get(side.rosterId)!)}
-            {odds[side.rosterId] && <> · {pct(odds[side.rosterId].playoffs)} to make it</>}
+            {caption(side.rosterId) && <> · {caption(side.rosterId)}</>}
           </div>
         </div>
       </div>
     );
 
-  const rounds = ['Round 1', 'Semifinal', 'Final'];
+  /** Rounds of a projected bracket as columns, with the byes listed under round 1 */
+  const bracketColumns = (
+    games: ProjectedBracketGame[],
+    rounds: string[],
+    byes: number[],
+    caption: (id: number) => string | null
+  ) => (
+    <div className="grid gap-4 md:grid-cols-3">
+      {rounds.map((round) => {
+        const roundGames = games.filter((g) => g.label === round);
+        return (
+          <div key={round} className="space-y-3">
+            <div>
+              <div className="text-sm font-semibold text-[var(--foreground)]">{round}</div>
+              <div className="text-xs text-[var(--muted)]">Week {roundGames[0]?.week}</div>
+            </div>
+            {round === rounds[0] && (
+              <div className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]">
+                Byes: {byes.map((id, i) => `${i + 1}. ${name(id)}`).join(' · ')}
+              </div>
+            )}
+            {roundGames.map((g, i) => (
+              <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 space-y-2">
+                {slot(g.top, caption)}
+                <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">vs</div>
+                {slot(g.bottom, caption)}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+  const hasToilet = data.toiletBracket.length > 0 && Object.values(odds).some((o) => o.lastPlace !== null);
 
   return (
     <div className="space-y-8">
@@ -197,31 +238,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
         gradientType="primary"
       >
         <div className="p-6 space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {rounds.map((round) => {
-              const games = data.bracket.filter((g) => g.label === round);
-              return (
-                <div key={round} className="space-y-3">
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--foreground)]">{round}</div>
-                    <div className="text-xs text-[var(--muted)]">Week {games[0]?.week}</div>
-                  </div>
-                  {round === 'Round 1' && (
-                    <div className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]">
-                      Byes: {data.seeds.slice(0, 2).map((id, i) => `${i + 1}. ${name(id)}`).join(' · ')}
-                    </div>
-                  )}
-                  {games.map((g, i) => (
-                    <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 space-y-2">
-                      {slot(g.top)}
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">vs</div>
-                      {slot(g.bottom)}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
+          {bracketColumns(data.bracket, ['Round 1', 'Semifinal', 'Final'], data.seeds.slice(0, 2), (id) =>
+            odds[id] ? `${pct(odds[id].playoffs)} to make it` : null
+          )}
           {firstOut.length > 0 && (
             <div className="text-sm text-[var(--muted)]">
               <span className="font-medium text-[var(--foreground)]">First out:</span>{' '}
@@ -230,6 +249,20 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           )}
         </div>
       </SectionCard>
+
+      {hasToilet && (
+        <SectionCard
+          title="Toilet Bowl If the Season Ended Now"
+          subtitle="The six teams out of the playoffs, worst record first (ties go to fewer points for). The lower score advances; the last-place game's loser finishes last."
+          gradientType="warning"
+        >
+          <div className="p-6">
+            {bracketColumns(data.toiletBracket, ['Round 1', 'Semifinal', 'Last-place game'], data.toiletSeeds.slice(0, 2), (id) =>
+              odds[id]?.lastPlace != null ? `${pct(odds[id].lastPlace!)} last place` : null
+            )}
+          </div>
+        </SectionCard>
+      )}
 
       {data.odds && (
         <SectionCard
@@ -243,6 +276,10 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
               2022–2025, these odds beat reading the standings by 30–50% (Brier score) and were well calibrated: teams
               given 40–60% made it 51% of the time, teams given 80–95% made it 88% of the time. Bye odds were overconfident
               in testing, so treat them as rougher. The win/loss column shows the odds after a win or a loss this week.
+              {hasToilet && (
+                <> Last place plays out the toilet bowl too (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}) with the same
+                  model; with only four past last-place finishes it couldn&apos;t be backtested, so treat it as a rough guide.</>
+              )}
             </span>
           }
         >
@@ -258,6 +295,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                     <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</th>
                   )}
                   <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Bye*</th>
+                  {hasToilet && (
+                    <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Last place</th>
+                  )}
                   <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Week {nextWeek}: win / loss</th>
                 </tr>
               </thead>
@@ -291,6 +331,14 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                       <OddsCell p={o?.playoffs ?? 0} />
                       {data.format.hasDivisions && <OddsCell p={o?.division ?? 0} />}
                       <OddsCell p={o?.bye ?? 0} muted />
+                      {hasToilet && (
+                        <td
+                          className="px-3 py-2 whitespace-nowrap text-center text-sm font-semibold"
+                          style={{ color: (o?.lastPlace ?? 0) >= 0.1 ? RESULT_DOT_COLORS.L : 'var(--muted)' }}
+                        >
+                          {pct(o?.lastPlace ?? 0)}
+                        </td>
+                      )}
                       <td className="px-3 py-2 whitespace-nowrap text-center text-sm">
                         {o && o.ifWin !== null && o.ifLoss !== null ? (
                           <>

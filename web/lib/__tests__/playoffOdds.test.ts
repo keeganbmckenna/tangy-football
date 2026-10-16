@@ -8,6 +8,8 @@ import {
   statusFor,
   playoffScenarios,
   pointsRaces,
+  toiletSeeds,
+  projectedToiletBracket,
   type OddsTeam,
   type PlayoffFormat,
   type RemainingGame,
@@ -221,5 +223,53 @@ describe('pointsRaces', () => {
     expect(r[2]).toContainEqual({ rival: 1, margin: -100, kind: 'division' });
     // Wild card is 2 (8-4); no one else at 8-4 outside, so no cutoff race
     expect(r[5]).toBeUndefined();
+  });
+});
+
+describe('toilet bowl', () => {
+  it('seeds non-playoff teams worst first, ties going to fewer points for', () => {
+    const teams = [
+      team(1, 0, 9, 1), team(2, 0, 3, 7, 900), team(3, 0, 5, 5, 1200),
+      team(4, 0, 5, 5, 1100), team(5, 0, 1, 9), team(6, 0, 8, 2),
+    ];
+    // Playoff seeds 1 and 6; of the rest, 5 is worst, then 2, then 4 (5-5, fewer points) before 3
+    expect(toiletSeeds(teams, [1, 6])).toEqual([5, 2, 4, 3]);
+  });
+
+  it('builds the lower-score-advances bracket', () => {
+    const games = projectedToiletBracket([21, 22, 23, 24, 25, 26], 15);
+    expect(games.map((g) => g.label)).toEqual(['Round 1', 'Round 1', 'Semifinal', 'Semifinal', 'Last-place game']);
+    expect(games[0]).toMatchObject({ top: { seed: 4, rosterId: 24 }, bottom: { seed: 5, rosterId: 25 } });
+    expect(games[1]).toMatchObject({ top: { seed: 3 }, bottom: { seed: 6 } });
+    expect(games[2]).toMatchObject({ week: 16, top: { seed: 1, rosterId: 21 }, bottom: { from: 'Lower score of 4 v 5' } });
+    expect(games[4].week).toBe(17);
+    expect(projectedToiletBracket([1, 2, 3], 15)).toEqual([]);
+  });
+
+  // 12 teams, 6 playoff spots, so 6 in the toilet bowl
+  const twelve = Array.from({ length: 12 }, (_, i) => team(i + 1, (i % 3) + 1, 6, 6));
+  const games: RemainingGame[] = [];
+  for (let k = 0; k < 6; k++) games.push({ week: 14, a: k + 1, b: k + 7 });
+  const means = (weakest: number) => {
+    const m: Record<number, number> = {};
+    for (let i = 1; i <= 12; i++) m[i] = i === weakest ? 60 : 110;
+    return { 14: m, 15: m, 16: m, 17: m };
+  };
+  const big: PlayoffFormat = { playoffTeams: 6, hasDivisions: true, byes: 2 };
+
+  it('simulates last place when the toilet bowl has six teams', () => {
+    const { teams: odds } = simulatePlayoffOdds(twelve, games, big, means(12), 20, 4000, 1, 15);
+    const total = Object.values(odds).reduce((s, o) => s + (o.lastPlace ?? 0), 0);
+    expect(total).toBeCloseTo(1);
+    const ranked = Object.values(odds).sort((a, b) => (b.lastPlace ?? 0) - (a.lastPlace ?? 0));
+    // The far weakest team is the most likely to finish last
+    expect(ranked[0].rosterId).toBe(12);
+  });
+
+  it('leaves last place out without a playoff start week or a six-team toilet bowl', () => {
+    expect(simulatePlayoffOdds(twelve, games, big, means(12), 20, 500, 1).teams[1].lastPlace).toBeNull();
+    const t6 = twelve.slice(0, 6);
+    const g6: RemainingGame[] = [{ week: 14, a: 1, b: 2 }];
+    expect(simulatePlayoffOdds(t6, g6, { playoffTeams: 3, hasDivisions: false, byes: 1 }, means(6), 20, 500, 1, 15).teams[1].lastPlace).toBeNull();
   });
 });

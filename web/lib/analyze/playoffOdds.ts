@@ -95,6 +95,39 @@ export function projectedBracket(seeds: number[], playoffWeekStart: number): Pro
 }
 
 // ---------------------------------------------------------------------------
+// Toilet bowl
+
+/**
+ * Toilet bowl seeds (roster IDs, seed 1 first) for the teams that missed the
+ * playoffs: worst record first, ties on record going to the team with fewer
+ * points for. Matches every past Sleeper losers bracket in this league.
+ */
+export function toiletSeeds(teams: OddsTeam[], playoffSeeds: number[]): number[] {
+  const inPlayoffs = new Set(playoffSeeds);
+  return teams
+    .filter((t) => !inPlayoffs.has(t.rosterId))
+    .sort((a, b) => recordValue(a) - recordValue(b) || a.pointsFor - b.pointsFor)
+    .map((t) => t.rosterId);
+}
+
+/**
+ * This league's toilet bowl: the lower score advances. Seeds 1-2 (the worst
+ * two teams) get byes, round 1 is 4 v 5 and 3 v 6, seed 1 plays the 4/5 game's
+ * lower scorer and seed 2 the 3/6 game's; the final's lower scorer is last.
+ */
+export function projectedToiletBracket(seeds: number[], playoffWeekStart: number): ProjectedBracketGame[] {
+  if (seeds.length !== 6) return [];
+  const s = (n: number) => ({ seed: n, rosterId: seeds[n - 1] });
+  return [
+    { label: 'Round 1', week: playoffWeekStart, top: s(4), bottom: s(5) },
+    { label: 'Round 1', week: playoffWeekStart, top: s(3), bottom: s(6) },
+    { label: 'Semifinal', week: playoffWeekStart + 1, top: s(1), bottom: { from: 'Lower score of 4 v 5' } },
+    { label: 'Semifinal', week: playoffWeekStart + 1, top: s(2), bottom: { from: 'Lower score of 3 v 6' } },
+    { label: 'Last-place game', week: playoffWeekStart + 2, top: { from: 'Lower score of 1 v 4/5' }, bottom: { from: 'Lower score of 2 v 3/6' } },
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // Team strength
 
 /** Positions each lineup slot accepts; anything else (K, DEF) accepts itself */
@@ -224,6 +257,8 @@ export interface TeamOdds {
   /** Playoff odds after a win / loss in the next remaining week (null if no game) */
   ifWin: number | null;
   ifLoss: number | null;
+  /** Chance of losing the toilet bowl final (null if the toilet bowl isn't simulated) */
+  lastPlace: number | null;
 }
 
 export interface GameImpact {
@@ -248,10 +283,23 @@ export function simulatePlayoffOdds(
   meanByWeek: Record<number, Record<number, number>>,
   spread: number,
   sims = 10000,
-  seed = 2026
+  seed = 2026,
+  /** First playoff week; when set and 6 teams miss the playoffs, the toilet bowl is simulated */
+  playoffWeekStart?: number
 ): OddsResult {
   const normal = rng(seed);
   const ids = teams.map((t) => t.rosterId);
+  const simulateToilet = playoffWeekStart !== undefined && ids.length - format.playoffTeams === 6;
+  // A team's expected score in a week, falling back to its average strength
+  const avgMean = new Map(
+    ids.map((id) => {
+      const vals = Object.values(meanByWeek).map((m) => m[id]).filter((v) => v !== undefined);
+      return [id, vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0];
+    })
+  );
+  const meanFor = (week: number, id: number) => meanByWeek[week]?.[id] ?? avgMean.get(id)!;
+  const score = (week: number, id: number) => meanFor(week, id) + spread * normal();
+  const lastPlace = new Map(ids.map((id) => [id, 0]));
   const nextWeek = remaining.length ? Math.min(...remaining.map((g) => g.week)) : null;
   const nextGames = remaining.filter((g) => g.week === nextWeek);
 
@@ -271,9 +319,8 @@ export function simulatePlayoffOdds(
       const a = byId.get(g.a);
       const b = byId.get(g.b);
       if (!a || !b) continue;
-      const mean = meanByWeek[g.week];
-      const sa = mean[g.a] + spread * normal();
-      const sb = mean[g.b] + spread * normal();
+      const sa = score(g.week, g.a);
+      const sb = score(g.week, g.b);
       a.pointsFor += sa;
       b.pointsFor += sb;
       if (sa > sb) {
@@ -292,6 +339,16 @@ export function simulatePlayoffOdds(
       if (i < format.byes) bye.set(id, bye.get(id)! + 1);
     });
     divisionWinners.forEach((id) => division.set(id, division.get(id)! + 1));
+    if (simulateToilet) {
+      // Lower score advances; the final's lower scorer finishes last
+      const t = toiletSeeds(sim, seeds);
+      const w = playoffWeekStart!;
+      const lower = (week: number, a: number, b: number) => (score(week, a) < score(week, b) ? a : b);
+      const r1a = lower(w, t[3], t[4]);
+      const r1b = lower(w, t[2], t[5]);
+      const last = lower(w + 2, lower(w + 1, t[0], r1a), lower(w + 1, t[1], r1b));
+      lastPlace.set(last, lastPlace.get(last)! + 1);
+    }
     nextWinners.forEach((aWon, gi) => {
       const side = aWon ? 0 : 1;
       branchN[gi][side]++;
@@ -320,6 +377,7 @@ export function simulatePlayoffOdds(
       seedOdds: seedCounts.get(id)!.map((c) => c / sims),
       ifWin: own ? (own.a === id ? own.ifAWins[id] : own.ifBWins[id]) : null,
       ifLoss: own ? (own.a === id ? own.ifBWins[id] : own.ifAWins[id]) : null,
+      lastPlace: simulateToilet ? lastPlace.get(id)! / sims : null,
     };
   }
   return { teams: result, nextWeekGames, sims };
@@ -583,6 +641,9 @@ export interface PlayoffOddsResponse {
   teams: OddsTeam[];
   /** Roster IDs in seed order if the season ended now */
   seeds: number[];
+  /** Toilet bowl seeds if the season ended now (worst team first) */
+  toiletSeeds: number[];
+  toiletBracket: ProjectedBracketGame[];
   divisionWinners: number[];
   bracket: ProjectedBracketGame[];
   odds: OddsResult | null;
