@@ -222,7 +222,7 @@ Sleeper data is fetched by the app's server routes and cached. Durations are set
 
 ## Deployment
 
-The site is hosted on Netlify. There's no Netlify config file in the repo, so build settings live in the Netlify site settings. The app is in `web/`, so Netlify has to build from that directory (base directory `web`).
+The site is hosted on Vercel at https://tangy-football.vercel.app. There's no Vercel config file in the repo, so build settings live in the Vercel project settings. The app is in `web/`, so the project's root directory is set to `web`. Every push to `main` deploys to production.
 
 ## Technologies
 

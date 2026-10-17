@@ -269,7 +269,7 @@ tr.mine > td:first-child, tr.mine > th:first-child {
 }
 
 /* Chalkboard background (components/ui/Chalkboard.tsx) */
-.chalkboard { color: var(--chalk); view-transition-name: chalkboard; }
+.chalkboard { color: var(--chalk); }
 /* The light header is see-through too, blurred, since the page scrolls under it */
 :root:not([data-theme='dark']) .site-header { background-color: rgb(255 255 255 / 0.85); backdrop-filter: blur(10px); }
 /* Stay solid over the see-through cards: pinned columns (scrolled numbers would show
@@ -280,6 +280,7 @@ tr.mine > .pin-col { background-color: color-mix(in srgb, var(--accent) 10%, var
 select { background-color: var(--solid-surface) !important; }
 
 /* Smooth tab switches (View Transitions, where the browser has them): a quick crossfade;
-   the header and the chalkboard stay put */
+   the header stays put. The chalkboard crossfades with the page: a named layer of its own
+   would be drawn on top of the cards for the length of the switch */
 .site-header { view-transition-name: site-header; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
