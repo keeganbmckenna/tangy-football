@@ -86,7 +86,11 @@ export default function HistoryTab() {
   const teamIn = (season: string, id: string | null) => data.seasons.find((s) => s.season === season)?.teams.find((t) => t.userId === id);
   const { standings, h2h, rivals, records } = derived;
   // Matrix order: current managers by all-time win %, then former ones
-  const order = [...standings].sort((a, b) => Number(current.has(b.userId)) - Number(current.has(a.userId))).map((r) => r.userId);
+  // (managers from before Sleeper only have no games to show)
+  const order = [...standings]
+    .filter((r) => h2h[r.userId])
+    .sort((a, b) => Number(current.has(b.userId)) - Number(current.has(a.userId)))
+    .map((r) => r.userId);
 
   const person = (id: string | null, season?: string) => {
     const m = id ? managers.get(id) : undefined;
@@ -135,12 +139,14 @@ export default function HistoryTab() {
         {items.map((r, i) => (
           <li key={i} className="flex gap-2">
             <span className="w-14 shrink-0 font-semibold text-[var(--foreground)]">
-              {show === 'record' ? record(r.wins, r.losses, r.ties) : r.pointsPerGame.toFixed(1)}
+              {show === 'record' ? record(r.wins, r.losses, r.ties) : (r.pointsPerGame ?? 0).toFixed(1)}
             </span>
             <span className="text-[var(--foreground)]">{nameOf(r.userId)}</span>
             <span className="text-[var(--muted)]">
               {r.season}
-              {show === 'record' ? ` · ${r.pointsPerGame.toFixed(1)} ppg` : ` ppg · ${record(r.wins, r.losses, r.ties)}`}
+              {show === 'record'
+                ? r.pointsPerGame !== null ? ` · ${r.pointsPerGame.toFixed(1)} ppg` : ''
+                : ` ppg · ${record(r.wins, r.losses, r.ties)}`}
             </span>
           </li>
         ))}
@@ -174,13 +180,18 @@ export default function HistoryTab() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Champions" subtitle="Every season's champion, runner-up and toilet bowl loser" gradientType="warning">
+      <SectionCard
+        title="Champions"
+        subtitle="Every season's champion, runner-up and toilet bowl loser (top three before Sleeper, when the toilet bowl wasn't recorded)"
+        gradientType="warning"
+      >
         <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
           {data.seasons.map((s) => (
             <div key={s.season} className="rounded-lg border border-[var(--border)] p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-lg font-bold text-[var(--foreground)]">{s.season}</span>
                 {!s.complete && <span className="rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">In progress</span>}
+                {s.legacy && <span className="rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">Before Sleeper</span>}
               </div>
               {s.complete ? (
                 <div className="space-y-3">
@@ -192,9 +203,15 @@ export default function HistoryTab() {
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">🥈 Runner-up</div>
                     {person(s.runnerUp, s.season)}
                   </div>
+                  {s.thirdPlace && (
+                    <div>
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">🥉 Third place</div>
+                      {person(s.thirdPlace, s.season)}
+                    </div>
+                  )}
                   {s.toiletLoser && (
                     <div>
-                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">🚽 Lost the toilet bowl</div>
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">💩 Lost the toilet bowl</div>
                       {person(s.toiletLoser, s.season)}
                     </div>
                   )}
@@ -231,17 +248,20 @@ export default function HistoryTab() {
                     <div className="flex items-center gap-2">
                       <Avatar m={managers.get(r.userId)} size={6} />
                       <span className="font-medium text-[var(--foreground)]">{nameOf(r.userId)}</span>
-                      {!current.has(r.userId) && <span className="text-xs text-[var(--muted)]">former</span>}
+                      {managers.get(r.userId)?.firstName && managers.get(r.userId)!.firstName !== nameOf(r.userId) && (
+                        <span className="text-xs text-[var(--muted)]">{managers.get(r.userId)!.firstName}</span>
+                      )}
+                      {!current.has(r.userId) && <span className="text-xs text-[var(--muted)]">· former</span>}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.seasons}</td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{record(r.wins, r.losses, r.ties)}</td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{(r.winPct * 100).toFixed(1)}%</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.pointsPerGame.toFixed(1)}</td>
+                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.scoredGames ? r.pointsPerGame.toFixed(1) : '—'}</td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.playoffs}</td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.finals}</td>
                   <td className="px-3 py-2 text-center font-semibold text-[var(--foreground)]">{r.titles ? `🏆 ${r.titles}` : '0'}</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.toiletLosses}</td>
+                  <td className="px-3 py-2 text-center font-semibold text-[var(--foreground)]">{r.toiletLosses ? `💩 ${r.toiletLosses}` : '0'}</td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.bestFinish ? ordinal(r.bestFinish) : '—'}</td>
                 </tr>
               ))}
@@ -249,8 +269,9 @@ export default function HistoryTab() {
           </table>
         </div>
         <p className="px-4 py-3 text-xs text-[var(--muted)]">
-          Records and points per game are regular season only; ties count as half a win. Best finish is the final place from
-          the playoff bracket (1st–6th).
+          Records are regular season only and go back to 2017; ties count as half a win. Points per game, playoff appearances
+          and toilet bowl losses start in 2022 (earlier seasons only kept standings and the top three). Best finish is the
+          final place (1st–6th from Sleeper brackets, 1st–3rd before).
         </p>
       </SectionCard>
 

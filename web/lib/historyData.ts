@@ -1,7 +1,8 @@
 /**
  * Server-side league history: every season in the league's chain, with each
  * game's managers, scores and kind (regular season, playoff, placement,
- * consolation, toilet bowl) and each season's postseason results.
+ * consolation, toilet bowl) and each season's postseason results, plus the
+ * seasons before Sleeper (standings and top three only).
  */
 
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
@@ -9,6 +10,7 @@ import { buildLeagueChain } from '@/lib/sleeper';
 import { fetchJson } from '@/lib/oddsData';
 import { getAvatarUrl, getTeamName } from '@/lib/analyze/teamIdentity';
 import { bracketResults, postseasonKind, type HistoryData, type HistoryGame, type HistorySeason } from '@/lib/analyze/history';
+import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
 import type { LeagueData, SleeperBracketMatchup, SleeperLeague, SleeperMatchup, SleeperRoster, SleeperUser } from '@/lib/types';
 
 async function seasonHistory(league: SleeperLeague) {
@@ -99,9 +101,39 @@ export async function buildHistory(): Promise<HistoryData> {
       managers.set(u.user_id, { userId: u.user_id, name: u.display_name || u.username || 'Unknown', avatarUrl: team?.avatarUrl ?? getAvatarUrl(u) });
     }
   }
+  // Seasons before Sleeper, matched to Sleeper managers by display name
+  const byName = new Map([...managers.values()].map((m) => [m.name.toLowerCase(), m.userId]));
+  const ownerId = (owner: string) => {
+    const id = byName.get(owner.toLowerCase());
+    if (id) return id;
+    const legacyId = `legacy:${owner.toLowerCase()}`;
+    if (!managers.has(legacyId)) managers.set(legacyId, { userId: legacyId, name: owner, avatarUrl: null });
+    return legacyId;
+  };
+  const legacy: HistorySeason[] = LEGACY_SEASONS.map((ls) => {
+    const finisher = (place: number) => {
+      const team = ls.teams.find((t) => t.finish === place);
+      return team ? ownerId(team.owner) : null;
+    };
+    return {
+      season: ls.season,
+      complete: true,
+      legacy: true,
+      teams: ls.teams.map((t) => ({ userId: ownerId(t.owner), rosterId: 0, teamName: t.teamName, avatarUrl: null })),
+      standings: ls.teams.map((t) => ({ userId: ownerId(t.owner), wins: t.wins, losses: t.losses, rank: t.rank })),
+      champion: finisher(1),
+      runnerUp: finisher(2),
+      thirdPlace: finisher(3),
+      toiletLoser: null,
+      playoffTeams: [],
+      placements: Object.fromEntries(ls.teams.filter((t) => t.finish).map((t) => [ownerId(t.owner), t.finish!])),
+    };
+  });
+
+  const firstNames = new Map(Object.entries(MANAGER_FIRST_NAMES).map(([k, v]) => [k.toLowerCase(), v]));
   return {
-    managers: [...managers.values()],
-    seasons: seasons.map((s) => s.season),
+    managers: [...managers.values()].map((m) => ({ ...m, firstName: firstNames.get(m.name.toLowerCase()) ?? null })),
+    seasons: [...seasons.map((s) => s.season), ...legacy].sort((a, b) => Number(b.season) - Number(a.season)),
     games: seasons.flatMap((s) => s.games),
     generatedAt: new Date().toISOString(),
   };

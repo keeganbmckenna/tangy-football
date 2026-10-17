@@ -4,7 +4,7 @@ A Next.js web app for analyzing a Sleeper fantasy football league: standings, li
 
 ## Features
 
-The season picker in the header switches every tab between seasons; past seasons are found by following Sleeper's `previous_league_id` chain from the configured league. Weekly analytics only count completed regular-season weeks.
+The season picker in the header switches every tab between seasons; past seasons are found by following Sleeper's `previous_league_id` chain from the configured league. Seasons before Sleeper (2017-2021) are in the picker too, with only their final standings and the History tab. Weekly analytics only count completed regular-season weeks.
 
 ### Overview
 - 🏆 **Division Standings** - One card per division with record, points, games back (GB), points back (PB) and the leader marked. Leagues without divisions get a single overall standings table with the playoff cutoff.
@@ -68,8 +68,10 @@ Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`.
   Trades that went through after a week's games count from the next week. Completed seasons are pre-built JSON in `web/public/data/trades/`; the season in progress is built live.
 
 ### History
-Every season the league has played, whichever season is selected. Managers are tracked by their Sleeper account, so a roster changing hands doesn't mix two managers' records.
-- 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser, with that season's team names and photos.
+Every season the league has played, whichever season is selected. Managers are tracked by their Sleeper account, so a roster changing hands doesn't mix two managers' records, and shown with their first names.
+
+The seasons before Sleeper (2017-2021, a 10-team league) come from the old platform's final standings, kept in `web/lib/data/legacyHistory.ts`: team names, records, standings order and the top three. They count toward records, titles, finals and best finishes, and appear in the season dropdown with just an Overview of that final table. Head to head, points, playoff appearances, toilet bowls and game records start in 2022.
+- 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser (💩), with that season's team names and photos; third place before Sleeper.
 - 📋 **All-Time Standings** - Per manager: seasons, regular-season record and win % (ties count as half), points per game, playoff appearances, finals, titles, toilet bowl losses and best finish (1st-6th from the playoff bracket).
 - ⚔️ **Head to Head** - Every manager's all-time record against every other, colored by win %; tap a cell for every meeting.
 - 🔥 **Rivalries** - Most-played, most lopsided and closest series (4+ games for the last two).

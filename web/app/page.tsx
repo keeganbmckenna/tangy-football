@@ -19,6 +19,8 @@ import DraftBoard from '@/components/DraftBoard';
 import LiveTab from '@/components/LiveTab';
 import TradesTab from '@/components/TradesTab';
 import HistoryTab from '@/components/HistoryTab';
+import LegacySeasonOverview from '@/components/LegacySeasonOverview';
+import { LEGACY_SEASONS } from '@/lib/data/legacyHistory';
 import PlayoffPicture from '@/components/PlayoffPicture';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -66,6 +68,9 @@ export default function Home() {
   const [postseasonBrackets, setPostseasonBrackets] = useState<PostseasonBrackets | null>(null);
 
   const leagueSettings = leagueData ? getLeagueSettings(leagueData.league) : null;
+  // Seasons before Sleeper only have final standings (lib/data/legacyHistory.ts)
+  const legacySeasons = LEGACY_SEASONS.map((s) => s.season);
+  const isLegacySeason = legacySeasons.includes(selectedSeason);
   // Current season's regular season still being played: the Playoffs tab
   // shows the playoff picture instead of empty brackets
   // The newest season is the current one; Live only applies to it
@@ -143,6 +148,11 @@ export default function Home() {
   const handleSeasonChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const season = event.target.value;
     setSelectedSeason(season);
+    // Seasons before Sleeper have nothing to fetch, and only Overview and History
+    if (LEGACY_SEASONS.some((s) => s.season === season)) {
+      if (activeTab !== 'overview' && activeTab !== 'history') setActiveTab('overview');
+      return;
+    }
     // Live is hidden for past seasons, so don't leave the user on it
     if (activeTab === 'live' && availableSeasons.length > 0 && season !== availableSeasons[0]) {
       setActiveTab('overview');
@@ -180,13 +190,16 @@ export default function Home() {
     { id: 'draft', name: 'Draft', icon: '📋' },
     { id: 'trades', name: 'Trades & Waivers', icon: '🔄' },
     { id: 'history', name: 'History', icon: '🏛️' },
-  ].filter((tab) => tab.id !== 'live' || isCurrentSeason);
+  ]
+    .filter((tab) => tab.id !== 'live' || isCurrentSeason)
+    .filter((tab) => !isLegacySeason || tab.id === 'overview' || tab.id === 'history');
 
-  const seasonOptions = availableSeasons.length
+  const sleeperSeasons = availableSeasons.length
     ? availableSeasons
     : leagueData?.league?.season
       ? [leagueData.league.season]
       : [];
+  const seasonOptions = [...sleeperSeasons, ...legacySeasons.filter((s) => !sleeperSeasons.includes(s))];
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -309,7 +322,14 @@ export default function Home() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Overview Tab */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && isLegacySeason && (
+          <ErrorBoundary>
+            <section>
+              <LegacySeasonOverview season={selectedSeason} />
+            </section>
+          </ErrorBoundary>
+        )}
+        {activeTab === 'overview' && !isLegacySeason && (
           <>
             <ErrorBoundary>
               <section>

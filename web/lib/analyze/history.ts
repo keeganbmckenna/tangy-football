@@ -35,6 +35,12 @@ export interface HistorySeasonTeam {
 export interface HistorySeason {
   season: string;
   complete: boolean;
+  /** Before Sleeper: final standings only, no weekly scores (see lib/data/legacyHistory.ts) */
+  legacy?: boolean;
+  /** Final regular-season records (legacy seasons; Sleeper seasons come from their games) */
+  standings?: Array<{ userId: string; wins: number; losses: number; rank: number }>;
+  /** Third place (legacy seasons, which don't record the toilet bowl) */
+  thirdPlace?: string | null;
   teams: HistorySeasonTeam[];
   champion: string | null;
   runnerUp: string | null;
@@ -48,6 +54,8 @@ export interface HistorySeason {
 export interface HistoryManager {
   userId: string;
   name: string;
+  /** First name, when known */
+  firstName?: string | null;
   avatarUrl: string | null;
 }
 
@@ -120,9 +128,13 @@ export interface AllTimeRow {
   losses: number;
   ties: number;
   winPct: number;
-  pointsFor: number;
+  /** Regular-season games (all seasons) */
   games: number;
+  /** Points and games with scores (Sleeper seasons) */
+  pointsFor: number;
+  scoredGames: number;
   pointsPerGame: number;
+  /** Playoff appearances (Sleeper seasons; earlier brackets weren't recorded) */
   playoffs: number;
   finals: number;
   titles: number;
@@ -137,7 +149,7 @@ export function allTimeStandings(data: HistoryData): AllTimeRow[] {
   const row = (id: string) => {
     let r = rows.get(id);
     if (!r) {
-      r = { userId: id, seasons: 0, wins: 0, losses: 0, ties: 0, winPct: 0, pointsFor: 0, games: 0, pointsPerGame: 0, playoffs: 0, finals: 0, titles: 0, toiletLosses: 0, bestFinish: null };
+      r = { userId: id, seasons: 0, wins: 0, losses: 0, ties: 0, winPct: 0, games: 0, pointsFor: 0, scoredGames: 0, pointsPerGame: 0, playoffs: 0, finals: 0, titles: 0, toiletLosses: 0, bestFinish: null };
       rows.set(id, r);
     }
     return r;
@@ -152,12 +164,19 @@ export function allTimeStandings(data: HistoryData): AllTimeRow[] {
       const r = row(id);
       r.bestFinish = r.bestFinish === null ? place : Math.min(r.bestFinish, place);
     }
+    for (const st of s.standings ?? []) {
+      const r = row(st.userId);
+      r.wins += st.wins;
+      r.losses += st.losses;
+      r.games += st.wins + st.losses;
+    }
   }
   for (const g of data.games) {
     if (g.kind !== 'regular') continue;
     for (const [me, pf, pa] of [[g.a, g.pa, g.pb], [g.b, g.pb, g.pa]] as const) {
       const r = row(me);
       r.games++;
+      r.scoredGames++;
       r.pointsFor += pf;
       if (pf > pa) r.wins++;
       else if (pf < pa) r.losses++;
@@ -166,7 +185,7 @@ export function allTimeStandings(data: HistoryData): AllTimeRow[] {
   }
   for (const r of rows.values()) {
     r.winPct = r.games ? (r.wins + r.ties / 2) / r.games : 0;
-    r.pointsPerGame = r.games ? r.pointsFor / r.games : 0;
+    r.pointsPerGame = r.scoredGames ? r.pointsFor / r.scoredGames : 0;
   }
   return [...rows.values()].sort((a, b) => b.titles - a.titles || b.winPct - a.winPct || b.pointsPerGame - a.pointsPerGame);
 }
@@ -257,7 +276,8 @@ export interface SeasonRecord {
   wins: number;
   losses: number;
   ties: number;
-  pointsPerGame: number;
+  /** null for seasons before Sleeper (no scores) */
+  pointsPerGame: number | null;
 }
 
 export interface RecordBook {
@@ -310,7 +330,14 @@ export function recordBook(data: HistoryData, top = 5): RecordBook {
     ties: r.ties,
     pointsPerGame: r.pointsPerGame,
   }));
+  // Seasons before Sleeper: records only
+  for (const season of data.seasons) {
+    for (const st of season.standings ?? []) {
+      seasons.push({ season: season.season, userId: st.userId, wins: st.wins, losses: st.losses, ties: 0, pointsPerGame: null });
+    }
+  }
   const pct = (r: SeasonRecord) => (r.wins + r.ties / 2) / Math.max(r.wins + r.losses + r.ties, 1);
+  const scored = seasons.filter((r) => r.pointsPerGame !== null);
 
   return {
     highestScores: take(sides, (s) => s.pf, true).map((s) => ({ game: s.game, userId: s.userId, value: s.pf })),
@@ -320,9 +347,9 @@ export function recordBook(data: HistoryData, top = 5): RecordBook {
     highestCombined: take(games, (g) => g.pa + g.pb, true).map((g) => ({ game: g, userId: winnerSide(g).userId, value: g.pa + g.pb })),
     mostPointsInLoss: take(sides.filter((s) => s.pf < s.pa), (s) => s.pf, true).map((s) => ({ game: s.game, userId: s.userId, value: s.pf })),
     fewestPointsInWin: take(sides.filter((s) => s.pf > s.pa), (s) => s.pf, false).map((s) => ({ game: s.game, userId: s.userId, value: s.pf })),
-    bestSeasons: take(seasons, (r) => pct(r) + r.pointsPerGame / 1e4, true),
-    worstSeasons: take(seasons, (r) => pct(r) + r.pointsPerGame / 1e4, false),
-    mostPointsSeasons: take(seasons, (r) => r.pointsPerGame, true),
-    fewestPointsSeasons: take(seasons, (r) => r.pointsPerGame, false),
+    bestSeasons: take(seasons, (r) => pct(r) + (r.wins + r.losses) / 1e3 + (r.pointsPerGame ?? 0) / 1e6, true),
+    worstSeasons: take(seasons, (r) => pct(r) - (r.wins + r.losses) / 1e3 - (r.pointsPerGame ?? 0) / 1e6, false),
+    mostPointsSeasons: take(scored, (r) => r.pointsPerGame!, true),
+    fewestPointsSeasons: take(scored, (r) => r.pointsPerGame!, false),
   };
 }

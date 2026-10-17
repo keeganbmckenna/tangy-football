@@ -122,3 +122,47 @@ describe('recordBook', () => {
     expect([...r.highestScores, ...r.lowestScores, ...r.fewestPointsInWin].some((x) => x.game.kind === 'toilet' || x.game.kind === 'placement')).toBe(false);
   });
 });
+
+describe('seasons before Sleeper', () => {
+  const withLegacy = (): HistoryData => {
+    const d = data();
+    d.managers.push({ userId: 'legacy:vikram', name: 'Vikram', avatarUrl: null });
+    d.seasons.push({
+      season: '2017',
+      complete: true,
+      legacy: true,
+      teams: ['u3', 'legacy:vikram', 'u1'].map((u) => ({ userId: u, rosterId: 0, teamName: u, avatarUrl: null })),
+      standings: [
+        { userId: 'u3', wins: 12, losses: 2, rank: 1 },
+        { userId: 'legacy:vikram', wins: 8, losses: 6, rank: 2 },
+        { userId: 'u1', wins: 1, losses: 13, rank: 3 },
+      ],
+      champion: 'u3',
+      runnerUp: 'legacy:vikram',
+      thirdPlace: 'u1',
+      toiletLoser: null,
+      playoffTeams: [],
+      placements: { u3: 1, 'legacy:vikram': 2, u1: 3 },
+    });
+    return d;
+  };
+
+  it('count toward records, titles and finishes but not points', () => {
+    const rows = allTimeStandings(withLegacy());
+    const u3 = rows.find((r) => r.userId === 'u3')!;
+    expect(u3).toMatchObject({ wins: 13, losses: 3, ties: 1, titles: 1, finals: 1, bestFinish: 1 });
+    // Points per game only from scored (Sleeper) games
+    expect(u3.scoredGames).toBe(3);
+    expect(u3.pointsPerGame).toBeCloseTo((120 + 60 + 95) / 3);
+    const vikram = rows.find((r) => r.userId === 'legacy:vikram')!;
+    expect(vikram).toMatchObject({ seasons: 1, wins: 8, losses: 6, scoredGames: 0, pointsPerGame: 0, finals: 1 });
+  });
+
+  it('show up in season records without points', () => {
+    const r = recordBook(withLegacy(), 3);
+    // (the test league's 2-0 season tops a 12-2 one on win %)
+    expect(r.bestSeasons).toContainEqual({ season: '2017', userId: 'u3', wins: 12, losses: 2, ties: 0, pointsPerGame: null });
+    expect(r.worstSeasons).toContainEqual({ season: '2017', userId: 'u1', wins: 1, losses: 13, ties: 0, pointsPerGame: null });
+    expect(r.mostPointsSeasons.every((x) => x.pointsPerGame !== null)).toBe(true);
+  });
+});

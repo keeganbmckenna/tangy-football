@@ -8,7 +8,7 @@ import type { SleeperLeague } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 /**
  * League history across every season (History tab). Rebuilt as soon as a new
