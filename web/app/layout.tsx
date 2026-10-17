@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { getThemeBootstrapScript } from "@/lib/theme";
+import { getThemeBootstrapScript, THEME_COLORS } from "@/lib/theme";
 import { ThemeProvider } from "@/hooks/useTheme";
 
 const geistSans = Geist({
@@ -19,11 +19,19 @@ export const metadata: Metadata = {
   description: "Advanced fantasy football analytics and insights powered by Sleeper. Track standings, analyze weekly performance, and discover season trends.",
   keywords: ["fantasy football", "sleeper", "analytics", "statistics", "football"],
   authors: [{ name: "Fantasy Football Analytics" }],
+  appleWebApp: { capable: true, title: "Tangy Football", statusBarStyle: "black" },
   openGraph: {
     title: "Tangy Football - Fantasy Football Analytics",
     description: "Advanced fantasy football analytics and insights",
     type: "website",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
+  ],
 };
 
 export default function RootLayout({

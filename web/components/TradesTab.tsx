@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SectionCard from '@/components/ui/SectionCard';
+import RetryButton from '@/components/ui/RetryButton';
 import TradeAnalyzer, { type TradePreset } from '@/components/TradeAnalyzer';
 import TradeFinder from '@/components/TradeFinder';
 import WaiverFinder from '@/components/WaiverFinder';
@@ -22,6 +23,8 @@ interface TradesTabProps {
 export default function TradesTab({ teamStats }: TradesTabProps) {
   const [data, setData] = useState<TradeDataResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by "Try again" to re-run the fetch
+  const [attempt, setAttempt] = useState(0);
   // A trade from the finder, loaded into a fresh analyzer
   const [preset, setPreset] = useState<{ key: number; trade: TradePreset } | null>(null);
   const analyzerRef = useRef<HTMLElement | null>(null);
@@ -42,7 +45,7 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   return (
     <div className="space-y-6">
@@ -50,7 +53,15 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
         <section ref={analyzerRef} className="scroll-mt-4">
           {error ? (
             <SectionCard title="Trade Analyzer" gradientType="primary">
-              <p className="px-6 py-8 text-[var(--muted)]">Couldn&apos;t load the trade analyzer: {error}</p>
+              <div className="px-6 py-8">
+                <p className="text-[var(--muted)]">Couldn&apos;t load the trade analyzer: {error}</p>
+                <RetryButton
+                  onClick={() => {
+                    setError(null);
+                    setAttempt((a) => a + 1);
+                  }}
+                />
+              </div>
             </SectionCard>
           ) : !data ? (
             <LoadingSpinner message="Loading rosters and projections..." />

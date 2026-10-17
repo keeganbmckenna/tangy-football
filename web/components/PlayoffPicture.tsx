@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import RetryButton from '@/components/ui/RetryButton';
 import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { recordValue, sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { formatOdds, type OutcomeOdds, type OddsTeam, type PlayoffOddsResponse, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
@@ -46,9 +48,12 @@ function OddsCell({ p, muted = false }: { p: number; muted?: boolean }) {
 export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
   const [data, setData] = useState<PlayoffOddsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by "Try again" to re-run the fetch
+  const [attempt, setAttempt] = useState(0);
   // Which outcome the "this week: win / loss" column shows
   const [swingOutcome, setSwingOutcome] = useState<keyof OutcomeOdds>('playoffs');
-  const sort = useTableSort();
+  const sort = useTableSort('playoffOdds');
+  const me = useMyTeam();
 
   useEffect(() => {
     let cancelled = false;
@@ -62,12 +67,20 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   if (error) {
     return (
       <SectionCard title="Playoff Picture" gradientType="primary">
-        <p className="px-6 py-8 text-[var(--muted)]">Couldn&apos;t load the playoff picture: {error}</p>
+        <div className="px-6 py-8">
+          <p className="text-[var(--muted)]">Couldn&apos;t load the playoff picture: {error}</p>
+          <RetryButton
+            onClick={() => {
+              setError(null);
+              setAttempt((a) => a + 1);
+            }}
+          />
+        </div>
       </SectionCard>
     );
   }
@@ -382,12 +395,12 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                   {data.format.hasDivisions && (
                     <SortableTh sort={sort} col="division" best="desc" label="Division odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</SortableTh>
                   )}
-                  <SortableTh sort={sort} col="bye" best="desc" label="Playoff bye odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoff bye*</SortableTh>
+                  <SortableTh sort={sort} col="bye" tip="Chance of a first-round playoff bye. *Rougher than the other odds: overconfident in backtests" best="desc" label="Playoff bye odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoff bye*</SortableTh>
                   {hasTitle && (
                     <SortableTh sort={sort} col="title" best="desc" label="Title odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Title</SortableTh>
                   )}
                   {hasToilet && (
-                    <SortableTh sort={sort} col="toilet" best="asc" label="Toilet bowl odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Lose toilet bowl</SortableTh>
+                    <SortableTh sort={sort} col="toilet" tip="Chance of losing the toilet bowl (the losers’ bracket final)" best="asc" label="Toilet bowl odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Lose toilet bowl</SortableTh>
                   )}
                   <SortableTh
                     sort={sort}
@@ -409,7 +422,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                   const seed = seedOf.get(t.rosterId);
                   const st = status(t.rosterId);
                   return (
-                    <tr key={t.rosterId}>
+                    <tr key={t.rosterId} className={mineRow(t.rosterId === me.rosterId)}>
                       <td className="px-4 py-2 whitespace-nowrap">
                         {teamLabel(t.rosterId)}
                         {st && (

@@ -84,6 +84,11 @@ The seasons before Sleeper (2017-2021, a 10-team league) come from the old platf
 Head-to-head records, rivalries and the record book count regular-season and playoff games; placement (3rd/5th place), consolation and toilet bowl games are left out.
 
 ### UI
+- 🔗 **Shareable links** - The tab and season are in the address bar (`?tab=history&season=2023`), so refresh, back/forward and shared links land on the same view. A tab that doesn't apply to the season (Live for a past season, say) falls back to Overview.
+- 🙋 **You** - Pick your team once in the header (saved on this device): your row is highlighted in every table, your line is drawn thicker in the season charts, and the trade analyzer, trade finder and waiver finder start on your team.
+- 💡 **Definitions** - Dotted-underlined column names (GB, PB, Core/wk, $/pt, luck factor, play-all and more) explain themselves on hover or tap.
+- 📱 **Home screen app** - A web app manifest and icons (the league's photo) let phones add the site to the home screen; the browser bar follows the light or dark theme.
+- Switching seasons keeps the header in place while the new season loads; a card that fails to load has a **Try again** button; Overview says which weeks the stats cover; the long Weekly Scores and All-Time Standings tables keep their header row in view; table sorts and the History trade filter are remembered while you move between tabs (until the season changes or the page reloads).
 - ↕️ **Sortable tables** - Tap a column header in Weekly Scores, Weekly Rankings, Weekly Play-All, Play Everyone, Playoff Odds, Draft Results, Live Play-All, All-Time Standings or Traders to sort best-first; tap again to reverse, a third time (or **↺ Default order**) for the table's own order. Lower-is-better columns (ranks, $/pt, toilet bowl odds and losses, best finish) start low to high; blanks always sort last. Standings, brackets, the draft board and head to head keep their fixed order.
 - 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage. Dark mode is true black with flat, deep-colored section headers and dimmed heatmaps (`web/app/globals.css`).
 - 🎯 **Custom Tooltips** - Sorted, scrollable tooltips for crowded charts.

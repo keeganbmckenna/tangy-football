@@ -6,6 +6,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import {
   DraftData,
   DraftPickData,
@@ -158,6 +159,7 @@ function DraftCore({ data, leagueData, core }: {
 }) {
   const { labels, teams } = core;
   const isAuction = data.type === 'auction';
+  const me = useMyTeam();
 
   return (
     <div className="overflow-x-auto">
@@ -179,7 +181,7 @@ function DraftCore({ data, leagueData, core }: {
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
           {teams.map((team) => (
-            <tr key={team.rosterId ?? 'none'}>
+            <tr key={team.rosterId ?? 'none'} className={mineRow(team.rosterId === me.rosterId)}>
               <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-[var(--foreground)] sticky left-0 bg-[var(--surface-elevated)] z-10">
                 {teamNameForRoster(leagueData, team.rosterId)}
               </td>
@@ -216,7 +218,8 @@ function DraftCore({ data, leagueData, core }: {
 function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: LeagueData | null; core: TeamCore[] }) {
   const summaries = summarizeDraftByTeam(data.picks, core);
   const isAuction = data.type === 'auction';
-  const sort = useTableSort();
+  const sort = useTableSort('draftResults');
+  const me = useMyTeam();
   const rows = sortRows(summaries, sort.state, (s, key) =>
     ({ spent: s.spent, perPoint: s.dollarsPerPoint, core: s.core, haul: s.haul })[key]
   );
@@ -232,13 +235,13 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
               {isAuction && (
                 <>
                   <SortableTh sort={sort} col="spent" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Spent</SortableTh>
-                  <SortableTh sort={sort} col="perPoint" best="asc" label="$ per Core/wk point" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">$/pt</SortableTh>
+                  <SortableTh sort={sort} col="perPoint" tip="Auction dollars spent per Core/wk point: lower means a better-value draft" best="asc" label="$ per Core/wk point" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">$/pt</SortableTh>
                 </>
               )}
-              <SortableTh sort={sort} col="core" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="core" tip="Core/wk: points per available week from the team’s intended starters (most expensive or earliest pick at each lineup slot)" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Core/wk
               </SortableTh>
-              <SortableTh sort={sort} col="haul" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="haul" tip="Points per available week from every player drafted, starters or not" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 All picks/wk
               </SortableTh>
               <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Best pick</th>
@@ -246,7 +249,7 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
             {rows.map((s) => (
-              <tr key={s.rosterId ?? 'none'}>
+              <tr key={s.rosterId ?? 'none'} className={mineRow(s.rosterId === me.rosterId)}>
                 <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-[var(--foreground)]">
                   {teamNameForRoster(leagueData, s.rosterId)}
                   <span className="text-xs text-[var(--muted)] ml-2">{s.count} picks</span>

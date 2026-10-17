@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { TeamStats, DivisionStanding, WildCardStanding } from '@/lib/types';
 import SectionCard from './ui/SectionCard';
 import ResultDot from './ui/ResultDot';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
+import Term from './ui/Term';
 
 /** Extra per-team info for live standings ("if the week ended now") */
 export interface StandingAnnotation {
@@ -62,10 +64,12 @@ function TeamRow({
   showCutoffLine = false,
   annotation,
 }: TeamRowProps) {
+  const me = useMyTeam();
   return (
     <>
       <tr
         className={`
+          ${mineRow(team.rosterId === me.rosterId)}
           ${isInPlayoffs ? 'bg-[var(--success-bg)]' : ''}
           ${isLeader ? 'font-semibold bg-[var(--info-bg)]' : ''}
           hover:bg-[var(--hover)] transition-colors
@@ -156,8 +160,8 @@ function DivisionCard({ division, annotations }: { division: DivisionStanding; a
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">Record</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">Points</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">GB</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">PB</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back: how far behind the division leader, in games (a win for one team and a loss for the other is one game)">GB</Term></th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points back: how many fewer points this team has scored than the division's top scorer" align="right">PB</Term></th>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
@@ -216,8 +220,8 @@ function OverallStandingsCard({
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">Record</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">Points</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">GB</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">PB</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back from the last playoff spot: + means ahead of it, by that many games">GB</Term></th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points ahead (+) of or behind the team holding the last playoff spot; points scored are the tiebreaker" align="right">PB</Term></th>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
@@ -275,10 +279,10 @@ function WildCardCard({
                 Division
               </th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                GB
+                <Term tip="Games back from the last wild card spot: + means ahead of it, by that many games">GB</Term>
               </th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                PB
+                <Term tip="Points ahead (+) of or behind the last team in; points scored are the tiebreaker" align="right">PB</Term>
               </th>
             </tr>
           </thead>

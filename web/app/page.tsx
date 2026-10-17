@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import Image from 'next/image';
 import PlayoffRace from '@/components/PlayoffRace';
@@ -20,7 +20,10 @@ import LiveTab from '@/components/LiveTab';
 import TradesTab from '@/components/TradesTab';
 import HistoryTab from '@/components/HistoryTab';
 import LegacySeasonOverview from '@/components/LegacySeasonOverview';
-import { LEGACY_SEASONS } from '@/lib/data/legacyHistory';
+import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
+import { readUrlState, urlSearchFor } from '@/lib/urlState';
+import { resetTableSorts } from '@/hooks/useTableSort';
+import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import PlayoffPicture from '@/components/PlayoffPicture';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -43,6 +46,21 @@ import {
   buildPostseasonBrackets,
 } from '@/lib/analyze';
 import { getLeagueSettings } from '@/lib/leagueSettings';
+import { getTeamName } from '@/lib/analyze/teamIdentity';
+
+/** Which weeks the season's numbers cover */
+function DataThrough({ leagueData, regularSeasonEnd }: { leagueData: LeagueData; regularSeasonEnd: number }) {
+  const week = leagueData.lastScoredWeek;
+  const text =
+    leagueData.league.status === 'complete'
+      ? 'Final: the season is complete'
+      : week === 0
+        ? 'No games played yet'
+        : week >= regularSeasonEnd
+          ? `Regular season complete (${regularSeasonEnd} weeks); playoffs in progress`
+          : `Stats through week ${week} of ${regularSeasonEnd} (completed weeks only; see Live for this week)`;
+  return <p className="text-sm text-[var(--muted)]">{text}</p>;
+}
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -51,7 +69,7 @@ export default function Home() {
   const [teamStats, setTeamStats] = useState<TeamStats[]>([]);
   const [matchups, setMatchups] = useState<Record<number, WeekMatchup[]>>({});
   const [activeTab, setActiveTab] = useState('overview');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState('');
   const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
 
@@ -87,7 +105,8 @@ export default function Home() {
     ? Math.min(leagueData.lastScoredWeek, leagueSettings.regularSeasonEnd)
     : undefined;
 
-  const fetchData = useCallback(async (season?: string) => {
+  // `show` is the season to display, when it isn't the one fetched (seasons before Sleeper)
+  const fetchData = useCallback(async (season?: string, show?: string): Promise<boolean> => {
     try {
       setLoading(true);
       setError(null);
@@ -99,7 +118,7 @@ export default function Home() {
       const data: LeagueData = await response.json();
       setLeagueData(data);
       setAvailableSeasons(data.availableSeasons || []);
-      setSelectedSeason(season ?? data.league.season);
+      setSelectedSeason(show ?? data.league.season);
 
       // Calculate stats (pass lastScoredWeek to limit performance metrics to completed weeks)
       const stats = calculateTeamStats(data, data.lastScoredWeek);
@@ -142,45 +161,76 @@ export default function Home() {
       setWildCard(wildCardStandings);
 
       setLoading(false);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
+      return false;
     }
   }, []);
 
-  const handleSeasonChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const season = event.target.value;
-    setSelectedSeason(season);
-    // Seasons before Sleeper have nothing to fetch, and only Overview and History
-    if (LEGACY_SEASONS.some((s) => s.season === season)) {
-      if (activeTab !== 'overview' && activeTab !== 'history') setActiveTab('overview');
-      return;
-    }
-    // Live and Trades & Waivers are hidden for past seasons, so don't leave the user on them
-    if ((activeTab === 'live' || activeTab === 'trades') && availableSeasons.length > 0 && season !== availableSeasons[0]) {
-      setActiveTab('overview');
-    }
-    fetchData(season);
-  };
+  const changeSeason = useCallback(
+    (season: string) => {
+      if (season === (selectedSeason || leagueData?.league.season)) return;
+      // A new season starts every table in its own order
+      resetTableSorts();
+      setSelectedSeason(season);
+      // Seasons before Sleeper have nothing to fetch (tabs that don't apply fall back to Overview below)
+      if (LEGACY_SEASONS.some((s) => s.season === season)) return;
+      fetchData(season);
+    },
+    [selectedSeason, leagueData, fetchData]
+  );
 
+  const handleSeasonChange = (event: ChangeEvent<HTMLSelectElement>) => changeSeason(event.target.value);
+
+  // First load: the view in the address bar, if any (an unknown season falls back to the current one)
   useEffect(() => {
-    fetchData();
+    const { tab, season } = readUrlState(window.location.search);
+    if (tab) setActiveTab(tab);
+    setMyUserId(readMyTeam());
+    (async () => {
+      if (season && LEGACY_SEASONS.some((s) => s.season === season)) await fetchData(undefined, season);
+      else if (!season || !(await fetchData(season))) await fetchData();
+    })();
   }, [fetchData]);
 
-  if (loading) {
-    return <LoadingSpinner message="Loading league data..." />;
-  }
+  // Keep the address bar in step: a new history entry per change, so back/forward work
+  const navRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !active) return;
+    // Only the tab row scrolls, never the page
+    nav.scrollTo({ left: active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2, behavior: 'smooth' });
+  }, [activeTab]);
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="bg-[var(--surface-elevated)] border border-[var(--danger-text)]/40 rounded-lg p-8 max-w-md">
-          <h2 className="text-[var(--danger-text)] text-xl font-bold mb-2">Error</h2>
-          <p className="text-[var(--muted)]">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  const fromHistory = useRef(false);
+  const urlSynced = useRef(false);
+  useEffect(() => {
+    if (!leagueData || loading) return;
+    const current = availableSeasons[0] ?? leagueData.league.season;
+    const search = urlSearchFor(activeTab, selectedSeason || leagueData.league.season, current);
+    if (search !== window.location.search) {
+      const url = `${window.location.pathname}${search}${window.location.hash}`;
+      if (fromHistory.current || !urlSynced.current) window.history.replaceState(null, '', url);
+      else window.history.pushState(null, '', url);
+    }
+    fromHistory.current = false;
+    urlSynced.current = true;
+  }, [activeTab, selectedSeason, leagueData, availableSeasons, loading]);
+
+  useEffect(() => {
+    const onPop = () => {
+      const { tab, season } = readUrlState(window.location.search);
+      fromHistory.current = true;
+      setActiveTab(tab ?? 'overview');
+      const target = season ?? availableSeasons[0];
+      if (target) changeSeason(target);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [availableSeasons, changeSeason]);
 
   const tabs = [
     // Most-checked in season first; the draft is reference material, so last
@@ -197,6 +247,61 @@ export default function Home() {
     .filter((tab) => tab.id !== 'live' || isCurrentSeason)
     .filter((tab) => tab.id !== 'trades' || showTradesTab)
     .filter((tab) => !isLegacySeason || tab.id === 'overview' || tab.id === 'history');
+  const tabIds = tabs.map((t) => t.id).join();
+
+  // A tab that doesn't apply to this season (a link, or a season switch) falls back to Overview
+  useEffect(() => {
+    if (leagueData && !loading && !tabIds.split(',').includes(activeTab)) setActiveTab('overview');
+  }, [leagueData, loading, tabIds, activeTab]);
+
+  // "You": the manager picked once on this device, and their roster in the season shown
+  const managerOptions = useMemo(() => {
+    if (!leagueData) return [];
+    const firstNames = new Map(Object.entries(MANAGER_FIRST_NAMES).map(([k, v]) => [k.toLowerCase(), v]));
+    return leagueData.rosters
+      .filter((r) => r.owner_id)
+      .map((r) => {
+        const u = leagueData.userMap[r.owner_id];
+        const name = u?.display_name || u?.username || 'Unknown';
+        return { userId: r.owner_id, label: firstNames.get(name.toLowerCase()) ?? name };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [leagueData]);
+  const myTeam = useMemo(() => {
+    // Seasons before Sleeper have no rosters
+    const rosterId = isLegacySeason ? null : leagueData?.rosters.find((r) => r.owner_id === myUserId)?.roster_id ?? null;
+    return {
+      userId: myUserId,
+      rosterId,
+      username: rosterId !== null && leagueData ? getTeamName(rosterId, leagueData).username : null,
+      setUserId: (id: string | null) => {
+        saveMyTeam(id);
+        setMyUserId(id);
+      },
+    };
+  }, [myUserId, leagueData, isLegacySeason]);
+
+  if (loading && !leagueData) {
+    return <LoadingSpinner message="Loading league data..." />;
+  }
+
+  if (error && !leagueData) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="bg-[var(--surface-elevated)] border border-[var(--danger-text)]/40 rounded-lg p-8 max-w-md">
+          <h2 className="text-[var(--danger-text)] text-xl font-bold mb-2">Error</h2>
+          <p className="text-[var(--muted)]">{error}</p>
+          <button
+            type="button"
+            onClick={() => fetchData()}
+            className="mt-4 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--hover)]"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const sleeperSeasons = availableSeasons.length
     ? availableSeasons
@@ -228,7 +333,7 @@ export default function Home() {
                 {leagueData?.league?.name || 'Fantasy Football'}
               </h1>
             </div>
-            <div className="mt-1 flex items-center justify-center gap-3 text-base text-[var(--muted)]">
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-[var(--muted)] sm:text-base">
               <span>Season</span>
               <select
                 value={selectedSeason || leagueData?.league?.season || ''}
@@ -241,6 +346,22 @@ export default function Home() {
                   </option>
                 ))}
               </select>
+              <label className="flex items-center gap-2">
+                <span>You</span>
+                <select
+                  value={myUserId ?? ''}
+                  onChange={(e) => myTeam.setUserId(e.target.value || null)}
+                  title="Highlights your team everywhere and starts the trade and waiver tools on it. Saved on this device."
+                  className="max-w-[10rem] rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)] shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                >
+                  <option value="">Pick your team</option>
+                  {managerOptions.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
         </div>
@@ -248,9 +369,10 @@ export default function Home() {
         {/* Tabs */}
         <div className="border-b border-[var(--border)]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Desktop Navigation: compact pills, centered; scrolls within itself if the window is narrow */}
+            {/* Tabs: pills, centered; a row that scrolls sideways on phones */}
             <nav
-              className="hidden md:flex overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              ref={navRef}
+              className="flex overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               aria-label="Tabs"
             >
               <div className="tab-pills mx-auto flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1">
@@ -266,65 +388,37 @@ export default function Home() {
                         : 'text-[var(--muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]'
                     } whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors lg:px-3.5`}
                   >
-                    <span className="mr-1.5 hidden lg:inline">{tab.icon}</span>
+                    <span className="mr-1.5 sm:hidden lg:inline">{tab.icon}</span>
                     {tab.name}
                   </button>
                 ))}
               </div>
             </nav>
-
-            {/* Mobile Navigation */}
-            <div className="md:hidden">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="flex items-center justify-between w-full py-4 text-left"
-                aria-expanded={mobileMenuOpen}
-              >
-                <span className="text-sm font-medium text-[var(--foreground)]">
-                  <span className="mr-2">{tabs.find(t => t.id === activeTab)?.icon}</span>
-                  {tabs.find(t => t.id === activeTab)?.name}
-                </span>
-                <svg
-                  className={`h-5 w-5 text-[var(--muted)] transition-transform ${mobileMenuOpen ? 'rotate-180' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <title>Toggle menu</title>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {mobileMenuOpen && (
-                <div className="pb-3 space-y-1">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`${
-                        activeTab === tab.id
-                          ? 'bg-[var(--surface)] text-[var(--accent)]'
-                          : 'text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]'
-                      } block w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors`}
-                    >
-                      <span className="mr-2">{tab.icon}</span>
-                      {tab.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
+      <MyTeamContext.Provider value={myTeam}>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {loading ? (
+          <div className="flex flex-col items-center py-24 text-[var(--muted)]">
+            <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-[var(--accent)]" />
+            <p className="mt-4">Loading the {selectedSeason} season...</p>
+          </div>
+        ) : error ? (
+          <div className="mx-auto max-w-md rounded-lg border border-[var(--danger-text)]/40 bg-[var(--surface-elevated)] p-6">
+            <p className="text-[var(--muted)]">Couldn&apos;t load the {selectedSeason} season: {error}</p>
+            <button
+              type="button"
+              onClick={() => fetchData(selectedSeason || undefined)}
+              className="mt-4 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--hover)]"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+        <>
         {/* Overview Tab */}
         {activeTab === 'overview' && isLegacySeason && (
           <ErrorBoundary>
@@ -335,6 +429,7 @@ export default function Home() {
         )}
         {activeTab === 'overview' && !isLegacySeason && (
           <>
+            {leagueData && leagueSettings && <DataThrough leagueData={leagueData} regularSeasonEnd={leagueSettings.regularSeasonEnd} />}
             <ErrorBoundary>
               <section>
                 <PlayoffRace
@@ -482,8 +577,10 @@ export default function Home() {
 
         {/* Trades Tab */}
         {activeTab === 'trades' && showTradesTab && <TradesTab teamStats={teamStats} />}
-
+        </>
+        )}
       </main>
+      </MyTeamContext.Provider>
 
       {/* Footer */}
       <footer className="bg-[var(--surface-elevated)] border-t border-[var(--border)] mt-12">

@@ -6,13 +6,15 @@ import { formatRecord } from '@/lib/analyze/playEveryone';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { recordValue, sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 
 interface WeeklyPlayAllProps {
   data: WeeklyPlayAllStats[];
 }
 
 export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
-  const sort = useTableSort();
+  const sort = useTableSort('weeklyPlayAll');
+  const me = useMyTeam();
   if (!data || data.length === 0) {
     return null;
   }
@@ -53,7 +55,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                   W{week}
                 </SortableTh>
               ))}
-              <SortableTh sort={sort} col="total" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+              <SortableTh sort={sort} col="total" tip="Season record if the team had played every other team every week" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Total
               </SortableTh>
               <SortableTh sort={sort} col="pct" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
@@ -63,7 +65,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
             {rows.map((team) => (
-              <tr key={team.username}>
+              <tr key={team.username} className={mineRow(team.username === me.username)}>
                 <td className="px-6 py-3 whitespace-nowrap sticky left-0 bg-[var(--surface-elevated)] z-10 border-r border-[var(--border)]">
                   <div className="text-sm font-medium text-[var(--foreground)]">
                     {team.teamName}

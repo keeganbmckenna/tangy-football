@@ -219,3 +219,12 @@ body {
   color: #bfdbfe;
   box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.35);
 }
+
+/* Your team (picked in the header): a faint tint across the row and an accent
+   bar on its first cell; colored cells (heatmaps, wins and losses) keep their color */
+tr.mine { background-color: color-mix(in srgb, var(--accent) 10%, transparent); }
+tr.mine > td:first-child, tr.mine > th:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+  /* Opaque, for first columns that stay put while the table scrolls sideways */
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--surface-elevated));
+}

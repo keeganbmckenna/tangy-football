@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { TeamStats } from '@/lib/types';
 import { CHART_CONFIG, CHART_THEME } from '@/lib/constants';
 import { useChartHover } from '@/hooks/useChartHover';
+import { useMyTeam } from '@/hooks/useMyTeam';
 import { useTeamColors } from '@/hooks/useTeamColors';
 import CustomTooltip from './CustomTooltip';
 import SectionCard from './ui/SectionCard';
@@ -17,6 +18,8 @@ interface CumulativeScoresProps {
 
 export default function CumulativeScores({ cumulativeData, teams, maxWeek }: CumulativeScoresProps) {
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();
+  // Your team's line is drawn thicker
+  const me = useMyTeam();
   const teamColors = useTeamColors(teams, Object.keys(cumulativeData));
 
   // Transform data for recharts - memoized for performance
@@ -82,7 +85,7 @@ export default function CumulativeScores({ cumulativeData, teams, maxWeek }: Cum
                   dataKey={username}
                   name={team?.teamName || username}
                   stroke={color}
-                  strokeWidth={isHovered(username) ? CHART_CONFIG.strokeWidth.hovered : CHART_CONFIG.strokeWidth.default}
+                  strokeWidth={isHovered(username) || username === me.username ? CHART_CONFIG.strokeWidth.hovered : CHART_CONFIG.strokeWidth.default}
                   strokeOpacity={isOtherHovered(username) ? CHART_CONFIG.opacity.dimmed : CHART_CONFIG.opacity.default}
                   dot={{ r: isHovered(username) ? CHART_CONFIG.dotRadius.hovered : CHART_CONFIG.dotRadius.default }}
                   activeDot={{ r: CHART_CONFIG.dotRadius.active }}

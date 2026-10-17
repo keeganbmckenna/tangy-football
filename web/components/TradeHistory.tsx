@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import RetryButton from '@/components/ui/RetryButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
 import { tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
@@ -50,6 +52,9 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
   );
 }
 
+// The season filter for this visit, so leaving the History tab and coming back keeps it
+let rememberedFilter = 'all';
+
 /** Completed seasons are pre-built; the season in progress is built live */
 async function loadSeason(season: string, complete: boolean) {
   if (complete) {
@@ -65,8 +70,15 @@ async function loadSeason(season: string, complete: boolean) {
 export default function TradeHistory({ history }: TradeHistoryProps) {
   const [seasons, setSeasons] = useState<TradeHistoryResponse[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('all');
-  const sort = useTableSort();
+  // Bumped by "Try again" to re-run the fetch
+  const [attempt, setAttempt] = useState(0);
+  const [filter, setFilterState] = useState(() => rememberedFilter);
+  const setFilter = (f: string) => {
+    rememberedFilter = f;
+    setFilterState(f);
+  };
+  const sort = useTableSort('traders');
+  const me = useMyTeam();
 
   const sleeperSeasons = useMemo(() => history.seasons.filter((s) => !s.legacy), [history]);
 
@@ -78,7 +90,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
     return () => {
       cancelled = true;
     };
-  }, [sleeperSeasons]);
+  }, [sleeperSeasons, attempt]);
 
   const managers = useMemo(() => new Map(history.managers.map((m) => [m.userId, m])), [history]);
   const userOf = useMemo(() => {
@@ -101,7 +113,15 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
   if (error) {
     return (
       <SectionCard title="Trades" subtitle={subtitle} gradientType="secondary">
-        <p className="px-6 py-8 text-[var(--muted)]">Couldn&apos;t load trades: {error}</p>
+        <div className="px-6 py-8">
+          <p className="text-[var(--muted)]">Couldn&apos;t load trades: {error}</p>
+          <RetryButton
+            onClick={() => {
+              setError(null);
+              setAttempt((a) => a + 1);
+            }}
+          />
+        </div>
       </SectionCard>
     );
   }
@@ -259,14 +279,14 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                       <th className="px-3 py-2 font-medium">Manager</th>
                       <SortableTh sort={sort} col="trades" className="px-3 py-2 text-center font-medium">Trades</SortableTh>
                       <th className="px-3 py-2 font-medium">Favorite partner</th>
-                      <SortableTh sort={sort} col="playoff" className="px-3 py-2 text-center font-medium">Playoff odds at the time</SortableTh>
+                      <SortableTh sort={sort} col="playoff" tip="Sum of each trade’s change to this manager’s playoff odds the week it went through, in percentage points" className="px-3 py-2 text-center font-medium">Playoff odds at the time</SortableTh>
                       <SortableTh sort={sort} col="title" className="px-3 py-2 text-center font-medium">Title odds at the time</SortableTh>
-                      <SortableTh sort={sort} col="points" className="px-3 py-2 text-center font-medium">Starter pts received</SortableTh>
+                      <SortableTh sort={sort} col="points" tip="Points the players they got scored in their starting lineup afterward" tipAlign="right" className="px-3 py-2 text-center font-medium">Starter pts received</SortableTh>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
                     {leaderRows.map((r) => (
-                      <tr key={r.userId}>
+                      <tr key={r.userId} className={mineRow(r.userId === me.userId)}>
                         <td className="px-3 py-2 font-medium text-[var(--foreground)]">{nameOf(r.userId)}</td>
                         <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.trades}</td>
                         <td className="px-3 py-2 text-[var(--foreground)]">

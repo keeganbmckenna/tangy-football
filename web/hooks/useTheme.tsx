@@ -9,6 +9,7 @@ import {
   resolveThemePreference,
   resolveThemeValue,
   type ResolvedTheme,
+  THEME_COLORS,
 } from '@/lib/theme';
 
 type ThemeContextValue = {
@@ -39,6 +40,11 @@ const applyThemeToDocument = (theme: ResolvedTheme) => {
 
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
+  // Follow the site's theme, not just the device's, in the browser chrome
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    m.removeAttribute('media');
+    m.setAttribute('content', THEME_COLORS[theme]);
+  });
 };
 
 const getStoredPreference = () => {

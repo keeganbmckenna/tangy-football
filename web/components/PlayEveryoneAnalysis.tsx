@@ -6,6 +6,7 @@ import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { CHART_THEME } from '@/lib/constants';
 import { recordValue, sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import type { PlayEveryoneStats } from '@/lib/types';
 
@@ -58,7 +59,8 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
   // Sort by expected wins (play-all results, ties as half a win)
   const sortedData = [...data].sort((a, b) => b.expectedWins - a.expectedWins);
   // Rank stays the play-all rank whichever way the table is sorted
-  const sort = useTableSort();
+  const sort = useTableSort('playEveryone');
+  const me = useMyTeam();
   const rows = sortRows(
     sortedData.map((team, i) => ({ team, rank: i + 1 })),
     sort.state,
@@ -134,16 +136,16 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
               <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Team
               </th>
-              <SortableTh sort={sort} col="playAll" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="playAll" tip="The team’s record if it had played every other team every week" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Play-All Record
               </SortableTh>
               <SortableTh sort={sort} col="real" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Real Record
               </SortableTh>
-              <SortableTh sort={sort} col="expected" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="expected" tip="The play-all win rate times games played: the wins a typical schedule would have given" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Expected Wins
               </SortableTh>
-              <SortableTh sort={sort} col="luck" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="luck" tip="Real wins minus expected wins: positive means the schedule helped (lucky), negative means it hurt" tipAlign="right" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Luck Factor
               </SortableTh>
             </tr>
@@ -155,7 +157,7 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
 
 
               return (
-                <tr key={team.username}>
+                <tr key={team.username} className={mineRow(team.username === me.username)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--foreground)]">
                     {rank}
                   </td>

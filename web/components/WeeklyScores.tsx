@@ -5,6 +5,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 
 interface WeeklyScoresProps {
   teams: TeamStats[];
@@ -16,7 +17,8 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
   const totalWeeks = teams[0]?.weeklyScores.length || 0;
   const numWeeks = maxWeek !== undefined ? Math.min(maxWeek, totalWeeks) : totalWeeks;
   const weeks = Array.from({ length: numWeeks }, (_, i) => i + 1);
-  const sort = useTableSort();
+  const sort = useTableSort('weeklyScores');
+  const me = useMyTeam();
   const rows = sortRows(teams, sort.state, (team, key) => {
     if (key.startsWith('w')) return team.weeklyScores[Number(key.slice(1)) - 1];
     return {
@@ -32,9 +34,10 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
   return (
     <SectionCard title="Weekly Scores" gradientType="secondary">
       <SortStatus sort={sort} />
-      <div className="overflow-x-auto">
+      {/* Scrolls inside a window-height box so the header row stays in view */}
+      <div className="max-h-[75vh] overflow-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
-          <thead className="bg-[var(--surface)]">
+          <thead className="sticky top-0 z-20 bg-[var(--surface)]">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sticky left-0 bg-[var(--surface)] z-10">
                 Team
@@ -59,20 +62,20 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
               <SortableTh sort={sort} col="winAvg" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--success-bg)]">
                 Win Avg
               </SortableTh>
-              <SortableTh sort={sort} col="winMargin" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--success-bg)]">
+              <SortableTh sort={sort} col="winMargin" tip="Average points the team won by" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--success-bg)]">
                 Win Margin
               </SortableTh>
               <SortableTh sort={sort} col="lossAvg" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--danger-bg)]">
                 Loss Avg
               </SortableTh>
-              <SortableTh sort={sort} col="lossMargin" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--danger-bg)]">
+              <SortableTh sort={sort} col="lossMargin" tip="Average points the team lost by" tipAlign="right" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--danger-bg)]">
                 Loss Margin
               </SortableTh>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
             {rows.map((team) => (
-              <tr key={team.username}>
+              <tr key={team.username} className={mineRow(team.rosterId === me.rosterId)}>
                 <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-[var(--surface-elevated)] z-10">
                   <div className="text-sm font-medium text-[var(--foreground)]">
                     {team.teamName}

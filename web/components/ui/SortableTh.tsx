@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import type { TableSort } from '@/hooks/useTableSort';
 import type { SortDir } from '@/lib/tableSort';
+import { TermTip } from '@/components/ui/Term';
 
 interface SortableThProps {
   sort: TableSort;
@@ -13,16 +14,19 @@ interface SortableThProps {
   label?: string;
   className?: string;
   title?: string;
+  /** What the column means, shown on hover or focus */
+  tip?: ReactNode;
+  tipAlign?: 'center' | 'left' | 'right';
   children: ReactNode;
 }
 
 /** A table header that sorts its column: best-first, then reversed, then the table's own order */
-export default function SortableTh({ sort, col, best = 'desc', label, className = '', title, children }: SortableThProps) {
+export default function SortableTh({ sort, col, best = 'desc', label, className = '', title, tip, tipAlign, children }: SortableThProps) {
   const active = sort.state?.key === col ? sort.state.dir : null;
   const name = label ?? (typeof children === 'string' ? children : col);
   return (
     <th
-      className={className}
+      className={tip ? `${className} group/term relative` : className}
       title={title}
       aria-sort={active === 'asc' ? 'ascending' : active === 'desc' ? 'descending' : 'none'}
     >
@@ -33,11 +37,12 @@ export default function SortableTh({ sort, col, best = 'desc', label, className 
           active ? 'text-[var(--foreground)]' : ''
         }`}
       >
-        {children}
+        {tip ? <span className="underline decoration-dotted decoration-from-font underline-offset-2">{children}</span> : children}
         <span aria-hidden className={`text-[9px] ${active ? '' : 'opacity-30'}`}>
           {active === 'asc' ? '▲' : active === 'desc' ? '▼' : '↕'}
         </span>
       </button>
+      {tip && <TermTip tip={tip} align={tipAlign} />}
     </th>
   );
 }

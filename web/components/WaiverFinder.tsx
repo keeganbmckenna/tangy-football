@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useMyTeam } from '@/hooks/useMyTeam';
 import SectionCard from '@/components/ui/SectionCard';
 import { bestLineup, formatOdds } from '@/lib/analyze/playoffOdds';
 import type { TradeDataResponse } from '@/lib/analyze/trade';
@@ -31,7 +32,9 @@ function Change({ before, after, bad = false }: { before: number; after: number;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
 
 export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
-  const [me, setMe] = useState<number | null>(null);
+  // Starts on your team, if you've picked one in the header
+  const myTeam = useMyTeam();
+  const [me, setMe] = useState<number | null>(myTeam.rosterId);
   const [target, setTarget] = useState<WaiverTarget>('season');
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<WaiverProgress | null>(null);

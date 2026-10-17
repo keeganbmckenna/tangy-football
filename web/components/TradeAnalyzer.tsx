@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMyTeam } from '@/hooks/useMyTeam';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
@@ -342,7 +343,9 @@ interface SeasonRow {
 }
 
 export default function TradeAnalyzer({ data, teamStats, initial = null }: TradeAnalyzerProps) {
-  const [teamA, setTeamA] = useState<number | null>(initial?.teamA ?? null);
+  // A fresh analyzer starts with your team on the left, if you've picked one in the header
+  const myTeam = useMyTeam();
+  const [teamA, setTeamA] = useState<number | null>(initial?.teamA ?? myTeam.rosterId);
   const [teamB, setTeamB] = useState<number | null>(initial?.teamB ?? null);
   const [sendA, setSendA] = useState<string[]>(initial?.sendA ?? []);
   const [sendB, setSendB] = useState<string[]>(initial?.sendB ?? []);

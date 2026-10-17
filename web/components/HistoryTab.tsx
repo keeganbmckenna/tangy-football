@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import RetryButton from '@/components/ui/RetryButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { recordValue, sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
 import { getHeatmapColorByRatio } from '@/lib/constants';
@@ -54,8 +56,11 @@ function Avatar({ m, size = 8 }: { m?: HistoryManager; size?: number }) {
 export default function HistoryTab() {
   const [data, setData] = useState<HistoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by "Try again" to re-run the fetch
+  const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<[string, string] | null>(null);
-  const standingsSort = useTableSort();
+  const standingsSort = useTableSort('allTimeStandings');
+  const me = useMyTeam();
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +74,7 @@ export default function HistoryTab() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   const derived = useMemo(() => {
     if (!data) return null;
@@ -80,7 +85,15 @@ export default function HistoryTab() {
   if (error) {
     return (
       <SectionCard title="League History" gradientType="primary">
-        <p className="px-6 py-8 text-[var(--muted)]">Couldn&apos;t load the league history: {error}</p>
+        <div className="px-6 py-8">
+          <p className="text-[var(--muted)]">Couldn&apos;t load the league history: {error}</p>
+          <RetryButton
+            onClick={() => {
+              setError(null);
+              setAttempt((a) => a + 1);
+            }}
+          />
+        </div>
       </SectionCard>
     );
   }
@@ -245,9 +258,10 @@ export default function HistoryTab() {
 
       <SectionCard title="All-Time Standings" subtitle="Regular-season records plus postseason results, by manager" gradientType="primary">
         <SortStatus sort={standingsSort} />
-        <div className="overflow-x-auto">
+        {/* Scrolls inside a window-height box so the header row stays in view */}
+        <div className="max-h-[75vh] overflow-auto">
           <table className="min-w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-20 bg-[var(--surface-elevated)]">
               <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
                 <th className="px-4 py-3 font-medium">Manager</th>
                 <SortableTh sort={standingsSort} col="seasons" className="px-3 py-3 text-center font-medium">Seasons</SortableTh>
@@ -258,12 +272,12 @@ export default function HistoryTab() {
                 <SortableTh sort={standingsSort} col="finals" className="px-3 py-3 text-center font-medium">Finals</SortableTh>
                 <SortableTh sort={standingsSort} col="titles" className="px-3 py-3 text-center font-medium">Titles</SortableTh>
                 <SortableTh sort={standingsSort} col="toilet" best="asc" className="px-3 py-3 text-center font-medium">Toilet bowl losses</SortableTh>
-                <SortableTh sort={standingsSort} col="best" best="asc" className="px-3 py-3 text-center font-medium">Best finish</SortableTh>
+                <SortableTh sort={standingsSort} col="best" tip="Highest final place in any season (1st–6th from Sleeper brackets, 1st–3rd before)" tipAlign="right" best="asc" className="px-3 py-3 text-center font-medium">Best finish</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
               {standingsRows.map((r) => (
-                <tr key={r.userId}>
+                <tr key={r.userId} className={mineRow(r.userId === me.userId)}>
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-2">
                       <Avatar m={managers.get(r.userId)} size={6} />

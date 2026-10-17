@@ -7,6 +7,7 @@ import SectionCard from './ui/SectionCard';
 import SortableTh, { SortStatus } from './ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 
 interface WeeklyRankingsHeatmapProps {
   rankingsData: Record<string, number[]>;
@@ -37,7 +38,8 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
     });
   }, [teams, rankingsData, numWeeks]);
 
-  const sort = useTableSort();
+  const sort = useTableSort('weeklyRankings');
+  const me = useMyTeam();
   const rows = sortRows(stats, sort.state, (team, key) =>
     key === 'avg' ? Number(team.avgRanking) : key === 'med' ? team.medRanking : (rankingsData[team.username] || [])[Number(key.slice(1)) - 1]
   );
@@ -93,7 +95,7 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
             {rows.map((team) => {
               const rankings = rankingsData[team.username] || [];
               return (
-                <tr key={team.username}>
+                <tr key={team.username} className={mineRow(team.rosterId === me.rosterId)}>
                   <td className="px-6 py-3 whitespace-nowrap sticky left-0 bg-[var(--surface-elevated)] z-10 border-r border-[var(--border)]">
                     <div className="text-sm font-medium text-[var(--foreground)]">{team.teamName}</div>
                     <div className="text-xs text-[var(--muted)]">@{team.username}</div>

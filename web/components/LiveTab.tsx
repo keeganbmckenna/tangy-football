@@ -7,6 +7,7 @@ import ResultDot from '@/components/ui/ResultDot';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import {
@@ -54,7 +55,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   // Kept across the minute-by-minute refreshes
-  const sort = useTableSort();
+  const sort = useTableSort('livePlayAll');
+  const me = useMyTeam();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -206,9 +208,9 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
                 <SortableTh sort={sort} col="score" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Score</SortableTh>
-                <SortableTh sort={sort} col="week" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">This week vs all</SortableTh>
+                <SortableTh sort={sort} col="week" tip="This week’s record against every other team at the current scores" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">This week vs all</SortableTh>
                 <SortableTh sort={sort} col="margin" label="Real matchup margin" className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Real matchup</SortableTh>
-                <SortableTh sort={sort} col="season" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Season play-all</SortableTh>
+                <SortableTh sort={sort} col="season" tip="Season play-all record, counting this week as if it ended now" tipAlign="right" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Season play-all</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -217,7 +219,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                 const { backgroundColor, textColor } = getHeatmapColorByRatio(row.week.winPct);
                 const margin = s && s.opponentScore !== null ? s.score - s.opponentScore : null;
                 return (
-                  <tr key={row.team.rosterId}>
+                  <tr key={row.team.rosterId} className={mineRow(row.team.rosterId === me.rosterId)}>
                     <td className="px-6 py-3 whitespace-nowrap"><TeamCell team={row.team} /></td>
                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-[var(--foreground)]">
                       {row.score.toFixed(2)}

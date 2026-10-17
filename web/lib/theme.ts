@@ -28,6 +28,9 @@ export const resolveThemeValue = (
   return preference;
 };
 
+/** Browser chrome color (phone status bar, installed app title bar) per theme */
+export const THEME_COLORS: Record<ResolvedTheme, string> = { light: '#ffffff', dark: '#000000' };
+
 export const getThemeBootstrapScript = () => {
   return `(() => {
   const storageKey = '${THEME_STORAGE_KEY}';
@@ -40,5 +43,9 @@ export const getThemeBootstrapScript = () => {
 
   document.documentElement.dataset.theme = resolvedTheme;
   document.documentElement.style.colorScheme = resolvedTheme;
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    m.removeAttribute('media');
+    m.setAttribute('content', resolvedTheme === 'dark' ? '${THEME_COLORS.dark}' : '${THEME_COLORS.light}');
+  });
 })();`;
 };
