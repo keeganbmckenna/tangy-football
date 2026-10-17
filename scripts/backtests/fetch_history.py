@@ -21,4 +21,5 @@ for season, lid in seasons:
         g(f'https://api.sleeper.app/v1/league/{lid}/matchups/{w}', f'm_{season}_{w}')
         q = '&'.join(f'position%5B%5D={p}' for p in ['QB','RB','WR','TE','K','DEF'])
         g(f'https://api.sleeper.com/projections/nfl/{season}/{w}?season_type=regular&{q}', f'proj_{season}_{w}')
+        g(f'https://api.sleeper.app/v1/stats/nfl/regular/{season}/{w}', f'stats_{season}_{w}')
     print(season, 'ok')
