@@ -59,6 +59,7 @@ Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`.
   - **Other teams affected** - teams whose odds move by a point or more.
 
   Players bring their projections and their season production with them, since team strength comes only from the current roster; two teams that swap whole rosters swap strengths (records already banked stay put). On the league's 2022-2025 trades this predicted the trading teams' playoff odds better than ignoring trades, giving trades less credit, or keeping season scoring with the team. Weekly win odds use a wider spread for games more than a week out, fitted on the same seasons. See `scripts/backtests/`.
+- 🔎 **Trade Finder** (current season, until the trade deadline) - Pick your team and click **Find trades**. It tries 1-for-1, 1-for-2, 2-for-1, 2-for-2, 3-for-1, 1-for-3, 3-for-2 and 2-for-3 trades with every other manager, using each roster's 10 most valuable players (**Search deeper** uses every player; kickers, defenses and IR players stay put). Trades are screened on both teams' best lineups, the best few hundred re-scored week by week with the roster moves they force, and the top 20 simulated with the playoff model. It keeps trades that raise your playoff and title odds without hurting the other manager (their lineup, playoff and title odds don't drop and their odds of losing the toilet bowl don't rise), and shows up to 8, at most 2 per manager, each with an **Open in analyzer** button. The market filter (on by default) hides trades where the other manager gets back less than 85% of the FantasyCalc value they give, with a premium for the best player in the deal. Runs in the background; a few seconds for a quick search.
 - 📜 **Trade History** (every season) - Each completed trade with what each team got, graded two ways:
   - **At the time:** playoff, title and losing-the-toilet-bowl odds without and with the trade, re-run the week it counted from with that week's records, rosters and projections (5,000 seasons each), plus the raw projected lineup change.
   - **Hindsight:** points the players each team got scored in its starting lineup afterward, and where the team finished.
@@ -90,7 +91,7 @@ Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`.
 │   │   └── ui/                   # Shared pieces (cards, theme toggle, loading, error boundary)
 │   ├── hooks/                    # Theme, chart hover and team color hooks
 │   ├── lib/
-│   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft, trades
+│   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft, trades, trade finder
 │   │   ├── __tests__/            # Vitest tests
 │   │   ├── config.ts             # League ID and cache durations
 │   │   ├── sleeper.ts            # Shared Sleeper fetch helpers

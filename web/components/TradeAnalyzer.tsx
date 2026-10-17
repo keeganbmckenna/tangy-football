@@ -17,9 +17,18 @@ import {
 import type { OddsRequest } from '@/lib/analyze/trade.worker';
 import type { TeamStats } from '@/lib/types';
 
+export interface TradePreset {
+  teamA: number;
+  teamB: number;
+  sendA: string[];
+  sendB: string[];
+}
+
 interface TradeAnalyzerProps {
   data: TradeDataResponse;
   teamStats: TeamStats[];
+  /** A trade to start with (e.g. from the trade finder) */
+  initial?: TradePreset | null;
 }
 
 const SIMS = 20000;
@@ -332,11 +341,11 @@ interface SeasonRow {
   bad?: boolean;
 }
 
-export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
-  const [teamA, setTeamA] = useState<number | null>(null);
-  const [teamB, setTeamB] = useState<number | null>(null);
-  const [sendA, setSendA] = useState<string[]>([]);
-  const [sendB, setSendB] = useState<string[]>([]);
+export default function TradeAnalyzer({ data, teamStats, initial = null }: TradeAnalyzerProps) {
+  const [teamA, setTeamA] = useState<number | null>(initial?.teamA ?? null);
+  const [teamB, setTeamB] = useState<number | null>(initial?.teamB ?? null);
+  const [sendA, setSendA] = useState<string[]>(initial?.sendA ?? []);
+  const [sendB, setSendB] = useState<string[]>(initial?.sendB ?? []);
   const [baseOdds, setBaseOdds] = useState<OddsResult | null>(null);
   const [tradeOdds, setTradeOdds] = useState<{ key: string; odds: OddsResult } | null>(null);
   const simulate = useOddsSimulator();
