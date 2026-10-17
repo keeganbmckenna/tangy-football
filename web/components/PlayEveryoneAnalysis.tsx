@@ -6,6 +6,10 @@ import { CHART_THEME } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import type { PlayEveryoneStats } from '@/lib/types';
 
+// Same pairing as the schedule luck chart: amber is what really happened
+const ACTUAL_COLOR = '#f59e0b';
+const PLAY_ALL_COLOR = '#3b82f6';
+
 interface PlayEveryoneAnalysisProps {
   data: PlayEveryoneStats[];
 }
@@ -94,10 +98,10 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
               axisLine={{ stroke: CHART_THEME.axis }}
               tickLine={{ stroke: CHART_THEME.axis }}
             />
-            <Tooltip content={<BarChartTooltip />} />
-            <Legend wrapperStyle={{ color: CHART_THEME.legend }} />
-            <Bar dataKey="Actual Wins" fill="#3b82f6" />
-            <Bar dataKey="Play-All Wins" fill="#10b981" />
+            <Tooltip content={<BarChartTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
+            <Legend formatter={(value) => <span style={{ color: CHART_THEME.legend }}>{value}</span>} />
+            <Bar dataKey="Actual Wins" fill={ACTUAL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
+            <Bar dataKey="Play-All Wins" fill={PLAY_ALL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
           </BarChart>
         </ResponsiveContainer>
       </div>

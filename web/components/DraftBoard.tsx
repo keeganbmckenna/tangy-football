@@ -120,7 +120,7 @@ function AuctionBoard({ data, leagueData, core }: { data: DraftData; leagueData:
           <table className="min-w-full divide-y divide-[var(--border)]">
             <tbody className="divide-y divide-[var(--border)]">
               {team.picks.map((pick) => (
-                <tr key={pick.pick_no} className="hover:bg-[var(--surface)]">
+                <tr key={pick.pick_no} className="hover:bg-[var(--hover)]">
                   <td className="px-6 py-2 whitespace-nowrap text-sm font-bold text-[var(--accent)] w-16">
                     ${pick.amount ?? '—'}
                   </td>

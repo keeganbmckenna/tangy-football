@@ -124,7 +124,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         type="button"
         onClick={refresh}
         disabled={loading}
-        className="px-2 py-1 rounded border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-50"
+        className="px-2 py-1 rounded border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--hover)] disabled:opacity-50"
       >
         {loading ? 'Refreshing…' : 'Refresh'}
       </button>

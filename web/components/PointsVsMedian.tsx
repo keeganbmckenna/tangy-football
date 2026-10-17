@@ -71,6 +71,7 @@ export default function PointsVsMedian({ differenceData, teams, maxWeek }: Point
               tickLine={{ stroke: CHART_THEME.axis }}
             />
             <Tooltip
+              cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
               content={
                 <CustomTooltip
                   teams={teamColorsWithMedian}

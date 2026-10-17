@@ -68,7 +68,7 @@ function TeamRow({
         className={`
           ${isInPlayoffs ? 'bg-[var(--success-bg)]' : ''}
           ${isLeader ? 'font-semibold bg-[var(--info-bg)]' : ''}
-          hover:bg-[var(--surface)] transition-colors
+          hover:bg-[var(--hover)] transition-colors
         `}
       >
         <td className="px-4 py-3 text-sm text-[var(--foreground)]">

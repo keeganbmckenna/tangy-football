@@ -75,6 +75,7 @@ export default function StandingsOverTime({ standingsData, teams, maxWeek }: Sta
               tickLine={{ stroke: CHART_THEME.axis }}
             />
             <Tooltip
+              cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
               content={
                 <CustomTooltip
                   teams={teamColors}

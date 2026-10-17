@@ -213,7 +213,7 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
                     domain={[0, yAxisMax]}
                     style={{ fontSize: '11px' }}
                   />
-                  <Tooltip content={<ScheduleLuckTooltip />} />
+                  <Tooltip content={<ScheduleLuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
                   <Bar dataKey="frequency" minPointSize={1}>
                     {chartData.map((entry) => {
                       const fillColor = entry.isActual

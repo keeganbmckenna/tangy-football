@@ -309,7 +309,7 @@ export default function Home() {
                       className={`${
                         activeTab === tab.id
                           ? 'bg-[var(--surface)] text-[var(--accent)]'
-                          : 'text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]'
+                          : 'text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]'
                       } block w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors`}
                     >
                       <span className="mr-2">{tab.icon}</span>

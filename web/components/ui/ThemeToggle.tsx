@@ -77,7 +77,7 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={handleToggle}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground)] shadow-sm transition hover:bg-[var(--surface)]"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground)] shadow-sm transition hover:bg-[var(--hover)]"
       aria-label={`Theme: ${THEME_LABELS[preference]}`}
       title={`Theme: ${THEME_LABELS[preference]}`}
     >

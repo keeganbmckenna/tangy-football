@@ -57,6 +57,7 @@ export default function CumulativeScores({ cumulativeData, teams, maxWeek }: Cum
               tickLine={{ stroke: CHART_THEME.axis }}
             />
             <Tooltip
+              cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
               content={
                 <CustomTooltip
                   teams={teamColors}

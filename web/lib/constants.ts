@@ -67,6 +67,8 @@ export const CHART_THEME = {
   tooltipText: 'var(--chart-tooltip-text)',
   tooltipMuted: 'var(--chart-tooltip-muted)',
   median: 'var(--chart-median)',
+  /** Hover highlight behind a bar chart's category */
+  cursor: 'var(--chart-cursor)',
 } as const;
 
 /**

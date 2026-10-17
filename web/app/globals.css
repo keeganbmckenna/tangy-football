@@ -27,6 +27,8 @@
   --chart-tooltip-text: #111827;
   --chart-tooltip-muted: #6b7280;
   --chart-median: #1f2937;
+  --chart-cursor: rgba(15, 23, 42, 0.06);
+  --hover: #f9fafb;
   --rank-top-bg: #fde725;
   --rank-top-text: #1f2937;
   --rank-upper-bg: #5ec962;
@@ -68,6 +70,8 @@
     --chart-tooltip-text: #e2e8f0;
     --chart-tooltip-muted: #94a3b8;
     --chart-median: #e2e8f0;
+    --chart-cursor: rgba(255, 255, 255, 0.06);
+    --hover: rgba(255, 255, 255, 0.05);
     --rank-top-bg: #fde725;
     --rank-top-text: #1f2937;
     --rank-upper-bg: #5ec962;
@@ -109,6 +113,8 @@
   --chart-tooltip-text: #111827;
   --chart-tooltip-muted: #6b7280;
   --chart-median: #1f2937;
+  --chart-cursor: rgba(15, 23, 42, 0.06);
+  --hover: #f9fafb;
   --rank-top-bg: #fde725;
   --rank-top-text: #1f2937;
   --rank-upper-bg: #5ec962;
@@ -149,6 +155,8 @@
   --chart-tooltip-text: #e2e8f0;
   --chart-tooltip-muted: #94a3b8;
   --chart-median: #e2e8f0;
+  --chart-cursor: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.05);
   --rank-top-bg: #fde725;
   --rank-top-text: #1f2937;
   --rank-upper-bg: #5ec962;

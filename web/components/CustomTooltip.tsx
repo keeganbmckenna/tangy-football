@@ -55,7 +55,7 @@ export default function CustomTooltip({
           return (
             <div
               key={item.username}
-              className="flex items-center justify-between gap-3 py-1 px-2 rounded hover:bg-[var(--surface)]"
+              className="flex items-center justify-between gap-3 py-1 px-2 rounded hover:bg-[var(--hover)]"
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div
