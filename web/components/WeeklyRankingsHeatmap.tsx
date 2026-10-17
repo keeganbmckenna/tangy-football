@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { TeamStats } from '@/lib/types';
 import { getRankingColor, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
 import SectionCard from './ui/SectionCard';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import SortableTh, { SortStatus } from './ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
@@ -68,7 +69,7 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sticky left-0 bg-[var(--surface)] z-10">
+              <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>
                 Team
               </th>
               {weeks.map((week) => (
@@ -96,9 +97,8 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
               const rankings = rankingsData[team.username] || [];
               return (
                 <tr key={team.username} className={mineRow(team.rosterId === me.rosterId)}>
-                  <td className="px-6 py-3 whitespace-nowrap sticky left-0 bg-[var(--surface-elevated)] z-10 border-r border-[var(--border)]">
-                    <div className="text-sm font-medium text-[var(--foreground)]">{team.teamName}</div>
-                    <div className="text-xs text-[var(--muted)]">@{team.username}</div>
+                  <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>
+                    <TeamName name={team.teamName} sub={`@${team.username}`} />
                   </td>
                   {rankings.slice(0, numWeeks).map((ranking, index) => {
                     const { backgroundColor, textColor } = getRankingColor(ranking, teams.length);

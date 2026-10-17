@@ -5,6 +5,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -36,12 +37,7 @@ function isIn(status: PlayoffStatus) {
 }
 
 function TeamCell({ team }: { team: TeamStats }) {
-  return (
-    <>
-      <div className="text-sm font-medium text-[var(--foreground)]">{team.teamName}</div>
-      <div className="text-xs text-[var(--muted)]">@{team.username}</div>
-    </>
-  );
+  return <TeamName name={team.teamName} sub={`@${team.username}`} />;
 }
 
 function secondsAgo(iso: string, now: number) {
@@ -206,7 +202,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           <table className="min-w-full divide-y divide-[var(--border)]">
             <thead className="bg-[var(--surface)]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
+                <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>Team</th>
                 <SortableTh sort={sort} col="score" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Score</SortableTh>
                 <SortableTh sort={sort} col="week" tip="This week’s record against every other team at the current scores" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">This week vs all</SortableTh>
                 <SortableTh sort={sort} col="margin" label="Real matchup margin" className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Real matchup</SortableTh>
@@ -220,7 +216,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                 const margin = s && s.opponentScore !== null ? s.score - s.opponentScore : null;
                 return (
                   <tr key={row.team.rosterId} className={mineRow(row.team.rosterId === me.rosterId)}>
-                    <td className="px-6 py-3 whitespace-nowrap"><TeamCell team={row.team} /></td>
+                    <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}><TeamCell team={row.team} /></td>
                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-[var(--foreground)]">
                       {row.score.toFixed(2)}
                     </td>

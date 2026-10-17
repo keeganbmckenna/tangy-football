@@ -5,6 +5,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import RetryButton from '@/components/ui/RetryButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -303,7 +304,7 @@ export default function HistoryTab() {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
-                <th className="px-4 py-3 font-medium">Manager</th>
+                <th className={`${PIN_TH} py-3 font-medium bg-[var(--surface-elevated)]`}>Manager</th>
                 <SortableTh sort={standingsSort} col="seasons" className="px-3 py-3 text-center font-medium">Seasons</SortableTh>
                 <SortableTh sort={standingsSort} col="record" className="px-3 py-3 text-center font-medium">Record</SortableTh>
                 <SortableTh sort={standingsSort} col="winPct" className="px-3 py-3 text-center font-medium">Win %</SortableTh>
@@ -318,14 +319,19 @@ export default function HistoryTab() {
             <tbody className="divide-y divide-[var(--border)]">
               {standingsRows.map((r) => (
                 <tr key={r.userId} className={mineRow(r.userId === me.userId)}>
-                  <td className="px-4 py-2">
+                  <td className={`${PIN_TD} py-2 bg-[var(--surface-elevated)]`}>
+                    {/* On phones just the name, so the pinned column stays narrow */}
                     <div className="flex items-center gap-2">
-                      <Avatar m={managers.get(r.userId)} size={6} />
-                      <span className="font-medium text-[var(--foreground)]">{nameOf(r.userId)}</span>
+                      <span className="hidden sm:block">
+                        <Avatar m={managers.get(r.userId)} size={6} />
+                      </span>
+                      <span className="max-w-[7.5rem] truncate font-medium text-[var(--foreground)] sm:max-w-none" title={nameOf(r.userId)}>
+                        {nameOf(r.userId)}
+                      </span>
                       {managers.get(r.userId)?.firstName && managers.get(r.userId)!.firstName !== nameOf(r.userId) && (
-                        <span className="text-xs text-[var(--muted)]">{managers.get(r.userId)!.firstName}</span>
+                        <span className="hidden text-xs text-[var(--muted)] sm:inline">{managers.get(r.userId)!.firstName}</span>
                       )}
-                      {!current.has(r.userId) && <span className="text-xs text-[var(--muted)]">· former</span>}
+                      {!current.has(r.userId) && <span className="hidden text-xs text-[var(--muted)] sm:inline">· former</span>}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.seasons}</td>

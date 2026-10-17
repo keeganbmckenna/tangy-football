@@ -224,7 +224,10 @@ body {
    bar on its first cell; colored cells (heatmaps, wins and losses) keep their color */
 tr.mine { background-color: color-mix(in srgb, var(--accent) 10%, transparent); }
 tr.mine > td:first-child, tr.mine > th:first-child {
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent), 1px 0 0 var(--border);
   /* Opaque, for first columns that stay put while the table scrolls sideways */
   background-color: color-mix(in srgb, var(--accent) 10%, var(--surface-elevated));
 }
+
+/* A table's first column, pinned while the table scrolls sideways (TeamName.tsx): a line marks its edge */
+.pin-col { box-shadow: 1px 0 0 var(--border); }

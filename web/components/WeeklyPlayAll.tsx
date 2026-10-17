@@ -4,6 +4,7 @@ import { getHeatmapColorByRatio, RESULT_DOT_COLORS, VIRIDIS_HEATMAP_COLORS } fro
 import { WeeklyPlayAllStats } from '@/lib/types';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -41,7 +42,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sticky left-0 bg-[var(--surface)] z-10">
+              <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>
                 Team
               </th>
               {Array.from({ length: numWeeks }, (_, i) => i + 1).map((week) => (
@@ -66,11 +67,8 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
             {rows.map((team) => (
               <tr key={team.username} className={mineRow(team.username === me.username)}>
-                <td className="px-6 py-3 whitespace-nowrap sticky left-0 bg-[var(--surface-elevated)] z-10 border-r border-[var(--border)]">
-                  <div className="text-sm font-medium text-[var(--foreground)]">
-                    {team.teamName}
-                  </div>
-                  <div className="text-xs text-[var(--muted)]">@{team.username}</div>
+                <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>
+                  <TeamName name={team.teamName} sub={`@${team.username}`} />
                 </td>
                 {team.weeklyRecords.map((record) => {
                   const { backgroundColor, textColor } = getHeatmapColorByRatio(record.winPct);

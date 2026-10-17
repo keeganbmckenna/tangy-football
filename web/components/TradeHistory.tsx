@@ -5,6 +5,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import RetryButton from '@/components/ui/RetryButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -281,7 +282,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
-                      <th className="px-3 py-2 font-medium">Manager</th>
+                      <th className={`${PIN_TH} !px-3 py-2 font-medium bg-[var(--surface-elevated)]`}>Manager</th>
                       <SortableTh sort={sort} col="trades" className="px-3 py-2 text-center font-medium">Trades</SortableTh>
                       <th className="px-3 py-2 font-medium">Favorite partner</th>
                       <SortableTh sort={sort} col="playoff" tip="Sum of each trade’s change to this manager’s playoff odds the week it went through, in percentage points" className="px-3 py-2 text-center font-medium">Playoff odds at the time</SortableTh>
@@ -292,7 +293,11 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                   <tbody className="divide-y divide-[var(--border)]">
                     {leaderRows.map((r) => (
                       <tr key={r.userId} className={mineRow(r.userId === me.userId)}>
-                        <td className="px-3 py-2 font-medium text-[var(--foreground)]">{nameOf(r.userId)}</td>
+                        <td className={`${PIN_TD} !px-3 py-2 bg-[var(--surface-elevated)]`}>
+                          <span className="block max-w-[7.5rem] truncate font-medium text-[var(--foreground)] sm:max-w-none" title={nameOf(r.userId)}>
+                            {nameOf(r.userId)}
+                          </span>
+                        </td>
                         <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.trades}</td>
                         <td className="px-3 py-2 text-[var(--foreground)]">
                           {r.topPartner ? (

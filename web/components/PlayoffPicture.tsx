@@ -6,6 +6,7 @@ import RetryButton from '@/components/ui/RetryButton';
 import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -388,7 +389,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
             <table className="min-w-full divide-y divide-[var(--border)]">
               <thead className="bg-[var(--surface)]">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
+                  <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>Team</th>
                   <SortableTh sort={sort} col="record" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Record</SortableTh>
                   <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Now</th>
                   <SortableTh sort={sort} col="playoffs" best="desc" label="Playoff odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoffs</SortableTh>
@@ -423,11 +424,12 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                   const st = status(t.rosterId);
                   return (
                     <tr key={t.rosterId} className={mineRow(t.rosterId === me.rosterId)}>
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        {teamLabel(t.rosterId)}
-                        {st && (
-                          <span className="text-xs font-medium" style={{ color: TONE_COLOR[st.tone] }}>{st.label}</span>
-                        )}
+                      <td className={`${PIN_TD} py-2 whitespace-nowrap bg-[var(--surface-elevated)]`}>
+                        <TeamName
+                          name={name(t.rosterId)}
+                          sub={`@${user(t.rosterId)}`}
+                          after={st && <span className="text-xs font-medium" style={{ color: TONE_COLOR[st.tone] }}>{st.label}</span>}
+                        />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-center text-sm text-[var(--foreground)]">
                         {record(t)}

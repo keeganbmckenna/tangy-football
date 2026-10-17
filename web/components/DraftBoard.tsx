@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -166,7 +167,7 @@ function DraftCore({ data, leagueData, core }: {
       <table className="min-w-full divide-y divide-[var(--border)]">
         <thead className="bg-[var(--surface)]">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sticky left-0 bg-[var(--surface)] z-10">
+            <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>
               Team
             </th>
             {labels.map((label) => (
@@ -182,8 +183,8 @@ function DraftCore({ data, leagueData, core }: {
         <tbody className="divide-y divide-[var(--border)]">
           {teams.map((team) => (
             <tr key={team.rosterId ?? 'none'} className={mineRow(team.rosterId === me.rosterId)}>
-              <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-[var(--foreground)] sticky left-0 bg-[var(--surface-elevated)] z-10">
-                {teamNameForRoster(leagueData, team.rosterId)}
+              <td className={`${PIN_TD} py-2 whitespace-nowrap bg-[var(--surface-elevated)]`}>
+                <TeamName name={teamNameForRoster(leagueData, team.rosterId)} />
               </td>
               {team.slots.map(({ label, pick }) => (
                 <td key={label} className="px-3 py-2 align-top">
@@ -231,7 +232,7 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
+              <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>Team</th>
               {isAuction && (
                 <>
                   <SortableTh sort={sort} col="spent" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Spent</SortableTh>
@@ -250,9 +251,8 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
           <tbody className="divide-y divide-[var(--border)]">
             {rows.map((s) => (
               <tr key={s.rosterId ?? 'none'} className={mineRow(s.rosterId === me.rosterId)}>
-                <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-[var(--foreground)]">
-                  {teamNameForRoster(leagueData, s.rosterId)}
-                  <span className="text-xs text-[var(--muted)] ml-2">{s.count} picks</span>
+                <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>
+                  <TeamName name={teamNameForRoster(leagueData, s.rosterId)} sub={`${s.count} picks`} />
                 </td>
                 {isAuction && (
                   <>
