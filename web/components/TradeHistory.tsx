@@ -210,7 +210,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
         <div className="text-sm">
           {side.finalSeed !== null && (
             <span
-              className="rounded-full px-2 py-0.5 text-xs font-semibold"
+              className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold"
               style={
                 side.finalSeed <= data.playoffTeams
                   ? { backgroundColor: 'var(--success-bg)', color: 'var(--success-text)' }

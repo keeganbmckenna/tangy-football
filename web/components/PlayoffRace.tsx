@@ -112,7 +112,7 @@ function TeamRow({
         </td>
         {showDivision && (
           <td className="px-4 py-3 text-xs">
-            <span className="px-2 py-1 bg-[var(--neutral-bg)] text-[var(--neutral-text)] rounded">
+            <span className="inline-block whitespace-nowrap px-2 py-1 bg-[var(--neutral-bg)] text-[var(--neutral-text)] rounded">
               {team.divisionName || `Div ${team.division}`}
             </span>
           </td>
@@ -133,7 +133,8 @@ function TeamRow({
         <tr>
           <td colSpan={showDivision ? 8 : 7} className="px-0 py-0">
             <div className="border-t-2 border-dashed border-red-500 relative">
-              <span className="absolute -top-2.5 left-1/2 transform -translate-x-1/2 bg-[var(--surface-elevated)] px-2 text-xs font-semibold text-red-500">
+              {/* At the left on phones, where the middle of a wide table can be off-screen */}
+              <span className="absolute -top-2.5 left-3 bg-[var(--surface-elevated)] px-2 text-xs font-semibold text-red-500 sm:left-1/2 sm:-translate-x-1/2">
                 PLAYOFF CUTOFF
               </span>
             </div>

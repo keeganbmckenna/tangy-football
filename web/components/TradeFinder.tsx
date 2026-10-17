@@ -173,9 +173,9 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold text-[var(--foreground)]">
                         With {manager(t.partner)}
-                        <span className="ml-2 rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs font-medium text-[var(--neutral-text)]">{t.size}</span>
+                        <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs font-medium text-[var(--neutral-text)]">{t.size}</span>
                         {t.market.fair === false && (
-                          <span className="ml-2 rounded-full bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
+                          <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
                             Lopsided by market value
                           </span>
                         )}

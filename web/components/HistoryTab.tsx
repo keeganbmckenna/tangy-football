@@ -232,8 +232,8 @@ export default function HistoryTab() {
             <div key={s.season} className="rounded-lg border border-[var(--border)] p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-lg font-bold text-[var(--foreground)]">{s.season}</span>
-                {!s.complete && <span className="rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">In progress</span>}
-                {s.legacy && <span className="rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">Before Sleeper</span>}
+                {!s.complete && <span className="whitespace-nowrap rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">In progress</span>}
+                {s.legacy && <span className="whitespace-nowrap rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">Before Sleeper</span>}
               </div>
               {s.complete ? (
                 <div className="space-y-3">
