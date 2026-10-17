@@ -3,19 +3,28 @@
  * ways.
  *
  * - At the time: the playoff-odds model re-run the week of the trade, with the
- *   records, rosters and projections from then, without and with the trade.
- *   Projections are that week's, carried forward to later weeks with each NFL
- *   team's byes (what was knowable when the trade was made, and how the model
- *   was backtested).
+ *   records, rosters, projections and season production from then, without
+ *   and with the trade. Projections are that week's, carried forward to later
+ *   weeks with each NFL team's byes (what was knowable when the trade was
+ *   made, and how the model was backtested).
  * - Hindsight: the points the players each team received scored in its
  *   starting lineup for the rest of the regular season.
  */
 
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, SleeperRoster, SleeperTransaction } from '@/lib/types';
-import { fetchJson, playoffFormat, teamsPlaying, weekProjections, type ProjectedPlayer } from '@/lib/oddsData';
+import {
+  cumulativeProduction,
+  fetchJson,
+  playoffFormat,
+  teamsPlaying,
+  weekProjections,
+  type ProjectedPlayer,
+  type SeasonProduction,
+} from '@/lib/oddsData';
 import {
   bestLineupPoints,
+  playerValue,
   seedTeams,
   teamStrength,
   type OddsTeam,
@@ -117,6 +126,19 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
   ]);
   const projectionsAt = new Map(tradeWeeks.map((w, i) => [w, projectionList[i]]));
 
+  // Each player's season production before each trade week
+  const statsWeeks = Math.max(0, ...tradeWeeks.map((w) => w - 1));
+  const weeklyStats = await Promise.all(
+    Array.from({ length: statsWeeks }, (_, i) =>
+      fetchJson<Record<string, { pts_half_ppr?: number; gp?: number }>>(`${baseUrl}/stats/nfl/regular/${league.season}/${i + 1}`, false).catch(
+        () => ({}) as Record<string, { pts_half_ppr?: number; gp?: number }>
+      )
+    )
+  );
+  const productionBefore = new Map<number, SeasonProduction>(
+    tradeWeeks.map((w) => [w, cumulativeProduction(weeklyStats.slice(0, w - 1))])
+  );
+
   const players: TradeHistoryResponse['players'] = {};
   const nameFor = (pid: string, week: number) => {
     if (players[pid]) return;
@@ -183,9 +205,14 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
         if (!playing) return true;
         return p.position === 'DEF' ? playing.has(pid) : !!p.team && playing.has(p.team);
       };
+      // Player values as the odds model sets them: projection blended with season production so far
+      const production = productionBefore.get(w0) ?? { points: {}, games: {} };
       const weekProj = (w: number) => {
         const out: Record<string, { position: string; points: number }> = {};
-        for (const [pid, p] of Object.entries(proj)) out[pid] = { position: p.position, points: plays(p, pid, w) ? p.points : 0 };
+        for (const [pid, p] of Object.entries(proj)) {
+          const projected = plays(p, pid, w) ? p.points : 0;
+          out[pid] = { position: p.position, points: playerValue(projected, production.points[pid] ?? 0, production.games[pid] ?? 0) };
+        }
         return out;
       };
       const projByWeek = Object.fromEntries(strengthWeeks.map((w) => [w, weekProj(w)]));

@@ -8,12 +8,15 @@
  * cards. Ties on record are broken by points for, which matches every past
  * Sleeper bracket in this league.
  *
- * Simulation model (backtested on 2022-2025, see the commit that added this
- * file): each team's weekly score is normal around a strength that blends 75%
- * its projected best lineup with 25% its season scoring (shrunk toward the
- * league average), with the league's pooled week-to-week spread. The backtest
- * used next week's projection for every remaining week; live, each remaining
- * week uses that week's projection, so bye weeks only count when they happen.
+ * Simulation model (backtested on 2022-2025, scripts/backtests/form_options.py):
+ * each player is worth a blend of his projection for the week and his own
+ * season points per game (see playerValue); a team's expected score is the
+ * league average plus 75% of how far its best lineup of those values sits
+ * above or below the league's average lineup. Weekly scores are normal around
+ * that with the league's pooled week-to-week spread. Team strength comes only
+ * from the current roster, so trades and pickups count fully and two teams
+ * that swap rosters swap strengths. Each remaining week uses that week's
+ * projections, so bye weeks only count when they happen.
  */
 
 export interface OddsTeam {
@@ -211,15 +214,32 @@ const FORM_SHRINK_WEEKS = 2;
 const MIN_SPREAD = 15;
 const DEFAULT_SPREAD = 25;
 
+/** Share of a player's value that comes from his season points per game */
+export const SEASON_SHARE = 0.5;
+/** Games of projection his season points per game are padded with, so a game or two can't swing it */
+export const PLAYER_SHRINK_GAMES = 3;
+
+/**
+ * A player's expected points for a week: half his projection, half his season
+ * points per game (padded toward the projection). A player projected for
+ * nothing (bye, out) is worth nothing that week.
+ */
+export function playerValue(projection: number, seasonPoints: number, gamesPlayed: number): number {
+  if (projection <= 0) return 0;
+  const perGame = (seasonPoints + PLAYER_SHRINK_GAMES * projection) / (gamesPlayed + PLAYER_SHRINK_GAMES);
+  return (1 - SEASON_SHARE) * projection + SEASON_SHARE * perGame;
+}
+
 /**
  * Expected score per team for each remaining week, and the week-to-week spread.
- * weeklyScores holds each team's completed-week scores; projections (optional)
- * holds each team's projected best lineup per remaining week.
+ * weeklyScores holds each team's completed-week scores; lineups (optional)
+ * holds each team's best lineup of player values (playerValue) per remaining
+ * week. Weeks without lineups fall back to the team's season scoring.
  */
 export function teamStrength(
   weeklyScores: Record<number, number[]>,
   weeks: number[],
-  projections: Record<number, Record<number, number>> | null
+  lineups: Record<number, Record<number, number>> | null
 ): { meanByWeek: Record<number, Record<number, number>>; spread: number } {
   const ids = Object.keys(weeklyScores).map(Number);
   const all = ids.flatMap((id) => weeklyScores[id]);
@@ -245,15 +265,13 @@ export function teamStrength(
 
   const meanByWeek: Record<number, Record<number, number>> = {};
   for (const week of weeks) {
-    const proj = projections?.[week];
-    const useProj = !!proj && ids.length > 0 && ids.every((id) => proj[id] !== undefined);
-    const projMean = useProj ? ids.reduce((s, id) => s + proj![id], 0) / ids.length : 0;
+    const lineup = lineups?.[week];
+    const useLineups = !!lineup && ids.length > 0 && ids.every((id) => lineup[id] !== undefined);
+    const lineupMean = useLineups ? ids.reduce((s, id) => s + lineup![id], 0) / ids.length : 0;
     meanByWeek[week] = {};
     for (const id of ids) {
-      // Projections centered on the league's scoring level, so only relative strength counts
-      meanByWeek[week][id] = useProj
-        ? PROJECTION_WEIGHT * (league + proj![id] - projMean) + (1 - PROJECTION_WEIGHT) * form[id]
-        : form[id];
+      // Centered on the league's scoring level, so only relative strength counts
+      meanByWeek[week][id] = useLineups ? league + PROJECTION_WEIGHT * (lineup![id] - lineupMean) : form[id];
     }
   }
   return { meanByWeek, spread };

@@ -133,7 +133,7 @@ function RosterPicker({
   marketValues: boolean;
 }) {
   const sorted = [...players].sort(
-    (x, y) => positionRank(x.position) - positionRank(y.position) || y.projectedPerWeek - x.projectedPerWeek
+    (x, y) => positionRank(x.position) - positionRank(y.position) || y.expectedPerWeek - x.expectedPerWeek
   );
   return (
     <div className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
@@ -186,11 +186,12 @@ function RosterPicker({
                     <span className="block text-xs text-[var(--muted)]">
                       {p.position}
                       {p.team ? ` · ${p.team}` : ''}
+                      {p.seasonPerGame !== null ? ` · ${p.seasonPerGame.toFixed(1)} ppg` : ''}
                       {p.injury ? <span className="ml-1 font-semibold text-[var(--danger-text)]">{p.injury}</span> : null}
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block text-sm text-[var(--foreground)]">{p.projectedPerWeek.toFixed(1)}/wk</span>
+                    <span className="block text-sm text-[var(--foreground)]">{p.expectedPerWeek.toFixed(1)}/wk</span>
                     {marketValues && (
                       <span className="block text-xs text-[var(--muted)]">{p.value !== null ? p.value.toLocaleString() : '—'}</span>
                     )}
@@ -521,7 +522,8 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
         </div>
         {data.marketValues && (
           <p className="-mt-3 text-xs text-[var(--muted)]">
-            Under each player: projected points per remaining week, and their{' '}
+            Each player: points per game this season, expected points per remaining week (half his projection, half his
+            season scoring, as the odds model values him), and his{' '}
             <a href="https://fantasycalc.com" target="_blank" rel="noreferrer" className="underline">FantasyCalc</a> redraft
             value (the trade market&apos;s price; kickers and defenses aren&apos;t valued).
           </p>
@@ -648,13 +650,13 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
                       {side === 'a' ? nameA : nameB}
                     </div>
                     <p className="text-[var(--foreground)]">
-                      Projected lineup: {s.before.toFixed(1)} → <strong>{s.after.toFixed(1)}</strong> pts/wk (
+                      Expected lineup: {s.before.toFixed(1)} → <strong>{s.after.toFixed(1)}</strong> pts/wk (
                       <span style={{ color: s.after - s.before >= 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>
                         {signed(s.after - s.before)}
                       </span>
                       )
                     </p>
-                    <p className="text-xs text-[var(--muted)]">If nothing else changes. The odds count 75% of this, the same weight the playoff model gives every team&apos;s projected lineup.</p>
+                    <p className="text-xs text-[var(--muted)]">If nothing else changes. The odds count 75% of this, the same weight the playoff model gives every team&apos;s lineup.</p>
                     {(s.in.length > 0 || s.out.length > 0) && (
                       <p className="mt-2 text-[var(--foreground)]">
                         Week {firstWeek} lineup:{' '}
@@ -721,19 +723,21 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
               <summary className="cursor-pointer font-medium text-[var(--foreground)]">How this works</summary>
               <div className="mt-3 space-y-2">
                 <p>
-                  The &quot;before&quot; numbers are the Playoffs tab&apos;s: 20,000 simulated seasons where each team&apos;s weekly
-                  score centers on 75% its projected best lineup and 25% its season scoring. The &quot;after&quot; run uses the same
-                  random draws, so differences come from the trade, not simulation noise.
+                  The &quot;before&quot; numbers are the Playoffs tab&apos;s: 20,000 simulated seasons on the real schedule. Each
+                  player is worth half his projection for the week and half his points per game this season, and a team&apos;s
+                  expected score is the league average plus 75% of how far its best lineup of those values is above or below the
+                  league&apos;s. The &quot;after&quot; run uses the same random draws, so differences come from the trade, not
+                  simulation noise.
                 </p>
                 <p>
-                  A trade changes the rosters those projections come from, so each team&apos;s expected score moves by 75% of its
-                  projected lineup change, the same as any other roster: swap two whole teams and each becomes the other. Across
-                  this league&apos;s 2022-2025 trades, that predicted the trading teams&apos; rest-of-season wins and playoff odds
-                  better than giving trades less credit.
+                  Team strength comes only from who&apos;s on the roster, so a trade counts like any other roster: the players
+                  bring their projections and their season production with them, and two teams that swap whole rosters swap
+                  strengths (records already banked stay put). Backtested on this league&apos;s 2022-2025 trades, this predicted
+                  the trading teams&apos; playoff odds better than the other ways tried.
                 </p>
                 <p>
-                  Weekly win odds use a wider spread for games more than a week away (2.2× the week-to-week spread, 0.9× next
-                  week), which matched how those games actually went in the same backtest. The table&apos;s season odds keep the
+                  Weekly win odds use a wider spread for games more than a week away (2× the week-to-week spread, 0.8× next week),
+                  which matched how those games actually went in the same backtest. The table&apos;s season odds keep the
                   Playoffs tab&apos;s spread, which backtested as well calibrated.
                 </p>
                 <p>

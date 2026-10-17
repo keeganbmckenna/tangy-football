@@ -3,6 +3,7 @@ import {
   seedTeams,
   projectedBracket,
   bestLineupPoints,
+  playerValue,
   teamStrength,
   simulatePlayoffOdds,
   statusFor,
@@ -80,10 +81,25 @@ describe('bestLineupPoints', () => {
   });
 });
 
+describe('playerValue', () => {
+  it('blends his projection with his season points per game, padded with 3 games of projection', () => {
+    // 4 games, 80 points: (80 + 3 * 15) / 7 = 17.86 per game; half of that plus half of 15
+    expect(playerValue(15, 80, 4)).toBeCloseTo(0.5 * 15 + 0.5 * (125 / 7));
+  });
+
+  it('is his projection before he has played', () => {
+    expect(playerValue(12, 0, 0)).toBeCloseTo(12);
+  });
+
+  it('is nothing when he is projected for nothing (bye, out)', () => {
+    expect(playerValue(0, 120, 5)).toBe(0);
+  });
+});
+
 describe('teamStrength', () => {
   const scores = { 1: [120, 130], 2: [80, 90] };
 
-  it('uses shrunk season form without projections', () => {
+  it('uses shrunk season form without lineups', () => {
     const { meanByWeek, spread } = teamStrength(scores, [3, 4], null);
     // league 105; team 1: (250 + 2*105) / 4 = 115
     expect(meanByWeek[3][1]).toBeCloseTo(115);
@@ -91,17 +107,18 @@ describe('teamStrength', () => {
     expect(spread).toBe(15); // floored
   });
 
-  it('blends each week\'s centered projections 75/25 with form', () => {
+  it('is the league average plus 75% of how far each lineup is from the average lineup', () => {
     // Week 3: team 1 has players on bye; week 4 it's back to full strength
     const { meanByWeek } = teamStrength(scores, [3, 4], { 3: { 1: 100, 2: 140 }, 4: { 1: 140, 2: 140 } });
-    // Week 3 centered on league 105: team 1 -> 85, team 2 -> 125
-    expect(meanByWeek[3][1]).toBeCloseTo(0.75 * 85 + 0.25 * 115);
-    expect(meanByWeek[3][2]).toBeCloseTo(0.75 * 125 + 0.25 * 95);
-    // Week 4: equal projections -> both centered at 105
-    expect(meanByWeek[4][1]).toBeCloseTo(0.75 * 105 + 0.25 * 115);
+    // Week 3: average lineup 120; team 1 is 20 below, team 2 20 above the league's 105
+    expect(meanByWeek[3][1]).toBeCloseTo(105 - 0.75 * 20);
+    expect(meanByWeek[3][2]).toBeCloseTo(105 + 0.75 * 20);
+    // Week 4: equal lineups -> both at the league average; past scoring doesn't count
+    expect(meanByWeek[4][1]).toBeCloseTo(105);
+    expect(meanByWeek[4][2]).toBeCloseTo(105);
   });
 
-  it('falls back to form for a week missing a team\'s projection', () => {
+  it("falls back to form for a week missing a team's lineup", () => {
     const { meanByWeek } = teamStrength(scores, [3], { 3: { 1: 100 } });
     expect(meanByWeek[3][1]).toBeCloseTo(115);
   });

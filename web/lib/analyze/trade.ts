@@ -2,20 +2,21 @@
  * Trade analysis: what a trade does to both teams' weekly and season outlook,
  * and grades for past trades.
  *
- * Built on the playoff-odds model (playoffOdds.ts), which gives each team 75%
- * credit for its projected best lineup every week. A trade changes the rosters
- * that projection is made from, so a team's expected score moves by 75% of its
- * projected lineup change, exactly like any other roster: swap two whole teams
- * and each simply becomes the other. Backtested on every 2022-2025 trade
- * (scripts/backtests/trade_season.py), this predicted the trading teams' rest-
- * of-season wins and playoff odds better than ignoring trades or than giving
- * trades less credit than the rest of the roster.
+ * Built on the playoff-odds model (playoffOdds.ts), where team strength comes
+ * only from the current roster: each player is worth a blend of his projection
+ * and his season production, and a team's expected score moves with 75% of its
+ * best lineup of those values. A trade changes the rosters, so each team's
+ * expected score moves by 75% of its lineup change, exactly like any other
+ * roster: swap two whole teams and each becomes the other (records already
+ * banked stay put). Backtested on every 2022-2025 trade
+ * (scripts/backtests/trade_season.py, form_options.py), this predicted the
+ * trading teams' playoff odds better than ignoring trades, giving trades less
+ * credit, or keeping season scoring with the team.
  *
- * Single-game win odds more than a week out were overconfident (teams given
- * 70%+ won about 65%), so the weekly win odds use a spread fitted out of
- * sample: 0.9x the league's week-to-week spread next week, 2.2x after. The
- * season odds keep the playoff model's spread, which backtested as well
- * calibrated.
+ * Single-game win odds more than a week out were overconfident, so the weekly
+ * win odds use a spread fitted out of sample: 0.8x the league's week-to-week
+ * spread next week, 2x after. The season odds keep the playoff model's spread,
+ * which backtested as well calibrated.
  */
 
 import {
@@ -36,7 +37,7 @@ import type { SleeperMatchup, SleeperTransaction } from '../types';
 export interface TradeInputs {
   /** Weeks with projections: the remaining regular season and the playoffs */
   weeks: number[];
-  /** playerId -> week -> projected points (0 on a bye) */
+  /** playerId -> week -> expected points: the odds model's player value (0 on a bye or when out) */
   projections: Record<string, Record<number, number>>;
   positions: Record<string, string>;
   /** rosterId -> player IDs */
@@ -178,7 +179,7 @@ export function normalCdf(z: number): number {
 }
 
 /** Spread multiplier for one game's win odds, by weeks ahead (fitted out of sample) */
-export const winOddsSpreadScale = (weeksAhead: number) => (weeksAhead <= 1 ? 0.9 : 2.2);
+export const winOddsSpreadScale = (weeksAhead: number) => (weeksAhead <= 1 ? 0.8 : 2);
 
 /** Chance a team with this expected score beats one with oppMean */
 export function weeklyWinProbability(mean: number, oppMean: number, spread: number, weeksAhead: number): number {
@@ -316,8 +317,10 @@ export interface TradePlayerInfo {
   position: string;
   team: string | null;
   injury: string | null;
-  /** Average projected points per remaining regular-season week (byes count as 0) */
-  projectedPerWeek: number;
+  /** Average expected points per remaining regular-season week (byes count as 0): the odds model's player value */
+  expectedPerWeek: number;
+  /** Points per game this season (null if he hasn't played) */
+  seasonPerGame: number | null;
   /** FantasyCalc redraft value (null if FantasyCalc doesn't value the player) */
   value: number | null;
 }

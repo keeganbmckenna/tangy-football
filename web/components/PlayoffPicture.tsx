@@ -313,10 +313,11 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           gradientType="info"
           footer={
             <span>
-              Each simulated week, a team scores around a strength that is 75% its projected best lineup for that week
-              (so byes count) and 25% its scoring this season, with this season&apos;s week-to-week spread. Backtested on
-              2022–2025, these odds beat reading the standings by 30–50% (Brier score) and were well calibrated: teams
-              given 40–60% made it 51% of the time, teams given 80–95% made it 88% of the time. Playoff bye odds were
+              Each simulated week, a team scores around the strength of its current roster: each player is worth half his
+              projection for that week (so byes count) and half his points per game this season, and the team&apos;s best
+              lineup of those values sets its expected score, with this season&apos;s week-to-week spread. Backtested on every
+              team at every week of 2022–2025, the odds were well calibrated: teams given 50–75% made it 61% of the time,
+              teams given 75–95% made it 87% of the time, and no team under 2% made it. Playoff bye odds were
               overconfident in testing, so treat them as rougher. The win/loss column shows the selected odds after a win or a loss
               this week.
               {hasTitle && (

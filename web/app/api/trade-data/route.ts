@@ -8,7 +8,7 @@ import type { TradeDataResponse, TradeInputs, TradePlayerInfo } from '@/lib/anal
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current';
 /** Free agents per position offered as pickups for roster spots a trade opens */
 const FREE_AGENTS_PER_POSITION = 8;
@@ -51,11 +51,12 @@ async function build(league: SleeperLeague): Promise<TradeDataResponse> {
   const currentWeek = settings.leg ?? 0;
   const tradeDeadline = settings.trade_deadline ?? 0;
 
-  // Projections for every rostered player and the best free agents
+  // Expected points (projection blended with season production, as the odds
+  // model values players) for every rostered player and the best free agents
   const rostered = new Set(odds.rosters.flatMap((r) => r.players ?? []));
   const weeks = odds.projectionWeeks.sort((a, b) => a - b);
   const regularWeeks = weeks.filter((w) => w <= odds.regularSeasonEnd);
-  const total = (id: string) => regularWeeks.reduce((s, w) => s + (odds.players[w]?.[id]?.points ?? 0), 0);
+  const total = (id: string) => regularWeeks.reduce((s, w) => s + (odds.values[w]?.[id]?.points ?? 0), 0);
   const known = new Map<string, { position: string; name: string; team: string | null; injury: string | null }>();
   for (const w of weeks) {
     for (const [id, p] of Object.entries(odds.players[w] ?? {})) {
@@ -81,15 +82,17 @@ async function build(league: SleeperLeague): Promise<TradeDataResponse> {
     if (!info) continue;
     positions[id] = info.position;
     projections[id] = Object.fromEntries(
-      weeks.map((w) => [w, Math.round((odds.players[w]?.[id]?.points ?? 0) * 100) / 100])
+      weeks.map((w) => [w, Math.round((odds.values[w]?.[id]?.points ?? 0) * 100) / 100])
     );
+    const games = odds.production.games[id] ?? 0;
     players[id] = {
       id,
       name: info.name,
       position: info.position,
       team: info.team,
       injury: info.injury,
-      projectedPerWeek: regularWeeks.length ? Math.round((total(id) / regularWeeks.length) * 10) / 10 : 0,
+      expectedPerWeek: regularWeeks.length ? Math.round((total(id) / regularWeeks.length) * 10) / 10 : 0,
+      seasonPerGame: games ? Math.round(((odds.production.points[id] ?? 0) / games) * 10) / 10 : null,
       value: values?.[id] ?? null,
     };
   }

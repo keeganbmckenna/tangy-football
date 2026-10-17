@@ -7,6 +7,7 @@ import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, SleeperRoster } from '@/lib/types';
 import {
   bestLineupPoints,
+  playerValue,
   teamStrength,
   type OddsTeam,
   type PlayoffFormat,
@@ -25,6 +26,7 @@ export const fetchJson = async <T,>(url: string, revalidate: number | false): Pr
 
 export interface ProjectedPlayer {
   position: string;
+  /** Projected points */
   points: number;
   name: string;
   team: string | null;
@@ -73,6 +75,60 @@ export async function weekProjections(season: string, week: number): Promise<Rec
   }
 }
 
+export interface SeasonProduction {
+  /** player ID -> half-PPR points this season */
+  points: Record<string, number>;
+  /** player ID -> games played this season */
+  games: Record<string, number>;
+}
+
+/**
+ * Every player's half-PPR points and games played over weeks 1..throughWeek,
+ * from Sleeper's weekly stats. Each week's stats are too big for the fetch
+ * cache, so callers cache what they build from them.
+ */
+export async function seasonProduction(season: string, throughWeek: number): Promise<SeasonProduction> {
+  const { baseUrl } = SLEEPER_CONFIG;
+  const weeks = Array.from({ length: Math.max(throughWeek, 0) }, (_, i) => i + 1);
+  const all = await Promise.all(
+    weeks.map((w) =>
+      fetchJson<Record<string, { pts_half_ppr?: number; gp?: number }>>(`${baseUrl}/stats/nfl/regular/${season}/${w}`, false).catch(
+        (error) => {
+          console.error(`Stats unavailable for ${season} week ${w}:`, error);
+          return {} as Record<string, { pts_half_ppr?: number; gp?: number }>;
+        }
+      )
+    )
+  );
+  return cumulativeProduction(all);
+}
+
+/** Season points and games from a list of weekly stats */
+export function cumulativeProduction(weeks: Array<Record<string, { pts_half_ppr?: number; gp?: number }>>): SeasonProduction {
+  const points: Record<string, number> = {};
+  const games: Record<string, number> = {};
+  for (const week of weeks) {
+    for (const [id, s] of Object.entries(week)) {
+      if (!s.gp) continue;
+      points[id] = (points[id] ?? 0) + (s.pts_half_ppr ?? 0);
+      games[id] = (games[id] ?? 0) + s.gp;
+    }
+  }
+  return { points, games };
+}
+
+/** A week's player values (playerValue) for lineup building */
+export function weekValues(
+  week: Record<string, ProjectedPlayer>,
+  production: SeasonProduction
+): Record<string, { position: string; points: number }> {
+  const out: Record<string, { position: string; points: number }> = {};
+  for (const [id, p] of Object.entries(week)) {
+    out[id] = { position: p.position, points: playerValue(p.points, production.points[id] ?? 0, production.games[id] ?? 0) };
+  }
+  return out;
+}
+
 /** NFL teams playing each week, from Sleeper's schedule (null if unavailable) */
 export async function teamsPlaying(season: string): Promise<Record<number, Set<string>> | null> {
   try {
@@ -113,6 +169,9 @@ export interface OddsInputs {
   projectionWeeks: number[];
   /** week -> every player's projection, for the weeks that had them */
   players: Record<number, Record<string, ProjectedPlayer>>;
+  /** week -> every player's value (projection blended with season production) */
+  values: Record<number, Record<string, { position: string; points: number }>>;
+  production: SeasonProduction;
   meanByWeek: Record<number, Record<number, number>>;
   spread: number;
   hasToiletBowl: boolean;
@@ -173,20 +232,25 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
   const remainingWeeks = [...new Set(remaining.map((g) => g.week))].sort((a, b) => a - b);
   const playoffWeeks = remaining.length ? [playoffWeekStart, playoffWeekStart + 1, playoffWeekStart + 2] : [];
   const strengthWeeks = [...remainingWeeks, ...playoffWeeks];
-  const perWeek = await Promise.all(strengthWeeks.map((w) => weekProjections(league.season, w)));
+  const [perWeek, production] = await Promise.all([
+    Promise.all(strengthWeeks.map((w) => weekProjections(league.season, w))),
+    seasonProduction(league.season, lastScoredWeek),
+  ]);
   const players: Record<number, Record<string, ProjectedPlayer>> = {};
-  const projections: Record<number, Record<number, number>> = {};
+  const values: Record<number, Record<string, { position: string; points: number }>> = {};
+  const lineups: Record<number, Record<number, number>> = {};
   const rosterPositions = league.roster_positions ?? [];
   strengthWeeks.forEach((w, i) => {
     const week = perWeek[i];
     if (!week) return;
     players[w] = week;
-    projections[w] = Object.fromEntries(
-      rosters.map((r) => [r.roster_id, bestLineupPoints(r.players ?? [], week, rosterPositions)])
+    values[w] = weekValues(week, production);
+    lineups[w] = Object.fromEntries(
+      rosters.map((r) => [r.roster_id, bestLineupPoints(r.players ?? [], values[w], rosterPositions)])
     );
   });
-  const projectionWeeks = Object.keys(projections).map(Number);
-  const { meanByWeek, spread } = teamStrength(weeklyScores, strengthWeeks, projectionWeeks.length ? projections : null);
+  const projectionWeeks = Object.keys(lineups).map(Number);
+  const { meanByWeek, spread } = teamStrength(weeklyScores, strengthWeeks, projectionWeeks.length ? lineups : null);
 
   // Sleeper only creates this season's losers bracket when the playoffs start,
   // so go by last season's league too
@@ -207,6 +271,8 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     strengthWeeks,
     projectionWeeks,
     players,
+    values,
+    production,
     meanByWeek,
     spread,
     hasToiletBowl,
