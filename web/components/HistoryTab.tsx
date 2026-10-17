@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import TradeHistory from '@/components/TradeHistory';
 import { getHeatmapColorByRatio } from '@/lib/constants';
 import {
   allTimeStandings,
@@ -352,6 +354,10 @@ export default function HistoryTab() {
           {rivalList('Closest', closest)}
         </div>
       </SectionCard>
+
+      <ErrorBoundary>
+        <TradeHistory history={data} />
+      </ErrorBoundary>
 
       <SectionCard
         title="Record Book"

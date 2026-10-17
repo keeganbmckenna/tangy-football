@@ -6,23 +6,20 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SectionCard from '@/components/ui/SectionCard';
 import TradeAnalyzer, { type TradePreset } from '@/components/TradeAnalyzer';
 import TradeFinder from '@/components/TradeFinder';
-import TradeHistory from '@/components/TradeHistory';
 import WaiverFinder from '@/components/WaiverFinder';
 import type { TradeDataResponse } from '@/lib/analyze/trade';
 import type { TeamStats } from '@/lib/types';
 
 interface TradesTabProps {
-  season: string;
-  isCurrentSeason: boolean;
   teamStats: TeamStats[];
 }
 
 /**
- * Trades & Waivers tab: the analyzer and trade finder while the current
- * season's trades are still open, the waiver finder while the regular season
- * is in progress, and every season's trade history.
+ * Trades & Waivers tab, shown while the current regular season is in
+ * progress: the analyzer and trade finder until the trade deadline, and the
+ * waiver finder. Past trades are in the History tab.
  */
-export default function TradesTab({ season, isCurrentSeason, teamStats }: TradesTabProps) {
+export default function TradesTab({ teamStats }: TradesTabProps) {
   const [data, setData] = useState<TradeDataResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A trade from the finder, loaded into a fresh analyzer
@@ -34,7 +31,6 @@ export default function TradesTab({ season, isCurrentSeason, teamStats }: Trades
   }, [preset]);
 
   useEffect(() => {
-    if (!isCurrentSeason) return;
     let cancelled = false;
     fetch('/api/trade-data')
       .then((res) => {
@@ -46,34 +42,32 @@ export default function TradesTab({ season, isCurrentSeason, teamStats }: Trades
     return () => {
       cancelled = true;
     };
-  }, [isCurrentSeason]);
+  }, []);
 
   return (
     <div className="space-y-6">
-      {isCurrentSeason && (
-        <ErrorBoundary>
-          <section ref={analyzerRef} className="scroll-mt-4">
-            {error ? (
-              <SectionCard title="Trade Analyzer" gradientType="primary">
-                <p className="px-6 py-8 text-[var(--muted)]">Couldn&apos;t load the trade analyzer: {error}</p>
-              </SectionCard>
-            ) : !data ? (
-              <LoadingSpinner message="Loading rosters and projections..." />
-            ) : data.open ? (
-              <TradeAnalyzer key={preset?.key ?? 0} data={data} teamStats={teamStats} initial={preset?.trade ?? null} />
-            ) : (
-              <SectionCard title="Trade Analyzer" gradientType="primary">
-                <p className="px-6 py-8 text-[var(--muted)]">
-                  {data.tradeDeadline && data.currentWeek > data.tradeDeadline
-                    ? `The trade deadline (week ${data.tradeDeadline}) has passed.`
-                    : 'Trades open once the regular season is underway.'}
-                </p>
-              </SectionCard>
-            )}
-          </section>
-        </ErrorBoundary>
-      )}
-      {isCurrentSeason && data?.open && (
+      <ErrorBoundary>
+        <section ref={analyzerRef} className="scroll-mt-4">
+          {error ? (
+            <SectionCard title="Trade Analyzer" gradientType="primary">
+              <p className="px-6 py-8 text-[var(--muted)]">Couldn&apos;t load the trade analyzer: {error}</p>
+            </SectionCard>
+          ) : !data ? (
+            <LoadingSpinner message="Loading rosters and projections..." />
+          ) : data.open ? (
+            <TradeAnalyzer key={preset?.key ?? 0} data={data} teamStats={teamStats} initial={preset?.trade ?? null} />
+          ) : (
+            <SectionCard title="Trade Analyzer" gradientType="primary">
+              <p className="px-6 py-8 text-[var(--muted)]">
+                {data.tradeDeadline && data.currentWeek > data.tradeDeadline
+                  ? `The trade deadline (week ${data.tradeDeadline}) has passed.`
+                  : 'Trades open once the regular season is underway.'}
+              </p>
+            </SectionCard>
+          )}
+        </section>
+      </ErrorBoundary>
+      {data?.open && (
         <ErrorBoundary>
           <section>
             <TradeFinder
@@ -86,18 +80,13 @@ export default function TradesTab({ season, isCurrentSeason, teamStats }: Trades
           </section>
         </ErrorBoundary>
       )}
-      {isCurrentSeason && data && data.inputs.freeAgents.length > 0 && data.remaining.length > 0 && (
+      {data && data.inputs.freeAgents.length > 0 && data.remaining.length > 0 && (
         <ErrorBoundary>
           <section>
             <WaiverFinder data={data} teamStats={teamStats} />
           </section>
         </ErrorBoundary>
       )}
-      <ErrorBoundary>
-        <section>
-          <TradeHistory season={season} isCurrentSeason={isCurrentSeason} teamStats={teamStats} />
-        </section>
-      </ErrorBoundary>
     </div>
   );
 }

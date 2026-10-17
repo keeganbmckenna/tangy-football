@@ -80,6 +80,9 @@ export default function Home() {
     && leagueData.league.season === availableSeasons[0]
     && leagueData.league.status !== 'complete'
     && leagueData.lastScoredWeek < leagueSettings.regularSeasonEnd;
+  // Trade and waiver tools only apply once the current season's rosters are
+  // set and until its regular season ends; past trades are under History
+  const showTradesTab = regularSeasonInProgress && leagueData?.league.status === 'in_season';
   const regularSeasonWeekCap = leagueData && leagueSettings
     ? Math.min(leagueData.lastScoredWeek, leagueSettings.regularSeasonEnd)
     : undefined;
@@ -153,8 +156,8 @@ export default function Home() {
       if (activeTab !== 'overview' && activeTab !== 'history') setActiveTab('overview');
       return;
     }
-    // Live is hidden for past seasons, so don't leave the user on it
-    if (activeTab === 'live' && availableSeasons.length > 0 && season !== availableSeasons[0]) {
+    // Live and Trades & Waivers are hidden for past seasons, so don't leave the user on them
+    if ((activeTab === 'live' || activeTab === 'trades') && availableSeasons.length > 0 && season !== availableSeasons[0]) {
       setActiveTab('overview');
     }
     fetchData(season);
@@ -192,6 +195,7 @@ export default function Home() {
     { id: 'history', name: 'History', icon: '🏛️' },
   ]
     .filter((tab) => tab.id !== 'live' || isCurrentSeason)
+    .filter((tab) => tab.id !== 'trades' || showTradesTab)
     .filter((tab) => !isLegacySeason || tab.id === 'overview' || tab.id === 'history');
 
   const sleeperSeasons = availableSeasons.length
@@ -477,13 +481,7 @@ export default function Home() {
         )}
 
         {/* Trades Tab */}
-        {activeTab === 'trades' && (selectedSeason || leagueData?.league?.season) && (
-          <TradesTab
-            season={selectedSeason || leagueData!.league.season}
-            isCurrentSeason={isCurrentSeason}
-            teamStats={teamStats}
-          />
-        )}
+        {activeTab === 'trades' && showTradesTab && <TradesTab teamStats={teamStats} />}
 
       </main>
 
