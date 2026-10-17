@@ -27,6 +27,7 @@ import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import PlayoffPicture from '@/components/PlayoffPicture';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { FootballSpinner } from '@/components/ui/Football';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { LeagueData, TeamStats, WeekMatchup, PlayEveryoneStats, WeeklyPlayAllStats, DivisionStanding, WildCardStanding, ScheduleLuckSimulation } from '@/lib/types';
@@ -415,7 +416,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {loading ? (
           <div className="flex flex-col items-center py-24 text-[var(--muted)]">
-            <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-[var(--accent)]" />
+            <FootballSpinner size="sm" />
             <p className="mt-4">Loading the {selectedSeason} season...</p>
           </div>
         ) : error ? (
