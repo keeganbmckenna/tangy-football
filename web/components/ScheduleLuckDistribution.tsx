@@ -3,6 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
+import { useTapTooltip } from '@/hooks/useTapTooltip';
 import {
   ScheduleLuckSimulation,
   ScheduleLuckDistribution as ScheduleLuckDistributionType,
@@ -149,6 +150,8 @@ function ScheduleLuckTooltip({ active, payload }: TooltipProps) {
 }
 
 export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistributionProps) {
+  // One popup at a time across the teams' charts
+  const tapTooltip = useTapTooltip();
   if (!data || data.teams.length === 0) {
     return null;
   }
@@ -191,7 +194,7 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 16 }}>
+                <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 16 }} {...tapTooltip(team.username).chartProps}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
                   <XAxis
                     dataKey="wins"
@@ -213,7 +216,7 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
                     domain={[0, yAxisMax]}
                     style={{ fontSize: '11px' }}
                   />
-                  <Tooltip content={<ScheduleLuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
+                  <Tooltip active={tapTooltip(team.username).active} content={<ScheduleLuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
                   <Bar dataKey="frequency" minPointSize={1}>
                     {chartData.map((entry) => {
                       const fillColor = entry.isActual

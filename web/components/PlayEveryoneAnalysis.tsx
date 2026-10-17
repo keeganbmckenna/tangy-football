@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { CHART_THEME } from '@/lib/constants';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -61,6 +62,7 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
   // Rank stays the play-all rank whichever way the table is sorted
   const sort = useTableSort('playEveryone');
   const me = useMyTeam();
+  const tap = useTapTooltip()();
   const rows = sortRows(
     sortedData.map((team, i) => ({ team, rank: i + 1 })),
     sort.state,
@@ -97,7 +99,7 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
       {/* Chart */}
       <div className="p-6 border-b border-[var(--border)]">
         <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={chartData}>
+          <BarChart data={chartData} {...tap.chartProps}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
             <XAxis
               dataKey="name"
@@ -116,7 +118,7 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
               axisLine={{ stroke: CHART_THEME.axis }}
               tickLine={{ stroke: CHART_THEME.axis }}
             />
-            <Tooltip content={<BarChartTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
+            <Tooltip active={tap.active} content={<BarChartTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
             <Legend formatter={(value) => <span style={{ color: CHART_THEME.legend }}>{value}</span>} />
             <Bar dataKey="Actual Wins" fill={ACTUAL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
             <Bar dataKey="Play-All Wins" fill={PLAY_ALL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />

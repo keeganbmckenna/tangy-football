@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMyTeam } from '@/hooks/useMyTeam';
+import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
@@ -243,6 +244,7 @@ function LegendItem({ color, dashed, label }: { color: string; dashed: boolean; 
 
 function WinOddsChart({ rows, nameA, nameB }: { rows: ChartRow[]; nameA: string; nameB: string }) {
   const pctLabel = (v?: number) => (v === undefined ? '—' : `${Math.round(v)}%`);
+  const tap = useTapTooltip()();
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2">
@@ -252,7 +254,7 @@ function WinOddsChart({ rows, nameA, nameB }: { rows: ChartRow[]; nameA: string;
         <LegendItem color={COLOR.b} dashed label={`${nameB} before`} />
       </div>
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} {...tap.chartProps}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} vertical={false} />
           <XAxis
             dataKey="week"
@@ -271,6 +273,7 @@ function WinOddsChart({ rows, nameA, nameB }: { rows: ChartRow[]; nameA: string;
           />
           <ReferenceLine y={50} stroke={CHART_THEME.axis} strokeDasharray="2 4" />
           <Tooltip
+            active={tap.active}
             cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
             wrapperStyle={{ maxWidth: 260 }}
             content={({ active, payload }) => {

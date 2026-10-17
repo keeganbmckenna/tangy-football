@@ -6,6 +6,7 @@ import { TeamStats } from '@/lib/types';
 import { CHART_CONFIG, CHART_THEME } from '@/lib/constants';
 import { useChartHover } from '@/hooks/useChartHover';
 import { useMyTeam } from '@/hooks/useMyTeam';
+import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { useTeamColors } from '@/hooks/useTeamColors';
 import CustomTooltip from './CustomTooltip';
 import SectionCard from './ui/SectionCard';
@@ -20,6 +21,7 @@ export default function CumulativeScores({ cumulativeData, teams, maxWeek }: Cum
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();
   // Your team's line is drawn thicker
   const me = useMyTeam();
+  const tap = useTapTooltip()();
   const teamColors = useTeamColors(teams, Object.keys(cumulativeData));
 
   // Transform data for recharts - memoized for performance
@@ -45,7 +47,7 @@ export default function CumulativeScores({ cumulativeData, teams, maxWeek }: Cum
     >
       <div className="p-6">
         <ResponsiveContainer width="100%" height={CHART_CONFIG.defaultHeight}>
-          <LineChart data={chartData}>
+          <LineChart data={chartData} {...tap.chartProps}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
             <XAxis
               dataKey="week"
@@ -60,6 +62,7 @@ export default function CumulativeScores({ cumulativeData, teams, maxWeek }: Cum
               tickLine={{ stroke: CHART_THEME.axis }}
             />
             <Tooltip
+              active={tap.active}
               cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
               content={
                 <CustomTooltip
