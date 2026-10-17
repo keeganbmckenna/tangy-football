@@ -1,209 +1,99 @@
-# Fantasy Football 2026 - Complete Feature List
+# Tangy Football - Feature Tour
 
-## 🎉 Comprehensive Fantasy Football Analytics Platform
+Everything the site does, tab by tab, in plain language. [README.md](README.md) has the technical details (how the odds model works, what each number means, caching, and how to run it).
 
-### 📊 **Tab 1: Overview**
-Playoff race breakdown and weekly matchups at a glance.
+The **Season** picker in the header switches every tab between seasons:
+- **2022 onward:** everything comes from Sleeper.
+- **2017-2021:** before Sleeper, so only the final standings and the History tab are available.
 
-#### Components:
-1. **Playoff Race** 🏆
-   - **Division Standings**: Each division displayed separately
-     - Team avatars and full team names with usernames
-     - Win-Loss records and total points
-     - Games back (GB) and points back (PB) from division leader
-     - Division leaders highlighted with 🥇 and special styling
-     - Clean division-by-division breakdown
-   
-   - **Wild Card Race**: Comprehensive playoff picture 🎯
-     - All non-division leaders competing for remaining playoff spots
-     - Clear IN/OUT playoff status with green highlighting for playoff teams
-     - Games back and points back calculations relative to playoff cutoff
-     - Visual playoff cutoff line with "PLAYOFF CUTOFF" indicator
-     - Division tags showing which division each team belongs to
-     - Ranking system for wild card positioning
-
-2. **Weekly Matchups**
-   - Interactive week selector
-   - Head-to-head scores
-   - Winner highlighting
-   - Point differential
+The **You** picker highlights your team everywhere (✕ clears it).
 
 ---
 
-### 🔄 **Tab 5: Transactions**
-Complete transaction history and analysis.
+## 📊 Overview
+- **Data through:** a line saying which weeks the stats cover ("Stats through week 5 of 14").
+- **Division standings:** one card per division with record, points, games back (GB) and points back (PB); the leader gets a 🥇.
+- **Wild Card Race:** the non-division leaders ranked for the remaining playoff spots, with the playoff cutoff line and each team's division.
+- **Weekly Matchups:** every result for any completed week.
 
-#### Components:
-1. **Transaction Timeline**
-   - Chronological list of all league transactions
-   - Filter options: All / Trades / Adds-Drops
-   - Player name resolution with team/position info
-   - FAAB spending display for waiver claims
-   - Accurate timestamps (when transactions processed, not submitted)
+For a season before Sleeper, Overview shows that season's final standings and top three.
 
-2. **Transaction Types**
-   - **Trades**: Expandable details showing both sides
-     - What each team gave up
-     - What each team received
-     - Draft picks and FAAB in trades
-   - **Swaps**: Combined add+drop displayed as single transaction
-   - **Adds**: Waiver claims and free agent pickups
-   - **Drops**: Player releases
+## 🔴 Live (current season, while a week is being played)
+Refreshes every minute.
+- **Live Play-All:** each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
+- **Live Standings:** the standings if the week ended now, each record shown before → now, with teams moving into or dropping out of a playoff spot flagged.
 
-3. **Smart Caching**
-   - Player data cached for 24 hours (17.8MB dataset)
-   - CDN caching for optimal performance
-   - Transaction data cached for 30 minutes
+## 🏆 Playoffs
+While the regular season is in progress:
+- **If the Season Ended Now:** the projected playoff bracket and the first teams out.
+- **Playoff Odds:** 20,000 simulations of the real remaining schedule. Shows each team's chances of:
+  - the playoffs, the division and a bye;
+  - the title;
+  - losing the toilet bowl.
 
----
+  Also shows how this week's win or loss changes them.
+- **Toilet Bowl If the Season Ended Now:** the projected toilet bowl bracket.
+- **What Each Team Needs:** each team's odds now, with a win and with a loss. Also clinched and eliminated, win-and-in scenarios in the last weeks, points races, and the team's biggest rooting interest this week.
 
-### 📈 **Tab 2: Weekly Performance**
-Detailed week-by-week performance breakdown.
+After the regular season, and for past seasons: the **Playoff Bracket** (with placement games) and the **Toilet Bowl** bracket.
 
-#### Components:
-1. **Weekly Scores Table**
-   - All weekly scores for each team
-   - Color-coded by result:
-     - Green = Win
-     - Red = Loss
-     - Yellow = Tie
-   - Season totals and averages
+## 📈 Weekly Performance
+- **Weekly Scores:** every score, colored by win or loss, with the margin, season average, and average score and margin in wins and in losses.
+- **Weekly Rankings Heatmap:** each team's scoring rank each week, with average and median rank.
 
-2. **Weekly Rankings Heatmap** 🔥
-   - Visual heatmap showing ranking (1-12) each week
-   - Color intensity:
-     - Dark Green = Top 25%
-     - Light Green = Top 50%
-     - Yellow = Bottom 50%
-     - Red = Bottom 25%
-   - Average and median ranking columns
+## 📉 Season Trends
+Line charts. Hover (or tap) a week for every team's value, or a team in the legend to highlight its line; your team's line is drawn thicker.
+- Standings Over Time.
+- Cumulative Scores.
+- Difference from Median: points above or below the weekly median, added up.
 
----
+## 🔬 Advanced Stats
+- **Play Everyone Analysis:** each team's record if it had played every team every week, against its real record, with a luck factor.
+- **Schedule Luck Distribution:** 20,000 random schedules per team, showing the range of records it could have had.
+- **Weekly Play-All:** week-by-week play-all records as a heatmap, with each week's real result.
 
-### 📉 **Tab 3: Season Trends**
-Interactive charts showing progression over the season.
+## 📋 Draft
+- **Draft Board:** by round for snake drafts, by team and price for auctions.
+- **Draft Core:** each team's intended starters.
+- **Draft Results:** grades by points per available week, spending, $ per point and best pick.
 
-#### Components:
-1. **Standings Over Time Chart** 📊
-   - Line chart with all teams
-   - Y-axis: Standing (1-12, inverted)
-   - X-axis: Weeks
-   - See who's rising/falling throughout season
+## 🔄 Trades & Waivers (current season, while the regular season is in progress)
+- **Trade Analyzer:** pick two managers and the players moving. Shows:
+  - each team's win odds for every remaining week, with and without the trade;
+  - season odds before → after;
+  - lineup changes and forced roster moves;
+  - each player's FantasyCalc market value;
+  - which other teams' odds move.
+- **Trade Finder:** pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager. It keeps the ones that help you without hurting the other manager, optionally only market-fair ones, each with an "Open in analyzer" button.
+- **Waiver Finder:** the free agents who would help you most, for the rest of the season or for one specific week (to cover a bye), each with the player it would drop.
 
-2. **Cumulative Scores Chart** 📈
-   - Line chart showing total points accumulation
-   - Tracks scoring consistency and momentum
-   - Shows who's pulling ahead
+## 🏛️ History (every season, whichever one is selected)
+- **Champions:** every season's champion, runner-up and toilet bowl loser (top three before Sleeper).
+- **All-Time Standings:** per manager:
+  - seasons, record and win %;
+  - points per game, playoff appearances and finals;
+  - titles 🏆, toilet bowl losses 💩 and best finish.
+- **Head to Head:** every manager's record against every other; tap a cell for every meeting.
+- **Rivalries:** most played, most lopsided and closest series.
 
-3. **Difference from Median** 📊
-   - Line chart showing cumulative points above/below median
-   - Median line as reference (dashed)
-   - Positive values = above median, negative = below median
-   - Shows which teams consistently outperform league average
-
----
-
-### 🔬 **Tab 4: Advanced Stats**
-Advanced analytics to measure luck vs. skill.
-
-#### Components:
-1. **Play Everyone Analysis** 🎲
-   - **Comparison Chart**: Actual Wins vs Play-All Wins
-   - **What-if Simulation**: Shows record if each team played all others every week
-   - **Luck Factor**:
-     - Positive = Lucky (won more than deserved)
-     - Negative = Unlucky (should have won more)
-     - Shows scheduling luck
-   - **Detailed Table**:
-     - Actual wins
-     - Play-all wins (total)
-     - Play-all record (W-L)
-     - Luck factor with color coding
-
-2. **Weekly Play All** 📋
-   - Week-by-week play-everyone records
-   - Shows theoretical wins if playing all teams each week
-   - Tracks consistency and strength of schedule impact
+A switch counts the three sections above either with playoff and toilet bowl games or as the regular season only. Placement games (3rd, 5th place and the like) never count.
+- **Trades:** every trade since the league moved to Sleeper, filterable by season.
+  - **Graded two ways:** what it did to each team's odds at the time, and how the players it brought in actually scored.
+  - **Trade stats:** per-manager stats, biggest swings and best hauls.
+  - **List:** the latest 5 trades, then **Show all**.
+- **Record Book:** highest and lowest scores, blowouts, closest games, best and worst seasons, and more.
 
 ---
 
-## 🆕 Modern Platform Features
-
-### Interactive Enhancements:
-- **Interactive Charts** - Recharts library for beautiful visualizations
-- **Tabbed Navigation** - Clean organization across 5 main tabs
-- **Live Data** - Real-time API fetching from Sleeper with smart caching
-- **Responsive Design** - Works on mobile, tablet, and desktop
-- **Color Coding** - Visual indicators throughout
-- **Hover Tooltips** - Interactive chart tooltips
-- **Smooth Transitions** - Modern UI animations
-- **Team Highlighting** - Hover over team names to highlight across all charts
-
----
-
-## 🎯 Key Statistics Calculated
-
-### Basic Stats:
-- Wins, Losses, Ties
-- Total Points For/Against
-- Average Points per Game
-- Standing Value (wins + points decimal)
-- Games Back from Division Leader
-- Points Back from Division Leader
-
-### Advanced Stats:
-- Weekly Rankings (1-12 each week)
-- Average/Median Ranking
-- Games Above/Below Median
-- Cumulative Wins Over Time
-- Cumulative Scores Over Time
-- Standings Progression
-- Play-All-Teams Record
-- Luck Factor
-- Division Leadership Status
-- Wild Card Playoff Positioning
-
-### Transaction Stats:
-- Total Transactions per Team
-- Adds, Drops, Trades count
-- FAAB Spending tracking
-- Transaction timing and history
-
----
-
-## 🚀 Technology Stack
-
-- **Next.js 15** - React framework
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
-- **Recharts** - Data visualization
-- **Sleeper API** - Live league data
-
----
-
-## 📱 Responsive Features
-
-All charts and tables are:
-- ✅ Mobile-friendly
-- ✅ Horizontally scrollable on small screens
-- ✅ Touch-friendly navigation
-- ✅ Optimized for all devices
-
----
-
-## 🎨 Design Highlights
-
-- **Color Palette**: Blue, Purple, Green, Orange, Cyan gradients
-- **Visual Hierarchy**: Clear headers and sections
-- **Data Density**: Balanced information display
-- **Accessibility**: High contrast colors and readable fonts
-
----
-
-## 🔄 Data & Performance
-
-The platform uses smart caching strategies for optimal performance while ensuring data freshness:
-- Up-to-date league standings and scores
-- Current week matchups
-- Recent transaction activity
-- Fast page loads across all devices
+## Across the site
+- **Sortable tables:** tap a column header to sort (best first, then reversed, then back to the default order, or use ↺ Default order).
+- **Your team:** highlighted in every table and chart, and pre-selected in the trade and waiver tools.
+- **Shareable links:** the address bar keeps the tab and season, so refresh, back and shared links land on the same view.
+- **Definitions:** dotted-underlined terms (GB, PB, Core/wk, luck factor…) explain themselves on hover or tap.
+- **Phones:**
+  - the tab row scrolls sideways;
+  - team names stay pinned as wide tables scroll;
+  - tap a chart point for its details and tap again to close.
+- **Home screen app:** add it to your phone's home screen for a football icon and a full-screen view.
+- **Light and dark themes:** follows your device by default; dark mode is true black.
+- **Loading and errors:** a tumbling football while things load, and a **Try again** button if something fails.

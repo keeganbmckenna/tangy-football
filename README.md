@@ -7,6 +7,7 @@ A Next.js web app for analyzing a Sleeper fantasy football league: standings, li
 The season picker in the header switches every tab between seasons; past seasons are found by following Sleeper's `previous_league_id` chain from the configured league. Seasons before Sleeper (2017-2021) are in the picker too, with only their final standings and the History tab. Weekly analytics only count completed regular-season weeks.
 
 ### Overview
+- 📅 **Data through** - A line saying which weeks the stats cover ("Stats through week 5 of 14", or "Final" for a finished season).
 - 🏆 **Division Standings** - One card per division with record, points, games back (GB), points back (PB) and the leader marked. Leagues without divisions get a single overall standings table with the playoff cutoff.
 - 🎯 **Wild Card Race** - Non-division leaders ranked for the remaining playoff spots, with the cutoff line.
 - 🏈 **Weekly Matchups** - Results for any completed week (week picker; defaults to the most recent).
@@ -29,14 +30,14 @@ Shown only for the current season. It's active while a regular-season week is in
 
 ### Weekly Performance
 - 📈 **Weekly Scores** - Score per team per week, colored by win/loss, plus each team's season average and its average score and margin in wins and in losses.
-- 🔥 **Weekly Rankings Heatmap** - Each team's weekly scoring rank (1-N).
+- 🔥 **Weekly Rankings Heatmap** - Each team's weekly scoring rank (1-N), with its average and median rank.
 
 ### Season Trends
 - 📉 **Standings Over Time** - Week-by-week standings position.
 - 💯 **Cumulative Scores** - Running points total.
 - 📊 **Difference from Median** - Cumulative points above or below the weekly median.
 
-Hovering a team on these charts highlights it.
+Hovering a team in a chart's legend highlights its line, and your team's line (see **You** below) is drawn thicker. Hovering a week, or tapping it on a phone, lists every team's value; on phones a second tap on the same point, or a tap outside the chart, closes it.
 
 ### Advanced Stats
 - 🎲 **Play Everyone Analysis** - Each team's record if it played every other team every week, compared with its real record (expected wins and a luck factor). Ties count as half a win.
@@ -91,8 +92,8 @@ All-time records, head to head and rivalries count regular-season games plus the
 - Switching seasons keeps the header in place while the new season loads; a card that fails to load has a **Try again** button; Overview says which weeks the stats cover; table sorts and the History trade filter are remembered while you move between tabs (until the season changes or the page reloads).
 - ↕️ **Sortable tables** - Tap a column header in Weekly Scores, Weekly Rankings, Weekly Play-All, Play Everyone, Playoff Odds, Draft Results, Live Play-All, All-Time Standings or Traders to sort best-first; tap again to reverse, a third time (or **↺ Default order**) for the table's own order. The line above each table that shows the sort is always there (a hint until you sort), so sorting never moves anything. Lower-is-better columns (ranks, $/pt, toilet bowl odds and losses, best finish) start low to high; blanks always sort last. Standings, brackets, the draft board and head to head keep their fixed order.
 - 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage. Dark mode is true black with flat, deep-colored section headers and dimmed heatmaps (`web/app/globals.css`).
-- 🎯 **Custom Tooltips** - Sorted, scrollable tooltips for crowded charts.
-- 📱 **Responsive Layout** - Pill tab bar on desktop and tablet, dropdown menu on phones.
+- 🎯 **Chart popups** - Sorted popups for crowded charts. On touch screens a tap opens one and a second tap on the same point, or a tap outside the chart, closes it (`web/hooks/useTapTooltip.ts`).
+- 📱 **Responsive Layout** - A row of tab pills on every screen size, scrolling sideways on phones. Wide tables scroll sideways with the team column pinned; on phones that column is compact (team and manager names shortened with "…"). Standings tables size their columns to their content (a fixed column layout made text overlap in iPhone Safari).
 
 ## Project Structure
 
@@ -108,12 +109,14 @@ All-time records, head to head and rivalries count regular-season games plus the
 │   │   │   ├── trades/[season]/  # Graded trade history for a season
 │   │   │   ├── history/          # Every season's games and postseason results (History tab)
 │   │   │   └── draft/[season]/   # Draft data for the season in progress
-│   │   ├── page.tsx              # Main page and tabs
-│   │   ├── layout.tsx            # Layout and theme bootstrap
+│   │   ├── page.tsx              # Main page and tabs (tab and season kept in the address bar)
+│   │   ├── layout.tsx            # Layout, theme bootstrap and theme-colored browser bar
+│   │   ├── manifest.ts           # Web app manifest (add to home screen)
+│   │   ├── apple-icon.png        # iPhone home-screen icon
 │   │   └── icon.tsx              # Favicon from the league avatar
 │   ├── components/               # Tab sections (standings, charts, brackets, Live, playoff picture, draft, trades)
-│   │   └── ui/                   # Shared pieces (cards, theme toggle, loading, error boundary)
-│   ├── hooks/                    # Theme, chart hover and team color hooks
+│   │   └── ui/                   # Shared pieces (cards, sortable headers, pinned team names, definitions, football spinner, theme toggle, error boundary)
+│   ├── hooks/                    # Theme, your team, table sorting, chart hover and taps, team colors
 │   ├── lib/
 │   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft, trades, trade and waiver finders, history
 │   │   ├── __tests__/            # Vitest tests
@@ -122,15 +125,22 @@ All-time records, head to head and rivalries count regular-season games plus the
 │   │   ├── oddsData.ts           # Playoff-odds inputs shared by the odds and trade routes
 │   │   ├── tradeHistory.ts       # Builds a season's graded trade history
 │   │   ├── historyData.ts        # Builds the all-seasons history
-│   │   ├── leagueSettings.ts
+│   │   ├── data/legacyHistory.ts # Seasons before Sleeper (final standings, top three, first names)
+│   │   ├── leagueSettings.ts     # League structure from Sleeper settings (see LEAGUE_SETTINGS_UPDATE.md)
+│   │   ├── tableSort.ts          # Table sorting
+│   │   ├── urlState.ts           # Tab and season in the address bar
 │   │   ├── constants.ts
 │   │   ├── theme.ts
 │   │   └── types.ts
-│   └── public/data/              # Pre-built draft data and trade history per season
+│   └── public/
+│       ├── data/                 # Pre-built draft data and trade history per season
+│       └── icon-*.png            # Home-screen icons for Android
 ├── scripts/                      # Python data scripts
 │   └── backtests/                # Backtests behind the playoff odds and trade analyzer
 ├── docs/                         # Research notes
-├── FEATURES.md, FUTURE_FEATURES.md, LEAGUE_SETTINGS_UPDATE.md
+├── FEATURES.md                   # Plain-language tour of every tab
+├── FUTURE_FEATURES.md            # Idea list, with what's built so far
+├── LEAGUE_SETTINGS_UPDATE.md     # How the league's structure is read from Sleeper
 └── pyproject.toml, uv.lock       # Python project (uv)
 ```
 

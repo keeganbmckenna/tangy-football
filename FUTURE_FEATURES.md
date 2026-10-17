@@ -4,6 +4,18 @@ A comprehensive roadmap of potential features to enhance the Tangy Football anal
 
 ---
 
+## Status
+
+This started as a brainstorm; much of it is now built. Each idea below has a **Status** line: ✅ built, 🟡 partly built, ⬜ not started. As of October 2026:
+
+- ✅ **Built (11):** 1. Playoff Probability Calculator, 9. Trade History & Value Analysis, 15. Head-to-Head Matrix, 19. Rivalry Tracker, 21. League Records Board, 24. Trade Analyzer Tool, 25. Waiver Wire Value Rankings, 26. Draft Recap & Analysis, 31. Live Scoring Updates, 33. Playoff Clinch Scenarios, 43. Luck Index
+- 🟡 **Partly built (12):** 2. Strength of Schedule Analysis, 3. Power Rankings vs. Standings, 8. Transaction History & Analysis, 11. Waiver Wire Impact Score, 13. Win Probability Analysis, 23. Trade Value Dashboard, 30. Playoff Simulator, 34. Rest of Season (ROS) Projections, 35. Matchup Predictor, 37. Season Story Arc, 38. Advanced Distribution Charts, 41. Alternative Standings
+- ⬜ **Not started (22):** 4. Consistency Scores, 5. Record vs. Top/Bottom Teams, 6. Roster Composition Analysis, 7. Optimal Lineup Analysis, 10. Player Performance Leaderboards, 12. Points Distribution Analysis, 14. Momentum Tracker, 16. Pythagorean Expectation, 17. League Scoring Pace Analysis, 18. Weekly Awards & Superlatives, 20. Championship Belt Tracker, 22. Weekly Recap Generator, 27. Enhanced Dashboard, 28. Team Detail Pages, 29. Team Comparison Tool, 32. Milestone Tracker, 36. Regression Candidates, 39. Transaction Network Graph, 40. Performance Radar Charts, 42. Efficiency Metrics, 44. Weekly Volatility Score, 45. Position Battle Tracker
+
+Built since this list was written, and not on it: Season History (champions, all-time standings and the seasons before Sleeper), the Trade Finder, sortable tables, and the "You" team picker. See [README.md](README.md) for how each built feature works.
+
+---
+
 ## Table of Contents
 
 - [Tier 1: High-Impact League Insights](#tier-1-high-impact-league-insights)
@@ -16,7 +28,7 @@ A comprehensive roadmap of potential features to enhance the Tangy Football anal
 - [Tier 8: Predictive Analytics](#tier-8-predictive-analytics)
 - [Tier 9: Visualization & Presentation](#tier-9-visualization--presentation)
 - [Tier 10: Niche but Fun](#tier-10-niche-but-fun)
-- [Implementation Priority Guide](#implementation-priority-guide)
+- [Implementation Priority Guide](#implementation-priority-guide) (the original plan; see Status above for what's done)
 
 ---
 
@@ -24,6 +36,7 @@ A comprehensive roadmap of potential features to enhance the Tangy Football anal
 
 ### 1. Playoff Probability Calculator
 **Complexity:** 🟡 Medium (4-6 hours)
+**Status:** ✅ Built: Playoffs tab → Playoff Odds (20,000 simulations of the real remaining schedule, playoff/division/bye/title/toilet bowl odds, and how a win or loss this week changes them).
 
 Calculate real-time playoff chances for each team based on current standings and remaining schedule.
 
@@ -44,6 +57,7 @@ Calculate real-time playoff chances for each team based on current standings and
 
 ### 2. Strength of Schedule Analysis
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** 🟡 Partly: Advanced Stats → Schedule Luck Distribution and Play Everyone measure past schedule luck. No opponent-strength or future-schedule rankings.
 
 Analyze schedule difficulty for each team, past and future.
 
@@ -69,6 +83,7 @@ Analyze schedule difficulty for each team, past and future.
 
 ### 3. Power Rankings vs. Standings
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** 🟡 Partly: Play Everyone ranks teams by their record against everyone (a power ranking of sorts) next to the real record. No weighted multi-factor ranking or trend arrows.
 
 Create algorithm-based power rankings separate from actual standings.
 
@@ -93,6 +108,7 @@ Create algorithm-based power rankings separate from actual standings.
 
 ### 4. Consistency Scores
 **Complexity:** 🟢 Easy (1-2 hours)
+**Status:** ⬜ Not started (the Weekly Rankings heatmap shows average and median weekly rank, but no consistency score).
 
 Measure scoring reliability and variance for each team.
 
@@ -120,6 +136,7 @@ Higher score = more consistent
 
 ### 5. Record vs. Top/Bottom Teams
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** ⬜ Not started.
 
 Analyze team performance against strong vs weak opponents.
 
@@ -143,6 +160,7 @@ Analyze team performance against strong vs weak opponents.
 
 ### 6. Roster Composition Analysis
 **Complexity:** 🟡 Medium (4-6 hours)
+**Status:** ⬜ Not started.
 
 Deep dive into how each team constructs their roster and scoring.
 
@@ -164,6 +182,7 @@ Deep dive into how each team constructs their roster and scoring.
 
 ### 7. Optimal Lineup Analysis
 **Complexity:** 🟡 Medium (5-8 hours)
+**Status:** ⬜ Not started (best lineups are computed for the odds model, but points left on the bench aren't shown).
 
 Calculate best possible lineup each week vs actual lineup started.
 
@@ -186,6 +205,7 @@ Calculate best possible lineup each week vs actual lineup started.
 
 ### 8. Transaction History & Analysis
 **Complexity:** 🟡 Medium (6-8 hours)
+**Status:** 🟡 Partly: trades only (History → Trades). Adds, drops, waivers and FAAB aren't shown.
 
 Track and analyze all league transactions.
 
@@ -208,6 +228,7 @@ Track and analyze all league transactions.
 
 ### 9. Trade History & Value Analysis
 **Complexity:** 🔴 Hard (8-12 hours)
+**Status:** ✅ Built: History → Trades: every Sleeper-era trade graded at the time (odds before → after) and in hindsight (starting-lineup points), plus per-manager trade stats.
 
 Comprehensive trade tracking with value assessment.
 
@@ -234,6 +255,7 @@ Comprehensive trade tracking with value assessment.
 
 ### 10. Player Performance Leaderboards
 **Complexity:** 🟢 Easy (3-4 hours)
+**Status:** ⬜ Not started.
 
 Track top performers across the league.
 
@@ -256,6 +278,7 @@ Track top performers across the league.
 
 ### 11. Waiver Wire Impact Score
 **Complexity:** 🟡 Medium (4-5 hours)
+**Status:** 🟡 Partly: Trades & Waivers → Waiver Finder ranks pickups by how much they'd raise your odds. No history of past pickups.
 
 Measure success of waiver wire pickups.
 
@@ -279,6 +302,7 @@ Measure success of waiver wire pickups.
 
 ### 12. Points Distribution Analysis
 **Complexity:** 🟡 Medium (3-5 hours)
+**Status:** ⬜ Not started.
 
 Statistical breakdown of scoring patterns.
 
@@ -300,6 +324,7 @@ Statistical breakdown of scoring patterns.
 
 ### 13. Win Probability Analysis
 **Complexity:** 🟡 Medium (4-6 hours)
+**Status:** 🟡 Partly: the trade analyzer charts each team's win odds for every remaining week, and Playoff Odds simulates every game. No standalone per-matchup win probability view.
 
 Track clutch performances and improbable outcomes.
 
@@ -321,6 +346,7 @@ Track clutch performances and improbable outcomes.
 
 ### 14. Momentum Tracker
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** ⬜ Not started.
 
 Identify teams on hot/cold streaks.
 
@@ -343,6 +369,7 @@ Identify teams on hot/cold streaks.
 
 ### 15. Head-to-Head Matrix
 **Complexity:** 🟡 Medium (4-5 hours)
+**Status:** ✅ Built: History → Head to Head (every manager against every other, all seasons; tap a cell for every meeting).
 
 Complete head-to-head analysis for all team pairings.
 
@@ -364,6 +391,7 @@ Complete head-to-head analysis for all team pairings.
 
 ### 16. Pythagorean Expectation
 **Complexity:** 🟡 Medium (3-4 hours)
+**Status:** ⬜ Not started (Play Everyone's expected wins covers similar ground).
 
 Expected wins based on points scored and allowed.
 
@@ -388,6 +416,7 @@ Expected wins based on points scored and allowed.
 
 ### 17. League Scoring Pace Analysis
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** ⬜ Not started.
 
 Track league-wide scoring trends.
 
@@ -411,6 +440,7 @@ Track league-wide scoring trends.
 
 ### 18. Weekly Awards & Superlatives
 **Complexity:** 🟢 Easy (2-4 hours)
+**Status:** ⬜ Not started.
 
 Auto-generate fun weekly awards.
 
@@ -441,6 +471,7 @@ Auto-generate fun weekly awards.
 
 ### 19. Rivalry Tracker
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** ✅ Built: History → Rivalries (most played, most lopsided, closest).
 
 Track head-to-head rivalries between teams.
 
@@ -463,6 +494,7 @@ Track head-to-head rivalries between teams.
 
 ### 20. Championship Belt Tracker
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** ⬜ Not started.
 
 Track weekly "belt" holder (highest scorer).
 
@@ -489,6 +521,7 @@ Track weekly "belt" holder (highest scorer).
 
 ### 21. League Records Board
 **Complexity:** 🟢 Easy (3-4 hours)
+**Status:** ✅ Built: History → Record Book (game and season records across every Sleeper season).
 
 Track and display all-time league records.
 
@@ -526,6 +559,7 @@ Track and display all-time league records.
 
 ### 22. Weekly Recap Generator
 **Complexity:** 🟡 Medium (6-8 hours)
+**Status:** ⬜ Not started.
 
 Auto-generate narrative recaps of each week.
 
@@ -557,6 +591,7 @@ Auto-generate narrative recaps of each week.
 
 ### 23. Trade Value Dashboard
 **Complexity:** 🔴 Hard (8-12 hours)
+**Status:** 🟡 Partly: the trade analyzer shows each player's FantasyCalc redraft value, and the trade finder uses it as a market filter. No standalone value dashboard.
 
 Integrate FantasyCalc API for player valuations.
 
@@ -587,6 +622,7 @@ Integrate FantasyCalc API for player valuations.
 
 ### 24. Trade Analyzer Tool
 **Complexity:** 🔴 Hard (10-15 hours)
+**Status:** ✅ Built: Trades & Waivers → Trade Analyzer, plus a Trade Finder that searches for trades that help both teams.
 
 Interactive trade proposal analyzer.
 
@@ -615,6 +651,7 @@ Interactive trade proposal analyzer.
 
 ### 25. Waiver Wire Value Rankings
 **Complexity:** 🟡 Medium (5-7 hours)
+**Status:** ✅ Built as Trades & Waivers → Waiver Finder: the best free agents at every position ranked by how much they'd raise your playoff and title odds (or a given week's win odds), not by market value.
 
 Show available players by value.
 
@@ -639,6 +676,7 @@ Show available players by value.
 
 ### 26. Draft Recap & Analysis
 **Complexity:** 🔴 Hard (10-15 hours)
+**Status:** ✅ Built: Draft tab (board, each team's intended starters, and results graded by points per available week).
 
 Comprehensive draft analysis with current value assessment.
 
@@ -671,6 +709,7 @@ Comprehensive draft analysis with current value assessment.
 
 ### 27. Enhanced Dashboard
 **Complexity:** 🟡 Medium (4-6 hours)
+**Status:** ⬜ Not started.
 
 Comprehensive single-page overview.
 
@@ -699,6 +738,7 @@ Comprehensive single-page overview.
 
 ### 28. Team Detail Pages
 **Complexity:** 🟡 Medium (6-8 hours)
+**Status:** ⬜ Not started.
 
 Deep dive page for each team.
 
@@ -732,6 +772,7 @@ Deep dive page for each team.
 
 ### 29. Team Comparison Tool
 **Complexity:** 🟡 Medium (5-7 hours)
+**Status:** ⬜ Not started.
 
 Side-by-side team comparison.
 
@@ -762,6 +803,7 @@ Side-by-side team comparison.
 
 ### 30. Playoff Simulator
 **Complexity:** 🔴 Hard (12-15 hours)
+**Status:** 🟡 Partly: Playoff Odds simulates the rest of the season and the bracket, and What Each Team Needs checks scenarios. No editor for picking game outcomes.
 
 Interactive playoff scenario simulator.
 
@@ -792,6 +834,7 @@ Interactive playoff scenario simulator.
 
 ### 31. Live Scoring Updates
 **Complexity:** 🔴 Hard (15-20 hours)
+**Status:** ✅ Built: Live tab (play-all and standings at the current scores, refreshing every minute).
 
 Real-time score updates during game days.
 
@@ -818,6 +861,7 @@ Real-time score updates during game days.
 
 ### 32. Milestone Tracker
 **Complexity:** 🟢 Easy (3-4 hours)
+**Status:** ⬜ Not started.
 
 Track and celebrate achievements.
 
@@ -849,6 +893,7 @@ Track and celebrate achievements.
 
 ### 33. Playoff Clinch Scenarios
 **Complexity:** 🟡 Medium (4-6 hours)
+**Status:** ✅ Built: Playoffs tab → What Each Team Needs (clinched and eliminated, win-and-in and rooting interests in the last weeks).
 
 Magic number and elimination tracking.
 
@@ -874,6 +919,7 @@ Magic number and elimination tracking.
 
 ### 34. Rest of Season (ROS) Projections
 **Complexity:** 🔴 Hard (10-15 hours)
+**Status:** 🟡 Partly: the trade analyzer shows each team's expected wins for the rest of the season, from the same projections as the playoff odds. No rest-of-season player projections page.
 
 Project final standings and season totals.
 
@@ -901,6 +947,7 @@ Project final standings and season totals.
 
 ### 35. Matchup Predictor
 **Complexity:** 🟡 Medium (6-8 hours)
+**Status:** 🟡 Partly: per-week win odds appear in the trade analyzer chart only.
 
 Predict upcoming week's matchups.
 
@@ -927,6 +974,7 @@ Predict upcoming week's matchups.
 
 ### 36. Regression Candidates
 **Complexity:** 🟡 Medium (5-7 hours)
+**Status:** ⬜ Not started.
 
 Identify teams likely to regress (positively or negatively).
 
@@ -956,6 +1004,7 @@ Identify teams likely to regress (positively or negatively).
 
 ### 37. Season Story Arc
 **Complexity:** 🟡 Medium (6-8 hours)
+**Status:** 🟡 Partly: Season Trends → Standings Over Time and Cumulative Scores.
 
 Narrative visualization of the season journey.
 
@@ -980,6 +1029,7 @@ Narrative visualization of the season journey.
 
 ### 38. Advanced Distribution Charts
 **Complexity:** 🟡 Medium (4-6 hours)
+**Status:** 🟡 Partly: Schedule Luck Distribution only.
 
 Enhanced statistical visualizations.
 
@@ -1008,6 +1058,7 @@ Enhanced statistical visualizations.
 
 ### 39. Transaction Network Graph
 **Complexity:** 🟡 Medium (6-8 hours)
+**Status:** ⬜ Not started.
 
 Visualize trade relationships.
 
@@ -1032,6 +1083,7 @@ Visualize trade relationships.
 
 ### 40. Performance Radar Charts
 **Complexity:** 🟡 Medium (4-5 hours)
+**Status:** ⬜ Not started.
 
 Multi-dimensional team comparison.
 
@@ -1062,6 +1114,7 @@ Multi-dimensional team comparison.
 
 ### 41. Alternative Standings
 **Complexity:** 🟡 Medium (4-6 hours)
+**Status:** 🟡 Partly: the play-everyone format (Play Everyone, Weekly Play-All). No median or points-only standings.
 
 "What if" standings with different formats.
 
@@ -1088,6 +1141,7 @@ Multi-dimensional team comparison.
 
 ### 42. Efficiency Metrics
 **Complexity:** 🟡 Medium (4-5 hours)
+**Status:** ⬜ Not started.
 
 Measure roster management efficiency.
 
@@ -1115,6 +1169,7 @@ Measure roster management efficiency.
 
 ### 43. Luck Index
 **Complexity:** 🟡 Medium (5-7 hours)
+**Status:** ✅ Built: Advanced Stats → Play Everyone (luck factor: real wins minus expected wins) and Schedule Luck Distribution.
 
 Composite luck score combining multiple factors.
 
@@ -1147,6 +1202,7 @@ Range: -100 (very unlucky) to +100 (very lucky)
 
 ### 44. Weekly Volatility Score
 **Complexity:** 🟢 Easy (2-3 hours)
+**Status:** ⬜ Not started.
 
 Measure league-wide chaos each week.
 
@@ -1171,6 +1227,7 @@ Measure league-wide chaos each week.
 
 ### 45. Position Battle Tracker
 **Complexity:** 🟡 Medium (4-5 hours)
+**Status:** ⬜ Not started.
 
 Track races for specific standings positions.
 
@@ -1196,6 +1253,8 @@ Track races for specific standings positions.
 ---
 
 ## Implementation Priority Guide
+
+*The original plan, kept for reference. The guide, API summary and roadmap below predate the features that are now built; check each idea's Status line.*
 
 ### 🟢 Quick Wins (1-3 hours each)
 Perfect for immediate impact with minimal effort:

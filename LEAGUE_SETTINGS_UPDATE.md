@@ -1,129 +1,48 @@
-# League Settings Update - Summary
+# League Settings
 
-## Overview
-Updated the Fantasy Football application to dynamically display league structure information based on Sleeper API settings. All league configuration is now pulled directly from the API, so changes to league settings in Sleeper will automatically reflect on the site.
+How the site reads the league's structure (season length, playoff size, divisions, toilet bowl) from Sleeper instead of hard-coding it, so a change in the Sleeper league settings shows up on the site without a code change.
 
-## Changes Made
+## Where it's computed
 
-### 1. Updated Type Definitions (`web/lib/types.ts`)
-Added new fields to `SleeperLeague` interface:
-- `playoff_week_start` - Week when playoffs begin
-- `playoff_type` - Type of playoff bracket (0 = standard)
-- `playoff_seed_type` - How playoff seeding works
-- `playoff_round_type` - Playoff round structure
-- `start_week` - First week of regular season
-- `num_teams` - Total teams in league
-- `bracket_id` - Playoff bracket ID
-- `loser_bracket_id` - Toilet bowl bracket ID
+`web/lib/leagueSettings.ts` → `getLeagueSettings(league)` turns the Sleeper league object (`/v1/league/{id}`) into a `LeagueSettings` object (`web/lib/types.ts`):
 
-Added new `LeagueSettings` interface for calculated league structure info.
+| Field | From Sleeper | Default if missing |
+|---|---|---|
+| `regularSeasonStart` | `settings.start_week` | 1 |
+| `regularSeasonEnd` | `settings.playoff_week_start - 1` | 14 |
+| `playoffStart` | `settings.playoff_week_start` | 15 |
+| `totalTeams` | `settings.num_teams` | 12 |
+| `playoffTeams` | `settings.playoff_teams` | 6 |
+| `divisions` | `settings.divisions` | 0 |
+| `hasToiletBowl` | `loser_bracket_id` is set | false |
+| `playoffDescription`, `toiletBowlDescription` | Built from the above (e.g. "6-team single elimination bracket. Top 3 division winners get first-round byes, 3 wild card teams compete.") | |
 
-### 2. Created League Settings Helper (`web/lib/leagueSettings.ts`)
-New utility functions to calculate league structure from API data:
+The current league has 12 teams in 3 divisions, a 14-week regular season, a 6-team playoff starting in week 15, and a 6-team toilet bowl.
 
-**`getLeagueSettings(league)`**
-- Extracts settings from Sleeper API
-- Calculates regular season end (playoff_week_start - 1)
-- Generates human-readable descriptions
-- Returns structured league settings object
+## Where it's used
 
-**`generatePlayoffDescription()`**
-- Creates playoff structure description
-- Handles division winners and wild cards
-- Describes bye week structure
+`web/app/page.tsx` computes it for the selected season and uses:
 
-**`generateToiletBowlDescription()`**
-- Creates toilet bowl description
-- Calculates number of teams
-- Describes bye structure for bottom teams
+- **`regularSeasonEnd`**
+  - caps the weekly analytics (Weekly Performance, Season Trends, Advanced Stats) at completed regular-season weeks;
+  - decides whether the regular season is in progress, which switches the Playoffs tab between the playoff picture and the brackets and shows or hides Trades & Waivers;
+  - sets the Live tab's last week;
+  - drives Overview's "Stats through week X of 14" line.
+- **`playoffTeams`** and **`divisions`**: division standings, the wild card race and its cutoff line, and the overall standings when there are no divisions.
+- **`hasToiletBowl`**: whether the Playoffs tab shows the toilet bowl bracket for a finished season.
+- **`regularSeasonEnd`, `playoffStart` and `playoffTeams`**: `web/lib/analyze/brackets.ts` (`buildPostseasonBrackets`) places each playoff round in its weeks and numbers the placement games.
 
-**Helper functions:**
-- `getRegularSeasonWeeks()` - Count of regular season games
-- `isRegularSeasonWeek()` - Check if week is regular season
-- `isPlayoffWeek()` - Check if week is playoffs
+The playoff odds, trade analyzer, waiver finder and history don't use `getLeagueSettings`. They run on the server and read the same Sleeper fields directly:
+- `web/lib/oddsData.ts` (`playoffFormat`, `loadOddsInputs`) reads `playoff_week_start`, `playoff_teams` and `divisions`, and counts the toilet bowl as on if this season or last season had one, since Sleeper only creates the bracket once the playoffs start.
+- `web/lib/historyData.ts` reads `playoff_week_start` and each season's brackets.
 
-### 3. Created League Info Component (`web/components/LeagueInfo.tsx`)
-New component displaying league structure:
-- **Regular Season Section**
-  - Week range (e.g., "Weeks 1-14")
-  - Number of games
-  - Total teams
-  - Number of divisions
+## Not currently used
 
-- **Playoff Section**
-  - Playoff start week
-  - Number of playoff teams
-  - Detailed playoff structure description
+- **`playoffDescription` / `toiletBowlDescription`:** these were shown by a `LeagueInfo` card at the top of Overview, which was removed. They're still computed.
+- **`getRegularSeasonWeeks`, `isRegularSeasonWeek` and `isPlayoffWeek`:** these helpers in the same file have no callers.
 
-- **Toilet Bowl Section** (if applicable)
-  - Number of teams
-  - Bye structure
-  - Description
+## Assumptions
 
-### 4. Updated Main Page (`web/app/page.tsx`)
-- Added `LeagueInfo` component import
-- Placed component at top of Overview tab
-- Component displays before Playoff Race
-
-## How It Works
-
-### Data Flow
-1. **API Fetch** - Sleeper API returns league object with settings
-2. **Calculation** - `getLeagueSettings()` processes raw API data
-3. **Display** - `LeagueInfo` component renders structured information
-
-### Example Output
-Based on your league settings:
-```
-Regular Season: Weeks 1-14 (14 games)
-Teams: 12
-Divisions: 3
-
-Playoffs: Week 15
-Teams: 6
-Structure: 6-team single elimination bracket. Top 3 division winners 
-get first-round byes, 3 wild card teams compete.
-
-Toilet Bowl: 6-team toilet bowl bracket. Bottom 2 teams get first-round byes.
-```
-
-## API Settings Used
-
-From `league.settings`:
-- `start_week`: 1
-- `playoff_week_start`: 15
-- `playoff_teams`: 6
-- `playoff_type`: 0 (standard bracket)
-- `divisions`: 3
-- `num_teams`: 12
-
-From `league`:
-- `loser_bracket_id`: Determines if toilet bowl exists
-
-## Benefits
-
-1. **Dynamic** - Automatically updates when league settings change
-2. **Accurate** - No hardcoded values, all from API
-3. **Clear** - Human-readable descriptions of structure
-4. **Maintainable** - Pure functions, easy to test and modify
-5. **Reusable** - Helper functions can be used elsewhere
-
-## Testing
-
-Build completed successfully:
-```bash
-npm run build
-✓ Compiled successfully
-✓ Generating static pages (8/8)
-```
-
-Development server running on http://localhost:3000
-
-## Future Enhancements
-
-Potential additions:
-- Playoff bracket visualization
-- Toilet bowl standings
-- Playoff probability calculator
-- Historical playoff data
-- Championship odds based on current standings
+- **Seeding:** division winners are seeded first, then wild cards. Ties on record go to points for.
+- **Byes:** the top 2 seeds get first-round byes. This is the bracket shape this league uses, and it's assumed rather than read from Sleeper (`playoffFormat` sets `byes: 2`).
+- **Toilet bowl:** the lower score advances, so the final's "winner" in Sleeper's losers bracket is the team that loses the toilet bowl.
