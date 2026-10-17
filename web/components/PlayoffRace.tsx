@@ -75,28 +75,29 @@ function TeamRow({
           hover:bg-[var(--hover)] transition-colors
         `}
       >
-        <td className="px-4 py-3 text-sm text-[var(--foreground)]">
+        <td className="whitespace-nowrap px-3 py-3 text-sm text-[var(--foreground)] sm:px-4">
           {rank}
           {isLeader && <span className="ml-1">🥇</span>}
         </td>
-        <td className="px-4 py-3">
+        <td className="px-3 py-3 sm:px-4">
           <div className="flex items-center gap-3">
-            <TeamAvatar url={team.avatarUrl} name={team.teamName} />
+            {/* No photo on phones, so the name has room */}
+            <span className="hidden sm:block">
+              <TeamAvatar url={team.avatarUrl} name={team.teamName} />
+            </span>
             <div>
               <div className="text-sm font-medium text-[var(--foreground)]">
                 {team.teamName}
               </div>
-              <div className="text-xs text-[var(--muted)]">
-                @{team.username}
-                {annotation?.playoffChange && (
-                  <span
-                    className="ml-2 font-medium"
-                    style={{ color: RESULT_DOT_COLORS[annotation.playoffChange === 'in' ? 'W' : 'L'] }}
-                  >
-                    {annotation.playoffChange === 'in' ? 'moving in' : 'dropping out'}
-                  </span>
-                )}
-              </div>
+              <div className="text-xs text-[var(--muted)]">@{team.username}</div>
+              {annotation?.playoffChange && (
+                <div
+                  className="whitespace-nowrap text-xs font-medium"
+                  style={{ color: RESULT_DOT_COLORS[annotation.playoffChange === 'in' ? 'W' : 'L'] }}
+                >
+                  {annotation.playoffChange === 'in' ? 'moving in' : 'dropping out'}
+                </div>
+              )}
             </div>
           </div>
         </td>
@@ -153,7 +154,7 @@ function DivisionCard({ division, annotations }: { division: DivisionStanding; a
         </h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[var(--border)] table-fixed">
+        <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12">Rank</th>
@@ -213,7 +214,7 @@ function OverallStandingsCard({
       gradientType="primary"
     >
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[var(--border)] table-fixed">
+        <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12">Rank</th>
