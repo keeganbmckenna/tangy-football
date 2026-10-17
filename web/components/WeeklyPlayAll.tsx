@@ -3,17 +3,28 @@
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
 import { WeeklyPlayAllStats } from '@/lib/types';
 import { formatRecord } from '@/lib/analyze/playEveryone';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { recordValue, sortRows } from '@/lib/tableSort';
 
 interface WeeklyPlayAllProps {
   data: WeeklyPlayAllStats[];
 }
 
 export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
+  const sort = useTableSort();
   if (!data || data.length === 0) {
     return null;
   }
 
   const numWeeks = data[0]?.weeklyRecords.length || 0;
+  const rows = sortRows(data, sort.state, (team, key) => {
+    if (key.startsWith('w')) {
+      const r = team.weeklyRecords[Number(key.slice(1)) - 1];
+      return r ? recordValue(r.wins, r.losses, r.ties) : null;
+    }
+    return key === 'total' ? recordValue(team.totalWins, team.totalLosses, team.totalTies) : team.overallWinPct;
+  });
 
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
@@ -23,6 +34,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
           {"Each team's record if they played all other teams every week"}
         </p>
       </div>
+      <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
@@ -31,23 +43,26 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                 Team
               </th>
               {Array.from({ length: numWeeks }, (_, i) => i + 1).map((week) => (
-                <th
+                <SortableTh
                   key={week}
+                  sort={sort}
+                  col={`w${week}`}
+                  label={`Week ${week}`}
                   className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider"
                 >
                   W{week}
-                </th>
+                </SortableTh>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+              <SortableTh sort={sort} col="total" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Total
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+              </SortableTh>
+              <SortableTh sort={sort} col="pct" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Win %
-              </th>
+              </SortableTh>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
-            {data.map((team) => (
+            {rows.map((team) => (
               <tr key={team.username}>
                 <td className="px-6 py-3 whitespace-nowrap sticky left-0 bg-[var(--surface-elevated)] z-10 border-r border-[var(--border)]">
                   <div className="text-sm font-medium text-[var(--foreground)]">

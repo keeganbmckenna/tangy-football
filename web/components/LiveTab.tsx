@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { sortRows } from '@/lib/tableSort';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import {
@@ -50,6 +53,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  // Kept across the minute-by-minute refreshes
+  const sort = useTableSort();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -166,6 +171,14 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     );
   }
 
+  const playAllRows = sortRows(view.playAll, sort.state, (row, key) => {
+    if (key === 'score') return row.score;
+    if (key === 'week') return row.week.winPct;
+    if (key === 'season') return row.seasonWinPct;
+    const st = view.statuses.get(row.team.rosterId);
+    return st && st.opponentScore !== null ? st.score - st.opponentScore : null;
+  });
+
   return (
     <div className="space-y-8">
       <SectionCard
@@ -186,19 +199,20 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         {!view.started && (
           <p className="px-6 pt-3 text-sm text-[var(--muted)]">No points scored yet this week, so everyone is level.</p>
         )}
+        <SortStatus sort={sort} />
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-[var(--border)]">
             <thead className="bg-[var(--surface)]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Score</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">This week vs all</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Real matchup</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Season play-all</th>
+                <SortableTh sort={sort} col="score" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Score</SortableTh>
+                <SortableTh sort={sort} col="week" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">This week vs all</SortableTh>
+                <SortableTh sort={sort} col="margin" label="Real matchup margin" className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Real matchup</SortableTh>
+                <SortableTh sort={sort} col="season" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Season play-all</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {view.playAll.map((row) => {
+              {playAllRows.map((row) => {
                 const s = view.statuses.get(row.team.rosterId);
                 const { backgroundColor, textColor } = getHeatmapColorByRatio(row.week.winPct);
                 const margin = s && s.opponentScore !== null ? s.score - s.opponentScore : null;

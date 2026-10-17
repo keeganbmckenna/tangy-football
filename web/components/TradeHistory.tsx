@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { sortRows } from '@/lib/tableSort';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
 import { tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
@@ -63,6 +66,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
   const [seasons, setSeasons] = useState<TradeHistoryResponse[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('all');
+  const sort = useTableSort();
 
   const sleeperSeasons = useMemo(() => history.seasons.filter((s) => !s.legacy), [history]);
 
@@ -109,6 +113,9 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
     );
   }
 
+  const leaderRows = sortRows(stats.leaders, sort.state, (r, key) =>
+    ({ trades: r.trades, playoff: r.playoffOddsGained, title: r.titleOddsGained, points: r.starterPoints })[key]
+  );
   const bySeason = new Map(seasons.map((s) => [s.season, s]));
   const players = Object.assign({}, ...seasons.map((s) => s.players)) as TradeHistoryResponse['players'];
   const nameOf = (id: string | null) => (id ? managers.get(id)?.name ?? 'Unknown' : '—');
@@ -244,20 +251,21 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
           <>
             <div>
               <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">Traders ({seasonLabel})</h4>
+              <SortStatus sort={sort} className="px-0" />
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
                       <th className="px-3 py-2 font-medium">Manager</th>
-                      <th className="px-3 py-2 text-center font-medium">Trades</th>
+                      <SortableTh sort={sort} col="trades" className="px-3 py-2 text-center font-medium">Trades</SortableTh>
                       <th className="px-3 py-2 font-medium">Favorite partner</th>
-                      <th className="px-3 py-2 text-center font-medium">Playoff odds at the time</th>
-                      <th className="px-3 py-2 text-center font-medium">Title odds at the time</th>
-                      <th className="px-3 py-2 text-center font-medium">Starter pts received</th>
+                      <SortableTh sort={sort} col="playoff" className="px-3 py-2 text-center font-medium">Playoff odds at the time</SortableTh>
+                      <SortableTh sort={sort} col="title" className="px-3 py-2 text-center font-medium">Title odds at the time</SortableTh>
+                      <SortableTh sort={sort} col="points" className="px-3 py-2 text-center font-medium">Starter pts received</SortableTh>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {stats.leaders.map((r) => (
+                    {leaderRows.map((r) => (
                       <tr key={r.userId}>
                         <td className="px-3 py-2 font-medium text-[var(--foreground)]">{nameOf(r.userId)}</td>
                         <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.trades}</td>

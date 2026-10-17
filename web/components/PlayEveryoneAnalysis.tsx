@@ -2,7 +2,10 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
 import { CHART_THEME } from '@/lib/constants';
+import { recordValue, sortRows } from '@/lib/tableSort';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import type { PlayEveryoneStats } from '@/lib/types';
 
@@ -54,6 +57,19 @@ function BarChartTooltip({ active, payload }: BarChartTooltipProps) {
 export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps) {
   // Sort by expected wins (play-all results, ties as half a win)
   const sortedData = [...data].sort((a, b) => b.expectedWins - a.expectedWins);
+  // Rank stays the play-all rank whichever way the table is sorted
+  const sort = useTableSort();
+  const rows = sortRows(
+    sortedData.map((team, i) => ({ team, rank: i + 1 })),
+    sort.state,
+    ({ team }, key) =>
+      ({
+        playAll: recordValue(team.playAllWins, team.playAllLosses, team.playAllTies),
+        real: recordValue(team.actualWins, team.actualLosses, team.actualTies),
+        expected: team.expectedWins,
+        luck: team.difference,
+      })[key]
+  );
 
   // Transform for bar chart
   const chartData = sortedData.map(team => ({
@@ -107,6 +123,7 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
       </div>
 
       {/* Table */}
+      <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
@@ -117,22 +134,22 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
               <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Team
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="playAll" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Play-All Record
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              </SortableTh>
+              <SortableTh sort={sort} col="real" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Real Record
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              </SortableTh>
+              <SortableTh sort={sort} col="expected" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Expected Wins
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              </SortableTh>
+              <SortableTh sort={sort} col="luck" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Luck Factor
-              </th>
+              </SortableTh>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
-            {sortedData.map((team, index) => {
+            {rows.map(({ team, rank }) => {
               const isLucky = team.difference >= 1;
               const isUnlucky = team.difference <= -1;
 
@@ -140,7 +157,7 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
               return (
                 <tr key={team.username}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--foreground)]">
-                    {index + 1}
+                    {rank}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-[var(--foreground)]">

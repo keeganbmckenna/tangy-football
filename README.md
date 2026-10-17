@@ -84,6 +84,7 @@ The seasons before Sleeper (2017-2021, a 10-team league) come from the old platf
 Head-to-head records, rivalries and the record book count regular-season and playoff games; placement (3rd/5th place), consolation and toilet bowl games are left out.
 
 ### UI
+- ↕️ **Sortable tables** - Tap a column header in Weekly Scores, Weekly Rankings, Weekly Play-All, Play Everyone, Playoff Odds, Draft Results, Live Play-All, All-Time Standings or Traders to sort best-first; tap again to reverse, a third time (or **↺ Default order**) for the table's own order. Lower-is-better columns (ranks, $/pt, toilet bowl odds and losses, best finish) start low to high; blanks always sort last. Standings, brackets, the draft board and head to head keep their fixed order.
 - 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage. Dark mode is true black with flat, deep-colored section headers and dimmed heatmaps (`web/app/globals.css`).
 - 🎯 **Custom Tooltips** - Sorted, scrollable tooltips for crowded charts.
 - 📱 **Responsive Layout** - Pill tab bar on desktop and tablet, dropdown menu on phones.

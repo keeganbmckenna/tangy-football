@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { recordValue, sortRows } from '@/lib/tableSort';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { formatOdds, type OutcomeOdds, type OddsTeam, type PlayoffOddsResponse, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
@@ -45,6 +48,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
   const [error, setError] = useState<string | null>(null);
   // Which outcome the "this week: win / loss" column shows
   const [swingOutcome, setSwingOutcome] = useState<keyof OutcomeOdds>('playoffs');
+  const sort = useTableSort();
 
   useEffect(() => {
     let cancelled = false;
@@ -188,7 +192,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
         <thead>
           <tr className="text-xs text-[var(--muted)]">
             <th className="py-1 text-left font-medium">Week {nextWeek}{opp ? ` vs ${name(opp)}` : ''}</th>
-            <th className="py-1 text-right font-medium">Now</th>
+            <SortableTh sort={sort} col="seed" best="asc" label="Current seed" className="py-1 text-right font-medium">Now</SortableTh>
             <th className="py-1 text-right font-medium">Win</th>
             <th className="py-1 text-right font-medium">Loss</th>
           </tr>
@@ -265,6 +269,24 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     ...(hasToilet ? [{ key: 'lastPlace' as const, label: 'losing the toilet bowl' }] : []),
   ];
   const swingLabel = swingOptions.find((o) => o.key === swingOutcome)?.label ?? 'playoff';
+  const oddsRows = sortRows(ranked, sort.state, (t, key) => {
+    const o = odds[t.rosterId];
+    switch (key) {
+      case 'record': return recordValue(t.wins, t.losses, t.ties);
+      case 'seed': return seedOf.get(t.rosterId);
+      case 'playoffs': return o?.playoffs;
+      case 'division': return o?.division;
+      case 'bye': return o?.bye;
+      case 'title': return o?.champion;
+      case 'toilet': return o?.lastPlace;
+      default: {
+        // How much this week's game swings the selected odds
+        const w = o?.ifWin?.[swingOutcome];
+        const l = o?.ifLoss?.[swingOutcome];
+        return w != null && l != null ? Math.abs(w - l) : null;
+      }
+    }
+  });
 
   return (
     <div className="space-y-8">
@@ -348,32 +370,41 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
             </select>
             odds
           </label>
+          <SortStatus sort={sort} />
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[var(--border)]">
               <thead className="bg-[var(--surface)]">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Record</th>
+                  <SortableTh sort={sort} col="record" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Record</SortableTh>
                   <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Now</th>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoffs</th>
+                  <SortableTh sort={sort} col="playoffs" best="desc" label="Playoff odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoffs</SortableTh>
                   {data.format.hasDivisions && (
-                    <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</th>
+                    <SortableTh sort={sort} col="division" best="desc" label="Division odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</SortableTh>
                   )}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoff bye*</th>
+                  <SortableTh sort={sort} col="bye" best="desc" label="Playoff bye odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoff bye*</SortableTh>
                   {hasTitle && (
-                    <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Title</th>
+                    <SortableTh sort={sort} col="title" best="desc" label="Title odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Title</SortableTh>
                   )}
                   {hasToilet && (
-                    <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Lose toilet bowl</th>
+                    <SortableTh sort={sort} col="toilet" best="asc" label="Toilet bowl odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Lose toilet bowl</SortableTh>
                   )}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                    Week {nextWeek}: win / loss
-                    <div className="normal-case tracking-normal">{swingLabel}</div>
-                  </th>
+                  <SortableTh
+                    sort={sort}
+                    col="swing"
+                    label={`Week ${nextWeek} swing`}
+                    title={`Sorts by the gap between a win and a loss: how much is riding on week ${nextWeek}`}
+                    className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider"
+                  >
+                    <span className="flex flex-col">
+                      Week {nextWeek}: win / loss
+                      <span className="normal-case tracking-normal">{swingLabel}</span>
+                    </span>
+                  </SortableTh>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {ranked.map((t) => {
+                {oddsRows.map((t) => {
                   const o = odds[t.rosterId];
                   const seed = seedOf.get(t.rosterId);
                   const st = status(t.rosterId);

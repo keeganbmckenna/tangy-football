@@ -2,6 +2,9 @@
 
 import { TeamStats } from '@/lib/types';
 import SectionCard from '@/components/ui/SectionCard';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { sortRows } from '@/lib/tableSort';
 
 interface WeeklyScoresProps {
   teams: TeamStats[];
@@ -13,9 +16,22 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
   const totalWeeks = teams[0]?.weeklyScores.length || 0;
   const numWeeks = maxWeek !== undefined ? Math.min(maxWeek, totalWeeks) : totalWeeks;
   const weeks = Array.from({ length: numWeeks }, (_, i) => i + 1);
+  const sort = useTableSort();
+  const rows = sortRows(teams, sort.state, (team, key) => {
+    if (key.startsWith('w')) return team.weeklyScores[Number(key.slice(1)) - 1];
+    return {
+      total: team.totalPoints,
+      avg: team.avgPoints,
+      winAvg: team.avgPointsInWins,
+      winMargin: team.avgWinMargin,
+      lossAvg: team.avgPointsInLosses,
+      lossMargin: team.avgLossMargin,
+    }[key];
+  });
 
   return (
     <SectionCard title="Weekly Scores" gradientType="secondary">
+      <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
@@ -24,35 +40,38 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
                 Team
               </th>
               {weeks.map((week) => (
-                <th
+                <SortableTh
                   key={week}
+                  sort={sort}
+                  col={`w${week}`}
+                  label={`Week ${week}`}
                   className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider"
                 >
                   W{week}
-                </th>
+                </SortableTh>
               ))}
-              <th className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+              <SortableTh sort={sort} col="total" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Total
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+              </SortableTh>
+              <SortableTh sort={sort} col="avg" className="px-6 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Avg
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--success-bg)]">
+              </SortableTh>
+              <SortableTh sort={sort} col="winAvg" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--success-bg)]">
                 Win Avg
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--success-bg)]">
+              </SortableTh>
+              <SortableTh sort={sort} col="winMargin" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--success-bg)]">
                 Win Margin
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--danger-bg)]">
+              </SortableTh>
+              <SortableTh sort={sort} col="lossAvg" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--danger-bg)]">
                 Loss Avg
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--danger-bg)]">
+              </SortableTh>
+              <SortableTh sort={sort} col="lossMargin" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--danger-bg)]">
                 Loss Margin
-              </th>
+              </SortableTh>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
-            {teams.map((team) => (
+            {rows.map((team) => (
               <tr key={team.username}>
                 <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-[var(--surface-elevated)] z-10">
                   <div className="text-sm font-medium text-[var(--foreground)]">

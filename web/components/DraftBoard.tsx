@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { sortRows } from '@/lib/tableSort';
 import {
   DraftData,
   DraftPickData,
@@ -213,67 +216,74 @@ function DraftCore({ data, leagueData, core }: {
 function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: LeagueData | null; core: TeamCore[] }) {
   const summaries = summarizeDraftByTeam(data.picks, core);
   const isAuction = data.type === 'auction';
+  const sort = useTableSort();
+  const rows = sortRows(summaries, sort.state, (s, key) =>
+    ({ spent: s.spent, perPoint: s.dollarsPerPoint, core: s.core, haul: s.haul })[key]
+  );
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-[var(--border)]">
-        <thead className="bg-[var(--surface)]">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
-            {isAuction && (
-              <>
-                <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Spent</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">$/pt</th>
-              </>
-            )}
-            <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-              Core/wk
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-              All picks/wk
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Best pick</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--border)]">
-          {summaries.map((s) => (
-            <tr key={s.rosterId ?? 'none'}>
-              <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-[var(--foreground)]">
-                {teamNameForRoster(leagueData, s.rosterId)}
-                <span className="text-xs text-[var(--muted)] ml-2">{s.count} picks</span>
-              </td>
+    <>
+      <SortStatus sort={sort} />
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-[var(--border)]">
+          <thead className="bg-[var(--surface)]">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Team</th>
               {isAuction && (
                 <>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--foreground)]">
-                    ${s.spent}
-                    {data.budget !== null && (
-                      <span className="text-xs text-[var(--muted)]"> / ${data.budget}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
-                    {s.dollarsPerPoint !== null ? `$${s.dollarsPerPoint}` : '—'}
-                  </td>
+                  <SortableTh sort={sort} col="spent" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Spent</SortableTh>
+                  <SortableTh sort={sort} col="perPoint" best="asc" label="$ per Core/wk point" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">$/pt</SortableTh>
                 </>
               )}
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-[var(--foreground)]">
-                {(s.core ?? 0).toFixed(1)}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
-                {s.haul.toFixed(1)}
-              </td>
-              <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)]">
-                {s.bestPick ? (
-                  <>
-                    {s.bestPick.name}
-                    <span className="text-xs"> ({ppwOf(s.bestPick).toFixed(1)}/wk{s.bestPick.amount ? `, $${s.bestPick.amount}` : ''})</span>
-                  </>
-                ) : '—'}
-              </td>
+              <SortableTh sort={sort} col="core" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                Core/wk
+              </SortableTh>
+              <SortableTh sort={sort} col="haul" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                All picks/wk
+              </SortableTh>
+              <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Best pick</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-[var(--border)]">
+            {rows.map((s) => (
+              <tr key={s.rosterId ?? 'none'}>
+                <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-[var(--foreground)]">
+                  {teamNameForRoster(leagueData, s.rosterId)}
+                  <span className="text-xs text-[var(--muted)] ml-2">{s.count} picks</span>
+                </td>
+                {isAuction && (
+                  <>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--foreground)]">
+                      ${s.spent}
+                      {data.budget !== null && (
+                        <span className="text-xs text-[var(--muted)]"> / ${data.budget}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
+                      {s.dollarsPerPoint !== null ? `$${s.dollarsPerPoint}` : '—'}
+                    </td>
+                  </>
+                )}
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-[var(--foreground)]">
+                  {(s.core ?? 0).toFixed(1)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
+                  {s.haul.toFixed(1)}
+                </td>
+                <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)]">
+                  {s.bestPick ? (
+                    <>
+                      {s.bestPick.name}
+                      <span className="text-xs"> ({ppwOf(s.bestPick).toFixed(1)}/wk{s.bestPick.amount ? `, $${s.bestPick.amount}` : ''})</span>
+                    </>
+                  ) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

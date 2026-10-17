@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { recordValue, sortRows } from '@/lib/tableSort';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
 import { getHeatmapColorByRatio } from '@/lib/constants';
@@ -52,6 +55,7 @@ export default function HistoryTab() {
   const [data, setData] = useState<HistoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<[string, string] | null>(null);
+  const standingsSort = useTableSort();
 
   useEffect(() => {
     let cancelled = false;
@@ -179,6 +183,19 @@ export default function HistoryTab() {
   );
 
   const pair = selected ? h2h[selected[0]]?.[selected[1]] : null;
+  const standingsRows = sortRows(standings, standingsSort.state, (r, key) =>
+    ({
+      seasons: r.seasons,
+      record: recordValue(r.wins, r.losses, r.ties),
+      winPct: r.winPct,
+      ppg: r.scoredGames ? r.pointsPerGame : null,
+      playoffs: r.playoffs,
+      finals: r.finals,
+      titles: r.titles,
+      toilet: r.toiletLosses,
+      best: r.bestFinish,
+    })[key]
+  );
 
   return (
     <div className="space-y-6">
@@ -227,24 +244,25 @@ export default function HistoryTab() {
       </SectionCard>
 
       <SectionCard title="All-Time Standings" subtitle="Regular-season records plus postseason results, by manager" gradientType="primary">
+        <SortStatus sort={standingsSort} />
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
                 <th className="px-4 py-3 font-medium">Manager</th>
-                <th className="px-3 py-3 text-center font-medium">Seasons</th>
-                <th className="px-3 py-3 text-center font-medium">Record</th>
-                <th className="px-3 py-3 text-center font-medium">Win %</th>
-                <th className="px-3 py-3 text-center font-medium">Pts/game</th>
-                <th className="px-3 py-3 text-center font-medium">Playoffs</th>
-                <th className="px-3 py-3 text-center font-medium">Finals</th>
-                <th className="px-3 py-3 text-center font-medium">Titles</th>
-                <th className="px-3 py-3 text-center font-medium">Toilet bowl losses</th>
-                <th className="px-3 py-3 text-center font-medium">Best finish</th>
+                <SortableTh sort={standingsSort} col="seasons" className="px-3 py-3 text-center font-medium">Seasons</SortableTh>
+                <SortableTh sort={standingsSort} col="record" className="px-3 py-3 text-center font-medium">Record</SortableTh>
+                <SortableTh sort={standingsSort} col="winPct" className="px-3 py-3 text-center font-medium">Win %</SortableTh>
+                <SortableTh sort={standingsSort} col="ppg" label="Points per game" className="px-3 py-3 text-center font-medium">Pts/game</SortableTh>
+                <SortableTh sort={standingsSort} col="playoffs" label="Playoff appearances" className="px-3 py-3 text-center font-medium">Playoffs</SortableTh>
+                <SortableTh sort={standingsSort} col="finals" className="px-3 py-3 text-center font-medium">Finals</SortableTh>
+                <SortableTh sort={standingsSort} col="titles" className="px-3 py-3 text-center font-medium">Titles</SortableTh>
+                <SortableTh sort={standingsSort} col="toilet" best="asc" className="px-3 py-3 text-center font-medium">Toilet bowl losses</SortableTh>
+                <SortableTh sort={standingsSort} col="best" best="asc" className="px-3 py-3 text-center font-medium">Best finish</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {standings.map((r) => (
+              {standingsRows.map((r) => (
                 <tr key={r.userId}>
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-2">

@@ -4,6 +4,9 @@ import { useMemo } from 'react';
 import { TeamStats } from '@/lib/types';
 import { getRankingColor, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
 import SectionCard from './ui/SectionCard';
+import SortableTh, { SortStatus } from './ui/SortableTh';
+import { useTableSort } from '@/hooks/useTableSort';
+import { sortRows } from '@/lib/tableSort';
 
 interface WeeklyRankingsHeatmapProps {
   rankingsData: Record<string, number[]>;
@@ -34,6 +37,11 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
     });
   }, [teams, rankingsData, numWeeks]);
 
+  const sort = useTableSort();
+  const rows = sortRows(stats, sort.state, (team, key) =>
+    key === 'avg' ? Number(team.avgRanking) : key === 'med' ? team.medRanking : (rankingsData[team.username] || [])[Number(key.slice(1)) - 1]
+  );
+
   const legend = (
     <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
       <span className="font-medium">Legend:</span>
@@ -53,6 +61,7 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
       gradientType="warning"
       footer={legend}
     >
+      <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
@@ -61,23 +70,27 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
                 Team
               </th>
               {weeks.map((week) => (
-                <th
+                <SortableTh
                   key={week}
+                  sort={sort}
+                  col={`w${week}`}
+                  best="asc"
+                  label={`Week ${week} rank`}
                   className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider"
                 >
                   W{week}
-                </th>
+                </SortableTh>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+              <SortableTh sort={sort} col="avg" best="asc" label="Avg rank" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Avg
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+              </SortableTh>
+              <SortableTh sort={sort} col="med" best="asc" label="Median rank" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Med
-              </th>
+              </SortableTh>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
-            {stats.map((team) => {
+            {rows.map((team) => {
               const rankings = rankingsData[team.username] || [];
               return (
                 <tr key={team.username}>
