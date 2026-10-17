@@ -51,14 +51,14 @@ Hovering a team on these charts highlights it.
 Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`. The season in progress is built live from Sleeper, falling back to its JSON file if that fails.
 
 ### Trades
-- 🔄 **Trade Analyzer** (current season, until the trade deadline) - Pick two teams and the players each sends. Shows:
+- 🔄 **Trade Analyzer** (current season, until the trade deadline) - Pick two managers and the players each sends. Shows:
   - **Win odds each week** - a line chart of each team's chance to win each remaining game, without the trade (dashed) and with it (solid); hover for the opponent.
   - **Season outlook** - expected wins for the rest of the regular season, and playoff, division, playoff bye, title, toilet bowl bye and losing-the-toilet-bowl odds, before → after for both teams, from 20,000 simulated seasons run on the same random draws with and without the trade.
   - **Lineup changes** - each team's projected lineup before → after if nothing else changes, who enters and leaves next week's lineup, and forced roster moves (a full roster drops the player who costs the lineup least; an open spot picks up the free agent who helps it most).
   - **Market value** - each player's [FantasyCalc](https://fantasycalc.com) redraft value (kickers and defenses aren't valued) and what each side gives and gets.
   - **Other teams affected** - teams whose odds move by a point or more.
 
-  A trade moves a team's expected score by part of its projected lineup change: 70% next week, 45% two to three weeks out and 25% after, which is how much showed up across the league's 94 trades in 2022-2025. Weekly win odds use a wider spread for games more than a week out, fitted on the same seasons. See `scripts/backtests/`.
+  A trade moves each team's expected score by 75% of its projected lineup change, the same weight the playoff model gives every roster's projection, so swapping two whole teams turns each into the other. On the league's 2022-2025 trades this predicted the trading teams' rest-of-season wins and playoff odds better than giving trades less credit. Weekly win odds use a wider spread for games more than a week out, fitted on the same seasons. See `scripts/backtests/`.
 - 📜 **Trade History** (every season) - Each completed trade with what each team got, graded two ways:
   - **At the time:** playoff, title and losing-the-toilet-bowl odds without and with the trade, re-run the week it counted from with that week's records, rosters and projections (5,000 seasons each), plus the raw projected lineup change.
   - **Hindsight:** points the players each team got scored in its starting lineup afterward, and where the team finished.

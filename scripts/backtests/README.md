@@ -6,7 +6,9 @@ from this directory:
 
 ```bash
 python fetch_history.py        # cache leagues, rosters, trades, matchups, weekly projections
-python trade_effect.py         # how much of a trade's projected lineup change shows up in scores
+python trade_effect.py         # how much of a trade's projected lineup change shows up in weekly scores
+python star_effect.py          # the same, split by the best player received and the size of the change
+python trade_season.py         # which trade weighting best predicts the rest of the season (several minutes)
 python horizon.py              # how well projections known in week t predict scores h weeks later
 python games.py                # per-game predictions -> games.npy
 python game_calibration.py     # single-game win odds: calibration and the fitted spread
@@ -18,11 +20,17 @@ Requires numpy (installed with pandas by `uv sync`).
 
 ## What they found
 
-- **Trade effect** (`trade_effect.py`): 94 trades, 1,485 team-weeks. Measured with the
-  projections known when the trade was made, about 70% of the projected lineup change
-  showed up the next week, about 45% two to three weeks out and about 25% after that
-  (traded players got hurt, benched, dropped or traded again; received players started
-  in 56% of the weeks after). The Trades tab uses those shares.
+- **Trade effect** (`trade_season.py`): for 84 trades (169 trading teams) from the week
+  each counted from, giving the trade's projected lineup change the playoff model's own
+  75% weight predicted the rest of the season best: playoff Brier 0.1396 vs 0.1447 with
+  less credit (70% next week fading to 25%) and 0.1510 ignoring the trade; squared error
+  of rest-of-season wins 2.72 vs 2.80 and 2.93. The Trades tab uses 75%, which also keeps
+  it consistent: swapping two whole rosters turns each team into the other.
+  `trade_effect.py` and `star_effect.py` look at weekly scores instead. There, only part
+  of a small projected change shows up (most trades are near-even swaps, so their
+  projected change is mostly noise), while big changes (6+ pts/wk) show up much more
+  fully. Weekly scores are too noisy to set the weight from, and the season-level test
+  is what the tab shows.
 - **Single-game win odds** (`game_calibration.py`): more than a week out, the playoff
   model's per-game odds were overconfident. A spread of 0.9x the week-to-week spread
   next week and 2.2x after fit best out of sample (log loss 0.6578 vs 0.6858). Used for

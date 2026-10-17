@@ -22,3 +22,4 @@ scripts/backtests/cache/
 scripts/backtests/*.npy
 scripts/backtests/*.pkl
 scripts/backtests/rows.json
+scripts/backtests/trade_season.json

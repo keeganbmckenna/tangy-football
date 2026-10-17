@@ -69,7 +69,10 @@ function SideRow({
       <div className="flex min-w-0 items-start gap-3">
         <Avatar team={team} />
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[var(--foreground)]">{team?.teamName.trim() ?? `Team ${side.rosterId}`}</div>
+          <div className="truncate text-sm font-semibold text-[var(--foreground)]">
+            {team?.teamName.trim() ?? `Team ${side.rosterId}`}
+            {team?.username && <span className="ml-1.5 font-normal text-[var(--muted)]">{team.username}</span>}
+          </div>
           <div className="text-xs text-[var(--muted)]">Got {got.length ? got.join(', ') : 'nothing'}</div>
         </div>
       </div>

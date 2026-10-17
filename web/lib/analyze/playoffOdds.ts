@@ -317,6 +317,8 @@ export interface TeamOdds {
   champion: number | null;
   /** Chance of a toilet bowl bye: seed 1 or 2, the two worst teams (null if no toilet bowl) */
   toiletBye: number | null;
+  /** Average wins over the remaining regular-season games */
+  expectedWins: number;
 }
 
 export interface GameImpact {
@@ -386,6 +388,7 @@ export function simulatePlayoffOdds(
   const branchN = nextGames.map(() => [0, 0]);
   const bump = (m: Map<number, number>, id: number) => m.set(id, m.get(id)! + 1);
 
+  const winTotals = new Map(ids.map((id) => [id, 0]));
   for (let s = 0; s < sims; s++) {
     const sim = teams.map((t) => ({ ...t }));
     const byId = new Map(sim.map((t) => [t.rosterId, t]));
@@ -401,9 +404,11 @@ export function simulatePlayoffOdds(
       if (sa > sb) {
         a.wins++;
         b.losses++;
+        winTotals.set(g.a, winTotals.get(g.a)! + 1);
       } else {
         b.wins++;
         a.losses++;
+        winTotals.set(g.b, winTotals.get(g.b)! + 1);
       }
       if (g.week === nextWeek) nextWinners.push(sa > sb);
     }
@@ -493,6 +498,7 @@ export function simulatePlayoffOdds(
       lastPlace: simulateToilet ? lastPlace.get(id)! / sims : null,
       champion: simulateChampion ? champion.get(id)! / sims : null,
       toiletBye: simulateToilet ? toiletBye.get(id)! / sims : null,
+      expectedWins: winTotals.get(id)! / sims,
     };
   }
   return { teams: result, nextWeekGames, sims };

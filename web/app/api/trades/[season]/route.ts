@@ -7,7 +7,7 @@ import { buildTradeHistory } from '@/lib/tradeHistory';
 export const dynamic = 'force-dynamic';
 
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 /**
  * A season's completed trades, graded at the time (playoff-odds model re-run

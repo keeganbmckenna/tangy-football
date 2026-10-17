@@ -2,27 +2,25 @@
  * Trade analysis: what a trade does to both teams' weekly and season outlook,
  * and grades for past trades.
  *
- * Built on the playoff-odds model (playoffOdds.ts) with two measured
- * adjustments, both from backtests on every trade and game in 2022-2025
- * (scripts/backtests/):
+ * Built on the playoff-odds model (playoffOdds.ts), which gives each team 75%
+ * credit for its projected best lineup every week. A trade changes the rosters
+ * that projection is made from, so a team's expected score moves by 75% of its
+ * projected lineup change, exactly like any other roster: swap two whole teams
+ * and each simply becomes the other. Backtested on every 2022-2025 trade
+ * (scripts/backtests/trade_season.py), this predicted the trading teams' rest-
+ * of-season wins and playoff odds better than ignoring trades or than giving
+ * trades less credit than the rest of the roster.
  *
- * - A trade's projected lineup change only partly shows up in later scores:
- *   traded players get hurt, benched, dropped or traded again (players a team
- *   received started in only 56% of its weeks afterward). Measured with the
- *   projections known at the time, about 70% of the change showed up the next
- *   week, about 45% two to three weeks out and about 25% after that, so the
- *   trade moves a team's expected score by that share of its lineup change.
- *
- * - Single-game win odds more than a week out were overconfident (teams given
- *   70%+ won about 65%). The weekly win odds here use a spread fitted out of
- *   sample: 0.9x the league's week-to-week spread next week, 2.2x after. The
- *   season odds keep the playoff model's spread, which backtested as well
- *   calibrated (teams given 50-75% made the playoffs 61.6% of the time at an
- *   average of 61.5%).
+ * Single-game win odds more than a week out were overconfident (teams given
+ * 70%+ won about 65%), so the weekly win odds use a spread fitted out of
+ * sample: 0.9x the league's week-to-week spread next week, 2.2x after. The
+ * season odds keep the playoff model's spread, which backtested as well
+ * calibrated.
  */
 
 import {
   bestLineup,
+  PROJECTION_WEIGHT,
   simulatePlayoffOdds,
   type OddsResult,
   type OddsTeam,
@@ -141,16 +139,9 @@ export function rosterAfterTrade(inputs: TradeInputs, move: TradeMove, unavailab
 // ---------------------------------------------------------------------------
 // Trade effect
 
-/** Share of a trade's projected lineup change expected to show up, by weeks ahead */
-export function tradeEffectWeight(weeksAhead: number): number {
-  if (weeksAhead <= 1) return 0.7;
-  if (weeksAhead <= 3) return 0.45;
-  return 0.25;
-}
-
 /**
  * Expected scores after a trade: each changed team's expected score moves by
- * the share of its projected lineup change expected to show up that week.
+ * the playoff model's projection weight times its projected lineup change.
  */
 export function meansAfterTrade(
   meanByWeek: Record<number, Record<number, number>>,
@@ -168,7 +159,7 @@ export function meansAfterTrade(
       const delta = now[w] - was[w];
       lineupDelta[c.rosterId][w] = delta;
       if (after[w]?.[c.rosterId] !== undefined) {
-        after[w][c.rosterId] += tradeEffectWeight(w - inputs.lastScoredWeek) * delta;
+        after[w][c.rosterId] += PROJECTION_WEIGHT * delta;
       }
     }
   }

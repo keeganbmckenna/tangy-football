@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  lineupByWeek,
   meansAfterTrade,
   normalCdf,
   parseTrades,
   rosterAfterTrade,
   starterPoints,
-  tradeEffectWeight,
   tradeSeasonOdds,
   weeklyOutlook,
   weeklyWinProbability,
@@ -81,14 +81,7 @@ describe('rosterAfterTrade', () => {
 });
 
 describe('trade effect', () => {
-  it('fades with how far ahead the week is', () => {
-    expect(tradeEffectWeight(1)).toBe(0.7);
-    expect(tradeEffectWeight(2)).toBe(0.45);
-    expect(tradeEffectWeight(3)).toBe(0.45);
-    expect(tradeEffectWeight(9)).toBe(0.25);
-  });
-
-  it("moves each team's expected score by that share of its lineup change", () => {
+  it("moves each team's expected score by the model's projection weight times its lineup change", () => {
     const inp = inputs();
     const before = { 7: { 1: 100, 2: 100 }, 8: { 1: 100, 2: 100 } };
     const changes = [
@@ -98,12 +91,29 @@ describe('trade effect', () => {
     const { meanByWeek, lineupDelta } = meansAfterTrade(before, inp, changes);
     // Team 1: wr4 (16) starts at WR and wr1 (14) moves to FLEX over rb2 (10): 59 -> 65
     expect(lineupDelta[1][7]).toBe(6);
-    expect(meanByWeek[7][1]).toBeCloseTo(100 + 0.7 * 6);
-    expect(meanByWeek[8][1]).toBeCloseTo(100 + 0.45 * 6);
+    expect(meanByWeek[7][1]).toBeCloseTo(100 + 0.75 * 6);
+    expect(meanByWeek[8][1]).toBeCloseTo(100 + 0.75 * 6);
     // Team 2 loses its best WR: wr5 (9) moves up, rb4 (5) leaves the FLEX for wr2 (8)
     expect(lineupDelta[2][7]).toBe(-8);
     // The input isn't changed
     expect(before[7][1]).toBe(100);
+  });
+
+  it('turns each team into the other when they swap whole rosters', () => {
+    const inp = inputs();
+    // Team strength as the playoff model builds it: 75% projection, 25% form
+    const lineup = (r: number) => lineupByWeek(inp, inp.rosters[r])[7];
+    const form = { 1: 90, 2: 110 };
+    const strength = (proj: number, f: number) => 0.75 * proj + 0.25 * f;
+    const before = { 7: { 1: strength(lineup(1), form[1]), 2: strength(lineup(2), form[2]) } };
+    const changes = [
+      rosterAfterTrade(inp, { rosterId: 1, sends: inp.rosters[1], receives: inp.rosters[2] }),
+      rosterAfterTrade(inp, { rosterId: 2, sends: inp.rosters[2], receives: inp.rosters[1] }),
+    ];
+    const { meanByWeek } = meansAfterTrade(before, { ...inp, weeks: [7] }, changes);
+    // Team 1 now has team 2's projection; only its own season form stays
+    expect(meanByWeek[7][1]).toBeCloseTo(strength(lineup(2), form[1]));
+    expect(meanByWeek[7][2]).toBeCloseTo(strength(lineup(1), form[2]));
   });
 
   it('leaves everything unchanged for an empty trade', () => {

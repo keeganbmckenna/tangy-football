@@ -140,7 +140,7 @@ function RosterPicker({
       <div className="flex items-center gap-2 border-b border-[var(--border)] p-3">
         <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: COLOR[side] }} aria-hidden />
         <label className="sr-only" htmlFor={`trade-team-${side}`}>
-          {side === 'a' ? 'First team' : 'Second team'}
+          {side === 'a' ? 'First manager' : 'Second manager'}
         </label>
         <select
           id={`trade-team-${side}`}
@@ -148,19 +148,19 @@ function RosterPicker({
           onChange={(e) => onTeam(e.target.value ? Number(e.target.value) : null)}
           className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 text-sm text-[var(--foreground)]"
         >
-          <option value="">Choose a team</option>
+          <option value="">Choose a manager</option>
           {teamStats
             .filter((t) => t.rosterId !== otherTeam)
-            .sort((x, y) => x.teamName.localeCompare(y.teamName))
+            .sort((x, y) => x.username.localeCompare(y.username, undefined, { sensitivity: 'base' }))
             .map((t) => (
               <option key={t.rosterId} value={t.rosterId}>
-                {t.teamName}
+                {t.username}
               </option>
             ))}
         </select>
       </div>
       {rosterId === null ? (
-        <p className="p-4 text-sm text-[var(--muted)]">Pick a team to see its roster.</p>
+        <p className="p-4 text-sm text-[var(--muted)]">Pick a manager to see their roster.</p>
       ) : (
         <ul className="divide-y divide-[var(--border)]">
           {sorted.map((p) => {
@@ -340,7 +340,8 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
   const [tradeOdds, setTradeOdds] = useState<{ key: string; odds: OddsResult } | null>(null);
   const simulate = useOddsSimulator();
 
-  const name = (id: number | null) => teamStats.find((t) => t.rosterId === id)?.teamName.trim() ?? (id === null ? '' : `Team ${id}`);
+  // Managers' names: they're how people know each other in the league
+  const name = (id: number | null) => teamStats.find((t) => t.rosterId === id)?.username.trim() ?? (id === null ? '' : `Team ${id}`);
   const { inputs } = data;
   const rosterPlayers = (id: number | null) =>
     id === null ? [] : (inputs.rosters[id] ?? []).map((p) => data.players[p]).filter((p): p is TradePlayerInfo => !!p);
@@ -436,8 +437,6 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trade, teamStats]);
 
-  const expectedWins = (list: { winProbability: number }[]) => list.reduce((s, o) => s + o.winProbability, 0);
-
   const seasonRows: SeasonRow[] = [
     { label: 'Make the playoffs', get: (t) => t.playoffs },
     ...(hasDivisions ? [{ label: 'Win the division', get: (t: TeamOdds) => t.division }] : []),
@@ -492,7 +491,7 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
   return (
     <SectionCard
       title="Trade Analyzer"
-      subtitle={`Pick two teams and the players moving. Trades are allowed through week ${data.tradeDeadline || data.regularSeasonEnd}.`}
+      subtitle={`Pick two managers and the players moving. Trades are allowed through week ${data.tradeDeadline || data.regularSeasonEnd}.`}
       gradientType="primary"
     >
       <div className="space-y-6 p-4 sm:p-6">
@@ -531,8 +530,8 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
         {!trade ? (
           <p className="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
             {teamA === null || teamB === null
-              ? 'Choose both teams, then tap the players each one sends.'
-              : 'Tap the players each team sends.'}
+              ? 'Choose both managers, then tap the players each one sends.'
+              : 'Tap the players each manager sends.'}
           </p>
         ) : (
           <>
@@ -556,7 +555,8 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
             <div>
               <h3 className="text-lg font-semibold text-[var(--foreground)]">Win odds each week</h3>
               <p className="mb-3 text-sm text-[var(--muted)]">
-                Each team&apos;s chance to win its game, without the trade (dashed) and with it (solid).
+                Each team&apos;s chance to win its game, without the trade (dashed) and with it (solid). Games more than a
+                week away are deliberately cautious: single games that far out have been hard to call.
               </p>
               <WinOddsChart rows={chartRows} nameA={nameA} nameB={nameB} />
             </div>
@@ -578,12 +578,19 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
                   <tbody className="divide-y divide-[var(--border)]">
                     <tr>
                       <td className="px-3 py-2 text-[var(--foreground)]">Rest of season (expected wins)</td>
-                      {(['a', 'b'] as const).map((side) => {
-                        const b = expectedWins(trade.outlook[`${side}Before`]);
-                        const a = expectedWins(trade.outlook[`${side}After`]);
+                      {[teamA!, teamB!].map((id) => {
+                        const b = baseOdds?.teams[id]?.expectedWins;
+                        const a = afterOdds?.teams[id]?.expectedWins;
+                        if (b === undefined || a === undefined) {
+                          return (
+                            <td key={id} className="px-3 py-2">
+                              <span className="text-xs text-[var(--muted)]">Simulating…</span>
+                            </td>
+                          );
+                        }
                         const d = a - b;
                         return (
-                          <td key={side} className="px-3 py-2">
+                          <td key={id} className="px-3 py-2">
                             <span className="whitespace-nowrap">
                               <span className="text-[var(--muted)]">{b.toFixed(1)}</span>
                               <span className="mx-1 text-[var(--muted)]">→</span>
@@ -647,7 +654,7 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
                       </span>
                       )
                     </p>
-                    <p className="text-xs text-[var(--muted)]">If nothing else changes. The odds above count only part of this (70% next week, fading to 25%), which is how much of a trade&apos;s projected change has historically shown up.</p>
+                    <p className="text-xs text-[var(--muted)]">If nothing else changes. The odds count 75% of this, the same weight the playoff model gives every team&apos;s projected lineup.</p>
                     {(s.in.length > 0 || s.out.length > 0) && (
                       <p className="mt-2 text-[var(--foreground)]">
                         Week {firstWeek} lineup:{' '}
@@ -719,9 +726,10 @@ export default function TradeAnalyzer({ data, teamStats }: TradeAnalyzerProps) {
                   random draws, so differences come from the trade, not simulation noise.
                 </p>
                 <p>
-                  A trade moves a team&apos;s expected score by part of its projected lineup change: 70% next week, 45% two to three
-                  weeks out and 25% after that. That&apos;s how much showed up on average across this league&apos;s 94 trades in
-                  2022-2025, since traded players get hurt, benched, dropped or traded again.
+                  A trade changes the rosters those projections come from, so each team&apos;s expected score moves by 75% of its
+                  projected lineup change, the same as any other roster: swap two whole teams and each becomes the other. Across
+                  this league&apos;s 2022-2025 trades, that predicted the trading teams&apos; rest-of-season wins and playoff odds
+                  better than giving trades less credit.
                 </p>
                 <p>
                   Weekly win odds use a wider spread for games more than a week away (2.2× the week-to-week spread, 0.9× next
