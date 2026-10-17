@@ -48,7 +48,7 @@ function league(values: Partial<Record<string, number | null>> = {}): TradeDataR
     inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: [], rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
     players: Object.fromEntries(Object.entries(PLAYERS).map(([id, [pos, pts, value]]) => [
       id,
-      { id, name: id, position: pos, team: null, injury: null, expectedPerWeek: pts, seasonPerGame: null, value: id in values ? values[id]! : value },
+      { id, name: id, position: pos, team: null, injury: null, expectedPerWeek: pts, seasonPerGame: null, value: id in values ? values[id]! : value, byeWeek: null },
     ])),
     marketValues: true,
     generatedAt: '',

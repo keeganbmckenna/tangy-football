@@ -186,6 +186,24 @@ export function weeklyWinProbability(mean: number, oppMean: number, spread: numb
   return normalCdf((mean - oppMean) / (winOddsSpreadScale(weeksAhead) * spread * Math.SQRT2));
 }
 
+/**
+ * Expected wins over a team's remaining games: the sum of its single-game win
+ * odds at the playoff model's spread (what the season simulation averages to).
+ */
+export function expectedWins(
+  rosterId: number,
+  remaining: RemainingGame[],
+  meanByWeek: Record<number, Record<number, number>>,
+  spread: number
+): number {
+  return remaining
+    .filter((g) => g.a === rosterId || g.b === rosterId)
+    .reduce((s, g) => {
+      const opp = g.a === rosterId ? g.b : g.a;
+      return s + normalCdf(((meanByWeek[g.week]?.[rosterId] ?? 0) - (meanByWeek[g.week]?.[opp] ?? 0)) / (spread * Math.SQRT2));
+    }, 0);
+}
+
 export interface WeekOutlook {
   week: number;
   opponent: number;
@@ -323,6 +341,8 @@ export interface TradePlayerInfo {
   seasonPerGame: number | null;
   /** FantasyCalc redraft value (null if FantasyCalc doesn't value the player) */
   value: number | null;
+  /** His NFL team's bye week if it's still to come in the regular season */
+  byeWeek: number | null;
 }
 
 /** /api/trade-data: everything the analyzer needs, evaluated in the browser */

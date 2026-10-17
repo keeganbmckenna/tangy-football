@@ -24,8 +24,8 @@
 
 import { bestLineup, simulatePlayoffOdds, type OddsResult } from './playoffOdds';
 import {
+  expectedWins as expectedWinsFor,
   meansAfterTrade,
-  normalCdf,
   rosterAfterTrade,
   type TradeDataResponse,
 } from './trade';
@@ -195,14 +195,8 @@ export function findTrades(
       return true;
     })
     .slice(0, SHORTLIST);
-  const sd = data.spread * Math.SQRT2;
   const expectedWins = (id: number, means: Record<number, Record<number, number>>) =>
-    data.remaining
-      .filter((g) => g.a === id || g.b === id)
-      .reduce((s, g) => {
-        const opp = g.a === id ? g.b : g.a;
-        return s + normalCdf(((means[g.week]?.[id] ?? 0) - (means[g.week]?.[opp] ?? 0)) / sd);
-      }, 0);
+    expectedWinsFor(id, data.remaining, means, data.spread);
   const avgLineup = (players: string[]) => {
     const byWeek = regular.map((w) => {
       const week = Object.fromEntries(

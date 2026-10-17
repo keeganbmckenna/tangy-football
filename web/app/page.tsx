@@ -18,6 +18,7 @@ import WeeklyPlayAll from '@/components/WeeklyPlayAll';
 import DraftBoard from '@/components/DraftBoard';
 import LiveTab from '@/components/LiveTab';
 import TradesTab from '@/components/TradesTab';
+import HistoryTab from '@/components/HistoryTab';
 import PlayoffPicture from '@/components/PlayoffPicture';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -177,7 +178,8 @@ export default function Home() {
     { id: 'trends', name: 'Season Trends', icon: '📉' },
     { id: 'advanced', name: 'Advanced Stats', icon: '🔬' },
     { id: 'draft', name: 'Draft', icon: '📋' },
-    { id: 'trades', name: 'Trades', icon: '🔄' },
+    { id: 'trades', name: 'Trades & Waivers', icon: '🔄' },
+    { id: 'history', name: 'History', icon: '🏛️' },
   ].filter((tab) => tab.id !== 'live' || isCurrentSeason);
 
   const seasonOptions = availableSeasons.length
@@ -443,6 +445,15 @@ export default function Home() {
               </section>
             </ErrorBoundary>
           </>
+        )}
+
+        {/* History Tab: every season, whichever one is selected */}
+        {activeTab === 'history' && (
+          <ErrorBoundary>
+            <section>
+              <HistoryTab />
+            </section>
+          </ErrorBoundary>
         )}
 
         {/* Trades Tab */}

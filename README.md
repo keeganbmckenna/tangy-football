@@ -50,7 +50,7 @@ Hovering a team on these charts highlights it.
 
 Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`. The season in progress is built live from Sleeper, falling back to its JSON file if that fails.
 
-### Trades
+### Trades & Waivers
 - 🔄 **Trade Analyzer** (current season, until the trade deadline) - Pick two managers and the players each sends. Shows:
   - **Win odds each week** - a line chart of each team's chance to win each remaining game, without the trade (dashed) and with it (solid); hover for the opponent.
   - **Season outlook** - expected wins for the rest of the regular season, and playoff, division, playoff bye, title, toilet bowl bye and losing-the-toilet-bowl odds, before → after for both teams, from 20,000 simulated seasons run on the same random draws with and without the trade.
@@ -60,11 +60,22 @@ Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`.
 
   Players bring their projections and their season production with them, since team strength comes only from the current roster; two teams that swap whole rosters swap strengths (records already banked stay put). On the league's 2022-2025 trades this predicted the trading teams' playoff odds better than ignoring trades, giving trades less credit, or keeping season scoring with the team. Weekly win odds use a wider spread for games more than a week out, fitted on the same seasons. See `scripts/backtests/`.
 - 🔎 **Trade Finder** (current season, until the trade deadline) - Pick your team and click **Find trades**. It tries 1-for-1, 1-for-2, 2-for-1, 2-for-2, 3-for-1, 1-for-3, 3-for-2 and 2-for-3 trades with every other manager, using each roster's 10 most valuable players (**Search deeper** uses every player; kickers, defenses and IR players stay put). Trades are screened on both teams' best lineups, the best few hundred re-scored week by week with the roster moves they force, and the top 20 simulated with the playoff model. It keeps trades that raise your playoff and title odds without hurting the other manager (their lineup, playoff and title odds don't drop and their odds of losing the toilet bowl don't rise), and shows up to 8, at most 2 per manager, each with an **Open in analyzer** button. The market filter (on by default) hides trades where the other manager gets back less than 85% of the FantasyCalc value they give, with a premium for the best player in the deal. Runs in the background; a few seconds for a quick search.
+- 🧲 **Waiver Finder** (current season, while the regular season is in progress) - Pick your team and what to optimize for: **Rest of season**, or a single remaining week (each listed with your opponent and which of your starters are on bye). It checks the 15 best free agents at every position, kickers and defenses included; each pickup drops the player whose loss hurts your rest-of-season lineup least (IR players stay). Rest of season ranks pickups by how much they raise your playoff and title odds; a week ranks them by your win odds that week and still shows the season effect. The best dozen are simulated (5,000 seasons, same draws as without the move); up to 8 are shown, at most 3 per position. FAAB and waiver priority aren't modeled.
 - 📜 **Trade History** (every season) - Each completed trade with what each team got, graded two ways:
   - **At the time:** playoff, title and losing-the-toilet-bowl odds without and with the trade, re-run the week it counted from with that week's records, rosters and projections (5,000 seasons each), plus the raw projected lineup change.
   - **Hindsight:** points the players each team got scored in its starting lineup afterward, and where the team finished.
 
   Trades that went through after a week's games count from the next week. Completed seasons are pre-built JSON in `web/public/data/trades/`; the season in progress is built live.
+
+### History
+Every season the league has played, whichever season is selected. Managers are tracked by their Sleeper account, so a roster changing hands doesn't mix two managers' records.
+- 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser, with that season's team names and photos.
+- 📋 **All-Time Standings** - Per manager: seasons, regular-season record and win % (ties count as half), points per game, playoff appearances, finals, titles, toilet bowl losses and best finish (1st-6th from the playoff bracket).
+- ⚔️ **Head to Head** - Every manager's all-time record against every other, colored by win %; tap a cell for every meeting.
+- 🔥 **Rivalries** - Most-played, most lopsided and closest series (4+ games for the last two).
+- 📖 **Record Book** - Highest and lowest scores, biggest blowouts, closest games, highest combined scores, most points in a loss, fewest in a win, and best, worst, highest- and lowest-scoring seasons.
+
+Head-to-head records, rivalries and the record book count regular-season and playoff games; placement (3rd/5th place), consolation and toilet bowl games are left out.
 
 ### UI
 - 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage.
@@ -83,6 +94,7 @@ Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`.
 │   │   │   ├── playoff-odds/     # Playoff picture, simulated odds and scenarios
 │   │   │   ├── trade-data/       # Rosters, projections and market values for the trade analyzer
 │   │   │   ├── trades/[season]/  # Graded trade history for a season
+│   │   │   ├── history/          # Every season's games and postseason results (History tab)
 │   │   │   └── draft/[season]/   # Draft data for the season in progress
 │   │   ├── page.tsx              # Main page and tabs
 │   │   ├── layout.tsx            # Layout and theme bootstrap
@@ -91,12 +103,13 @@ Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`.
 │   │   └── ui/                   # Shared pieces (cards, theme toggle, loading, error boundary)
 │   ├── hooks/                    # Theme, chart hover and team color hooks
 │   ├── lib/
-│   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft, trades, trade finder
+│   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft, trades, trade and waiver finders, history
 │   │   ├── __tests__/            # Vitest tests
 │   │   ├── config.ts             # League ID and cache durations
 │   │   ├── sleeper.ts            # Shared Sleeper fetch helpers
 │   │   ├── oddsData.ts           # Playoff-odds inputs shared by the odds and trade routes
 │   │   ├── tradeHistory.ts       # Builds a season's graded trade history
+│   │   ├── historyData.ts        # Builds the all-seasons history
 │   │   ├── leagueSettings.ts
 │   │   ├── constants.ts
 │   │   ├── theme.ts
@@ -178,6 +191,7 @@ Sleeper data is fetched by the app's server routes and cached. Durations are set
 | Trade analyzer rosters and projections | 10 minutes, rebuilt as soon as a new week is scored |
 | FantasyCalc values | 6 hours |
 | Trade history for the season in progress | 1 hour, rebuilt as soon as a new week is scored |
+| League history (all seasons) | 5 minutes, rebuilt as soon as a new week is scored; completed seasons' Sleeper data 1 day |
 | League avatar favicon | 1 hour |
 
 ## Deployment

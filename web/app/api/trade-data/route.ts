@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague } from '@/lib/types';
-import { fetchJson, loadOddsInputs } from '@/lib/oddsData';
+import { fetchJson, loadOddsInputs, teamsPlaying } from '@/lib/oddsData';
 import type { TradeDataResponse, TradeInputs, TradePlayerInfo } from '@/lib/analyze/trade';
 
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current';
 /** Free agents per position offered as pickups for roster spots a trade opens */
-const FREE_AGENTS_PER_POSITION = 8;
+const FREE_AGENTS_PER_POSITION = 15;
 
 /**
  * FantasyCalc redraft values for the league's format, keyed by Sleeper player ID.
@@ -46,7 +46,7 @@ async function marketValues(league: SleeperLeague): Promise<Record<string, numbe
 }
 
 async function build(league: SleeperLeague): Promise<TradeDataResponse> {
-  const [odds, values] = await Promise.all([loadOddsInputs(league), marketValues(league)]);
+  const [odds, values, schedule] = await Promise.all([loadOddsInputs(league), marketValues(league), teamsPlaying(league.season)]);
   const settings = league.settings ?? {};
   const currentWeek = settings.leg ?? 0;
   const tradeDeadline = settings.trade_deadline ?? 0;
@@ -73,6 +73,12 @@ async function build(league: SleeperLeague): Promise<TradeDataResponse> {
     freeAgents.push(...pool.map((p) => p.id));
   }
 
+  // Each NFL team's bye among the remaining regular-season weeks
+  const byeWeek = (team: string | null) => {
+    if (!team || !schedule) return null;
+    return regularWeeks.find((w) => schedule[w] && !schedule[w].has(team)) ?? null;
+  };
+
   const wanted = [...rostered, ...freeAgents];
   const projections: TradeInputs['projections'] = {};
   const positions: TradeInputs['positions'] = {};
@@ -94,6 +100,7 @@ async function build(league: SleeperLeague): Promise<TradeDataResponse> {
       expectedPerWeek: regularWeeks.length ? Math.round((total(id) / regularWeeks.length) * 10) / 10 : 0,
       seasonPerGame: games ? Math.round(((odds.production.points[id] ?? 0) / games) * 10) / 10 : null,
       value: values?.[id] ?? null,
+      byeWeek: byeWeek(info.position === 'DEF' ? id : info.team),
     };
   }
 

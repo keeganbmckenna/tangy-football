@@ -7,6 +7,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import TradeAnalyzer, { type TradePreset } from '@/components/TradeAnalyzer';
 import TradeFinder from '@/components/TradeFinder';
 import TradeHistory from '@/components/TradeHistory';
+import WaiverFinder from '@/components/WaiverFinder';
 import type { TradeDataResponse } from '@/lib/analyze/trade';
 import type { TeamStats } from '@/lib/types';
 
@@ -17,8 +18,9 @@ interface TradesTabProps {
 }
 
 /**
- * Trades tab: the analyzer and trade finder while the current season's trades
- * are still open, and every season's trade history.
+ * Trades & Waivers tab: the analyzer and trade finder while the current
+ * season's trades are still open, the waiver finder while the regular season
+ * is in progress, and every season's trade history.
  */
 export default function TradesTab({ season, isCurrentSeason, teamStats }: TradesTabProps) {
   const [data, setData] = useState<TradeDataResponse | null>(null);
@@ -81,6 +83,13 @@ export default function TradesTab({ season, isCurrentSeason, teamStats }: Trades
                 setPreset((p) => ({ key: (p?.key ?? 0) + 1, trade: { teamA: me, teamB: t.partner, sendA: t.gives, sendB: t.gets } }))
               }
             />
+          </section>
+        </ErrorBoundary>
+      )}
+      {isCurrentSeason && data && data.inputs.freeAgents.length > 0 && data.remaining.length > 0 && (
+        <ErrorBoundary>
+          <section>
+            <WaiverFinder data={data} teamStats={teamStats} />
           </section>
         </ErrorBoundary>
       )}
