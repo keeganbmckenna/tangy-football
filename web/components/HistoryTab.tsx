@@ -25,6 +25,9 @@ import {
 
 const MIN_SERIES = 4;
 
+// Whether records count playoff and toilet bowl games, for this visit
+let rememberedPostseason = true;
+
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
@@ -60,6 +63,11 @@ export default function HistoryTab() {
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<[string, string] | null>(null);
   const standingsSort = useTableSort('allTimeStandings');
+  const [postseason, setPostseasonState] = useState(() => rememberedPostseason);
+  const setPostseason = (on: boolean) => {
+    rememberedPostseason = on;
+    setPostseasonState(on);
+  };
   const me = useMyTeam();
 
   useEffect(() => {
@@ -78,9 +86,10 @@ export default function HistoryTab() {
 
   const derived = useMemo(() => {
     if (!data) return null;
-    const standings = allTimeStandings(data);
-    return { standings, h2h: headToHead(data), rivals: rivalries(data), records: recordBook(data) };
-  }, [data]);
+    const opts = { postseason };
+    const standings = allTimeStandings(data, opts);
+    return { standings, h2h: headToHead(data, opts), rivals: rivalries(data, opts), records: recordBook(data) };
+  }, [data, postseason]);
 
   if (error) {
     return (
@@ -256,7 +265,39 @@ export default function HistoryTab() {
         </div>
       </SectionCard>
 
-      <SectionCard title="All-Time Standings" subtitle="Regular-season records plus postseason results, by manager" gradientType="primary">
+      <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="font-medium text-[var(--foreground)]">Games counted in all-time records, head to head and rivalries</div>
+          <div className="text-xs text-[var(--muted)]">
+            3rd-place, 5th-place and other placement games, and consolation games outside both brackets, never count. Titles,
+            finals and toilet bowl losses don&apos;t change.
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1" role="group" aria-label="Games counted">
+          {[
+            { on: true, label: 'With playoffs & toilet bowl' },
+            { on: false, label: 'Regular season only' },
+          ].map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              onClick={() => setPostseason(o.on)}
+              aria-pressed={postseason === o.on}
+              className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                postseason === o.on ? 'bg-[var(--info-bg)] text-[var(--info-text)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <SectionCard
+        title="All-Time Standings"
+        subtitle={postseason ? 'Records with playoff and toilet bowl games, plus postseason results, by manager' : 'Regular-season records plus postseason results, by manager'}
+        gradientType="primary"
+      >
         <SortStatus sort={standingsSort} />
         {/* Scrolls inside a window-height box so the header row stays in view */}
         <div className="max-h-[75vh] overflow-auto">
@@ -303,15 +344,16 @@ export default function HistoryTab() {
           </table>
         </div>
         <p className="px-4 py-3 text-xs text-[var(--muted)]">
-          Records are regular season only and go back to 2017; ties count as half a win. Points per game, playoff appearances
-          and toilet bowl losses start in 2022 (earlier seasons only kept standings and the top three). Best finish is the
+          Records count {postseason ? 'regular season, playoff and toilet bowl games' : 'regular-season games only'} and go back to 2017 (before 2022 only regular-season records were kept);
+          ties count as half a win. Points per game cover the same games and, like playoff appearances and toilet bowl losses,
+          start in 2022 (earlier seasons only kept standings and the top three). Best finish is the
           final place (1st–6th from Sleeper brackets, 1st–3rd before).
         </p>
       </SectionCard>
 
       <SectionCard
         title="Head to Head"
-        subtitle="Each row's all-time record against each column, regular season and playoffs (not placement or toilet bowl games). Tap a cell for every meeting."
+        subtitle={`Each row's all-time record against each column, ${postseason ? 'regular season, playoffs and toilet bowl' : 'regular season only'} (never placement games). Tap a cell for every meeting.`}
         gradientType="secondary"
       >
         <div className="overflow-x-auto p-4 sm:p-6">
@@ -379,7 +421,11 @@ export default function HistoryTab() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Rivalries" subtitle={`Series of ${MIN_SERIES}+ games for lopsided and closest`} gradientType="accent">
+      <SectionCard
+        title="Rivalries"
+        subtitle={`${postseason ? 'Regular season, playoffs and toilet bowl' : 'Regular season only'}; series of ${MIN_SERIES}+ games for lopsided and closest`}
+        gradientType="accent"
+      >
         <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-3">
           {rivalList('Most played', mostPlayed)}
           {rivalList('Most lopsided', lopsided)}

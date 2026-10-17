@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import RetryButton from '@/components/ui/RetryButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -55,6 +55,9 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
 // The season filter for this visit, so leaving the History tab and coming back keeps it
 let rememberedFilter = 'all';
 
+// Trades listed before "Show all", so the list doesn't bury the sections below it
+const COLLAPSED_TRADES = 5;
+
 /** Completed seasons are pre-built; the season in progress is built live */
 async function loadSeason(season: string, complete: boolean) {
   if (complete) {
@@ -78,6 +81,8 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
     setFilterState(f);
   };
   const sort = useTableSort('traders');
+  const [showAll, setShowAll] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const me = useMyTeam();
 
   const sleeperSeasons = useMemo(() => history.seasons.filter((s) => !s.legacy), [history]);
@@ -326,7 +331,10 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
               {sideList('Best hauls in hindsight', stats.bestHauls, (s) => `${s.side.hindsight.points.toFixed(1)} pts`)}
             </div>
 
-            <div>
+            <div ref={listRef} className="scroll-mt-48">
+              <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">
+                {showAll || trades.length <= COLLAPSED_TRADES ? `Every trade (${trades.length})` : `Latest ${COLLAPSED_TRADES} of ${trades.length} trades`}
+              </h4>
               <div className="mb-2 hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] md:grid">
                 <span>Manager</span>
                 <span>At the time</span>
@@ -334,7 +342,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                 <span>Finished</span>
               </div>
               <div className="space-y-4">
-                {trades.map(({ season, trade: t }) => (
+                {(showAll ? trades : trades.slice(0, COLLAPSED_TRADES)).map(({ season, trade: t }) => (
                   <div key={`${season}-${t.id}`} className="rounded-lg border border-[var(--border)] px-4">
                     <div className="border-b border-[var(--border)] py-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                       {season} · Week {t.week}
@@ -346,6 +354,19 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                   </div>
                 ))}
               </div>
+              {trades.length > COLLAPSED_TRADES && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Collapsing from the bottom of a long list: go back to its top
+                    if (showAll) listRef.current?.scrollIntoView({ block: 'start' });
+                    setShowAll(!showAll);
+                  }}
+                  className="mt-4 w-full rounded-lg border border-[var(--border)] py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--hover)]"
+                >
+                  {showAll ? 'Show fewer' : `Show all ${trades.length} trades`}
+                </button>
+              )}
             </div>
           </>
         )}

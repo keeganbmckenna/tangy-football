@@ -68,10 +68,10 @@ Every season the league has played, whichever season is selected. Managers are t
 
 The seasons before Sleeper (2017-2021, a 10-team league) come from the old platform's final standings, kept in `web/lib/data/legacyHistory.ts`: team names, records, standings order and the top three. They count toward records, titles, finals and best finishes, and appear in the season dropdown with just an Overview of that final table. Head to head, points, playoff appearances, toilet bowls and game records start in 2022.
 - 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser (💩), with that season's team names and photos; third place before Sleeper.
-- 📋 **All-Time Standings** - Per manager: seasons, regular-season record and win % (ties count as half), points per game, playoff appearances, finals, titles, toilet bowl losses and best finish (1st-6th from the playoff bracket).
+- 📋 **All-Time Standings** - Per manager: seasons, record and win % (ties count as half), points per game, playoff appearances, finals, titles, toilet bowl losses and best finish (1st-6th from the playoff bracket).
 - ⚔️ **Head to Head** - Every manager's all-time record against every other, colored by win %; tap a cell for every meeting.
 - 🔥 **Rivalries** - Most-played, most lopsided and closest series (4+ games for the last two).
-- 🔁 **Trades** - Every trade since the league moved to Sleeper, newest first, with a season filter (All seasons, or one season):
+- 🔁 **Trades** - Every trade since the league moved to Sleeper, newest first (the latest 5, then **Show all**), with a season filter (All seasons, or one season):
   - **Traders** - per manager: trades made, favorite trade partner, the total change their trades made to their playoff and title odds at the time, and the starting-lineup points of the players they got.
   - **Biggest playoff odds gains and losses at the time**, and the **best hauls in hindsight** (most starting-lineup points from one trade).
   - **Every trade**, graded two ways:
@@ -81,7 +81,7 @@ The seasons before Sleeper (2017-2021, a 10-team league) come from the old platf
   Trades that went through after a week's games count from the next week. Completed seasons are pre-built JSON in `web/public/data/trades/`; the season in progress is built live.
 - 📖 **Record Book** - Highest and lowest scores, biggest blowouts, closest games, highest combined scores, most points in a loss, fewest in a win, and best, worst, highest- and lowest-scoring seasons.
 
-Head-to-head records, rivalries and the record book count regular-season and playoff games; placement (3rd/5th place), consolation and toilet bowl games are left out.
+All-time records, head to head and rivalries count regular-season games plus the playoff bracket's path to the title and the toilet bowl's path to its final; a switch above All-Time Standings changes them to the regular season only. Placement games (3rd, 5th and the like, in either bracket) and consolation games outside both brackets never count: teams often don't set lineups for them. Seasons before Sleeper only have regular-season records. The record book counts regular-season and playoff games.
 
 ### UI
 - 🔗 **Shareable links** - The tab and season are in the address bar (`?tab=history&season=2023`), so refresh, back/forward and shared links land on the same view. A tab that doesn't apply to the season (Live for a past season, say) falls back to Overview.

@@ -56,6 +56,8 @@ describe('brackets', () => {
   const losers: SleeperBracketMatchup[] = [
     { r: 1, m: 1, t1: 8, t2: 9, w: 9, l: 8 },
     { r: 2, m: 2, t1: 9, t2: 10, w: 10, l: 9, p: 1 },
+    // Escaped the toilet bowl, playing for a place
+    { r: 2, m: 3, t1: 8, t2: 7, w: 7, l: 8, p: 3 },
   ];
 
   it('reads the champion, runner-up and toilet bowl loser (who "won" the losers bracket final)', () => {
@@ -71,33 +73,53 @@ describe('brackets', () => {
     expect(postseasonKind(3, [1, 2], winners, losers)).toBe('playoff');
     expect(postseasonKind(3, [3, 4], winners, losers)).toBe('placement');
     expect(postseasonKind(2, [10, 9], winners, losers)).toBe('toilet');
+    // A placement game counts as one in either bracket
+    expect(postseasonKind(2, [8, 7], winners, losers)).toBe('placement');
     expect(postseasonKind(1, [6, 7], winners, losers)).toBe('consolation');
   });
 });
 
 describe('allTimeStandings', () => {
-  it('adds up regular seasons and postseason results by manager', () => {
+  it('adds up regular seasons, playoff and toilet bowl games and postseason results by manager', () => {
     const rows = allTimeStandings(data());
     const u1 = rows.find((r) => r.userId === 'u1')!;
-    expect(u1).toMatchObject({ seasons: 2, wins: 3, losses: 1, ties: 0, playoffs: 2, finals: 2, titles: 1, bestFinish: 1 });
-    expect(u1.pointsPerGame).toBeCloseTo((100 + 80 + 110 + 140) / 4);
+    // 3-1 in the regular season plus a playoff win
+    expect(u1).toMatchObject({ seasons: 2, wins: 4, losses: 1, ties: 0, playoffs: 2, finals: 2, titles: 1, bestFinish: 1 });
+    expect(u1.pointsPerGame).toBeCloseTo((100 + 80 + 110 + 140 + 130) / 5);
     const u3 = rows.find((r) => r.userId === 'u3')!;
+    // The toilet bowl loss counts; the placement game never does
+    expect(u3).toMatchObject({ wins: 1, losses: 2, ties: 1, toiletLosses: 1, bestFinish: null });
     // A tie counts as half a win
-    expect(u3).toMatchObject({ wins: 1, losses: 1, ties: 1, toiletLosses: 1, bestFinish: null });
-    expect(u3.winPct).toBeCloseTo(0.5);
+    expect(u3.winPct).toBeCloseTo(1.5 / 4);
     // Titles first
     expect(rows.slice(0, 2).map((r) => r.titles)).toEqual([1, 1]);
+  });
+
+  it('can count the regular season only', () => {
+    const rows = allTimeStandings(data(), { postseason: false });
+    const u1 = rows.find((r) => r.userId === 'u1')!;
+    expect(u1).toMatchObject({ wins: 3, losses: 1, titles: 1 });
+    expect(u1.pointsPerGame).toBeCloseTo((100 + 80 + 110 + 140) / 4);
+    expect(rows.find((r) => r.userId === 'u3')).toMatchObject({ wins: 1, losses: 1, ties: 1 });
   });
 });
 
 describe('headToHead and rivalries', () => {
-  it('counts regular season and playoffs from both sides', () => {
+  it('counts regular season, playoff and toilet bowl games from both sides', () => {
     const h = headToHead(data());
     expect(h.u1.u2).toMatchObject({ wins: 3, losses: 0 });
     expect(h.u2.u1).toMatchObject({ wins: 0, losses: 3 });
     expect(h.u1.u2.games).toHaveLength(3);
-    // The toilet bowl game isn't part of u3 v u4
+    // The toilet bowl game counts; the placement game doesn't
+    expect(h.u3.u4).toMatchObject({ wins: 0, losses: 1, ties: 1 });
+    expect(h.u4.u3).toMatchObject({ wins: 1, losses: 0, ties: 1 });
+  });
+
+  it('can count the regular season only', () => {
+    const h = headToHead(data(), { postseason: false });
+    expect(h.u1.u2).toMatchObject({ wins: 2, losses: 0 });
     expect(h.u3.u4).toMatchObject({ wins: 0, losses: 0, ties: 1 });
+    expect(rivalries(data(), { postseason: false }).find((x) => [x.a, x.b].sort().join() === 'u1,u2')).toMatchObject({ games: 2 });
   });
 
   it('lists each pair once, led by whoever leads the series', () => {
@@ -150,10 +172,11 @@ describe('seasons before Sleeper', () => {
   it('count toward records, titles and finishes but not points', () => {
     const rows = allTimeStandings(withLegacy());
     const u3 = rows.find((r) => r.userId === 'u3')!;
-    expect(u3).toMatchObject({ wins: 13, losses: 3, ties: 1, titles: 1, finals: 1, bestFinish: 1 });
+    // 12-2 before Sleeper, plus 1-2-1 since (the toilet bowl loss included)
+    expect(u3).toMatchObject({ wins: 13, losses: 4, ties: 1, titles: 1, finals: 1, bestFinish: 1 });
     // Points per game only from scored (Sleeper) games
-    expect(u3.scoredGames).toBe(3);
-    expect(u3.pointsPerGame).toBeCloseTo((120 + 60 + 95) / 3);
+    expect(u3.scoredGames).toBe(4);
+    expect(u3.pointsPerGame).toBeCloseTo((120 + 60 + 95 + 40) / 4);
     const vikram = rows.find((r) => r.userId === 'legacy:vikram')!;
     expect(vikram).toMatchObject({ seasons: 1, wins: 8, losses: 6, scoredGames: 0, pointsPerGame: 0, finals: 1 });
   });

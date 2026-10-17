@@ -4,10 +4,12 @@
  * their Sleeper account, so a roster slot changing hands between seasons
  * doesn't mix two managers' records.
  *
- * Head-to-head records, rivalries and game records count regular-season and
- * playoff games. Placement games (3rd and 5th place) are left out: teams often
- * don't set lineups for them (a 2022 5th-place game ended 12.70-3.00), and so
- * are consolation and toilet bowl games, where the lower score advances.
+ * All-time records, head to head and rivalries count the regular season, the
+ * playoff bracket's path to the title and the toilet bowl's path to its final
+ * (or, as an option, the regular season only). Placement games (3rd, 5th and
+ * the like, in either bracket) and consolation games outside both brackets
+ * never count: teams often don't set lineups for them (a 2022 5th-place game
+ * ended 12.70-3.00). The record book counts the regular season and playoffs.
  */
 
 import type { SleeperBracketMatchup } from '../types';
@@ -67,16 +69,26 @@ export interface HistoryData {
   generatedAt: string;
 }
 
-/** Games that count for head-to-head records, rivalries and game records */
+/** Games that count for the record book */
 export const countsForRecords = (g: HistoryGame) => g.kind === 'regular' || g.kind === 'playoff';
+
+export interface RecordOptions {
+  /** Count playoff and toilet bowl games, not just the regular season (default true) */
+  postseason?: boolean;
+}
+
+/** Games that count for all-time records, head to head and rivalries */
+export const countsForStandings = (g: HistoryGame, { postseason = true }: RecordOptions = {}) =>
+  g.kind === 'regular' || (postseason && (g.kind === 'playoff' || g.kind === 'toilet'));
 
 // ---------------------------------------------------------------------------
 // Postseason classification
 
 /**
  * What kind of game two rosters played in a postseason week: a winners
- * bracket game (placement if it decides a place other than 1st), a toilet
- * bowl (losers bracket) game, or a consolation game outside both brackets.
+ * bracket game, a toilet bowl (losers bracket) game, a placement game (one
+ * deciding a place other than the title or the toilet bowl, in either
+ * bracket), or a consolation game outside both brackets.
  */
 export function postseasonKind(
   round: number,
@@ -90,7 +102,8 @@ export function postseasonKind(
   };
   const w = winners?.find(has);
   if (w) return w.p && w.p !== 1 ? 'placement' : 'playoff';
-  if (losers?.some(has)) return 'toilet';
+  const l = losers?.find(has);
+  if (l) return l.p && l.p !== 1 ? 'placement' : 'toilet';
   return 'consolation';
 }
 
@@ -128,7 +141,7 @@ export interface AllTimeRow {
   losses: number;
   ties: number;
   winPct: number;
-  /** Regular-season games (all seasons) */
+  /** Games counted (all seasons) */
   games: number;
   /** Points and games with scores (Sleeper seasons) */
   pointsFor: number;
@@ -143,8 +156,8 @@ export interface AllTimeRow {
   bestFinish: number | null;
 }
 
-/** Regular-season records plus postseason results, one row per manager */
-export function allTimeStandings(data: HistoryData): AllTimeRow[] {
+/** Records (see countsForStandings) plus postseason results, one row per manager */
+export function allTimeStandings(data: HistoryData, opts: RecordOptions = {}): AllTimeRow[] {
   const rows = new Map<string, AllTimeRow>();
   const row = (id: string) => {
     let r = rows.get(id);
@@ -172,7 +185,7 @@ export function allTimeStandings(data: HistoryData): AllTimeRow[] {
     }
   }
   for (const g of data.games) {
-    if (g.kind !== 'regular') continue;
+    if (!countsForStandings(g, opts)) continue;
     for (const [me, pf, pa] of [[g.a, g.pa, g.pb], [g.b, g.pb, g.pa]] as const) {
       const r = row(me);
       r.games++;
@@ -202,8 +215,8 @@ export interface HeadToHead {
   games: HistoryGame[];
 }
 
-/** h2h[a][b]: a's record against b, regular season and playoffs */
-export function headToHead(data: HistoryData): Record<string, Record<string, HeadToHead>> {
+/** h2h[a][b]: a's record against b (see countsForStandings) */
+export function headToHead(data: HistoryData, opts: RecordOptions = {}): Record<string, Record<string, HeadToHead>> {
   const out: Record<string, Record<string, HeadToHead>> = {};
   const cell = (a: string, b: string) => {
     out[a] ??= {};
@@ -211,7 +224,7 @@ export function headToHead(data: HistoryData): Record<string, Record<string, Hea
     return out[a][b];
   };
   for (const g of data.games) {
-    if (!countsForRecords(g)) continue;
+    if (!countsForStandings(g, opts)) continue;
     for (const [me, them, pf, pa] of [[g.a, g.b, g.pa, g.pb], [g.b, g.a, g.pb, g.pa]] as const) {
       const c = cell(me, them);
       c.games.push(g);
@@ -238,8 +251,8 @@ export interface Rivalry {
 }
 
 /** Each pair of managers once, with the one who leads the series (more wins, then points) as a */
-export function rivalries(data: HistoryData): Rivalry[] {
-  const h2h = headToHead(data);
+export function rivalries(data: HistoryData, opts: RecordOptions = {}): Rivalry[] {
+  const h2h = headToHead(data, opts);
   const out: Rivalry[] = [];
   for (const [x, row] of Object.entries(h2h)) {
     for (const [y, c] of Object.entries(row)) {
