@@ -3,8 +3,12 @@
 :root {
   --background: #ffffff;
   --foreground: #111827;
-  --surface: #f9fafb;
-  --surface-elevated: #ffffff;
+  /* Cards are slightly see-through so the chalkboard shows faintly; --solid-* for what must stay opaque */
+  --surface: rgb(249 250 251 / 0.7);
+  --surface-elevated: rgb(255 255 255 / 0.8);
+  --solid-surface: #f9fafb;
+  --solid-elevated: #ffffff;
+  --chalk: rgb(15 23 42 / 0.09);
   --border: #e5e7eb;
   --muted: #6b7280;
   --accent: #2563eb;
@@ -46,8 +50,11 @@
   :root {
     --background: #000000;
     --foreground: #f4f4f5;
-    --surface: #070708;
-    --surface-elevated: #0a0a0b;
+    --surface: rgb(7 7 8 / 0.7);
+    --surface-elevated: rgb(10 10 11 / 0.8);
+    --solid-surface: #070708;
+    --solid-elevated: #0a0a0b;
+    --chalk: rgb(255 255 255 / 0.1);
     --border: rgba(255, 255, 255, 0.08);
     --muted: #8b8b94;
     --accent: #60a5fa;
@@ -89,8 +96,12 @@
 :root[data-theme='light'] {
   --background: #ffffff;
   --foreground: #111827;
-  --surface: #f9fafb;
-  --surface-elevated: #ffffff;
+  /* Cards are slightly see-through so the chalkboard shows faintly; --solid-* for what must stay opaque */
+  --surface: rgb(249 250 251 / 0.7);
+  --surface-elevated: rgb(255 255 255 / 0.8);
+  --solid-surface: #f9fafb;
+  --solid-elevated: #ffffff;
+  --chalk: rgb(15 23 42 / 0.09);
   --border: #e5e7eb;
   --muted: #6b7280;
   --accent: #2563eb;
@@ -131,8 +142,11 @@
 :root[data-theme='dark'] {
   --background: #000000;
   --foreground: #f4f4f5;
-  --surface: #070708;
-  --surface-elevated: #0a0a0b;
+  --surface: rgb(7 7 8 / 0.7);
+  --surface-elevated: rgb(10 10 11 / 0.8);
+  --solid-surface: #070708;
+  --solid-elevated: #0a0a0b;
+  --chalk: rgb(255 255 255 / 0.1);
   --border: rgba(255, 255, 255, 0.08);
   --muted: #8b8b94;
   --accent: #60a5fa;
@@ -195,7 +209,8 @@ body {
 
 :root[data-theme='dark'] .section-header {
   background-image: none;
-  background-color: color-mix(in srgb, var(--tone) 32%, #000);
+  /* On the black page this matches a 32% mix with black, but lets the chalkboard through */
+  background-color: color-mix(in srgb, var(--tone) 32%, transparent);
 }
 :root[data-theme='dark'] .section-header h2 { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.015em; }
 :root[data-theme='dark'] .section-header p { color: rgb(255 255 255 / 0.7); font-size: 0.8125rem; }
@@ -209,8 +224,8 @@ body {
 
 /* Header blends into the page; tabs are flat pills */
 :root[data-theme='dark'] .site-header {
-  background-color: rgb(0 0 0 / 0.82);
-  backdrop-filter: blur(14px);
+  background-color: rgb(0 0 0 / 0.85);
+  backdrop-filter: blur(10px);
   box-shadow: none;
 }
 :root[data-theme='dark'] .tab-pills { background: transparent; border-color: transparent; }
@@ -226,7 +241,7 @@ tr.mine { background-color: color-mix(in srgb, var(--accent) 10%, transparent); 
 tr.mine > td:first-child, tr.mine > th:first-child {
   box-shadow: inset 3px 0 0 var(--accent), 1px 0 0 var(--border);
   /* Opaque, for first columns that stay put while the table scrolls sideways */
-  background-color: color-mix(in srgb, var(--accent) 10%, var(--surface-elevated));
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--solid-elevated));
 }
 
 /* A table's first column, pinned while the table scrolls sideways (TeamName.tsx): a line marks its edge */
@@ -242,3 +257,29 @@ tr.mine > td:first-child, tr.mine > th:first-child {
 @media (prefers-reduced-motion: reduce) {
   .football-tumble, .football-hop, .football-shadow { animation: none; }
 }
+
+/* Field goal easter egg (components/ui/FieldGoal.tsx): fades in, holds, fades out */
+@keyframes field-goal-fade { 0% { opacity: 0; } 8% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+.field-goal { animation: field-goal-fade 2.6s ease forwards; }
+@keyframes field-goal-pop { from { transform: translateX(-50%) scale(0.6); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+.field-goal-result { animation: field-goal-pop 0.25s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .field-goal { animation-duration: 1.6s; }
+  .field-goal-result { animation: none; }
+}
+
+/* Chalkboard background (components/ui/Chalkboard.tsx) */
+.chalkboard { color: var(--chalk); view-transition-name: chalkboard; }
+/* The light header is see-through too, blurred, since the page scrolls under it */
+:root:not([data-theme='dark']) .site-header { background-color: rgb(255 255 255 / 0.85); backdrop-filter: blur(10px); }
+/* Stay solid over the see-through cards: pinned columns (scrolled numbers would show
+   through) and dropdowns */
+.pin-col { background-color: var(--solid-elevated) !important; }
+thead .pin-col { background-color: var(--solid-surface) !important; }
+tr.mine > .pin-col { background-color: color-mix(in srgb, var(--accent) 10%, var(--solid-elevated)) !important; }
+select { background-color: var(--solid-surface) !important; }
+
+/* Smooth tab switches (View Transitions, where the browser has them): a quick crossfade;
+   the header and the chalkboard stay put */
+.site-header { view-transition-name: site-header; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }

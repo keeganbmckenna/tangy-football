@@ -365,7 +365,7 @@ export default function HistoryTab() {
           <table className="text-xs">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-[var(--surface-elevated)]" />
+                <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)]" />
                 {order.map((id) => (
                   <th key={id} className="px-1 pb-2 font-medium text-[var(--muted)]">
                     <div className="mx-auto w-14 truncate" title={nameOf(id)}>{nameOf(id)}</div>
@@ -376,7 +376,7 @@ export default function HistoryTab() {
             <tbody>
               {order.map((row) => (
                 <tr key={row}>
-                  <th className="sticky left-0 z-10 bg-[var(--surface-elevated)] pr-2 text-left font-medium text-[var(--foreground)]">
+                  <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)] pr-2 text-left font-medium text-[var(--foreground)]">
                     <div className="w-24 truncate" title={nameOf(row)}>{nameOf(row)}</div>
                   </th>
                   {order.map((col) => {

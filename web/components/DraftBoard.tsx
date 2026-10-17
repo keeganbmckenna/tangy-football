@@ -68,7 +68,7 @@ function SnakeBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueD
       <table className="border-collapse">
         <thead>
           <tr>
-            <th className="px-3 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase sticky left-0 bg-[var(--surface)] z-10">
+            <th className="px-3 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase pin-col sticky left-0 bg-[var(--surface)] z-10">
               Rd
             </th>
             {slots.map((slot) => {
@@ -89,7 +89,7 @@ function SnakeBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueD
         <tbody className="divide-y divide-[var(--border)]">
           {rows.map((row) => (
             <tr key={row.round}>
-              <td className="px-3 py-2 text-sm font-bold text-[var(--muted)] sticky left-0 bg-[var(--surface-elevated)] z-10">
+              <td className="px-3 py-2 text-sm font-bold text-[var(--muted)] pin-col sticky left-0 bg-[var(--surface-elevated)] z-10">
                 {row.round}
               </td>
               {row.cells.map((pick, i) => (

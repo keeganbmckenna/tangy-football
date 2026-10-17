@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { ChangeEvent } from 'react';
 import Image from 'next/image';
 import PlayoffRace from '@/components/PlayoffRace';
@@ -28,6 +29,8 @@ import PlayoffPicture from '@/components/PlayoffPicture';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { FootballSpinner } from '@/components/ui/Football';
+import Chalkboard from '@/components/ui/Chalkboard';
+import FieldGoal from '@/components/ui/FieldGoal';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { LeagueData, TeamStats, WeekMatchup, PlayEveryoneStats, WeeklyPlayAllStats, DivisionStanding, WildCardStanding, ScheduleLuckSimulation } from '@/lib/types';
@@ -197,6 +200,16 @@ export default function Home() {
   }, [fetchData]);
 
   // Keep the address bar in step: a new history entry per change, so back/forward work
+  // Tabs crossfade where the browser supports View Transitions (and motion is welcome)
+  const switchTab = (id: string) => {
+    const doc = document as Document & { startViewTransition?: (update: () => void) => unknown };
+    if (id === activeTab || !doc.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setActiveTab(id);
+      return;
+    }
+    doc.startViewTransition(() => flushSync(() => setActiveTab(id)));
+  };
+
   const navRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const nav = navRef.current;
@@ -313,8 +326,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+      <Chalkboard />
       {/* Header */}
-      <header className="site-header bg-[var(--surface-elevated)] shadow-md border-b border-[var(--border)] md:sticky md:top-0 z-40">
+      <header className="site-header relative bg-[var(--surface-elevated)] shadow-md border-b border-[var(--border)] md:sticky md:top-0 z-40">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <div className="absolute right-4 top-4 sm:right-6 lg:right-8">
             <ThemeToggle />
@@ -322,13 +336,15 @@ export default function Home() {
           <div className="px-12 text-center sm:px-0">
             <div className="flex items-center justify-center gap-3">
               {leagueData?.league?.avatar && (
-                <Image
-                  src={`https://sleepercdn.com/avatars/${leagueData.league.avatar}`}
-                  alt="League Avatar"
-                  width={44}
-                  height={44}
-                  className="rounded-full"
-                />
+                <FieldGoal>
+                  <Image
+                    src={`https://sleepercdn.com/avatars/${leagueData.league.avatar}`}
+                    alt="League Avatar"
+                    width={44}
+                    height={44}
+                    className="rounded-full"
+                  />
+                </FieldGoal>
               )}
               <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
                 {leagueData?.league?.name || 'Fantasy Football'}
@@ -393,7 +409,7 @@ export default function Home() {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => switchTab(tab.id)}
                     aria-current={activeTab === tab.id ? 'page' : undefined}
                     className={`${
                       activeTab === tab.id
@@ -413,7 +429,7 @@ export default function Home() {
 
       {/* Main Content */}
       <MyTeamContext.Provider value={myTeam}>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="relative z-[1] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {loading ? (
           <div className="flex flex-col items-center py-24 text-[var(--muted)]">
             <FootballSpinner size="sm" />
@@ -596,7 +612,7 @@ export default function Home() {
       </MyTeamContext.Provider>
 
       {/* Footer */}
-      <footer className="bg-[var(--surface-elevated)] border-t border-[var(--border)] mt-12">
+      <footer className="relative z-[1] bg-[var(--surface-elevated)] border-t border-[var(--border)] mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-[var(--muted)] text-sm">
           <p>
             Data from{' '}
