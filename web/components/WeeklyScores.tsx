@@ -34,10 +34,9 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
   return (
     <SectionCard title="Weekly Scores" gradientType="secondary">
       <SortStatus sort={sort} />
-      {/* Scrolls inside a window-height box so the header row stays in view */}
-      <div className="max-h-[75vh] overflow-auto">
+      <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
-          <thead className="sticky top-0 z-20 bg-[var(--surface)]">
+          <thead className="bg-[var(--surface)]">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sticky left-0 bg-[var(--surface)] z-10">
                 Team

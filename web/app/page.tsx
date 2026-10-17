@@ -361,6 +361,18 @@ export default function Home() {
                     </option>
                   ))}
                 </select>
+                {/* Always takes its space, so picking a team doesn't shift the row */}
+                <button
+                  type="button"
+                  onClick={() => myTeam.setUserId(null)}
+                  aria-label="Clear your team"
+                  title="Clear your team (stop highlighting it on this device)"
+                  aria-hidden={!myUserId}
+                  tabIndex={myUserId ? 0 : -1}
+                  className={`-ml-1 flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] ${myUserId ? '' : 'invisible'}`}
+                >
+                  ✕
+                </button>
               </label>
             </div>
           </div>
