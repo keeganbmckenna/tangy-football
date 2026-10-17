@@ -37,12 +37,12 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
   const legend = (
     <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
       <span className="font-medium">Legend:</span>
-      <span>Best</span>
+      <span>Worst</span>
       <div
         className="w-28 h-3 rounded"
         style={{ backgroundImage: `linear-gradient(90deg, ${VIRIDIS_HEATMAP_COLORS.join(', ')})` }}
       ></div>
-      <span>Worst</span>
+      <span>Best</span>
     </div>
   );
 
@@ -90,7 +90,7 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
                     return (
                       <td
                         key={index}
-                        className="px-3 py-3 whitespace-nowrap text-center text-sm font-semibold"
+                        className="heat-cell px-3 py-3 whitespace-nowrap text-center text-sm font-semibold"
                         style={{ backgroundColor, color: textColor }}
                       >
                         {ranking}

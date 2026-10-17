@@ -312,7 +312,7 @@ export default function HistoryTab() {
                         <button
                           type="button"
                           onClick={() => setSelected([row, col])}
-                          className={`h-8 w-14 rounded text-center font-semibold ${on ? 'ring-2 ring-[var(--accent)]' : ''}`}
+                          className={`heat-cell h-8 w-14 rounded text-center font-semibold ${on ? 'ring-2 ring-[var(--accent)]' : ''}`}
                           style={{ backgroundColor, color: textColor }}
                           title={`${nameOf(row)} vs ${nameOf(col)}: ${record(c.wins, c.losses, c.ties)}`}
                         >

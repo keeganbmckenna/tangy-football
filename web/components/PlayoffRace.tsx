@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { TeamStats, DivisionStanding, WildCardStanding } from '@/lib/types';
 import SectionCard from './ui/SectionCard';
 import ResultDot from './ui/ResultDot';
@@ -36,6 +37,20 @@ interface TeamRowProps {
   annotation?: StandingAnnotation;
 }
 
+/** Team photo, falling back to the initial if it's missing or fails to load */
+function TeamAvatar({ url, name }: { url: string | null | undefined; name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (url && !failed) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={url} alt="" onError={() => setFailed(true)} className="w-10 h-10 shrink-0 rounded-full object-cover" />;
+  }
+  return (
+    <div className="w-10 h-10 shrink-0 rounded-full bg-[var(--neutral-bg)] flex items-center justify-center text-[var(--neutral-text)] font-semibold">
+      {name.charAt(0)}
+    </div>
+  );
+}
+
 function TeamRow({
   team,
   rank,
@@ -62,18 +77,7 @@ function TeamRow({
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-3">
-            {team.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={team.avatarUrl}
-                alt={team.teamName}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-[var(--neutral-bg)] flex items-center justify-center text-[var(--neutral-text)] font-semibold">
-                {team.teamName.charAt(0)}
-              </div>
-            )}
+            <TeamAvatar url={team.avatarUrl} name={team.teamName} />
             <div>
               <div className="text-sm font-medium text-[var(--foreground)]">
                 {team.teamName}
@@ -138,8 +142,8 @@ function TeamRow({
 function DivisionCard({ division, annotations }: { division: DivisionStanding; annotations?: Map<number, StandingAnnotation> }) {
   const leaderPoints = Math.max(...division.teams.map(t => t.totalPoints));
   return (
-    <div className="bg-[var(--surface-elevated)] rounded-lg shadow overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-500 to-blue-700 px-4 py-3">
+    <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow overflow-hidden">
+      <div className="section-header bg-gradient-to-r from-blue-500 to-blue-700 px-4 py-3" data-tone="primary">
         <h3 className="text-lg font-bold text-white">
           {division.divisionName || `Division ${division.division}`}
         </h3>

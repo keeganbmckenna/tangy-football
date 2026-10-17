@@ -16,10 +16,10 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
   const numWeeks = data[0]?.weeklyRecords.length || 0;
 
   return (
-    <div className="bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
-      <div className="bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-4">
+    <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
+      <div className="section-header bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-4" data-tone="success">
         <h2 className="text-2xl font-bold text-white">Weekly Play-All Records</h2>
-        <p className="text-teal-100 text-sm mt-1">
+        <p className="text-white/90 text-sm mt-1">
           {"Each team's record if they played all other teams every week"}
         </p>
       </div>
@@ -64,7 +64,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
                   return (
                     <td
                       key={record.week}
-                      className="px-3 py-3 whitespace-nowrap text-center text-xs font-semibold"
+                      className="heat-cell px-3 py-3 whitespace-nowrap text-center text-xs font-semibold"
                       style={{ backgroundColor, color: textColor }}
                       title={`${(record.winPct * 100).toFixed(1)}% win rate • Actual: ${resultLabel}`}
                     >

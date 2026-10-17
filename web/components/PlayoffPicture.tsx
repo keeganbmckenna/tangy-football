@@ -32,7 +32,7 @@ function OddsCell({ p, muted = false }: { p: number; muted?: boolean }) {
   const { backgroundColor, textColor } = getHeatmapColorByRatio(p);
   return (
     <td
-      className={`px-3 py-2 whitespace-nowrap text-center text-sm font-semibold ${muted ? 'opacity-80' : ''}`}
+      className={`heat-cell px-3 py-2 whitespace-nowrap text-center text-sm font-semibold ${muted ? 'opacity-80' : ''}`}
       style={{ backgroundColor, color: textColor }}
     >
       {pct(p)}

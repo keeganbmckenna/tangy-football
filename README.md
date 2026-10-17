@@ -84,7 +84,7 @@ The seasons before Sleeper (2017-2021, a 10-team league) come from the old platf
 Head-to-head records, rivalries and the record book count regular-season and playoff games; placement (3rd/5th place), consolation and toilet bowl games are left out.
 
 ### UI
-- 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage.
+- 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage. Dark mode is true black with flat, deep-colored section headers and dimmed heatmaps (`web/app/globals.css`).
 - 🎯 **Custom Tooltips** - Sorted, scrollable tooltips for crowded charts.
 - 📱 **Responsive Layout** - Pill tab bar on desktop and tablet, dropdown menu on phones.
 

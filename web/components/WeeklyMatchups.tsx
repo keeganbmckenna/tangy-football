@@ -19,8 +19,8 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek }: WeeklyMatch
   const currentMatchups = matchups[selectedWeek] || [];
 
   return (
-    <div className="bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
-      <div className="bg-gradient-to-r from-green-600 to-green-800 px-6 py-4">
+    <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
+      <div className="section-header bg-gradient-to-r from-green-600 to-green-800 px-6 py-4" data-tone="green">
         <h2 className="text-2xl font-bold text-white mb-3">Weekly Matchups</h2>
         <div className="flex gap-1 flex-wrap">
           {weeks.map((week) => (
@@ -30,7 +30,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek }: WeeklyMatch
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 selectedWeek === week
                   ? 'bg-[var(--surface-elevated)] text-[var(--foreground)]'
-                  : 'bg-green-700 text-white hover:bg-green-600'
+                  : 'bg-white/15 text-white hover:bg-white/25'
               }`}
             >
               W{week}

@@ -208,27 +208,27 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Header */}
-      <header className="bg-[var(--surface-elevated)] shadow-md border-b border-[var(--border)]">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="absolute right-4 top-4 sm:right-6 sm:top-6 lg:right-8 lg:top-6">
+      <header className="site-header bg-[var(--surface-elevated)] shadow-md border-b border-[var(--border)] md:sticky md:top-0 z-40">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+          <div className="absolute right-4 top-4 sm:right-6 lg:right-8">
             <ThemeToggle />
           </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-4">
+          <div className="px-12 text-center sm:px-0">
+            <div className="flex items-center justify-center gap-3">
               {leagueData?.league?.avatar && (
                 <Image
                   src={`https://sleepercdn.com/avatars/${leagueData.league.avatar}`}
                   alt="League Avatar"
-                  width={64}
-                  height={64}
+                  width={44}
+                  height={44}
                   className="rounded-full"
                 />
               )}
-              <h1 className="text-4xl font-bold text-[var(--foreground)]">
+              <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
                 {leagueData?.league?.name || 'Fantasy Football'}
               </h1>
             </div>
-            <div className="mt-2 flex items-center justify-center gap-3 text-lg text-[var(--muted)]">
+            <div className="mt-1 flex items-center justify-center gap-3 text-base text-[var(--muted)]">
               <span>Season</span>
               <select
                 value={selectedSeason || leagueData?.league?.season || ''}
@@ -253,7 +253,7 @@ export default function Home() {
               className="hidden md:flex overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               aria-label="Tabs"
             >
-              <div className="mx-auto flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1">
+              <div className="tab-pills mx-auto flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}

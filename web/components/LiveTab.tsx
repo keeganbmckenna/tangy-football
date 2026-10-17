@@ -209,7 +209,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                       {row.score.toFixed(2)}
                     </td>
                     <td
-                      className="px-4 py-3 whitespace-nowrap text-center text-sm font-semibold"
+                      className="heat-cell px-4 py-3 whitespace-nowrap text-center text-sm font-semibold"
                       style={{ backgroundColor, color: textColor }}
                       title={`${(row.week.winPct * 100).toFixed(1)}% win rate`}
                     >
