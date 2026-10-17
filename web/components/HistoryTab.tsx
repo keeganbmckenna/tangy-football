@@ -299,10 +299,9 @@ export default function HistoryTab() {
         gradientType="primary"
       >
         <SortStatus sort={standingsSort} />
-        {/* Scrolls inside a window-height box so the header row stays in view */}
-        <div className="max-h-[75vh] overflow-auto">
+        <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="sticky top-0 z-20 bg-[var(--surface-elevated)]">
+            <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
                 <th className="px-4 py-3 font-medium">Manager</th>
                 <SortableTh sort={standingsSort} col="seasons" className="px-3 py-3 text-center font-medium">Seasons</SortableTh>
