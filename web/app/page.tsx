@@ -30,7 +30,7 @@ import PlayoffPicture from '@/components/PlayoffPicture';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { FootballSpinner } from '@/components/ui/Football';
 import Chalkboard from '@/components/ui/Chalkboard';
-import FieldGoal from '@/components/ui/FieldGoal';
+import HomeLink from '@/components/ui/HomeLink';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { LeagueData, TeamStats, WeekMatchup, PlayEveryoneStats, WeeklyPlayAllStats, DivisionStanding, WildCardStanding, ScheduleLuckSimulation } from '@/lib/types';
@@ -210,6 +210,14 @@ export default function Home() {
     doc.startViewTransition(() => flushSync(() => setActiveTab(id)));
   };
 
+  // The logo and name: back to Overview for the current season, at the top
+  const goHome = () => {
+    switchTab('overview');
+    const current = availableSeasons[0];
+    if (current) changeSeason(current);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const navRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const nav = navRef.current;
@@ -334,22 +342,20 @@ export default function Home() {
             <ThemeToggle />
           </div>
           <div className="px-12 text-center sm:px-0">
-            <div className="flex items-center justify-center gap-3">
+            <HomeLink onHome={goHome}>
               {leagueData?.league?.avatar && (
-                <FieldGoal>
-                  <Image
-                    src={`https://sleepercdn.com/avatars/${leagueData.league.avatar}`}
-                    alt="League Avatar"
-                    width={44}
-                    height={44}
-                    className="rounded-full"
-                  />
-                </FieldGoal>
+                <Image
+                  src={`https://sleepercdn.com/avatars/${leagueData.league.avatar}`}
+                  alt=""
+                  width={44}
+                  height={44}
+                  className="rounded-full"
+                />
               )}
               <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
                 {leagueData?.league?.name || 'Fantasy Football'}
               </h1>
-            </div>
+            </HomeLink>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-[var(--muted)] sm:text-base">
               <span>Season</span>
               <select

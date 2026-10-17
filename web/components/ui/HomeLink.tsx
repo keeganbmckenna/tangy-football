@@ -1,29 +1,47 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import Football from '@/components/ui/Football';
 
+// Taps on the logo within this window that kick a field goal
+const MASH_TAPS = 5;
+const MASH_WINDOW_MS = 2000;
+
 /**
- * Easter egg: tapping the league logo kicks a field goal. The ball flies up
- * from the bottom of the screen, end over end, through the uprights (now and
- * then it sails wide right). With reduced motion, just the result shows.
+ * The league logo and name: a link home (Overview, current season, the plain
+ * address). Easter egg: mashing it (5 quick taps) kicks a field goal. The ball
+ * flies up from the bottom of the screen, end over end, through the uprights
+ * (now and then it sails wide right). With reduced motion, just the result shows.
  */
-export default function FieldGoal({ children }: { children: ReactNode }) {
+export default function HomeLink({ children, onHome }: { children: ReactNode; onHome: () => void }) {
   const [kick, setKick] = useState<{ id: number; good: boolean } | null>(null);
+  const taps = useRef<number[]>([]);
   // Stable, so the page re-rendering mid-kick doesn't restart it
   const done = useCallback(() => setKick(null), []);
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setKick((k) => ({ id: (k?.id ?? 0) + 1, good: Math.random() > 0.2 }))}
-        aria-label="Kick a field goal"
-        className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      <Link
+        href="/"
+        onClick={(e) => {
+          // A plain click goes home in place; new-tab and modified clicks follow the link
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          onHome();
+          const now = Date.now();
+          taps.current = [...taps.current.filter((t) => now - t < MASH_WINDOW_MS), now];
+          if (taps.current.length >= MASH_TAPS) {
+            taps.current = [];
+            setKick((k) => ({ id: (k?.id ?? 0) + 1, good: Math.random() > 0.2 }));
+          }
+        }}
+        aria-label="Home: Overview for the current season"
+        className="flex items-center justify-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] [-webkit-tap-highlight-color:transparent]"
       >
         {children}
-      </button>
+      </Link>
       {/* Rendered at the page level: the header's blur would otherwise confine a fixed overlay to the header */}
       {kick && createPortal(<Kick key={kick.id} good={kick.good} onDone={done} />, document.body)}
     </>
