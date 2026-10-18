@@ -14,6 +14,7 @@ import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
+import { myLiveMatchupFirst } from '@/lib/analyze/myMatchup';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import {
@@ -217,8 +218,9 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         },
       ])
     );
+    // My matchup first, with me on the left (in its lineups too)
     const odds = live.projections && live.games
-      ? liveWinOdds(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek), { allowed: live.allowed, allowedScoring: live.allowedScoring })
+      ? myLiveMatchupFirst(liveWinOdds(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek), { allowed: live.allowed, allowedScoring: live.allowedScoring }), me.rosterId)
       : null;
     return {
       odds,
@@ -229,7 +231,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       names,
       started: live.matchups.some((m) => (m.points ?? 0) > 0),
     };
-  }, [live, week, isCurrentSeason, leagueData, playoffTeams, hasDivisions]);
+  }, [live, week, isCurrentSeason, leagueData, playoffTeams, hasDivisions, me.rosterId]);
 
   const statusBar = (
     <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
@@ -312,6 +314,25 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         )}
       </SectionCard>
 
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-2xl font-bold text-[var(--foreground)]">Live Standings</h2>
+          <p className="text-sm text-[var(--muted)]">
+            If week {week} ended now: this week&apos;s real matchups decided at the current scores, laid out like the
+            Overview tab. Each record shows before → now, with the dot for the real matchup right now (equal scores, including 0-0, are ties),
+            and teams moving into or dropping out of a playoff spot are flagged.
+          </p>
+        </div>
+        <PlayoffRace
+          divisions={view.standings.divisions}
+          wildCard={view.standings.wildCard}
+          standings={view.standings.standings}
+          playoffTeams={playoffTeams}
+          annotations={view.annotations}
+          divisionAvatars={leagueData.divisionAvatars}
+        />
+      </div>
+
       <SectionCard
         title={`Week ${week} Live Play-All`}
         subtitle="Each team's record against every other team at the current scores"
@@ -386,25 +407,6 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           </table>
         </div>
       </SectionCard>
-
-      <div className="space-y-3">
-        <div>
-          <h2 className="text-2xl font-bold text-[var(--foreground)]">Live Standings</h2>
-          <p className="text-sm text-[var(--muted)]">
-            If week {week} ended now: this week&apos;s real matchups decided at the current scores, laid out like the
-            Overview tab. Each record shows before → now, with the dot for the real matchup right now (equal scores, including 0-0, are ties),
-            and teams moving into or dropping out of a playoff spot are flagged.
-          </p>
-        </div>
-        <PlayoffRace
-          divisions={view.standings.divisions}
-          wildCard={view.standings.wildCard}
-          standings={view.standings.standings}
-          playoffTeams={playoffTeams}
-          annotations={view.annotations}
-          divisionAvatars={leagueData.divisionAvatars}
-        />
-      </div>
       {openMatchup !== null && view.odds && live.projections && live.games && (() => {
         const m = view.odds.find((o) => o.matchupId === openMatchup);
         const { projections, games } = live;

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useMatchupLineups } from '@/components/useMatchupLineups';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
+import { myWeekMatchupFirst } from '@/lib/analyze/myMatchup';
+import { useMyTeam } from '@/hooks/useMyTeam';
 import { LeagueData, WeekMatchup } from '@/lib/types';
 
 interface WeeklyMatchupsProps {
@@ -21,7 +23,9 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
     .sort((a, b) => a - b); // Sort ascending (1, 2, 3, ...)
   const [selectedWeek, setSelectedWeek] = useState(weeks[weeks.length - 1] || 1); // Default to most recent completed week
 
-  const currentMatchups = matchups[selectedWeek] || [];
+  // My matchup first, with me on the left
+  const me = useMyTeam();
+  const currentMatchups = myWeekMatchupFirst(matchups[selectedWeek] || [], me.rosterId);
 
   // Tap a matchup for both lineups
   const lineups = useMatchupLineups(leagueData);
@@ -57,14 +61,14 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
             No matchups available for this week
           </p>
         ) : (
-          currentMatchups.map((matchup, index) => (
+          currentMatchups.map((matchup) => (
             <button
               type="button"
-              key={index}
+              key={matchup.matchupId}
               onClick={() => lineups.openLineups(game(matchup))}
               disabled={!leagueData}
               aria-label={`${matchup.team1.name} vs ${matchup.team2.name}: see lineups`}
-              className="block w-full rounded-lg border border-[var(--border)] p-4 text-left transition-colors hover:bg-[var(--hover)] disabled:hover:bg-transparent"
+              className={`block w-full rounded-lg border p-4 text-left transition-colors hover:bg-[var(--hover)] disabled:hover:bg-transparent ${matchup.team1.rosterId === me.rosterId ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
             >
               <div className="flex items-center justify-between">
                 {/* Team 1 */}

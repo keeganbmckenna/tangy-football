@@ -16,8 +16,8 @@ The season picker in the header switches every tab between seasons. Past Sleeper
 ### Live (current season, during a game week)
 While an NFL game is being played, scores and game clocks update every 10 seconds (once a minute otherwise), and a score that changes flashes green or red with the change beside it. Scores are computed from Sleeper's live player stats with the league's scoring settings, which Sleeper refreshes every 30 seconds against 60 for its matchup scores (the two agree exactly). Projections and injury statuses refresh every 2 minutes.
 - 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out add nothing and doubtful ones less. Defenses are projected in the league's scoring with points allowed handled by bracket: every defense starts a game in the shutout bracket (10 points here), so instead of adding its projection on top, the tab projects where its points allowed will end up and weighs each bracket by its chance, which can be negative (`scripts/backtests/live_defense.py`). The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`). Tap a matchup for both lineups and benches: each player's points so far, box score line, projected final, game clock and injury status.
-- 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 - 📊 **Live Standings** - The standings if the week ended now, with teams moving into or out of a playoff spot flagged.
+- 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 
 ### Playoffs
 During the regular season:
@@ -64,7 +64,7 @@ Every season the league has played. Managers are tracked by their Sleeper accoun
 All-time records, head to head and rivalries count regular-season, playoff and toilet bowl games; a switch changes them to the regular season only. Placement games (3rd place, 5th place and so on) never count, since teams often don't set lineups for them.
 
 ### Across the site
-- 🙋 **You** - Pick your team in the header (saved on this device; ✕ clears it) to highlight it in every table and chart and preselect it in the trade and waiver tools.
+- 🙋 **You** - Pick your team in the header (saved on this device; ✕ clears it) to highlight it in every table and chart, put its matchup first (with it on the left) in Overview and Live, and preselect it in the trade and waiver tools.
 - 🔗 **Shareable links** - The tab and season are in the address bar (`?tab=history&season=2023`), so refresh, back and shared links land on the same view.
 - ↕️ **Sortable tables** - Tap a column header to sort best-first, again to reverse, and a third time (or ↺) for the default order.
 - 💡 **Definitions** - Dotted-underlined terms (GB, PB, Core/wk, luck factor…) explain themselves on hover or tap.
