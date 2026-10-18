@@ -51,9 +51,9 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
           ))}
         </div>
       </div>
-      <div className="p-6 space-y-4">
+      <div className="grid gap-4 p-6 lg:grid-cols-2">
         {currentMatchups.length === 0 ? (
-          <p className="text-center text-[var(--muted)] py-8">
+          <p className="col-span-full text-center text-[var(--muted)] py-8">
             No matchups available for this week
           </p>
         ) : (
