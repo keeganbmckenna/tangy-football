@@ -49,11 +49,22 @@ export function injuryAdjusted(points: number, status: string | null, gameStarte
   return points;
 }
 
-// Overtime: about 1 regular-season game in 19 reaches it (5.3% since 2017), and a regular-season
-// overtime period is up to 10 minutes; take about 8 as the average one played
+// Overtime: about 1 regular-season game in 18 reaches it. The period is up to 10 minutes but
+// most end sooner: in 2022-2025's 63 overtime games (ESPN play-by-play), the average minutes
+// still to come after each full minute played, from kickoff to 9 minutes in. Few end in the
+// first minutes (the first drive takes time) and only 3 ran the full 10.
 const FULL_GAME_MARGIN_SD = 13.5;
 const TIE_BAND = 1.9;
-const EXPECTED_OT = 8 / 60;
+const OT_MINUTES_LEFT = [6.46, 5.55, 4.72, 3.96, 3.22, 2.55, 1.97, 1.61, 1.39, 0.93, 0];
+
+/** Expected share of a game still to come in an overtime with this many seconds on its clock */
+function overtimeRemaining(clock: number): number {
+  const played = Math.min(10, Math.max(0, (600 - clock) / 60));
+  const i = Math.min(9, Math.floor(played));
+  const left = OT_MINUTES_LEFT[i] + (OT_MINUTES_LEFT[i + 1] - OT_MINUTES_LEFT[i]) * (played - i);
+  // Never more than the clock allows
+  return Math.min(left, clock / 60) / 60;
+}
 
 /**
  * Share of an NFL game still to play from its quarter, clock (seconds left in the period) and
@@ -62,12 +73,12 @@ const EXPECTED_OT = 8 / 60;
  */
 export function gameRemaining(state: LiveGame['state'], period: number, clock: number, margin: number): number {
   if (state === 'post') return 0;
-  if (period > 4) return Math.max(0, clock) / 3600;
+  if (period > 4) return overtimeRemaining(Math.max(0, clock));
   const regulation = state === 'pre' ? 1 : Math.min(1, Math.max(0, ((4 - period) * 900 + clock) / 3600));
   // The final margin spreads out with the time left; overtime happens when it lands on a tie
   const sd = FULL_GAME_MARGIN_SD * Math.sqrt(regulation);
   const tie = sd > 0.5 ? Math.min(0.9, (TIE_BAND * Math.exp(-0.5 * (margin / sd) ** 2)) / (sd * Math.sqrt(2 * Math.PI))) : margin === 0 ? 1 : 0;
-  return regulation + tie * EXPECTED_OT;
+  return regulation + tie * overtimeRemaining(600);
 }
 
 /**

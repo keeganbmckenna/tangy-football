@@ -187,15 +187,17 @@ describe('live win odds', () => {
     // Before kickoff: the whole game plus a small chance of overtime (about 1 in 18)
     const pre = gameRemaining('pre', 0, 0, 0);
     expect(pre).toBeGreaterThan(1);
-    expect((pre - 1) / (8 / 60)).toBeCloseTo(0.056, 2);
+    expect((pre - 1) / (6.46 / 60)).toBeCloseTo(0.056, 2);
     // Halftime of a blowout: half a game, no overtime to speak of
     expect(gameRemaining('in', 2, 0, 28)).toBeCloseTo(0.5, 3);
     // Tied with two minutes left: overtime is a real chance
     const tied = gameRemaining('in', 4, 120, 0);
-    expect(tied - 120 / 3600).toBeGreaterThan(0.25 * (8 / 60));
+    expect(tied - 120 / 3600).toBeGreaterThan(0.25 * (6.46 / 60));
     expect(gameRemaining('in', 4, 120, 14) - 120 / 3600).toBeLessThan(0.001);
-    // In overtime: what's left of the 10-minute period
-    expect(gameRemaining('in', 5, 300, 0)).toBeCloseTo(300 / 3600);
+    // In overtime: most end before the 10 minutes run out, so less than the clock shows
+    expect(gameRemaining('in', 5, 600, 0)).toBeCloseTo(6.46 / 60);
+    expect(gameRemaining('in', 5, 300, 0)).toBeCloseTo(2.55 / 60);
+    expect(gameRemaining('in', 5, 30, 0)).toBeLessThanOrEqual(0.5 / 60);
   });
 
   it('drops players ruled out and discounts doubtful ones before kickoff', () => {
