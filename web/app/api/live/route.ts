@@ -98,7 +98,9 @@ export async function GET() {
     const week = Math.min(league.settings?.leg ?? 0, maxWeeks);
     const lastScoredWeek = league.settings?.last_scored_leg ?? 0;
     // Points from live stats, the same as /api/live/scores, so the two never disagree
-    const { matchups, allowed } = week > 0 ? await liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {}) : { matchups: [], allowed: {} };
+    const { matchups, allowed, stats } = week > 0
+      ? await liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {})
+      : { matchups: [], allowed: {}, stats: {} };
 
     const body: LiveWeekData = {
       season: league.season,
@@ -106,6 +108,7 @@ export async function GET() {
       lastScoredWeek,
       playoffWeekStart: league.settings?.playoff_week_start ?? 15,
       matchups,
+      stats,
       fetchedAt: new Date().toISOString(),
     };
     // Live win odds: only while the week is being played, and only with both feeds

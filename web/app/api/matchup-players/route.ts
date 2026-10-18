@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+import { SLEEPER_CONFIG } from '@/lib/config';
 import { weekProjections } from '@/lib/oddsData';
+import { pickStats, type StatLine } from '@/lib/analyze/statLine';
 
 export interface MatchupPlayersData {
-  /** player ID -> name, position, team that week and Sleeper's projection for the week */
-  players: Record<string, { name: string; position: string; team: string | null; projected: number }>;
+  /** player ID -> name, position, team that week, Sleeper's projection for the week and his box score */
+  players: Record<string, { name: string; position: string; team: string | null; projected: number; stats?: StatLine }>;
 }
 
 // A finished week never changes: keep each one built here, and let the CDN keep it a day
@@ -20,11 +22,19 @@ export async function GET(request: Request) {
   const key = `${season}:${week}`;
   let data = cache.get(key);
   if (!data) {
-    const projections = await weekProjections(season, week);
+    const [projections, stats] = await Promise.all([
+      weekProjections(season, week),
+      fetch(`${SLEEPER_CONFIG.baseUrl}/stats/nfl/regular/${season}/${week}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+        .then((r) => (r.ok ? (r.json() as Promise<Record<string, Record<string, number>>>) : ({} as Record<string, Record<string, number>>)))
+        .catch(() => ({}) as Record<string, Record<string, number>>),
+    ]);
     if (!projections) return NextResponse.json({ error: 'Projections unavailable' }, { status: 502 });
     data = {
       players: Object.fromEntries(
-        Object.entries(projections).map(([id, p]) => [id, { name: p.name, position: p.position, team: p.team, projected: p.points }])
+        Object.entries(projections).map(([id, p]) => {
+          const line = pickStats(stats[id]);
+          return [id, { name: p.name, position: p.position, team: p.team, projected: p.points, ...(line ? { stats: line } : {}) }];
+        })
       ),
     };
     cache.set(key, data);

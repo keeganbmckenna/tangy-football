@@ -4,6 +4,7 @@
  */
 
 import { gameRemaining, withLivePoints, type LiveGame } from './analyze/live';
+import { pickStats, type StatLine } from './analyze/statLine';
 import { SLEEPER_CONFIG } from './config';
 import type { SleeperMatchup } from './types';
 
@@ -46,7 +47,11 @@ export async function scoreboard(season: string, week: number, revalidate = 5): 
       const margin = Number(x.score ?? 0) - Number(y.score ?? 0);
       const remaining = gameRemaining(state, e.status.period ?? 0, e.status.clock ?? 0, margin);
       const period = e.status.period ?? 0;
-      const label = state === 'in'
+      // ESPN shows halftime as the 2nd quarter at 0:00
+      const half = state === 'in' && period === 2 && (e.status.clock ?? 1) === 0;
+      const label = half
+        ? 'Half'
+        : state === 'in'
         ? `${period > 4 ? 'OT' : `Q${period}`} ${e.status.displayClock ?? ''}`.trim()
         : state === 'post' ? 'Final' : kickoff(e.date);
       for (const c of [x, y]) games[ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation] = { state, remaining, label };
@@ -67,7 +72,7 @@ export async function liveMatchups(
   season: string,
   week: number,
   scoring: Record<string, number>
-): Promise<{ matchups: SleeperMatchup[]; allowed: Record<string, number> }> {
+): Promise<{ matchups: SleeperMatchup[]; allowed: Record<string, number>; stats: Record<string, StatLine> }> {
   const { baseUrl } = SLEEPER_CONFIG;
   const [matchups, stats] = await Promise.all([
     fetchJson<SleeperMatchup[]>(`${baseUrl}/league/${leagueId}/matchups/${week}`, 20),
@@ -76,9 +81,15 @@ export async function liveMatchups(
       return null;
     }),
   ]);
-  if (!stats) return { matchups, allowed: {} };
+  if (!stats) return { matchups, allowed: {}, stats: {} };
   // Points each defense has allowed so far (defenses' IDs are their team codes)
   const allowed: Record<string, number> = {};
   for (const [id, s] of Object.entries(stats)) if (/^[A-Z]{2,3}$/.test(id) && s.gp) allowed[id] = s.pts_allow ?? 0;
-  return { matchups: withLivePoints(matchups, stats, scoring), allowed };
+  // Every rostered player's box score so far, for the lineup view
+  const lines: Record<string, StatLine> = {};
+  for (const id of matchups.flatMap((m) => m.players ?? [])) {
+    const line = pickStats(stats[id]);
+    if (line) lines[id] = line;
+  }
+  return { matchups: withLivePoints(matchups, stats, scoring), allowed, stats: lines };
 }

@@ -7,6 +7,7 @@ import type { DivisionStanding, LeagueData, SleeperMatchup, TeamStats, WeeklyPla
 import { calculateTeamStats, rankTeams } from './teamStats';
 import { calculateDivisionStandings, calculateWildCardStandings } from './playoffs';
 import { calculateWeeklyPlayAll } from './playEveryone';
+import type { StatLine } from './statLine';
 import { normalCdf } from './trade';
 
 /** Response of /api/live */
@@ -23,6 +24,8 @@ export interface LiveWeekData {
   games?: Record<string, LiveGame>;
   /** Points each defense has allowed so far, for those whose games have started */
   allowed?: Record<string, number>;
+  /** Each rostered player's box score so far */
+  stats?: Record<string, StatLine>;
   /** The league's points-allowed brackets (pts_allow_0, pts_allow_1_6, ...) and their points */
   allowedScoring?: Record<string, number>;
   fetchedAt: string;
@@ -34,6 +37,7 @@ export interface LiveScoresData {
   matchups: SleeperMatchup[];
   games?: Record<string, LiveGame>;
   allowed?: Record<string, number>;
+  stats?: Record<string, StatLine>;
   fetchedAt: string;
 }
 

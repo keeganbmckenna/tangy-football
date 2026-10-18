@@ -19,6 +19,8 @@ export interface MatchupPlayer {
   status?: string;
   live?: boolean;
   injury?: string | null;
+  /** His box score line, e.g. "6/8 rec, 143 yds, 2 TD" */
+  stats?: string;
 }
 
 export interface MatchupSide {
@@ -94,6 +96,12 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
             {proj && ` · ${proj}`}
           </div>
           <div className="truncate text-xs text-[var(--muted)]">{info}</div>
+          {p.stats && (
+            <div className="text-xs leading-snug text-[var(--foreground)] opacity-80 [overflow-wrap:anywhere]" title={p.stats}>
+              {/* Lines break only after a comma or dot, so "1 car" or "1 2PT" stays together */}
+              {p.stats.replace(/([,·]?) /g, (m, after: string) => (after ? m : '\u00a0'))}
+            </div>
+          )}
         </div>
         <div className={`hidden shrink-0 tabular-nums sm:block ${right ? 'text-left' : 'text-right'}`}>
           <div className="text-sm font-semibold text-[var(--foreground)]"><LiveScore value={p.points} align={right ? 'left' : 'right'} /></div>

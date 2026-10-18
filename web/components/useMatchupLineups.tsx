@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import type { MatchupPlayersData } from '@/app/api/matchup-players/route';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
+import { formatStatLine } from '@/lib/analyze/statLine';
 import type { LeagueData } from '@/lib/types';
 
 export interface LineupTeam {
@@ -64,6 +65,7 @@ export function useMatchupLineups(leagueData: LeagueData | null | undefined) {
       team: info[id]?.team ?? (isDefense(id) ? id : null),
       points: sm.players_points?.[id] ?? 0,
       projected: info[id] ? info[id].projected : null,
+      stats: formatStatLine(info[id]?.position ?? (isDefense(id) ? 'DEF' : ''), info[id]?.stats) || undefined,
     });
     const starters = sm.starters ?? [];
     const projected = starters.reduce((t, id) => t + (info[id]?.projected ?? 0), 0);

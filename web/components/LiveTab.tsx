@@ -7,6 +7,7 @@ import ResultDot from '@/components/ui/ResultDot';
 import LiveScore from '@/components/ui/LiveScore';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
+import { formatStatLine } from '@/lib/analyze/statLine';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
@@ -157,7 +158,14 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       const data = (await res.json()) as LiveScoresData;
       setLive((prev) =>
         prev && prev.week === data.week
-          ? { ...prev, matchups: data.matchups, games: data.games ?? prev.games, allowed: data.allowed ?? prev.allowed, fetchedAt: data.fetchedAt }
+          ? {
+              ...prev,
+              matchups: data.matchups,
+              games: data.games ?? prev.games,
+              allowed: data.allowed ?? prev.allowed,
+              stats: data.stats ?? prev.stats,
+              fetchedAt: data.fetchedAt,
+            }
           : prev
       );
     } catch {
@@ -408,6 +416,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             projected: p.game?.state === 'post' ? p.original : p.projected,
             status: p.game ? p.game.label : 'No game',
             live: p.game?.state === 'in',
+            stats: formatStatLine(p.position, live.stats?.[p.playerId]) || undefined,
           };
         const side = (s: LiveSide, odds: number): MatchupSide | null => {
           const sm = live.matchups.find((x) => x.roster_id === s.rosterId);
