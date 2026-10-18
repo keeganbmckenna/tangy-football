@@ -46,7 +46,7 @@ function PlayerPhoto({ p }: { p: MatchupPlayer }) {
   const src = p.position === 'DEF'
     ? `https://sleepercdn.com/images/team_logos/nfl/${(p.team ?? p.playerId).toLowerCase()}.png`
     : `https://sleepercdn.com/content/nfl/players/thumb/${p.playerId}.jpg`;
-  const size = 'h-8 w-8 sm:h-9 sm:w-9';
+  const size = 'h-7 w-7 sm:h-9 sm:w-9';
   if (failed) {
     return (
       <div className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-[var(--neutral-bg)] text-xs font-semibold text-[var(--muted)]`}>
@@ -72,42 +72,44 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
   if (!p) return <td className={`py-2 text-sm text-[var(--muted)] ${right ? 'text-right' : ''}`}>Empty</td>;
   const tone = injuryTone(p.injury);
   const proj = p.projected === null ? null : `${projLabel} ${p.projected.toFixed(1)}`;
-  const info = (
-    <>
-      {[p.position, p.team].filter(Boolean).join(' · ')}
-      {p.status && (
-        <>
-          {' · '}
-          <span style={p.live ? { color: RESULT_DOT_COLORS.W } : undefined}>{p.status}</span>
-        </>
-      )}
-      {tone && <span className="ml-1 font-semibold" style={{ color: tone }}>{p.injury}</span>}
-    </>
-  );
+  const status = p.status && <span style={p.live ? { color: RESULT_DOT_COLORS.W } : undefined}>{p.status}</span>;
+  const injury = tone && <span className="ml-1 font-semibold" style={{ color: tone }}>{p.injury}</span>;
+  // Phones: "J. Daniels" and "Jaguars", like Sleeper
+  const short = p.position === 'DEF' ? p.name.split(' ').slice(-1)[0] : p.name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ');
   return (
     <td className="py-2">
-      <div className={`flex items-center gap-2 ${right ? 'flex-row-reverse text-right' : ''}`}>
+      <div className={`flex items-center gap-1.5 sm:gap-2 ${right ? 'flex-row-reverse text-right' : ''}`}>
         <PlayerPhoto p={p} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-[var(--foreground)]" title={p.name}>{p.name}</div>
-          {/* Phones: points under the name; wider screens: beside it */}
-          <div className="truncate text-xs tabular-nums text-[var(--muted)] sm:hidden">
-            <span className="font-semibold text-[var(--foreground)]"><LiveScore value={p.points} showDelta={false} /></span>
-            {proj && ` · ${proj}`}
+          <div className="truncate text-[13px] font-medium text-[var(--foreground)] sm:text-sm" title={p.name}>
+            <span className="sm:hidden">{short}</span>
+            <span className="hidden sm:inline">{p.name}</span>
           </div>
-          <div className="truncate text-xs text-[var(--muted)]">{info}</div>
-          {p.stats && (
-            <div className="text-xs leading-snug text-[var(--foreground)] opacity-80 [overflow-wrap:anywhere]" title={p.stats}>
-              {/* Lines break only after a comma or dot, so "1 car" or "1 2PT" stays together */}
-              {p.stats.replace(/([,·]?) /g, (m, after: string) => (after ? m : '\u00a0'))}
+          {/* Phones: the game on its own line, so its time fits */}
+          <div className="truncate text-[11px] text-[var(--muted)] sm:text-xs">
+            {[p.position, p.team].filter(Boolean).join(' · ')}
+            {status && <span className="hidden sm:inline">{' · '}{status}</span>}
+            {injury}
+          </div>
+          {status && <div className="truncate text-[11px] text-[var(--muted)] sm:hidden">{status}</div>}
+        </div>
+        {/* Points in the middle, beside the slot, with the projection under them */}
+        <div className={`shrink-0 tabular-nums ${right ? 'text-left' : 'text-right'}`}>
+          <div className="text-sm font-semibold text-[var(--foreground)]"><LiveScore value={p.points} align={right ? 'left' : 'right'} /></div>
+          {p.projected !== null && (
+            <div className="text-[11px] text-[var(--muted)] sm:text-xs" title={proj ?? undefined}>
+              <span className="hidden sm:inline">{projLabel} </span>
+              {p.projected.toFixed(1)}
             </div>
           )}
         </div>
-        <div className={`hidden shrink-0 tabular-nums sm:block ${right ? 'text-left' : 'text-right'}`}>
-          <div className="text-sm font-semibold text-[var(--foreground)]"><LiveScore value={p.points} align={right ? 'left' : 'right'} /></div>
-          {proj && <div className="text-xs text-[var(--muted)]">{proj}</div>}
-        </div>
       </div>
+      {p.stats && (
+        <div className={`mt-0.5 text-[11px] leading-snug text-[var(--foreground)] opacity-80 [overflow-wrap:anywhere] sm:text-xs ${right ? 'text-right' : ''}`} title={p.stats}>
+          {/* Lines break only after a comma or dot, so "1 car" or "1 2PT" stays together */}
+          {p.stats.replace(/([,·]?) /g, (m, after: string) => (after ? m : '\u00a0'))}
+        </div>
+      )}
     </td>
   );
 }
@@ -145,7 +147,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
         <TeamAvatar url={s.avatarUrl} name={s.name} size="h-7 w-7" />
         <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
       </div>
-      <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={s.score} align={right ? 'right' : 'left'} /></div>
+      <div className="text-xl font-bold tabular-nums text-[var(--foreground)] sm:text-2xl"><LiveScore value={s.score} align={right ? 'right' : 'left'} /></div>
       {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
     </div>
   );
@@ -183,11 +185,11 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
             ✕
           </button>
         </div>
-        <div className="overflow-y-auto px-3 pb-4 sm:px-4">
+        <div className="overflow-y-auto px-2 pb-4 sm:px-4">
           <table className="w-full table-fixed">
             <colgroup>
               <col />
-              <col className="w-10 sm:w-11" />
+              <col className="w-9 sm:w-11" />
               <col />
             </colgroup>
             <tbody className="divide-y divide-[var(--border)]">
