@@ -69,7 +69,6 @@ Line charts. Hover (or tap) a week for every team's value, or a team in the lege
 
 ## 🏛️ History (every season, whichever one is selected)
 - **Champions:** every season's champion, runner-up and toilet bowl loser (top three before Sleeper).
-- **Finishes by Season:** a line for each manager's final place every season, with 🏆 🥈 🥉 for the top three and 💩 for the toilet bowl loser. Before 2022 only the top three were recorded, so the rest are placed by regular-season standing.
 - **All-Time Standings:** per manager:
   - seasons, record and win %;
   - points per game, playoff appearances and finals;

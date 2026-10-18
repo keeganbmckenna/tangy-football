@@ -64,7 +64,7 @@ async function seasonHistory(league: SleeperLeague) {
     }
   });
 
-  const results = bracketResults(winners, losers, rosters.length);
+  const results = bracketResults(winners, losers);
   const byRoster = (r: number | null) => (r === null ? null : owner.get(r) ?? null);
   const season: HistorySeason = {
     season: league.season,
