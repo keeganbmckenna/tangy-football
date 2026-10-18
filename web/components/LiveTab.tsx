@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
+import LiveScore from '@/components/ui/LiveScore';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
@@ -22,14 +23,19 @@ import {
   liveTeamStats,
   liveWeekNumber,
   type LiveMatchupOdds,
+  type LiveScoresData,
   type LiveSide,
   type LiveWeekData,
   type PlayoffStatus,
 } from '@/lib/analyze/live';
 import type { LeagueData, TeamStats } from '@/lib/types';
 
-/** How often to refresh while a week is in progress and the tab is visible */
-const REFRESH_MS = 60_000;
+// While a week is in progress and the tab is visible: scores and game clocks every 10
+// seconds while an NFL game is being played (once a minute between games), and the rest
+// (projections, injury statuses) every 2 minutes
+const SCORES_LIVE_MS = 10_000;
+const SCORES_IDLE_MS = 60_000;
+const FULL_REFRESH_MS = 120_000;
 
 interface LiveTabProps {
   leagueData: LeagueData;
@@ -53,7 +59,7 @@ function SideSummary({ side, name, align }: { side: LiveSide; name: string; alig
   return (
     <div className={`min-w-0 flex-1 ${align === 'right' ? 'text-right' : ''}`}>
       <div className="truncate text-sm font-semibold text-[var(--foreground)]" title={name}>{name}</div>
-      <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{side.score.toFixed(2)}</div>
+      <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={side.score} align={align} /></div>
       <div className="text-xs tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
       <div className="whitespace-nowrap text-xs text-[var(--muted)]">{left}</div>
     </div>
@@ -126,7 +132,24 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     }
   }, []);
 
+  // Just scores and clocks, merged into the last full load
+  const refreshScores = useCallback(async () => {
+    try {
+      const res = await fetch('/api/live/scores');
+      if (!res.ok) return;
+      const data = (await res.json()) as LiveScoresData;
+      setLive((prev) =>
+        prev && prev.week === data.week
+          ? { ...prev, matchups: data.matchups, games: data.games ?? prev.games, fetchedAt: data.fetchedAt }
+          : prev
+      );
+    } catch {
+      // The next poll or full refresh catches up
+    }
+  }, []);
+
   const week = live ? liveWeekNumber(live.week, live.lastScoredWeek, regularSeasonEnd) : null;
+  const gameOn = !!live?.games && Object.values(live.games).some((g) => g.state === 'in');
   const isCurrentSeason = !live || live.season === leagueData.league.season;
 
   // Initial load, then poll while a week is live and the tab is visible
@@ -135,16 +158,18 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   }, [refresh]);
   useEffect(() => {
     if (week === null || !isCurrentSeason) return;
-    const tick = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
-    const id = window.setInterval(tick, REFRESH_MS);
-    document.addEventListener('visibilitychange', tick);
+    const visible = () => document.visibilityState === 'visible';
+    const full = window.setInterval(() => visible() && refresh(), FULL_REFRESH_MS);
+    const scores = window.setInterval(() => visible() && refreshScores(), gameOn ? SCORES_LIVE_MS : SCORES_IDLE_MS);
+    // Coming back to the tab: catch up right away
+    const onVisible = () => visible() && refresh();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
-      window.clearInterval(id);
-      document.removeEventListener('visibilitychange', tick);
+      window.clearInterval(full);
+      window.clearInterval(scores);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [week, isCurrentSeason, refresh]);
+  }, [week, isCurrentSeason, gameOn, refresh, refreshScores]);
   // Keeps the "updated Xs ago" label current
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 5_000);
@@ -184,7 +209,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   const statusBar = (
     <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
       {live && <span>Updated {secondsAgo(live.fetchedAt, now)}</span>}
-      {week !== null && isCurrentSeason && <span>· refreshes every minute</span>}
+      {week !== null && isCurrentSeason && <span>· {gameOn ? 'live: updates every 10 seconds' : 'updates every minute until games start'}</span>}
       <button
         type="button"
         onClick={refresh}

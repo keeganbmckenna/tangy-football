@@ -14,7 +14,7 @@ The season picker in the header switches every tab between seasons. Past Sleeper
 - 🏈 **Weekly Matchups** - Results for any completed week. Tap one for both lineups slot by slot and the benches at the time, with photos, each player's final points and his Sleeper projection from before the games (`/api/matchup-players`).
 
 ### Live (current season, during a game week)
-Refreshes every minute.
+While an NFL game is being played, scores and game clocks update every 10 seconds (once a minute otherwise), and a score that changes flashes green or red with the change beside it. Scores are computed from Sleeper's live player stats with the league's scoring settings, which Sleeper refreshes every 30 seconds against 60 for its matchup scores (the two agree exactly). Projections and injury statuses refresh every 2 minutes.
 - 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out add nothing and doubtful ones less. The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`). Tap a matchup for both lineups and benches: each player's points so far, projected final, game clock and injury status.
 - 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 - 📊 **Live Standings** - The standings if the week ended now, with teams moving into or out of a playoff spot flagged.
@@ -186,7 +186,8 @@ Sleeper data is fetched by the app's server routes and cached. Durations are set
 | League, users and rosters | 5 minutes |
 | Completed weeks' matchups | 1 day |
 | Current week's matchups | Not cached |
-| Live tab data | 30 seconds |
+| Live tab scores and game clocks (`/api/live/scores`) | Shared through the CDN for 8 seconds; Sleeper's stats 10 seconds, matchups 20, ESPN's scoreboard 5 |
+| Live tab projections and injury statuses | 2 minutes |
 | Playoff odds | 30 minutes, rebuilt as soon as a new week is scored |
 | Draft data for the season in progress | 1 hour, rebuilt as soon as a new week is scored |
 | Trade analyzer rosters and projections | 10 minutes, rebuilt as soon as a new week is scored |

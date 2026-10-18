@@ -24,6 +24,14 @@ export interface LiveWeekData {
   fetchedAt: string;
 }
 
+/** Response of /api/live/scores: the fast-changing part, polled during games */
+export interface LiveScoresData {
+  week: number;
+  matchups: SleeperMatchup[];
+  games?: Record<string, LiveGame>;
+  fetchedAt: string;
+}
+
 export interface LiveProjection {
   /** Projected half-PPR points, already zero for players ruled out and cut for doubtful ones */
   points: number;
@@ -174,6 +182,36 @@ export function liveLineup(
       projected: points + (p ? p.points * (game ? game.remaining : 0) : 0),
       game,
     };
+  });
+}
+
+/**
+ * A player's fantasy points from his raw stats and the league's scoring settings: each
+ * stat times its setting (Sleeper's own formula; it matched every rostered player's
+ * official points in a checked week).
+ */
+export function leaguePoints(stats: Record<string, number>, scoring: Record<string, number>): number {
+  let total = 0;
+  for (const [k, v] of Object.entries(stats)) if (scoring[k] !== undefined && typeof v === 'number') total += v * scoring[k];
+  return Math.round(total * 100) / 100;
+}
+
+/**
+ * Matchups with every player's points recomputed from fresher live stats (Sleeper refreshes
+ * stats twice as often as matchup scores), and each team's score as its starters' total.
+ * Players without stats yet keep Sleeper's points.
+ */
+export function withLivePoints(
+  matchups: SleeperMatchup[],
+  stats: Record<string, Record<string, number>>,
+  scoring: Record<string, number>
+): SleeperMatchup[] {
+  return matchups.map((m) => {
+    const players_points = { ...(m.players_points ?? {}) };
+    for (const id of m.players ?? []) if (stats[id]) players_points[id] = leaguePoints(stats[id], scoring);
+    const starters = (m.starters ?? []).filter((id) => id && id !== '0');
+    const points = Math.round(starters.reduce((t, id) => t + (players_points[id] ?? 0), 0) * 100) / 100;
+    return { ...m, players_points, points };
   });
 }
 

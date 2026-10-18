@@ -7,6 +7,8 @@ import {
   liveTeamStats,
   liveWinOdds,
   liveLineup,
+  leaguePoints,
+  withLivePoints,
   gameRemaining,
   injuryAdjusted,
   playerSpreadRatio,
@@ -250,5 +252,15 @@ describe('live win odds', () => {
     expect(rows[1]).toBeNull();
     expect(rows[0]).toMatchObject({ points: 10, projected: 20, game: { label: 'Q3 15:00' } });
     expect(rows[2]).toMatchObject({ points: 2, projected: 2 });
+  });
+
+  it("scores live stats with the league's settings, and totals each team's starters", () => {
+    const scoring = { pass_yd: 0.04, pass_td: 4, rec: 0.5, rec_yd: 0.1, fum_lost: -2 };
+    expect(leaguePoints({ pass_yd: 250, pass_td: 2, gp: 1 }, scoring)).toBe(18);
+    const m: SleeperMatchup = { roster_id: 1, matchup_id: 1, points: 5, starters: ['a', 'b'], players: ['a', 'b', 'c'], players_points: { a: 5, b: 0, c: 0 } };
+    const [out] = withLivePoints([m], { a: { rec: 6, rec_yd: 81, fum_lost: 1 }, c: { rec: 2, rec_yd: 20 } }, scoring);
+    // a: 3 + 8.1 - 2; b has no stats yet and keeps Sleeper's 0; c is on the bench
+    expect(out.players_points).toEqual({ a: 9.1, b: 0, c: 3 });
+    expect(out.points).toBe(9.1);
   });
 });

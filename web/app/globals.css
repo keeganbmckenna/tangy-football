@@ -291,3 +291,18 @@ select { background-color: var(--solid-surface) !important; }
 .tab-fade { animation: tab-fade-in 180ms ease-out; }
 @keyframes tab-fade-in { from { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) { .tab-fade { animation: none; } }
+
+/* Live score changes (components/ui/LiveScore.tsx): the number flashes green or red and
+   the change floats up and fades */
+@keyframes score-flash {
+  0% { color: var(--flash); text-shadow: 0 0 12px var(--flash); }
+  35% { color: var(--flash); text-shadow: 0 0 6px var(--flash); }
+  100% { text-shadow: 0 0 0 transparent; }
+}
+.score-flash { animation: score-flash 1.8s ease-out; }
+@keyframes score-delta { 0% { opacity: 0; transform: translateY(4px); } 15% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
+.score-delta { animation: score-delta 2.4s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes score-delta-still { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  .score-delta { animation-name: score-delta-still; }
+}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
+import LiveScore from '@/components/ui/LiveScore';
 
 export interface MatchupPlayer {
   playerId: string;
@@ -86,13 +87,13 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
           <div className="truncate text-sm font-medium text-[var(--foreground)]" title={p.name}>{p.name}</div>
           {/* Phones: points under the name; wider screens: beside it */}
           <div className="truncate text-xs tabular-nums text-[var(--muted)] sm:hidden">
-            <span className="font-semibold text-[var(--foreground)]">{p.points.toFixed(2)}</span>
+            <span className="font-semibold text-[var(--foreground)]"><LiveScore value={p.points} showDelta={false} /></span>
             {proj && ` · ${proj}`}
           </div>
           <div className="truncate text-xs text-[var(--muted)]">{info}</div>
         </div>
         <div className={`hidden shrink-0 tabular-nums sm:block ${right ? 'text-left' : 'text-right'}`}>
-          <div className="text-sm font-semibold text-[var(--foreground)]">{p.points.toFixed(2)}</div>
+          <div className="text-sm font-semibold text-[var(--foreground)]"><LiveScore value={p.points} align={right ? 'left' : 'right'} /></div>
           {proj && <div className="text-xs text-[var(--muted)]">{proj}</div>}
         </div>
       </div>
@@ -130,7 +131,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
   const head = (s: MatchupSide, right: boolean) => (
     <div className={`min-w-0 flex-1 ${right ? 'text-right' : ''}`}>
       <div className="truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
-      <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{s.score.toFixed(2)}</div>
+      <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={s.score} align={right ? 'right' : 'left'} /></div>
       {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
     </div>
   );

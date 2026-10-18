@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup } from '@/lib/types';
-import { gameRemaining, injuryAdjusted, playerSpreadRatio, type LiveGame, type LiveProjection, type LiveWeekData } from '@/lib/analyze/live';
+import { injuryAdjusted, playerSpreadRatio, type LiveGame, type LiveProjection, type LiveWeekData } from '@/lib/analyze/live';
+import { liveMatchups, scoreboard } from '@/lib/liveData';
 import { weekProjections, type ProjectedPlayer } from '@/lib/oddsData';
 
 // Always run on request; freshness comes from the short fetch cache below
@@ -46,46 +47,6 @@ async function seasonScores(season: string, throughWeek: number): Promise<Record
   return data;
 }
 
-interface EspnEvent {
-  date?: string;
-  status: { clock?: number; period?: number; displayClock?: string; type: { state: string; shortDetail?: string } };
-  competitions: Array<{ competitors: Array<{ score?: string; team: { abbreviation: string } }> }>;
-}
-
-/** Kickoff as "Sun 1:00 PM ET" */
-const kickoff = (iso?: string) =>
-  iso ? `${new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }).replace(',', '')} ET` : '';
-
-// ESPN's codes that differ from Sleeper's
-const ESPN_TEAM: Record<string, string> = { WSH: 'WAS' };
-
-/** Each NFL team's game this week from ESPN's public scoreboard (null if unavailable) */
-async function scoreboard(season: string, week: number): Promise<Record<string, LiveGame> | null> {
-  try {
-    const { events } = await fetchJson<{ events: EspnEvent[] }>(
-      `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${season}`
-    );
-    const games: Record<string, LiveGame> = {};
-    for (const e of events) {
-      const raw = e.status.type.state;
-      const state = raw === 'post' ? 'post' : raw === 'in' ? 'in' : 'pre';
-      const [x, y] = e.competitions[0]?.competitors ?? [];
-      if (!x || !y) continue;
-      const margin = Number(x.score ?? 0) - Number(y.score ?? 0);
-      const remaining = gameRemaining(state, e.status.period ?? 0, e.status.clock ?? 0, margin);
-      const period = e.status.period ?? 0;
-      const label = state === 'in'
-        ? `${period > 4 ? 'OT' : `Q${period}`} ${e.status.displayClock ?? ''}`.trim()
-        : state === 'post' ? 'Final' : kickoff(e.date);
-      for (const c of [x, y]) games[ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation] = { state, remaining, label };
-    }
-    return games;
-  } catch (error) {
-    console.error('NFL scoreboard unavailable:', error);
-    return null;
-  }
-}
-
 /** This week's projections for every player in the matchups (injuries counted), and how boom-or-bust each one is */
 async function starterProjections(season: string, week: number, lastScoredWeek: number, matchups: SleeperMatchup[], games: Record<string, LiveGame>) {
   const [week_, history] = await Promise.all([projectionsFor(season, week), seasonScores(season, lastScoredWeek)]);
@@ -119,9 +80,8 @@ export async function GET() {
     const league = await fetchJson<SleeperLeague>(`${baseUrl}/league/${leagueId}`);
     const week = Math.min(league.settings?.leg ?? 0, maxWeeks);
     const lastScoredWeek = league.settings?.last_scored_leg ?? 0;
-    const matchups = week > 0
-      ? await fetchJson<SleeperMatchup[]>(`${baseUrl}/league/${leagueId}/matchups/${week}`)
-      : [];
+    // Points from live stats, the same as /api/live/scores, so the two never disagree
+    const matchups = week > 0 ? await liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {}) : [];
 
     const body: LiveWeekData = {
       season: league.season,
