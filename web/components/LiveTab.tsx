@@ -86,7 +86,7 @@ function LiveMatchups({
   onOpen: (matchupId: number) => void;
 }) {
   return (
-    <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6">
+    <div className="grid gap-3 p-4 sm:p-6 md:grid-cols-2">
       {odds.map((m) => {
         const mine = m.a.rosterId === myRosterId || m.b.rosterId === myRosterId;
         const a = m.aWinOdds;

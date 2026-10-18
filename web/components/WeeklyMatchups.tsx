@@ -51,7 +51,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
           ))}
         </div>
       </div>
-      <div className="grid gap-4 p-6 lg:grid-cols-2">
+      <div className="grid gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
         {currentMatchups.length === 0 ? (
           <p className="col-span-full text-center text-[var(--muted)] py-8">
             No matchups available for this week
@@ -75,7 +75,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
                       : 'text-[var(--foreground)]'
                   }`}
                 >
-                  <div className="flex items-center gap-2 text-base sm:text-lg">
+                  <div className="flex items-center gap-2 text-base lg:text-lg">
                     <TeamAvatar url={teamAvatarUrl(leagueData, matchup.team1.rosterId)} name={matchup.team1.name} />
                     <span className="min-w-0 truncate">{matchup.team1.name}</span>
                   </div>
@@ -83,13 +83,15 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
                     @{matchup.team1.username}
                   </div>
 
-                  <div className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">
+                  <div className="mt-2 text-xl font-bold tabular-nums lg:text-2xl">
                     {matchup.team1.points.toFixed(2)}
                   </div>
                 </div>
 
                 {/* VS */}
-                <div className="px-2 text-[var(--muted)] font-semibold sm:px-6">VS</div>
+                {/* Only where there's room: half-width cards need it for the names */}
+                <div className="hidden px-6 text-[var(--muted)] font-semibold lg:block">VS</div>
+                <div className="w-3 shrink-0 lg:hidden" />
 
                 {/* Team 2 */}
                 <div
@@ -99,7 +101,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
                       : 'text-[var(--foreground)]'
                   }`}
                 >
-                  <div className="flex flex-row-reverse items-center gap-2 text-base sm:text-lg">
+                  <div className="flex flex-row-reverse items-center gap-2 text-base lg:text-lg">
                     <TeamAvatar url={teamAvatarUrl(leagueData, matchup.team2.rosterId)} name={matchup.team2.name} />
                     <span className="min-w-0 truncate">{matchup.team2.name}</span>
                   </div>
@@ -107,7 +109,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
                     @{matchup.team2.username}
                   </div>
 
-                  <div className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">
+                  <div className="mt-2 text-xl font-bold tabular-nums lg:text-2xl">
                     {matchup.team2.points.toFixed(2)}
                   </div>
                 </div>
