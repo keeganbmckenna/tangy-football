@@ -386,8 +386,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         const toPlayer = (p: ReturnType<typeof liveLineup>[number]): MatchupPlayer | null =>
           p && {
             ...p,
-            // A finished game's projection adds nothing: just the final points
-            projected: p.game?.state === 'post' ? null : p.projected,
+            // A finished game: his projection from before it, to compare with what he scored
+            projected: p.game?.state === 'post' ? p.original : p.projected,
             status: p.game ? p.game.label : 'No game',
             live: p.game?.state === 'in',
           };
@@ -418,7 +418,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             a={a}
             b={b}
             slots={(leagueData.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
-            footnote="Projected finals are points so far plus each player's projection for the share of his game left. Bench players don't count toward the score. Injury statuses from Sleeper."
+            footnote="Projected finals are points so far plus each player's projection for the share of his game left; for a finished game, his projection from before it. Bench players don't count toward the score. Injury statuses from Sleeper."
             onClose={closeMatchup}
           />
         ) : null;

@@ -153,6 +153,8 @@ export interface LiveStarter {
   points: number;
   /** Points so far plus what's still expected */
   projected: number;
+  /** His projection for the whole game, from before it */
+  original: number | null;
   game: LiveGame | null;
 }
 
@@ -180,6 +182,7 @@ export function liveLineup(
       injury: p?.injury ?? null,
       points,
       projected: points + (p ? p.points * (game ? game.remaining : 0) : 0),
+      original: p ? p.points : null,
       game,
     };
   });

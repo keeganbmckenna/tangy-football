@@ -250,8 +250,8 @@ describe('live win odds', () => {
     const games: Record<string, LiveGame> = { AAA: { state: 'in', remaining: 0.5, label: 'Q3 15:00' }, BBB: { state: 'post', remaining: 0, label: 'Final' } };
     const rows = liveLineup(m, { a1: proj(20, 'AAA'), b1: proj(8, 'BBB') }, games);
     expect(rows[1]).toBeNull();
-    expect(rows[0]).toMatchObject({ points: 10, projected: 20, game: { label: 'Q3 15:00' } });
-    expect(rows[2]).toMatchObject({ points: 2, projected: 2 });
+    expect(rows[0]).toMatchObject({ points: 10, projected: 20, original: 20, game: { label: 'Q3 15:00' } });
+    expect(rows[2]).toMatchObject({ points: 2, projected: 2, original: 8 });
   });
 
   it("scores live stats with the league's settings, and totals each team's starters", () => {
