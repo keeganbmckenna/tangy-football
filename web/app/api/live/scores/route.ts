@@ -18,10 +18,10 @@ export async function GET() {
     if (!res.ok) throw new Error(`League request failed (${res.status})`);
     const league = (await res.json()) as SleeperLeague;
     const week = Math.min(league.settings?.leg ?? 0, maxWeeks);
-    const [matchups, games] = week > 0
+    const [{ matchups, allowed }, games] = week > 0
       ? await Promise.all([liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {}), scoreboard(league.season, week)])
-      : [[], null];
-    const body: LiveScoresData = { week, matchups, games: games ?? undefined, fetchedAt: new Date().toISOString() };
+      : [{ matchups: [], allowed: {} }, null];
+    const body: LiveScoresData = { week, matchups, games: games ?? undefined, allowed, fetchedAt: new Date().toISOString() };
     return NextResponse.json(body, { headers: { 'Cache-Control': 'public, s-maxage=8, stale-while-revalidate=10' } });
   } catch (error) {
     console.error('Error fetching live scores:', error);

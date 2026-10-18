@@ -62,7 +62,12 @@ export async function scoreboard(season: string, week: number, revalidate = 5): 
  * This week's matchups with points from Sleeper's live player stats (cached 30 seconds on
  * Sleeper's side, against 60 for matchup scores), or Sleeper's own points if stats fail.
  */
-export async function liveMatchups(leagueId: string, season: string, week: number, scoring: Record<string, number>): Promise<SleeperMatchup[]> {
+export async function liveMatchups(
+  leagueId: string,
+  season: string,
+  week: number,
+  scoring: Record<string, number>
+): Promise<{ matchups: SleeperMatchup[]; allowed: Record<string, number> }> {
   const { baseUrl } = SLEEPER_CONFIG;
   const [matchups, stats] = await Promise.all([
     fetchJson<SleeperMatchup[]>(`${baseUrl}/league/${leagueId}/matchups/${week}`, 20),
@@ -71,5 +76,9 @@ export async function liveMatchups(leagueId: string, season: string, week: numbe
       return null;
     }),
   ]);
-  return stats ? withLivePoints(matchups, stats, scoring) : matchups;
+  if (!stats) return { matchups, allowed: {} };
+  // Points each defense has allowed so far (defenses' IDs are their team codes)
+  const allowed: Record<string, number> = {};
+  for (const [id, s] of Object.entries(stats)) if (/^[A-Z]{2,3}$/.test(id) && s.gp) allowed[id] = s.pts_allow ?? 0;
+  return { matchups: withLivePoints(matchups, stats, scoring), allowed };
 }

@@ -18,6 +18,7 @@ python game_calibration.py     # single-game win odds: calibration and the fitte
 python season_odds.py          # season-level playoff and bye odds (several minutes) -> season.pkl
 python season_odds_score.py    # scores season_odds.py's variants
 python live_pregame.py         # the Live tab's matchup win odds at kickoff: spread and calibration
+python live_defense.py         # defenses' points allowed: projection bias and spread, bracket scoring
 ```
 
 Requires numpy (installed with pandas by `uv sync`).
@@ -60,6 +61,13 @@ Requires numpy (installed with pandas by `uv sync`).
   boom-or-bust spreads did no better than one spread at kickoff (0.5904 vs 0.5907); they're
   kept for late in a week, when a few volatile players are all that's left. The archive's
   injury statuses are from after the season, so the injury adjustment can't be tested here.
+
+- **Defenses** (`live_defense.py`): over 2,048 defense-games, Sleeper's projected points
+  allowed was unbiased (-0.3) with a spread of 8.9 points, and its pre-game projections
+  weren't too high (6.69 standard points against 7.36 actual in this league's scoring, which
+  also counts return yards). Projecting points allowed and weighing each bracket's points by
+  its chance matched the actual average best (7.31). The Live tab does this through the game,
+  so a defense's shutout bonus at kickoff doesn't count on top of its projection.
 
 Projections are always the ones known at the time: the week after the cutoff, carried
 forward with each NFL team's bye weeks. Sleeper's archived projections for later weeks

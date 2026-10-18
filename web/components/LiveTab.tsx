@@ -140,7 +140,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       const data = (await res.json()) as LiveScoresData;
       setLive((prev) =>
         prev && prev.week === data.week
-          ? { ...prev, matchups: data.matchups, games: data.games ?? prev.games, fetchedAt: data.fetchedAt }
+          ? { ...prev, matchups: data.matchups, games: data.games ?? prev.games, allowed: data.allowed ?? prev.allowed, fetchedAt: data.fetchedAt }
           : prev
       );
     } catch {
@@ -193,7 +193,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       ])
     );
     const odds = live.projections && live.games
-      ? liveWinOdds(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek))
+      ? liveWinOdds(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek), { allowed: live.allowed, allowedScoring: live.allowedScoring })
       : null;
     return {
       odds,
@@ -383,6 +383,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       {openMatchup !== null && view.odds && live.projections && live.games && (() => {
         const m = view.odds.find((o) => o.matchupId === openMatchup);
         const { projections, games } = live;
+        const defense = { allowed: live.allowed, allowedScoring: live.allowedScoring };
         const toPlayer = (p: ReturnType<typeof liveLineup>[number]): MatchupPlayer | null =>
           p && {
             ...p,
@@ -403,8 +404,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                 <span className="font-semibold" style={{ color: odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(odds)}</span>
               </>
             ),
-            starters: liveLineup(sm, projections, games).map(toPlayer),
-            bench: liveLineup(sm, projections, games, true)
+            starters: liveLineup(sm, projections, games, false, defense).map(toPlayer),
+            bench: liveLineup(sm, projections, games, true, defense)
               .filter((p): p is NonNullable<typeof p> => !!p)
               .map((p) => toPlayer(p)!)
               .sort((x, y) => (y.projected ?? y.points) - (x.projected ?? x.points)),

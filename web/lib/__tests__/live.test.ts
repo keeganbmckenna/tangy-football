@@ -8,6 +8,8 @@ import {
   liveWinOdds,
   liveLineup,
   leaguePoints,
+  defenseExpected,
+  allowedPoints,
   withLivePoints,
   gameRemaining,
   injuryAdjusted,
@@ -262,5 +264,39 @@ describe('live win odds', () => {
     // a: 3 + 8.1 - 2; b has no stats yet and keeps Sleeper's 0; c is on the bench
     expect(out.players_points).toEqual({ a: 9.1, b: 0, c: 3 });
     expect(out.points).toBe(9.1);
+  });
+
+  describe('defenses', () => {
+    // This league's points-allowed brackets
+    const scoring = { pts_allow_0: 10, pts_allow_1_6: 7, pts_allow_7_13: 4, pts_allow_14_20: 1, pts_allow_21_27: 0, pts_allow_28_34: -1, pts_allow_35p: -4 };
+    const proj = { allowed: 22.75, other: 3.5 };
+
+    it('scores points allowed by bracket', () => {
+      expect(allowedPoints(0, scoring)).toBe(10);
+      expect(allowedPoints(6, scoring)).toBe(7);
+      expect(allowedPoints(21, scoring)).toBe(0);
+      expect(allowedPoints(41, scoring)).toBe(-4);
+    });
+
+    it("doesn't count the shutout bonus a defense starts every game with", () => {
+      // Just kicked off: 10 points for a shutout so far, nearly the whole game left
+      const atKickoff = defenseExpected(10, true, 0, proj, 0.98, scoring);
+      const before = defenseExpected(0, false, 0, proj, 1, scoring);
+      expect(atKickoff).toBeLessThan(6);
+      expect(Math.abs(atKickoff - before)).toBeLessThan(0.5);
+    });
+
+    it('projects a defense giving points back late in a high-scoring game', () => {
+      // 31 allowed (-1) plus a sack and an interception (3), two minutes left
+      const late = defenseExpected(2, true, 31, proj, 2 / 60, scoring);
+      expect(late).toBeLessThan(2.2);
+      expect(late).toBeGreaterThan(1.5);
+      // and can go below zero
+      expect(defenseExpected(-4, true, 38, { allowed: 24, other: 3 }, 0.5, scoring)).toBeLessThan(-2);
+    });
+
+    it('keeps the final points once the game is over', () => {
+      expect(defenseExpected(6, true, 17, proj, 0, scoring)).toBeCloseTo(6);
+    });
   });
 });

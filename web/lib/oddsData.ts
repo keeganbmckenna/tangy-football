@@ -31,6 +31,8 @@ export interface ProjectedPlayer {
   name: string;
   team: string | null;
   injury: string | null;
+  /** Defenses only: the projected stat line (points allowed, sacks, takeaways...) */
+  stats?: Record<string, number>;
 }
 
 interface ProjectionRow {
@@ -44,7 +46,7 @@ interface ProjectionRow {
     team?: string | null;
     injury_status?: string | null;
   };
-  stats?: { pts_half_ppr?: number };
+  stats?: { pts_half_ppr?: number } & Record<string, number>;
 }
 
 /**
@@ -68,6 +70,7 @@ export async function weekProjections(season: string, week: number): Promise<Rec
         name,
         team: r.team ?? r.player?.team ?? null,
         injury: r.player?.injury_status ?? null,
+        ...(position === 'DEF' && r.stats ? { stats: r.stats } : {}),
       };
     }
     return out;

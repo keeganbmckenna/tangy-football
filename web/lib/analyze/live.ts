@@ -21,6 +21,10 @@ export interface LiveWeekData {
   projections?: Record<string, LiveProjection>;
   /** Each NFL team's game this week, by Sleeper team code (missing if the scoreboard is unavailable) */
   games?: Record<string, LiveGame>;
+  /** Points each defense has allowed so far, for those whose games have started */
+  allowed?: Record<string, number>;
+  /** The league's points-allowed brackets (pts_allow_0, pts_allow_1_6, ...) and their points */
+  allowedScoring?: Record<string, number>;
   fetchedAt: string;
 }
 
@@ -29,6 +33,7 @@ export interface LiveScoresData {
   week: number;
   matchups: SleeperMatchup[];
   games?: Record<string, LiveGame>;
+  allowed?: Record<string, number>;
   fetchedAt: string;
 }
 
@@ -41,6 +46,12 @@ export interface LiveProjection {
   name: string;
   position: string;
   injury: string | null;
+  /**
+   * Defenses: the projection split in two, since points allowed are scored in brackets
+   * (see defenseExpected): the points it's projected to allow, and its projected points
+   * from everything else (sacks, takeaways, touchdowns)
+   */
+  defense?: { allowed: number; other: number };
 }
 
 export interface LiveGame {
@@ -117,12 +128,82 @@ export function playerSpreadRatio(position: string, scores: number[]): number {
   return (n * Math.min(sd / mean, 2) + SPREAD_PRIOR_GAMES * prior) / (n + SPREAD_PRIOR_GAMES);
 }
 
+// How far a defense's points allowed lands from Sleeper's projection: in 2,048 defense-games
+// in 2022-2025 the projection was unbiased (-0.3 points) with this spread
+export const POINTS_ALLOWED_SD = 8.9;
+
+/** A points-allowed bracket from its scoring key: pts_allow_0, pts_allow_7_13, pts_allow_35p */
+function bracket(key: string): [number, number] | null {
+  const m = key.match(/^pts_allow_(\d+)(?:_(\d+)|(p))?$/);
+  if (!m) return null;
+  const lo = Number(m[1]);
+  return [lo, m[3] ? Infinity : m[2] !== undefined ? Number(m[2]) : lo];
+}
+
+/** The league's points for a defense that allowed this many */
+export function allowedPoints(allowed: number, scoring: Record<string, number>): number {
+  for (const [k, v] of Object.entries(scoring)) {
+    const b = bracket(k);
+    if (b && allowed >= b[0] && allowed <= b[1]) return v;
+  }
+  return 0;
+}
+
+/**
+ * A defense's expected final points. Points allowed are scored in brackets (a shutout is
+ * worth 10 here, 35+ costs 4), and every defense starts its game in the shutout bracket, so
+ * its live points jump at kickoff and fall as the other team scores. Instead of adding its
+ * projection on top, this projects where its points allowed will end up (allowed so far
+ * plus the projected rate for the time left, spread by POINTS_ALLOWED_SD) and weighs each
+ * bracket's points by its chance, which can be negative. Its other points (sacks, takeaways,
+ * touchdowns) add their projection for the time left.
+ */
+export function defenseExpected(
+  points: number,
+  started: boolean,
+  allowedNow: number,
+  projection: { allowed: number; other: number },
+  remaining: number,
+  scoring: Record<string, number>
+): number {
+  const current = started ? allowedPoints(allowedNow, scoring) : 0;
+  const otherSoFar = points - current;
+  const mu = projection.allowed * remaining;
+  const sd = POINTS_ALLOWED_SD * Math.sqrt(remaining);
+  // Chance the final total is at most t: points can only be added from here
+  const atMost = (t: number) => (t < allowedNow ? 0 : sd < 0.01 ? (allowedNow + mu <= t ? 1 : 0) : normalCdf((t + 0.5 - allowedNow - mu) / sd));
+  let brackets = 0;
+  for (const [k, v] of Object.entries(scoring)) {
+    const b = bracket(k);
+    if (!b) continue;
+    const p = (b[1] === Infinity ? 1 : atMost(b[1])) - (b[0] === 0 ? 0 : atMost(b[0] - 1));
+    brackets += p * v;
+  }
+  return otherSoFar + projection.other * remaining + brackets;
+}
+
 /**
  * A whole game's spread for one team at kickoff, as a share of the league's week-to-week
  * spread: fitted on 2022-2025's matchups with Sleeper's pre-kickoff projections
  * (scripts/backtests/live_pregame.py)
  */
 export const LIVE_SPREAD_SCALE = 0.7;
+
+/** What a defense has allowed so far, and the league's points-allowed scoring */
+export interface DefenseContext {
+  allowed?: Record<string, number>;
+  allowedScoring?: Record<string, number>;
+}
+
+/** Points a player is still expected to add (negative for a defense likely to give some back) */
+function expectedAdd(id: string, p: LiveProjection, points: number, g: LiveGame | undefined | null, d: DefenseContext): number {
+  // No game this week (a bye or a free agent): nothing more to come
+  const remaining = g ? g.remaining : 0;
+  if (p.defense && d.allowedScoring && g) {
+    return defenseExpected(points, g.state !== 'pre', d.allowed?.[id] ?? 0, p.defense, remaining, d.allowedScoring) - points;
+  }
+  return p.points * remaining;
+}
 
 export interface LiveSide {
   rosterId: number;
@@ -163,7 +244,8 @@ export function liveLineup(
   m: SleeperMatchup,
   projections: Record<string, LiveProjection>,
   games: Record<string, LiveGame>,
-  bench = false
+  bench = false,
+  context: DefenseContext = {}
 ): Array<LiveStarter | null> {
   const ids = bench ? (m.players ?? []).filter((id) => !(m.starters ?? []).includes(id)) : m.starters ?? [];
   return ids.map((id) => {
@@ -181,7 +263,7 @@ export function liveLineup(
       team: p?.team ?? (defense ? id : null),
       injury: p?.injury ?? null,
       points,
-      projected: points + (p ? p.points * (game ? game.remaining : 0) : 0),
+      projected: points + (p ? expectedAdd(id, p, points, game, context) : 0),
       original: p ? p.points : null,
       game,
     };
@@ -243,10 +325,13 @@ export function liveWinOdds(
   matchups: SleeperMatchup[],
   projections: Record<string, LiveProjection>,
   games: Record<string, LiveGame>,
-  spread: number
+  spread: number,
+  defense: DefenseContext = {}
 ): LiveMatchupOdds[] {
   const starters = (m: SleeperMatchup) =>
-    (m.starters ?? []).filter((id) => id !== '0' && projections[id]).map((id) => ({ p: projections[id], g: projections[id].team ? games[projections[id].team!] : undefined }));
+    (m.starters ?? [])
+      .filter((id) => id !== '0' && projections[id])
+      .map((id) => ({ id, p: projections[id], g: projections[id].team ? games[projections[id].team!] : undefined }));
 
   // Calibrate: the average lineup's whole-game variance should match the model's spread
   const fullVariance = (spread * LIVE_SPREAD_SCALE) ** 2;
@@ -258,10 +343,9 @@ export function liveWinOdds(
     let variance = 0;
     let toPlay = 0;
     let playing = 0;
-    for (const { p, g } of starters(m)) {
-      // No game this week (a bye or a free agent): nothing more to come
+    for (const { id, p, g } of starters(m)) {
       const remaining = g ? g.remaining : 0;
-      left += p.points * remaining;
+      left += expectedAdd(id, p, m.players_points?.[id] ?? 0, g, defense);
       variance += scale * (p.spreadRatio * p.points) ** 2 * remaining;
       if (g?.state === 'pre') toPlay++;
       else if (g?.state === 'in') playing++;

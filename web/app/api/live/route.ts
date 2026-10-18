@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup } from '@/lib/types';
-import { injuryAdjusted, playerSpreadRatio, type LiveGame, type LiveProjection, type LiveWeekData } from '@/lib/analyze/live';
+import { defenseExpected, injuryAdjusted, leaguePoints, playerSpreadRatio, type LiveGame, type LiveProjection, type LiveWeekData } from '@/lib/analyze/live';
 import { liveMatchups, scoreboard } from '@/lib/liveData';
 import { weekProjections, type ProjectedPlayer } from '@/lib/oddsData';
 
@@ -50,7 +50,14 @@ async function seasonScores(season: string, throughWeek: number): Promise<Record
 }
 
 /** This week's projections for every player in the matchups (injuries counted), and how boom-or-bust each one is */
-async function starterProjections(season: string, week: number, lastScoredWeek: number, matchups: SleeperMatchup[], games: Record<string, LiveGame>) {
+async function starterProjections(
+  season: string,
+  week: number,
+  lastScoredWeek: number,
+  matchups: SleeperMatchup[],
+  games: Record<string, LiveGame>,
+  scoring: Record<string, number>
+) {
   const [week_, history] = await Promise.all([projectionsFor(season, week), seasonScores(season, lastScoredWeek)]);
   if (!week_) return null;
   const out: Record<string, LiveProjection> = {};
@@ -59,8 +66,13 @@ async function starterProjections(season: string, week: number, lastScoredWeek: 
     const p = week_[id];
     if (!p || id === '0') continue;
     const started = !!p.team && !!games[p.team] && games[p.team].state !== 'pre';
+    // A defense: its projection in the league's scoring, with points allowed by bracket
+    const defense = p.stats && typeof p.stats.pts_allow === 'number'
+      ? { allowed: p.stats.pts_allow, other: leaguePoints(Object.fromEntries(Object.entries(p.stats).filter(([k]) => !k.startsWith('pts_allow'))), scoring) }
+      : undefined;
     out[id] = {
-      points: injuryAdjusted(p.points, p.injury, started),
+      points: defense ? defenseExpected(0, false, 0, defense, 1, allowedScoring(scoring)) : injuryAdjusted(p.points, p.injury, started),
+      ...(defense ? { defense } : {}),
       spreadRatio: playerSpreadRatio(p.position, history[id] ?? []),
       team: p.team,
       name: p.name,
@@ -70,6 +82,9 @@ async function starterProjections(season: string, week: number, lastScoredWeek: 
   }
   return out;
 }
+
+/** The league's points-allowed brackets */
+const allowedScoring = (scoring: Record<string, number>) => Object.fromEntries(Object.entries(scoring).filter(([k]) => k.startsWith('pts_allow_')));
 
 /**
  * Current week's matchups for the current season, for the Live tab, plus what the live
@@ -83,7 +98,7 @@ export async function GET() {
     const week = Math.min(league.settings?.leg ?? 0, maxWeeks);
     const lastScoredWeek = league.settings?.last_scored_leg ?? 0;
     // Points from live stats, the same as /api/live/scores, so the two never disagree
-    const matchups = week > 0 ? await liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {}) : [];
+    const { matchups, allowed } = week > 0 ? await liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {}) : { matchups: [], allowed: {} };
 
     const body: LiveWeekData = {
       season: league.season,
@@ -96,8 +111,9 @@ export async function GET() {
     // Live win odds: only while the week is being played, and only with both feeds
     if (week > lastScoredWeek && matchups.length) {
       const games = await scoreboard(league.season, week);
-      const projections = games ? await starterProjections(league.season, week, lastScoredWeek, matchups, games).catch(() => null) : null;
-      if (games && projections) Object.assign(body, { games, projections });
+      const scoring = league.scoring_settings ?? {};
+      const projections = games ? await starterProjections(league.season, week, lastScoredWeek, matchups, games, scoring).catch(() => null) : null;
+      if (games && projections) Object.assign(body, { games, projections, allowedScoring: allowedScoring(scoring), allowed });
     }
     return NextResponse.json(body);
   } catch (error) {
