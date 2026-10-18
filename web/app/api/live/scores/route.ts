@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SLEEPER_CONFIG } from '@/lib/config';
-import { liveMatchups, scoreboard } from '@/lib/liveData';
+import { liveMatchups, scoreboard, UPSTREAM_TIMEOUT_MS } from '@/lib/liveData';
 import type { LiveScoresData } from '@/lib/analyze/live';
 import type { SleeperLeague } from '@/lib/types';
 
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const { leagueId, baseUrl, maxWeeks } = SLEEPER_CONFIG;
-    const res = await fetch(`${baseUrl}/league/${leagueId}`, { next: { revalidate: 60 } });
+    const res = await fetch(`${baseUrl}/league/${leagueId}`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`League request failed (${res.status})`);
     const league = (await res.json()) as SleeperLeague;
     const week = Math.min(league.settings?.leg ?? 0, maxWeeks);

@@ -9,7 +9,9 @@ import { weekProjections, type ProjectedPlayer } from '@/lib/oddsData';
 export const dynamic = 'force-dynamic';
 
 const fetchJson = async <T,>(url: string, revalidate: number | false = CACHE_CONFIG.liveData): Promise<T> => {
-  const response = await fetch(url, revalidate === false ? { cache: 'no-store' } : { next: { revalidate } });
+  // The bigger files (projections, a season of stats) can take a while, but not forever
+  const signal = AbortSignal.timeout(15_000);
+  const response = await fetch(url, revalidate === false ? { cache: 'no-store', signal } : { next: { revalidate }, signal });
   if (!response.ok) {
     throw new Error(`Request failed (${response.status}): ${url}`);
   }

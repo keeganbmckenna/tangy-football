@@ -7,8 +7,12 @@ import { gameRemaining, withLivePoints, type LiveGame } from './analyze/live';
 import { SLEEPER_CONFIG } from './config';
 import type { SleeperMatchup } from './types';
 
+// A live poll can't wait on a stalled upstream: give up after a few seconds (the caller
+// falls back, and the next poll tries again)
+export const UPSTREAM_TIMEOUT_MS = 5000;
+
 const fetchJson = async <T,>(url: string, revalidate: number): Promise<T> => {
-  const response = await fetch(url, { next: { revalidate } });
+  const response = await fetch(url, { next: { revalidate }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Request failed (${response.status}): ${url}`);
   return response.json() as Promise<T>;
 };
