@@ -11,6 +11,7 @@ import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
+import FinishesChart from '@/components/FinishesChart';
 import { getHeatmapColorByRatio } from '@/lib/constants';
 import {
   allTimeStandings,
@@ -266,6 +267,10 @@ export default function HistoryTab() {
         </div>
       </SectionCard>
 
+      <ErrorBoundary>
+        <FinishesChart data={data} />
+      </ErrorBoundary>
+
       <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="font-medium text-[var(--foreground)]">Games counted in all-time records, head to head and rivalries</div>
@@ -313,7 +318,7 @@ export default function HistoryTab() {
                 <SortableTh sort={standingsSort} col="finals" className="px-3 py-3 text-center font-medium">Finals</SortableTh>
                 <SortableTh sort={standingsSort} col="titles" className="px-3 py-3 text-center font-medium">Titles</SortableTh>
                 <SortableTh sort={standingsSort} col="toilet" best="asc" className="px-3 py-3 text-center font-medium">Toilet bowl losses</SortableTh>
-                <SortableTh sort={standingsSort} col="best" tip="Highest final place in any season (1st–6th from Sleeper brackets, 1st–3rd before)" tipAlign="right" best="asc" className="px-3 py-3 text-center font-medium">Best finish</SortableTh>
+                <SortableTh sort={standingsSort} col="best" tip="Highest final place in any season (every place from Sleeper's playoff and toilet bowl brackets, only the top three before 2022)" tipAlign="right" best="asc" className="px-3 py-3 text-center font-medium">Best finish</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -352,7 +357,7 @@ export default function HistoryTab() {
           Records count {postseason ? 'regular season, playoff and toilet bowl games' : 'regular-season games only'} and go back to 2017 (before 2022 only regular-season records were kept);
           ties count as half a win. Points per game cover the same games and, like playoff appearances and toilet bowl losses,
           start in 2022 (earlier seasons only kept standings and the top three). Best finish is the
-          final place (1st–6th from Sleeper brackets, 1st–3rd before).
+          final place: every place since 2022, from the playoff and toilet bowl brackets, but only the top three before.
         </p>
       </SectionCard>
 

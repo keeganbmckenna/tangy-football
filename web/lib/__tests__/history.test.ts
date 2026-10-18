@@ -6,6 +6,7 @@ import {
   postseasonKind,
   recordBook,
   rivalries,
+  seasonFinishes,
   type HistoryData,
   type HistoryGame,
 } from '../analyze/history';
@@ -67,6 +68,13 @@ describe('brackets', () => {
     expect(r.toiletLoser).toBe(10);
     expect(r.playoffTeams.sort()).toEqual([1, 2, 3, 4, 5]);
     expect(r.placements).toMatchObject({ 2: 1, 1: 2, 3: 3, 4: 4 });
+  });
+
+  it('places the bottom of the league from the toilet bowl, given the number of teams', () => {
+    // 10 teams: the toilet bowl final decides 10th (its "winner") and 9th; the p=3 game 8th and 7th
+    const r = bracketResults(winners, losers, 10);
+    expect(r.placements).toMatchObject({ 2: 1, 1: 2, 3: 3, 4: 4, 10: 10, 9: 9, 7: 8, 8: 7 });
+    expect(bracketResults(winners, losers).placements[10]).toBeUndefined();
   });
 
   it('classifies postseason games by bracket', () => {
@@ -179,6 +187,20 @@ describe('seasons before Sleeper', () => {
     expect(u3.pointsPerGame).toBeCloseTo((120 + 60 + 95 + 40) / 4);
     const vikram = rows.find((r) => r.userId === 'legacy:vikram')!;
     expect(vikram).toMatchObject({ seasons: 1, wins: 8, losses: 6, scoredGames: 0, pointsPerGame: 0, finals: 1 });
+  });
+
+  it('place everyone each season, before Sleeper the rest by regular-season standing', () => {
+    const d = withLegacy();
+    d.seasons[0].placements = { u1: 1, u2: 2, u3: 3, u4: 4 };
+    // Before Sleeper only the champion known: the others follow in standings order
+    d.seasons[2].placements = { u1: 1 };
+    const { seasons, finishes } = seasonFinishes(d);
+    expect(seasons).toEqual(['2017', '2024', '2025']);
+    expect(finishes.u1['2017']).toEqual({ place: 1, exact: true, toiletLoser: false });
+    expect(finishes.u3['2017']).toEqual({ place: 2, exact: false, toiletLoser: false });
+    expect(finishes['legacy:vikram']['2017']).toEqual({ place: 3, exact: false, toiletLoser: false });
+    expect(finishes.u4['2025']).toEqual({ place: 4, exact: true, toiletLoser: true });
+    expect(finishes.u4['2024']).toBeUndefined();
   });
 
   it('show up in season records without points', () => {

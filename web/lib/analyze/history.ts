@@ -49,7 +49,7 @@ export interface HistorySeason {
   /** Lost the toilet bowl (last place) */
   toiletLoser: string | null;
   playoffTeams: string[];
-  /** Final placements from the playoff bracket (1 = champion), by manager */
+  /** Final placements (1 = champion) from the brackets, by manager: every team on Sleeper, the top three before */
   placements: Record<string, number>;
 }
 
@@ -107,8 +107,13 @@ export function postseasonKind(
   return 'consolation';
 }
 
-/** Champion, runner-up, toilet bowl loser, playoff teams and placements (by roster) from a season's brackets */
-export function bracketResults(winners: SleeperBracketMatchup[] | null, losers: SleeperBracketMatchup[] | null) {
+/**
+ * Champion, runner-up, toilet bowl loser, playoff teams and placements (by roster) from a
+ * season's brackets. With the number of teams, the toilet bowl's games place the bottom
+ * of the league too: its final decides last and second to last, its p=3 game the two
+ * places above, and so on (the lower score "wins" each of its games)
+ */
+export function bracketResults(winners: SleeperBracketMatchup[] | null, losers: SleeperBracketMatchup[] | null, teams?: number) {
   const final = winners?.find((m) => m.p === 1);
   const toiletFinal = losers?.find((m) => m.p === 1);
   const placements: Record<number, number> = {};
@@ -116,6 +121,13 @@ export function bracketResults(winners: SleeperBracketMatchup[] | null, losers: 
     if (!m.p || !m.w || !m.l) continue;
     placements[m.w] = m.p;
     placements[m.l] = m.p + 1;
+  }
+  if (teams) {
+    for (const m of losers ?? []) {
+      if (!m.p || !m.w || !m.l) continue;
+      placements[m.w] = teams + 1 - m.p;
+      placements[m.l] = teams - m.p;
+    }
   }
   const playoffTeams = new Set<number>();
   for (const m of winners ?? []) {
@@ -152,7 +164,7 @@ export interface AllTimeRow {
   finals: number;
   titles: number;
   toiletLosses: number;
-  /** Best final placement (1 = champion), null if never placed */
+  /** Best final placement (1 = champion), null if never placed (before Sleeper only the top three were) */
   bestFinish: number | null;
 }
 
@@ -201,6 +213,36 @@ export function allTimeStandings(data: HistoryData, opts: RecordOptions = {}): A
     r.pointsPerGame = r.scoredGames ? r.pointsFor / r.scoredGames : 0;
   }
   return [...rows.values()].sort((a, b) => b.titles - a.titles || b.winPct - a.winPct || b.pointsPerGame - a.pointsPerGame);
+}
+
+// ---------------------------------------------------------------------------
+// Finishes by season
+
+export interface SeasonFinish {
+  place: number;
+  /** False for a season before Sleeper below the top three, placed by regular-season standing */
+  exact: boolean;
+  toiletLoser: boolean;
+}
+
+/**
+ * Every manager's final place in each completed season, oldest season first. Before
+ * Sleeper only the top three are known, so the rest follow them in regular-season order.
+ */
+export function seasonFinishes(data: HistoryData): { seasons: string[]; finishes: Record<string, Record<string, SeasonFinish>> } {
+  const done = data.seasons.filter((s) => s.complete).sort((a, b) => a.season.localeCompare(b.season));
+  const finishes: Record<string, Record<string, SeasonFinish>> = {};
+  const set = (id: string, season: string, place: number, exact: boolean, toiletLoser = false) => {
+    (finishes[id] ??= {})[season] = { place, exact, toiletLoser };
+  };
+  for (const s of done) {
+    for (const [id, place] of Object.entries(s.placements)) set(id, s.season, place, true, id === s.toiletLoser);
+    if (!s.legacy) continue;
+    const rest = (s.standings ?? []).filter((t) => !(t.userId in s.placements)).sort((a, b) => a.rank - b.rank);
+    const top = Object.keys(s.placements).length;
+    rest.forEach((t, i) => set(t.userId, s.season, top + i + 1, false));
+  }
+  return { seasons: done.map((s) => s.season), finishes };
 }
 
 // ---------------------------------------------------------------------------

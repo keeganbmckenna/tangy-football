@@ -67,9 +67,10 @@ Shown only while the current regular season is in progress; past trades are unde
 ### History
 Every season the league has played, whichever season is selected. Managers are tracked by their Sleeper account, so a roster changing hands doesn't mix two managers' records, and shown with their first names.
 
-The seasons before Sleeper (2017-2021, a 10-team league) come from the old platform's final standings, kept in `web/lib/data/legacyHistory.ts`: team names, records, standings order and the top three. They count toward records, titles, finals and best finishes, and appear in the season dropdown with just an Overview of that final table. Head to head, points, playoff appearances, toilet bowls and game records start in 2022.
+The seasons before Sleeper (2017-2021, a 10-team league) come from the old platform's final standings, kept in `web/lib/data/legacyHistory.ts`: team names, records, standings order and the top three. They count toward records, titles, finals, best finishes and Finishes by Season, and appear in the season dropdown with just an Overview of that final table. Head to head, points, playoff appearances, toilet bowls and game records start in 2022.
 - 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser (💩), with that season's team names and photos; third place before Sleeper.
-- 📋 **All-Time Standings** - Per manager: seasons, record and win % (ties count as half), points per game, playoff appearances, finals, titles, toilet bowl losses and best finish (1st-6th from the playoff bracket).
+- 📋 **All-Time Standings** - Per manager: seasons, record and win % (ties count as half), points per game, playoff appearances, finals, titles, toilet bowl losses and best finish (every place since 2022, from the playoff and toilet bowl brackets; the top three before).
+- 📈 **Finishes by Season** - A line per manager of their final place each season, with 🏆 🥈 🥉 for the podium and 💩 for the toilet bowl loser. Sleeper seasons place all 12 teams from the two brackets (the toilet bowl's games settle 7th-12th); before 2022 only the top three are known, so the rest are placed by regular-season standing and drawn hollow.
 - ⚔️ **Head to Head** - Every manager's all-time record against every other, colored by win %; tap a cell for every meeting.
 - 🔥 **Rivalries** - Most-played, most lopsided and closest series (4+ games for the last two).
 - 🔁 **Trades** - Every trade since the league moved to Sleeper, newest first (the latest 5, then **Show all**), with a season filter (All seasons, or one season):
