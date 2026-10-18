@@ -1,103 +1,77 @@
-# Fantasy Football 2026 - Tangy Football
+# Tangy Football
 
-A Next.js web app for analyzing a Sleeper fantasy football league: standings, live scoring views, playoff odds, weekly and season analytics, draft grades, trade and waiver tools, and graded trade history, across every season of the league's history.
+A Next.js web app for our Sleeper fantasy football league: standings, live scoring, playoff odds, weekly and season analytics, draft grades, trade and waiver tools, and the league's full history. Live at https://tangy-football.vercel.app.
+
+[FEATURES.md](FEATURES.md) is a plain-language tour of the site. This README covers how things work and how to run it.
 
 ## Features
 
-The season picker in the header switches every tab between seasons; past seasons are found by following Sleeper's `previous_league_id` chain from the configured league. Seasons before Sleeper (2017-2021) are in the picker too, with only their final standings and the History tab. Weekly analytics only count completed regular-season weeks.
+The season picker in the header switches every tab between seasons. Past Sleeper seasons are found by following each league's `previous_league_id`. Seasons before Sleeper (2017-2021) only have their final standings and the History tab. Weekly analytics count completed regular-season weeks only, and ties count as half a win everywhere.
 
 ### Overview
-- 📅 **Data through** - A line saying which weeks the stats cover ("Stats through week 5 of 14", or "Final" for a finished season).
-- 🏆 **Division Standings** - One card per division with record, points, games back (GB), points back (PB) and the leader marked. Leagues without divisions get a single overall standings table with the playoff cutoff.
-- 🎯 **Wild Card Race** - Non-division leaders ranked for the remaining playoff spots, with the cutoff line.
-- 🏈 **Weekly Matchups** - Results for any completed week (week picker; defaults to the most recent).
+- 🏆 **Division Standings** - Record, points, games back (GB) and points back (PB) per division, ranked by wins, then points for.
+- 🎯 **Wild Card Race** - The non-division leaders ranked for the remaining playoff spots, with the cutoff line.
+- 🏈 **Weekly Matchups** - Results for any completed week.
 
-Standings are ranked by wins (ties count as half a win), then points for.
-
-### Live (current season only)
-Shown only for the current season. It's active while a regular-season week is in progress, and refreshes every minute while the tab is visible.
-- 🔴 **Live Play-All** - Each team's record against every other team at the current scores (equal scores are ties), colored by win rate, with a dot for whether the team is winning, losing or tied in its real matchup, the real margin, and season play-all counting this week as if it ended now.
-- 📊 **Live Standings** - The Overview standings as if the week ended now: each record shown before → now, the live matchup dot, and teams moving into or dropping out of a playoff spot flagged. Equal scores, including 0-0, are ties, and ties count as half a win in the ranking.
+### Live (current season, during a game week)
+Refreshes every minute.
+- 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
+- 📊 **Live Standings** - The standings if the week ended now, with teams moving into or out of a playoff spot flagged.
 
 ### Playoffs
-- 🔮 **Playoff Picture** - Shown instead of the brackets while the current season's regular season is in progress:
-  - **If the Season Ended Now** - Seeds (division winners take the top seeds, then wild cards; ties on record go to points for) in the league's bracket: seeds 1-2 get byes, round 1 is 4 v 5 and 3 v 6, seed 1 plays the 4/5 winner and seed 2 the 3/6 winner. Plus the first teams out.
-  - **Playoff Odds** - 20,000 simulations of the remaining schedule. Each team's weekly score centers on the strength of its current roster: each player is worth half his projection for that week (from Sleeper projections, so byes and injuries count) and half his points per game this season, and a team's expected score is the league average plus 75% of how far its best lineup of those values is from the league's. Shows playoff, division and bye odds, title odds (the playoff bracket is played out, higher score advancing), odds of losing the toilet bowl (played out too), and a this-week column showing how a win or loss changes whichever outcome is picked in its selector (playoffs, division, playoff bye, winning the league, toilet bowl bye or losing the toilet bowl).
-  - **Toilet Bowl If the Season Ended Now** - The six non-playoff teams seeded worst record first (ties go to fewer points for) in the league's toilet bowl, where the lower score advances: seeds 1-2 get byes, round 1 is 4 v 5 and 3 v 6, and the final's loser loses the toilet bowl. Shown when this season or last season had a toilet bowl, since Sleeper only creates the bracket once the playoffs start.
-  - **What Each Team Needs** - Each team's card has a this-week table: playoff, division, playoff bye, title, toilet bowl bye and losing-the-toilet-bowl odds now, with a win, and with a loss. Clinched and eliminated (playoffs and division) are exact. With 3 weeks or fewer left, every remaining result is checked for win-and-in, "comes down to points", and results that would clinch. Also shows points-for races at the playoff line and for division leads, and the team's biggest rooting interest this week.
-- 🏆 **Playoff Bracket** - Round-by-round winners bracket with placement games (once the postseason starts, and for past seasons).
-- 🚽 **Toilet Bowl** - Losers bracket, shown when the league has one.
+During the regular season:
+- **If the Season Ended Now** - The projected bracket: division winners take the top seeds, then wild cards (ties go to points for); seeds 1-2 get byes.
+- **Playoff Odds** - 20,000 simulations of the real remaining schedule, giving playoff, division, bye, title and toilet bowl odds, and how this week's win or loss changes them. Each team's weekly score centers on its current roster: each player is worth half his Sleeper projection for that week (so byes and injuries count) and half his points per game this season, and a team's expected score is the league average plus 75% of how far its best lineup is from the league's.
+- **Toilet Bowl If the Season Ended Now** - The six non-playoff teams in the toilet bowl, where the lower score advances.
+- **What Each Team Needs** - Each team's odds now, with a win and with a loss; clinched and eliminated; in the last three weeks, win-and-in scenarios; and the team's biggest rooting interest this week.
+
+After the regular season, and for past seasons, the **Playoff Bracket** (with placement games) and the **Toilet Bowl**.
 
 ### Weekly Performance
-- 📈 **Weekly Scores** - Score per team per week, colored by win/loss, plus each team's season average and its average score and margin in wins and in losses.
-- 🔥 **Weekly Rankings Heatmap** - Each team's weekly scoring rank (1-N), with its average and median rank.
+- 📈 **Weekly Scores** - Every score, colored by win or loss, with season average and average score and margin in wins and losses.
+- 🔥 **Weekly Rankings Heatmap** - Each team's scoring rank each week, with average and median rank.
 
 ### Season Trends
-- 📉 **Standings Over Time** - Week-by-week standings position.
-- 💯 **Cumulative Scores** - Running points total.
-- 📊 **Difference from Median** - Cumulative points above or below the weekly median.
-
-Hovering a team in a chart's legend highlights its line, and your team's line (see **You** below) is drawn thicker. Hovering a week, or tapping it on a phone, lists every team's value; on phones a second tap on the same point, or a tap outside the chart, closes it.
+Line charts of standings over time, cumulative scores, and points above or below the weekly median (added up). Hover or tap a week for every team's value, or a team in the legend to highlight its line.
 
 ### Advanced Stats
-- 🎲 **Play Everyone Analysis** - Each team's record if it played every other team every week, compared with its real record (expected wins and a luck factor). Ties count as half a win.
-- 🎯 **Schedule Luck Distribution** - 20,000 randomized schedules showing the spread of possible win totals against the actual record.
-- 📋 **Weekly Play-All** - Week-by-week play-all records as a heatmap, with each week's real result.
+- 🎲 **Play Everyone** - Each team's record if it played every team every week, against its real record, with a luck factor.
+- 🎯 **Schedule Luck Distribution** - 20,000 random schedules per team, showing the range of records it could have had.
+- 📋 **Weekly Play-All** - Week-by-week play-all records as a heatmap.
 
 ### Draft
-- 📋 **Draft Board** - Snake drafts by round and team; auction drafts by team, sorted by price. Each pick shows points per available week (`/wk`: total half-PPR points divided by the weeks the player could have played, i.e. weeks scored minus byes, so missed games count as zeros) and the median over games played ("healthy").
-- 🎯 **Draft Core** - Each team's intended starters for the season's lineup slots: the most expensive (auction) or earliest (snake) QB, RB, WR, TE and flex. Kickers and defenses aren't graded. Teams are ranked by Core/wk, the sum of those players' `/wk`.
-- 📊 **Draft Results** - Core/wk, All picks/wk, auction spend, $ per Core/wk point, and best pick.
+- 📋 **Draft Board** - By round for snake drafts, by team and price for auctions. Each pick shows points per available week (`/wk`: half-PPR points divided by the weeks the player could have played, so missed games count as zeros).
+- 🎯 **Draft Core** - Each team's intended starters (its most expensive or earliest QB, RBs, WRs, TE and flex), ranked by their combined `/wk`.
+- 📊 **Draft Results** - Core/wk, all picks/wk, auction spend, $ per point and best pick.
 
-Draft data for completed seasons is pre-built JSON in `web/public/data/drafts/`. The season in progress is built live from Sleeper, falling back to its JSON file if that fails.
+Completed seasons' drafts are pre-built JSON in `web/public/data/drafts/`; the season in progress is built live.
 
-### Trades & Waivers
-Shown only while the current regular season is in progress; past trades are under History.
+### Trades & Waivers (current season, during the regular season)
+- 🔄 **Trade Analyzer** (until the trade deadline) - Pick two managers and the players moving. Shows each team's win odds for every remaining week with and without the trade, season odds before → after (20,000 simulations each), lineup changes and forced roster moves, each player's [FantasyCalc](https://fantasycalc.com) market value, and which other teams' odds move. Players take their projections and season production with them; on the league's 2022-2025 trades this predicted playoff odds better than the alternatives tried (see `scripts/backtests/`).
+- 🔎 **Trade Finder** (until the trade deadline) - Pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager, keeping those that raise your playoff and title odds without hurting the other side. A market filter (on by default) hides trades where the other manager gets back much less FantasyCalc value. Each result opens in the analyzer.
+- 🧲 **Waiver Finder** - The free agents who'd help you most, for the rest of the season or one specific week (to cover a bye), each with the player it would drop, ranked by how much they raise your odds.
 
-- 🔄 **Trade Analyzer** (current season, until the trade deadline) - Pick two managers and the players each sends. Shows:
-  - **Win odds each week** - a line chart of each team's chance to win each remaining game, without the trade (dashed) and with it (solid); hover for the opponent.
-  - **Season outlook** - expected wins for the rest of the regular season, and playoff, division, playoff bye, title, toilet bowl bye and losing-the-toilet-bowl odds, before → after for both teams, from 20,000 simulated seasons run on the same random draws with and without the trade.
-  - **Lineup changes** - each team's expected lineup before → after if nothing else changes, who enters and leaves next week's lineup, and forced roster moves (a full roster drops the player who costs the lineup least; an open spot picks up the free agent who helps it most).
-  - **Players** - each player's points per game this season, expected points per remaining week (as the odds model values him) and [FantasyCalc](https://fantasycalc.com) redraft value (kickers and defenses aren't valued) and what each side gives and gets.
-  - **Other teams affected** - teams whose odds move by a point or more.
-
-  Players bring their projections and their season production with them, since team strength comes only from the current roster; two teams that swap whole rosters swap strengths (records already banked stay put). On the league's 2022-2025 trades this predicted the trading teams' playoff odds better than ignoring trades, giving trades less credit, or keeping season scoring with the team. Weekly win odds use a wider spread for games more than a week out, fitted on the same seasons. See `scripts/backtests/`.
-- 🔎 **Trade Finder** (current season, until the trade deadline) - Pick your team and click **Find trades**. It tries 1-for-1, 1-for-2, 2-for-1, 2-for-2, 3-for-1, 1-for-3, 3-for-2 and 2-for-3 trades with every other manager, using each roster's 10 most valuable players (**Search deeper** uses every player; kickers, defenses and IR players stay put). Trades are screened on both teams' best lineups, the best few hundred re-scored week by week with the roster moves they force, and the top 20 simulated with the playoff model. It keeps trades that raise your playoff and title odds without hurting the other manager (their lineup, playoff and title odds don't drop and their odds of losing the toilet bowl don't rise), and shows up to 8, at most 2 per manager, each with an **Open in analyzer** button. The market filter (on by default) hides trades where the other manager gets back less than 85% of the FantasyCalc value they give, with a premium for the best player in the deal. Runs in the background; a few seconds for a quick search.
-- 🧲 **Waiver Finder** (current season, while the regular season is in progress) - Pick your team and what to optimize for: **Rest of season**, or a single remaining week (each listed with your opponent and which of your starters are on bye). It checks the 15 best free agents at every position, kickers and defenses included; each pickup drops the player whose loss hurts your rest-of-season lineup least (IR players stay). Rest of season ranks pickups by how much they raise your playoff and title odds; a week ranks them by your win odds that week and still shows the season effect. The best dozen are simulated (5,000 seasons, same draws as without the move); up to 8 are shown, at most 3 per position. FAAB and waiver priority aren't modeled.
 ### History
-Every season the league has played, whichever season is selected. Managers are tracked by their Sleeper account, so a roster changing hands doesn't mix two managers' records, and shown with their first names.
+Every season the league has played. Managers are tracked by their Sleeper account and shown by first name. Seasons before Sleeper come from the old platform's final standings (`web/lib/data/legacyHistory.ts`) and count toward records, titles and finishes; points, head to head and game records start in 2022.
+- 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser (third place before Sleeper).
+- 📋 **All-Time Standings** - Per manager: seasons, record, win %, points per game, playoff appearances, finals, titles, toilet bowl losses and best finish.
+- ⚔️ **Head to Head** - Every manager's record against every other; tap a cell for every meeting.
+- 🔥 **Rivalries** - Most-played, most lopsided and closest series.
+- 🔁 **Trades** - Every Sleeper-era trade, graded at the time (the odds change it made, re-simulated with that week's rosters and projections) and in hindsight (the starting-lineup points the players brought in), with per-manager trade stats. Completed seasons are pre-built JSON in `web/public/data/trades/`.
+- 📖 **Record Book** - Highest and lowest scores, blowouts, closest games, and best and worst seasons.
 
-The seasons before Sleeper (2017-2021, a 10-team league) come from the old platform's final standings, kept in `web/lib/data/legacyHistory.ts`: team names, records, standings order and the top three. They count toward records, titles, finals and best finishes, and appear in the season dropdown with just an Overview of that final table. Head to head, points, playoff appearances, toilet bowls and game records start in 2022.
-- 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser (💩), with that season's team names and photos; third place before Sleeper.
-- 📋 **All-Time Standings** - Per manager: seasons, record and win % (ties count as half), points per game, playoff appearances, finals, titles, toilet bowl losses and best finish (1st-6th from the playoff bracket).
-- ⚔️ **Head to Head** - Every manager's all-time record against every other, colored by win %; tap a cell for every meeting.
-- 🔥 **Rivalries** - Most-played, most lopsided and closest series (4+ games for the last two).
-- 🔁 **Trades** - Every trade since the league moved to Sleeper, newest first (the latest 5, then **Show all**), with a season filter (All seasons, or one season):
-  - **Traders** - per manager: trades made, favorite trade partner, the total change their trades made to their playoff and title odds at the time, and the starting-lineup points of the players they got.
-  - **Biggest playoff odds gains and losses at the time**, and the **best hauls in hindsight** (most starting-lineup points from one trade).
-  - **Every trade**, graded two ways:
-    - **At the time:** playoff, title and losing-the-toilet-bowl odds without and with the trade, re-run the week it counted from with that week's records, rosters and projections (5,000 seasons each), plus the raw projected lineup change.
-    - **Hindsight:** points the players each team got scored in its starting lineup afterward, and where the team finished.
+All-time records, head to head and rivalries count regular-season, playoff and toilet bowl games; a switch changes them to the regular season only. Placement games (3rd place, 5th place and so on) never count, since teams often don't set lineups for them.
 
-  Trades that went through after a week's games count from the next week. Completed seasons are pre-built JSON in `web/public/data/trades/`; the season in progress is built live.
-- 📖 **Record Book** - Highest and lowest scores, biggest blowouts, closest games, highest combined scores, most points in a loss, fewest in a win, and best, worst, highest- and lowest-scoring seasons.
-
-All-time records, head to head and rivalries count regular-season games plus the playoff bracket's path to the title and the toilet bowl's path to its final; a switch above All-Time Standings changes them to the regular season only. Placement games (3rd, 5th and the like, in either bracket) and consolation games outside both brackets never count: teams often don't set lineups for them. Seasons before Sleeper only have regular-season records. The record book counts regular-season and playoff games.
-
-### UI
-- 🔗 **Shareable links** - The tab and season are in the address bar (`?tab=history&season=2023`), so refresh, back/forward and shared links land on the same view. A tab that doesn't apply to the season (Live for a past season, say) falls back to Overview.
-- 🙋 **You** - Pick your team once in the header (saved on this device; **✕** clears it): your row is highlighted in every table, your line is drawn thicker in the season charts, and the trade analyzer, trade finder and waiver finder start on your team.
-- 💡 **Definitions** - Dotted-underlined column names (GB, PB, Core/wk, $/pt, luck factor, play-all and more) explain themselves on hover or tap.
-- 📱 **Home screen app** - A web app manifest and icons (a football, as static PNGs: `web/app/apple-icon.png` for iPhones, `web/public/icon-*.png` for Android) let phones add the site to the home screen; the browser bar follows the light or dark theme. Loading screens show a tumbling football (`web/components/ui/Football.tsx`, which the icons are drawn from).
-- Switching seasons keeps the header in place while the new season loads; a card that fails to load has a **Try again** button; Overview says which weeks the stats cover; table sorts and the History trade filter are remembered while you move between tabs (until the season changes or the page reloads).
-- ↕️ **Sortable tables** - Tap a column header in Weekly Scores, Weekly Rankings, Weekly Play-All, Play Everyone, Playoff Odds, Draft Results, Live Play-All, All-Time Standings or Traders to sort best-first; tap again to reverse, a third time (or **↺ Default order**) for the table's own order. The line above each table that shows the sort is always there (a hint until you sort), so sorting never moves anything. Lower-is-better columns (ranks, $/pt, toilet bowl odds and losses, best finish) start low to high; blanks always sort last. Standings, brackets, the draft board and head to head keep their fixed order.
-- 🏈 **Chalkboard background** - Faint chalkboard plays (O's, X's and routes) draw themselves behind the whole page, one at a time, each with its line of scrimmage at a new angle and drifting slowly in its own direction (`web/components/ui/Chalkboard.tsx`). Cards and tables are slightly see-through so it shows faintly behind them; pinned table columns, dropdowns, chart popups, definitions and heatmap cells stay solid. It ignores taps, pauses while the tab is hidden, and shows one still play when the device asks for reduced motion. It's kept cheap to draw since it sits behind every page: no SVG filters, and the drift and fade move the whole layer (which browsers can slide without redrawing) rather than the drawing inside it. For the same reason the header has no backdrop blur.
-- ✨ **Smooth tab switches** - Tabs crossfade with View Transitions in Chrome/Edge 111+ and Firefox 144+. Safari (and so every iPhone browser) gets a short fade-in of the new tab instead, since its View Transitions flicker; with reduced motion tabs switch instantly. Charts don't animate in, and each one is built only when it comes near the screen, one at a time (`web/components/ui/LazyMount.tsx`), so a chart-heavy tab appears straight away.
-- 🏠 **Home** - The league logo and name take you back to Overview for the current season (the plain address), scrolled to the top.
-- 🥅 **Easter egg** - Mash the logo or name (5 quick taps) to kick a field goal (`web/components/ui/HomeLink.tsx`); about one in five sails wide right.
-- 🎨 **Theme Toggle** - Light, dark or system theme (defaults to system), saved in local storage. Dark mode is true black with flat, deep-colored section headers and dimmed heatmaps (`web/app/globals.css`).
-- 🎯 **Chart popups** - Sorted popups for crowded charts. On touch screens a tap opens one and a second tap on the same point, or a tap outside the chart, closes it (`web/hooks/useTapTooltip.ts`).
-- 📱 **Responsive Layout** - A row of tab pills on every screen size, scrolling sideways on phones. Wide tables scroll sideways with the team column pinned; on phones that column is compact (team and manager names shortened with "…"). Standings tables size their columns to their content (a fixed column layout made text overlap in iPhone Safari).
+### Across the site
+- 🙋 **You** - Pick your team in the header (saved on this device; ✕ clears it) to highlight it in every table and chart and preselect it in the trade and waiver tools.
+- 🔗 **Shareable links** - The tab and season are in the address bar (`?tab=history&season=2023`), so refresh, back and shared links land on the same view.
+- ↕️ **Sortable tables** - Tap a column header to sort best-first, again to reverse, and a third time (or ↺) for the default order.
+- 💡 **Definitions** - Dotted-underlined terms (GB, PB, Core/wk, luck factor…) explain themselves on hover or tap.
+- 📱 **Phones** - The tab row scrolls sideways, wide tables keep the team column pinned, chart popups open and close with a tap, and the site can be added to the home screen with a football icon.
+- 🏈 **Chalkboard background** - Faint plays draw themselves behind the page, each at a new angle and slowly drifting (`web/components/ui/Chalkboard.tsx`); cards are slightly see-through so it shows faintly. It stays still when the device asks for reduced motion.
+- ✨ **Smooth tab switches** - Tabs crossfade (a short fade-in in Safari, whose View Transitions flicker), and charts are built only as they come near the screen, so chart-heavy tabs appear straight away.
+- 🏠 **Home and easter egg** - The league logo and name go back to the current season's Overview; mash them (5 quick taps) to kick a field goal (`web/components/ui/HomeLink.tsx`).
+- 🎨 **Themes** - Light, dark (true black) or follow the device.
 
 ## Project Structure
 
@@ -143,7 +117,7 @@ All-time records, head to head and rivalries count regular-season games plus the
 │   └── backtests/                # Backtests behind the playoff odds and trade analyzer
 ├── docs/                         # Research notes
 ├── FEATURES.md                   # Plain-language tour of every tab
-├── FUTURE_FEATURES.md            # Idea list, with what's built so far
+├── FUTURE_FEATURES.md            # Ideas not built yet
 ├── LEAGUE_SETTINGS_UPDATE.md     # How the league's structure is read from Sleeper
 └── pyproject.toml, uv.lock       # Python project (uv)
 ```
@@ -188,7 +162,7 @@ Run the scripts from the repo root:
 
 The backtests in `scripts/backtests/` have their own README.
 
-`league_data.json` and `fantasy_analysis.xlsx` are generated files and are gitignored. `scripts/main.py` is an unused placeholder.
+`league_data.json` and `fantasy_analysis.xlsx` are generated files and are gitignored.
 
 The scripts don't read `NEXT_PUBLIC_LEAGUE_ID`. `fetch_data.py` has the current league ID hard-coded, and `build_draft_data.py` has a hard-coded season → league/draft ID table.
 
@@ -234,7 +208,3 @@ The site is hosted on Vercel at https://tangy-football.vercel.app. There's no Ve
 - **Sleeper API** (`api.sleeper.app/v1`) for leagues, users, rosters, matchups, transactions, brackets, drafts and weekly player stats (draft grades and the odds model's player values), plus weekly player projections and the NFL schedule from `api.sleeper.com` for playoff odds and trades. The `api.sleeper.com` endpoints aren't part of Sleeper's documented API.
 - **FantasyCalc** (`api.fantasycalc.com`) for redraft trade values in the trade analyzer. Also undocumented; the analyzer works without it.
 - **Python 3.13** with requests, pandas and openpyxl for the data scripts
-
-## License
-
-This repository doesn't include a license file.

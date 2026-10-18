@@ -15,7 +15,6 @@ How the site reads the league's structure (season length, playoff size, division
 | `playoffTeams` | `settings.playoff_teams` | 6 |
 | `divisions` | `settings.divisions` | 0 |
 | `hasToiletBowl` | `loser_bracket_id` is set | false |
-| `playoffDescription`, `toiletBowlDescription` | Built from the above (e.g. "6-team single elimination bracket. Top 3 division winners get first-round byes, 3 wild card teams compete.") | |
 
 The current league has 12 teams in 3 divisions, a 14-week regular season, a 6-team playoff starting in week 15, and a 6-team toilet bowl.
 
@@ -35,11 +34,6 @@ The current league has 12 teams in 3 divisions, a 14-week regular season, a 6-te
 The playoff odds, trade analyzer, waiver finder and history don't use `getLeagueSettings`. They run on the server and read the same Sleeper fields directly:
 - `web/lib/oddsData.ts` (`playoffFormat`, `loadOddsInputs`) reads `playoff_week_start`, `playoff_teams` and `divisions`, and counts the toilet bowl as on if this season or last season had one, since Sleeper only creates the bracket once the playoffs start.
 - `web/lib/historyData.ts` reads `playoff_week_start` and each season's brackets.
-
-## Not currently used
-
-- **`playoffDescription` / `toiletBowlDescription`:** these were shown by a `LeagueInfo` card at the top of Overview, which was removed. They're still computed.
-- **`getRegularSeasonWeeks`, `isRegularSeasonWeek` and `isPlayoffWeek`:** these helpers in the same file have no callers.
 
 ## Assumptions
 
