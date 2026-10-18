@@ -80,11 +80,14 @@ Requires numpy (installed with pandas by `uv sync`).
   with a missing starter replaced by a free agent (2.779, 0.1431). Managers cover injuries
   from waivers, and Sleeper's projections run a little low, so the trade tools keep valuing
   the best lineup. Kept for reference.
-- **Injured players' returns**: of players who'd been playing and then missed a game, 68%
-  played their team's next game; of those out two in a row, 29% the next; then about a
-  quarter a game (25%, 28%). Sleeper projects an out player for every later week as if he's
-  back next week, so the odds model scales those weeks by these chances (no return from IR
-  before 4 games), unless Sleeper already has him out past next week. The archive's injury
+- **Injured players' returns**: of players who'd been playing, missed a game and came back
+  later that season, 76% played their team's next game; of those out two in a row, 40% the
+  next; then 38% and about half. Counting season-ending injuries too it's 68%, 29%, 25%, 21%,
+  but the discount only applies to players Sleeper projects to be back next week, which
+  leaves those out, so the model uses the first set (for players who'd scored 15+ it's in
+  between: 69%, 33%, 32%, 32%). Sleeper projects an out player for every later week as if
+  he's back next week, so the odds model scales those weeks by these chances (no return from
+  IR before 4 games), unless Sleeper already has him out past next week. The archive's injury
   statuses are from after the season, so this can't be backtested on past trades.
 
 Projections are always the ones known at the time: the week after the cutoff, carried

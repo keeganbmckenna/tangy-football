@@ -4,21 +4,21 @@ import { discountInjured, type ProjectedPlayer, type SeasonProduction } from '..
 
 describe('injured players coming back', () => {
   it('uses the measured return rates, and no return from IR before 4 games', () => {
-    expect(returnRate(1, false)).toBe(0.68);
-    expect(returnRate(2, false)).toBe(0.29);
-    expect(returnRate(6, false)).toBe(0.28);
+    expect(returnRate(1, false)).toBe(0.76);
+    expect(returnRate(2, false)).toBe(0.4);
+    expect(returnRate(6, false)).toBe(0.48);
     expect(returnRate(2, true)).toBe(0);
-    expect(returnRate(4, true)).toBe(0.28);
+    expect(returnRate(4, true)).toBe(0.48);
   });
 
   it('adds up the chance of being back by a later game', () => {
-    // Out two games: 29% for the next one, then 25%, then 28%...
-    expect(backBy(2, 1, false)).toBeCloseTo(0.29);
-    expect(backBy(2, 2, false)).toBeCloseTo(1 - 0.71 * 0.75);
+    // Out two games: 40% for the next one, then 38%, then 48%...
+    expect(backBy(2, 1, false)).toBeCloseTo(0.4);
+    expect(backBy(2, 2, false)).toBeCloseTo(1 - 0.6 * 0.62);
     expect(backBy(2, 3, false)).toBeGreaterThan(backBy(2, 2, false));
     // On IR after one game: three more to sit, so back four games out at the earliest
     expect(backBy(1, 3, true)).toBe(0);
-    expect(backBy(1, 4, true)).toBeCloseTo(0.28);
+    expect(backBy(1, 4, true)).toBeCloseTo(0.48);
   });
 
   it('counts games missed in a row, back to the last one he played', () => {
@@ -41,8 +41,8 @@ describe('injured players coming back', () => {
     const production: SeasonProduction = { points: {}, games: {}, playedWeeks: { lamar: [1, 2, 3, 4], healthy: [1, 2, 3, 4, 5] } };
     discountInjured(values, players, production, schedule, 5, [6, 7, 8, 9]);
     expect(values[6].lamar.points).toBe(0);
-    expect(values[7].lamar.points).toBeCloseTo(22 * 0.29);
-    expect(values[8].lamar.points).toBeCloseTo(22 * (1 - 0.71 * 0.75));
+    expect(values[7].lamar.points).toBeCloseTo(22 * 0.4);
+    expect(values[8].lamar.points).toBeCloseTo(22 * (1 - 0.6 * 0.62));
     expect(values[9].healthy.points).toBe(20);
   });
 

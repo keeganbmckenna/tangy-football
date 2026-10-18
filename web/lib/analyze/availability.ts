@@ -4,13 +4,16 @@
  * date, was projected for 22 points every week from the next one on), so the odds model
  * scales those weeks by his chance of being back by then.
  *
- * Measured on 2022-2025: of players who'd been playing and then missed a game, 68%
- * played their team's next game; of those still out after two games, 29% played the
- * one after; then about a quarter each game (scripts/backtests/README.md).
+ * Measured on 2022-2025 among players who'd been playing, missed a game, and came back
+ * later that season: 76% played their team's next game; of those still out after two
+ * games, 40% played the one after; then 38%, then about half (scripts/backtests/README.md).
+ * The discount only applies to players Sleeper projects to be back next week, which
+ * leaves out season-ending injuries, so these are the rates for injuries that end. (All
+ * players who missed a game, season-ending injuries included: 68%, 29%, 25%, 21%.)
  */
 
 /** Chance a player plays his team's next game, by how many in a row he's missed (1, 2, 3, 4+) */
-export const RETURN_RATE = [0.68, 0.29, 0.25, 0.28];
+export const RETURN_RATE = [0.76, 0.4, 0.38, 0.48];
 /** Players on injured reserve sit at least this many games */
 export const IR_MIN_GAMES = 4;
 /** Statuses that mean a player won't play (doubtful counts when he's projected for nothing this week) */
