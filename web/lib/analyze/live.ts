@@ -7,6 +7,7 @@ import type { DivisionStanding, LeagueData, SleeperMatchup, TeamStats, WeeklyPla
 import { calculateTeamStats, rankTeams } from './teamStats';
 import { calculateDivisionStandings, calculateWildCardStandings } from './playoffs';
 import { calculateWeeklyPlayAll } from './playEveryone';
+import { normalCdf } from './trade';
 
 /** Response of /api/live */
 export interface LiveWeekData {
@@ -16,7 +17,174 @@ export interface LiveWeekData {
   lastScoredWeek: number;
   playoffWeekStart: number;
   matchups: SleeperMatchup[];
+  /** This week's projection and NFL team for each starter (missing if projections are unavailable) */
+  projections?: Record<string, LiveProjection>;
+  /** Each NFL team's game this week, by Sleeper team code (missing if the scoreboard is unavailable) */
+  games?: Record<string, LiveGame>;
   fetchedAt: string;
+}
+
+export interface LiveProjection {
+  /** Projected half-PPR points, already zero for players ruled out and cut for doubtful ones */
+  points: number;
+  /** Spread of the player's weekly scores, as a share of his projection (see playerSpreadRatio) */
+  spreadRatio: number;
+  team: string | null;
+}
+
+export interface LiveGame {
+  state: 'pre' | 'in' | 'post';
+  /** Share of a regulation game still to play, 0-1, plus the expected overtime */
+  remaining: number;
+}
+
+/** Injury statuses that mean a player won't play (or play on), and how much a doubtful one is expected to play */
+const RULED_OUT = new Set(['Out', 'IR', 'PUP', 'Sus', 'NA', 'DNR', 'COV']);
+const DOUBTFUL_SHARE = 0.3;
+
+/** A starter's expected points for the week given his injury status (doubtful only matters before kickoff) */
+export function injuryAdjusted(points: number, status: string | null, gameStarted: boolean): number {
+  if (status && RULED_OUT.has(status)) return 0;
+  if (status === 'Doubtful' && !gameStarted) return points * DOUBTFUL_SHARE;
+  return points;
+}
+
+// Overtime: about 1 regular-season game in 19 reaches it (5.3% since 2017), and a regular-season
+// overtime period is up to 10 minutes; take about 8 as the average one played
+const FULL_GAME_MARGIN_SD = 13.5;
+const TIE_BAND = 1.9;
+const EXPECTED_OT = 8 / 60;
+
+/**
+ * Share of an NFL game still to play from its quarter, clock (seconds left in the period) and
+ * score margin, counting the chance of overtime: likelier the closer the game and the less
+ * time is left, so a tie late in the 4th quarter adds real time while a blowout adds none.
+ */
+export function gameRemaining(state: LiveGame['state'], period: number, clock: number, margin: number): number {
+  if (state === 'post') return 0;
+  if (period > 4) return Math.max(0, clock) / 3600;
+  const regulation = state === 'pre' ? 1 : Math.min(1, Math.max(0, ((4 - period) * 900 + clock) / 3600));
+  // The final margin spreads out with the time left; overtime happens when it lands on a tie
+  const sd = FULL_GAME_MARGIN_SD * Math.sqrt(regulation);
+  const tie = sd > 0.5 ? Math.min(0.9, (TIE_BAND * Math.exp(-0.5 * (margin / sd) ** 2)) / (sd * Math.sqrt(2 * Math.PI))) : margin === 0 ? 1 : 0;
+  return regulation + tie * EXPECTED_OT;
+}
+
+/**
+ * Weekly half-PPR scores' spread as a share of the mean, by position, for a player with little
+ * history: the median among 2025's regular contributors (8+ games), defenses rounded up since
+ * theirs ranged widely
+ */
+export const POSITION_SPREAD_RATIO: Record<string, number> = { QB: 0.45, RB: 0.6, WR: 0.6, TE: 0.65, K: 0.55, DEF: 0.6 };
+const SPREAD_PRIOR_GAMES = 4;
+
+/**
+ * How boom-or-bust a player is: his weekly scores' spread over their mean this season,
+ * blended with his position's typical ratio (weighted as SPREAD_PRIOR_GAMES games) since a
+ * handful of games says little on its own.
+ */
+export function playerSpreadRatio(position: string, scores: number[]): number {
+  const prior = POSITION_SPREAD_RATIO[position] ?? 0.75;
+  const n = scores.length;
+  if (n < 2) return prior;
+  const mean = scores.reduce((a, b) => a + b, 0) / n;
+  if (mean <= 1) return prior;
+  const sd = Math.sqrt(scores.reduce((a, v) => a + (v - mean) ** 2, 0) / (n - 1));
+  return (n * Math.min(sd / mean, 2) + SPREAD_PRIOR_GAMES * prior) / (n + SPREAD_PRIOR_GAMES);
+}
+
+/**
+ * A whole game's spread for one team at kickoff, as a share of the league's week-to-week
+ * spread: fitted on 2022-2025's matchups with Sleeper's pre-kickoff projections
+ * (scripts/backtests/live_pregame.py)
+ */
+export const LIVE_SPREAD_SCALE = 0.7;
+
+export interface LiveSide {
+  rosterId: number;
+  score: number;
+  /** Current score plus what the starters still to play are projected to add */
+  projected: number;
+  /** Starters whose games haven't started */
+  toPlay: number;
+  /** Starters whose games are in progress */
+  playing: number;
+}
+
+export interface LiveMatchupOdds {
+  matchupId: number;
+  a: LiveSide;
+  b: LiveSide;
+  /** Chance a wins (ties split evenly) */
+  aWinOdds: number;
+}
+
+/** Pooled week-to-week spread of team scores over completed weeks (the playoff odds model's spread) */
+export function scoreSpread(teams: TeamStats[], throughWeek: number): number {
+  let sq = 0;
+  let n = 0;
+  for (const t of teams) {
+    const s = t.weeklyScores.slice(0, throughWeek).filter((v) => v > 0);
+    if (s.length < 2) continue;
+    const m = s.reduce((a, b) => a + b, 0) / s.length;
+    s.forEach((v) => (sq += (v - m) ** 2));
+    n += s.length - 1;
+  }
+  return n > 0 ? Math.max(Math.sqrt(sq / n), 15) : 25;
+}
+
+/**
+ * Live win odds for each real matchup. Each starter still to play adds his projection times
+ * the share of his NFL game left (overtime included), and his own boom-or-bust spread over
+ * that share. Player spreads are scaled so an average lineup before kickoff has the model's
+ * single-week spread, so steadier lineups get tighter odds and volatile ones wider, and the
+ * odds settle as games finish.
+ */
+export function liveWinOdds(
+  matchups: SleeperMatchup[],
+  projections: Record<string, LiveProjection>,
+  games: Record<string, LiveGame>,
+  spread: number
+): LiveMatchupOdds[] {
+  const starters = (m: SleeperMatchup) =>
+    (m.starters ?? []).filter((id) => id !== '0' && projections[id]).map((id) => ({ p: projections[id], g: projections[id].team ? games[projections[id].team!] : undefined }));
+
+  // Calibrate: the average lineup's whole-game variance should match the model's spread
+  const fullVariance = (spread * LIVE_SPREAD_SCALE) ** 2;
+  const lineupVariance = matchups.map((m) => starters(m).reduce((v, { p }) => v + (p.spreadRatio * p.points) ** 2, 0)).filter((v) => v > 0);
+  const scale = lineupVariance.length ? fullVariance / (lineupVariance.reduce((a, b) => a + b, 0) / lineupVariance.length) : 1;
+
+  const side = (m: SleeperMatchup) => {
+    let left = 0;
+    let variance = 0;
+    let toPlay = 0;
+    let playing = 0;
+    for (const { p, g } of starters(m)) {
+      // No game this week (a bye or a free agent): nothing more to come
+      const remaining = g ? g.remaining : 0;
+      left += p.points * remaining;
+      variance += scale * (p.spreadRatio * p.points) ** 2 * remaining;
+      if (g?.state === 'pre') toPlay++;
+      else if (g?.state === 'in') playing++;
+    }
+    const score = m.points ?? 0;
+    return { s: { rosterId: m.roster_id, score, projected: score + left, toPlay, playing }, variance };
+  };
+  const byId = new Map<number, SleeperMatchup[]>();
+  for (const m of matchups) {
+    if (m.matchup_id == null) continue;
+    byId.set(m.matchup_id, [...(byId.get(m.matchup_id) ?? []), m]);
+  }
+  const out: LiveMatchupOdds[] = [];
+  for (const [matchupId, pair] of byId) {
+    if (pair.length !== 2) continue;
+    const [a, b] = pair.map(side);
+    const diff = a.s.projected - b.s.projected;
+    const sd = Math.sqrt(a.variance + b.variance);
+    const aWinOdds = sd > 0.01 ? normalCdf(diff / sd) : diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
+    out.push({ matchupId, a: a.s, b: b.s, aWinOdds });
+  }
+  return out.sort((x, y) => x.matchupId - y.matchupId);
 }
 
 /**

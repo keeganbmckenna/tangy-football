@@ -15,6 +15,7 @@ The season picker in the header switches every tab between seasons. Past Sleeper
 
 ### Live (current season, during a game week)
 Refreshes every minute.
+- 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out add nothing and doubtful ones less. The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`).
 - 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 - 📊 **Live Standings** - The standings if the week ended now, with teams moving into or out of a playoff spot flagged.
 
@@ -206,5 +207,6 @@ The site is hosted on Vercel at https://tangy-football.vercel.app. There's no Ve
 - **Recharts 3** for charts
 - **Vitest 4** with Testing Library for tests
 - **Sleeper API** (`api.sleeper.app/v1`) for leagues, users, rosters, matchups, transactions, brackets, drafts and weekly player stats (draft grades and the odds model's player values), plus weekly player projections and the NFL schedule from `api.sleeper.com` for playoff odds and trades. The `api.sleeper.com` endpoints aren't part of Sleeper's documented API.
+- **ESPN's scoreboard** (`site.api.espn.com`) for NFL game clocks in the Live tab's win odds. Also undocumented; without it the odds are hidden.
 - **FantasyCalc** (`api.fantasycalc.com`) for redraft trade values in the trade analyzer. Also undocumented; the analyzer works without it.
 - **Python 3.13** with requests, pandas and openpyxl for the data scripts

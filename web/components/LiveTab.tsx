@@ -14,9 +14,13 @@ import { formatRecord } from '@/lib/analyze/playEveryone';
 import {
   liveMatchupStatus,
   livePlayAll,
+  liveWinOdds,
+  scoreSpread,
   liveStandings,
   liveTeamStats,
   liveWeekNumber,
+  type LiveMatchupOdds,
+  type LiveSide,
   type LiveWeekData,
   type PlayoffStatus,
 } from '@/lib/analyze/live';
@@ -38,6 +42,48 @@ function isIn(status: PlayoffStatus) {
 
 function TeamCell({ team }: { team: TeamStats }) {
   return <TeamName name={team.teamName} sub={`@${team.username}`} />;
+}
+
+const oddsText = (p: number) => (p > 0.995 ? '>99%' : p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`);
+
+function SideSummary({ side, name, align }: { side: LiveSide; name: string; align: 'left' | 'right' }) {
+  const left = [side.playing && `${side.playing} playing`, side.toPlay && `${side.toPlay} to play`].filter(Boolean).join(' · ') || 'done';
+  return (
+    <div className={`min-w-0 flex-1 ${align === 'right' ? 'text-right' : ''}`}>
+      <div className="truncate text-sm font-semibold text-[var(--foreground)]" title={name}>{name}</div>
+      <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{side.score.toFixed(2)}</div>
+      <div className="text-xs tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
+      <div className="whitespace-nowrap text-xs text-[var(--muted)]">{left}</div>
+    </div>
+  );
+}
+
+/** Each real matchup with its live win odds */
+function LiveMatchups({ odds, names, myRosterId }: { odds: LiveMatchupOdds[]; names: Map<number, string>; myRosterId: number | null }) {
+  return (
+    <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6">
+      {odds.map((m) => {
+        const mine = m.a.rosterId === myRosterId || m.b.rosterId === myRosterId;
+        const a = m.aWinOdds;
+        return (
+          <div key={m.matchupId} className={`rounded-lg border p-3 ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}>
+            <div className="flex items-start gap-3">
+              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} align="left" />
+              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} align="right" />
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs font-semibold tabular-nums">
+              <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>
+              <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--neutral-bg)]" role="img" aria-label={`Win odds ${oddsText(a)} to ${oddsText(1 - a)}`}>
+                <div style={{ width: `${a * 100}%`, backgroundColor: a >= 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
+                <div style={{ width: `${(1 - a) * 100}%`, backgroundColor: a < 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
+              </div>
+              <span className="w-9 text-right" style={{ color: a <= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(1 - a)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function secondsAgo(iso: string, now: number) {
@@ -109,7 +155,11 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         },
       ])
     );
+    const odds = live.projections && live.games
+      ? liveWinOdds(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek))
+      : null;
     return {
+      odds,
       playAll: livePlayAll(teams, week),
       standings,
       annotations,
@@ -180,6 +230,27 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   return (
     <div className="space-y-8">
       <SectionCard
+        title={`Week ${week} Matchups`}
+        subtitle="Live scores and win odds"
+        gradientType="info"
+        footer={
+          <span>
+            Each starter still to play is expected to add his Sleeper projection for the share of his NFL game left, with a
+            chance of overtime when a game is close late. Players ruled out count for nothing and doubtful ones for less.
+            How much the score could still swing depends on the time left and how boom-or-bust each starter has been this
+            season. Before kickoff these odds were well calibrated on the league&apos;s 2022-2025 matchups. Projected scores are the current score plus what&apos;s still expected.
+          </span>
+        }
+      >
+        <div className="px-6 pt-4">{statusBar}</div>
+        {view.odds ? (
+          <LiveMatchups odds={view.odds} names={view.names} myRosterId={me.rosterId} />
+        ) : (
+          <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
+        )}
+      </SectionCard>
+
+      <SectionCard
         title={`Week ${week} Live Play-All`}
         subtitle="Each team's record against every other team at the current scores"
         gradientType="info"
@@ -193,7 +264,6 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           </span>
         }
       >
-        <div className="px-6 pt-4">{statusBar}</div>
         {!view.started && (
           <p className="px-6 pt-3 text-sm text-[var(--muted)]">No points scored yet this week, so everyone is level.</p>
         )}

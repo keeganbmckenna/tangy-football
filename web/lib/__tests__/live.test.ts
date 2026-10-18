@@ -5,6 +5,13 @@ import {
   livePlayAll,
   liveStandings,
   liveTeamStats,
+  liveWinOdds,
+  gameRemaining,
+  injuryAdjusted,
+  playerSpreadRatio,
+  POSITION_SPREAD_RATIO,
+  type LiveGame,
+  type LiveProjection,
   type LiveWeekData,
 } from '../analyze/live';
 import { rankTeams } from '../analyze/teamStats';
@@ -171,5 +178,65 @@ describe('liveStandings', () => {
     // 2 is 2-0; 4 and 1 are both 1-1, and 4 has more points (170 vs 160)
     expect(rows.filter((r) => r.now.status === 'in').map((r) => r.team.rosterId)).toEqual([2, 4]);
     expect(divisions).toEqual([]);
+  });
+});
+
+describe('live win odds', () => {
+  it('counts the time left in a game, with overtime likelier when it is close late', () => {
+    expect(gameRemaining('post', 4, 0, 0)).toBe(0);
+    // Before kickoff: the whole game plus a small chance of overtime (about 1 in 18)
+    const pre = gameRemaining('pre', 0, 0, 0);
+    expect(pre).toBeGreaterThan(1);
+    expect((pre - 1) / (8 / 60)).toBeCloseTo(0.056, 2);
+    // Halftime of a blowout: half a game, no overtime to speak of
+    expect(gameRemaining('in', 2, 0, 28)).toBeCloseTo(0.5, 3);
+    // Tied with two minutes left: overtime is a real chance
+    const tied = gameRemaining('in', 4, 120, 0);
+    expect(tied - 120 / 3600).toBeGreaterThan(0.25 * (8 / 60));
+    expect(gameRemaining('in', 4, 120, 14) - 120 / 3600).toBeLessThan(0.001);
+    // In overtime: what's left of the 10-minute period
+    expect(gameRemaining('in', 5, 300, 0)).toBeCloseTo(300 / 3600);
+  });
+
+  it('drops players ruled out and discounts doubtful ones before kickoff', () => {
+    expect(injuryAdjusted(15, 'Out', false)).toBe(0);
+    expect(injuryAdjusted(15, 'IR', true)).toBe(0);
+    expect(injuryAdjusted(15, 'Doubtful', false)).toBeCloseTo(4.5);
+    expect(injuryAdjusted(15, 'Doubtful', true)).toBe(15);
+    expect(injuryAdjusted(15, 'Questionable', false)).toBe(15);
+    expect(injuryAdjusted(15, null, false)).toBe(15);
+  });
+
+  it("blends a player's own boom-or-bust spread with his position's", () => {
+    expect(playerSpreadRatio('WR', [])).toBe(POSITION_SPREAD_RATIO.WR);
+    const steady = playerSpreadRatio('WR', [15, 16, 14, 15, 16, 14]);
+    const boomBust = playerSpreadRatio('WR', [2, 30, 3, 28, 1, 26]);
+    expect(steady).toBeLessThan(POSITION_SPREAD_RATIO.WR);
+    expect(boomBust).toBeGreaterThan(POSITION_SPREAD_RATIO.WR);
+  });
+
+  const proj = (points: number, team: string, spreadRatio = 0.6): LiveProjection => ({ points, team, spreadRatio });
+  const sm = (roster_id: number, points: number, starters: string[]): SleeperMatchup => ({ roster_id, matchup_id: 1, points, starters });
+
+  it('favors the team ahead and settles as games finish', () => {
+    const projections = { a1: proj(20, 'AAA'), b1: proj(20, 'BBB') };
+    const matchups = [sm(1, 60, ['a1']), sm(2, 50, ['b1'])];
+    const pre: Record<string, LiveGame> = { AAA: { state: 'pre', remaining: 1 }, BBB: { state: 'pre', remaining: 1 } };
+    const before = liveWinOdds(matchups, projections, pre, 25)[0];
+    expect(before.aWinOdds).toBeGreaterThan(0.5);
+    expect(before.aWinOdds).toBeLessThan(0.9);
+    expect(before.a).toMatchObject({ projected: 80, toPlay: 1, playing: 0 });
+    const done: Record<string, LiveGame> = { AAA: { state: 'post', remaining: 0 }, BBB: { state: 'post', remaining: 0 } };
+    expect(liveWinOdds(matchups, projections, done, 25)[0].aWinOdds).toBe(1);
+  });
+
+  it('gives a volatile lineup a better chance to come back than a steady one', () => {
+    const games: Record<string, LiveGame> = { AAA: { state: 'pre', remaining: 1 }, BBB: { state: 'pre', remaining: 1 } };
+    // The rest of the league (which sets the scale) stays the same; only team 1's volatility changes
+    const others = [3, 4, 5, 6, 7, 8].map((id) => ({ ...sm(id, 0, [`p${id}`]), matchup_id: 2 + Math.floor((id - 3) / 2) }));
+    const otherProj = Object.fromEntries(others.map((o) => [`p${o.roster_id}`, proj(20, 'AAA')]));
+    const odds = (ratio: number) =>
+      liveWinOdds([sm(1, 0, ['a1']), sm(2, 20, ['b1']), ...others], { ...otherProj, a1: proj(20, 'AAA', ratio), b1: proj(20, 'BBB', 0.3) }, games, 25)[0].aWinOdds;
+    expect(odds(1.2)).toBeGreaterThan(odds(0.3));
   });
 });

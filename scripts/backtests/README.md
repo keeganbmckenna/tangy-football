@@ -17,6 +17,7 @@ python games.py                # per-game predictions -> games.npy
 python game_calibration.py     # single-game win odds: calibration and the fitted spread
 python season_odds.py          # season-level playoff and bye odds (several minutes) -> season.pkl
 python season_odds_score.py    # scores season_odds.py's variants
+python live_pregame.py         # the Live tab's matchup win odds at kickoff: spread and calibration
 ```
 
 Requires numpy (installed with pandas by `uv sync`).
@@ -51,6 +52,14 @@ Requires numpy (installed with pandas by `uv sync`).
   beat every softened variant on playoff and bye odds (Brier 0.1208 vs
   0.1237+) and was well calibrated (teams given 50-75% made it 61.6% of the time at an
   average of 61.5%), so the Playoffs tab is unchanged.
+
+- **Live matchup odds at kickoff** (`live_pregame.py`): on 288 matchups (weeks 3+), odds
+  from the starters' Sleeper projections beat a coin flip (log loss 0.590 vs 0.693) and were
+  well calibrated (favorites given 70-80% won 75%, 90%+ won 96%). The best whole-game spread
+  per team was 0.7x the league's week-to-week spread, which the Live tab uses. Per-player
+  boom-or-bust spreads did no better than one spread at kickoff (0.5904 vs 0.5907); they're
+  kept for late in a week, when a few volatile players are all that's left. The archive's
+  injury statuses are from after the season, so the injury adjustment can't be tested here.
 
 Projections are always the ones known at the time: the week after the cutoff, carried
 forward with each NFL team's bye weeks. Sleeper's archived projections for later weeks
