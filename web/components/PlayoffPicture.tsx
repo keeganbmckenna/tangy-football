@@ -206,7 +206,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
         <thead>
           <tr className="text-xs text-[var(--muted)]">
             <th className="py-1 text-left font-medium">Week {nextWeek}{opp ? ` vs ${name(opp)}` : ''}</th>
-            <SortableTh sort={sort} col="seed" best="asc" label="Current seed" className="py-1 text-right font-medium">Now</SortableTh>
+            <th className="py-1 text-right font-medium">Now</th>
             <th className="py-1 text-right font-medium">Win</th>
             <th className="py-1 text-right font-medium">Loss</th>
           </tr>
@@ -391,7 +391,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                 <tr>
                   <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>Team</th>
                   <SortableTh sort={sort} col="record" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Record</SortableTh>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Now</th>
+                  <SortableTh sort={sort} col="seed" best="asc" label="Current seed" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Now</SortableTh>
                   <SortableTh sort={sort} col="playoffs" best="desc" label="Playoff odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoffs</SortableTh>
                   {data.format.hasDivisions && (
                     <SortableTh sort={sort} col="division" best="desc" label="Division odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</SortableTh>
@@ -407,7 +407,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                     sort={sort}
                     col="swing"
                     label={`Week ${nextWeek} swing`}
-                    title={`Sorts by the gap between a win and a loss: how much is riding on week ${nextWeek}`}
+                    tip={`Odds with a win / with a loss this week. Sorts by the gap between them (±, in points): how much is riding on week ${nextWeek}`}
+                    tipAlign="right"
                     className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider"
                   >
                     <span className="flex flex-col">
@@ -456,6 +457,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                             <span style={{ color: RESULT_DOT_COLORS.W }}>{pct(o.ifWin[swingOutcome]!)}</span>
                             <span className="text-[var(--muted)]"> / </span>
                             <span style={{ color: RESULT_DOT_COLORS.L }}>{pct(o.ifLoss[swingOutcome]!)}</span>
+                            <span className="ml-1.5 text-xs text-[var(--muted)]">±{Math.round(Math.abs(o.ifWin[swingOutcome]! - o.ifLoss[swingOutcome]!) * 100)}</span>
                           </>
                         ) : (
                           <span className="text-[var(--muted)]">—</span>

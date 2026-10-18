@@ -21,7 +21,8 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
   const sort = useTableSort('weeklyScores');
   const me = useMyTeam();
   const rows = sortRows(teams, sort.state, (team, key) => {
-    if (key.startsWith('w')) return team.weeklyScores[Number(key.slice(1)) - 1];
+    // Week columns are w1, w2, …; winAvg and winMargin start with a w too
+    if (/^w\d+$/.test(key)) return team.weeklyScores[Number(key.slice(1)) - 1];
     return {
       total: team.totalPoints,
       avg: team.avgPoints,

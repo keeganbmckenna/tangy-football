@@ -22,7 +22,7 @@ export default function WeeklyPlayAll({ data }: WeeklyPlayAllProps) {
 
   const numWeeks = data[0]?.weeklyRecords.length || 0;
   const rows = sortRows(data, sort.state, (team, key) => {
-    if (key.startsWith('w')) {
+    if (/^w\d+$/.test(key)) {
       const r = team.weeklyRecords[Number(key.slice(1)) - 1];
       return r ? recordValue(r.wins, r.losses, r.ties) : null;
     }
