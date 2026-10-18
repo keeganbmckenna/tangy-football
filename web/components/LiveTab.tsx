@@ -22,6 +22,7 @@ import {
   livePlayAll,
   liveLineup,
   liveWinOdds,
+  gameMatchup,
   scoreSpread,
   liveStandings,
   liveTeamStats,
@@ -417,6 +418,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             // A finished game: his projection from before it, to compare with what he scored
             projected: p.game?.state === 'post' ? p.original : p.projected,
             status: p.game ? p.game.label : 'No game',
+            game: (p.game && gameMatchup(p.game)) || undefined,
             state: p.game?.state ?? 'none',
             stats: formatStatLine(p.position, live.stats?.[p.playerId]) || undefined,
           };

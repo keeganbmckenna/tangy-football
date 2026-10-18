@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  gameMatchup,
   liveWeekNumber,
   liveMatchupStatus,
   livePlayAll,
@@ -298,5 +299,14 @@ describe('live win odds', () => {
     it('keeps the final points once the game is over', () => {
       expect(defenseExpected(6, true, 17, proj, 0, scoring)).toBeCloseTo(6);
     });
+  });
+});
+
+describe('the NFL game line', () => {
+  it("reads from the player's team's side, like Sleeper", () => {
+    expect(gameMatchup({ state: 'in', remaining: 0.4, label: 'Q3 8:12', opponent: 'NO', home: true, score: 10, opponentScore: 17 })).toEqual({ score: '10-17', opponent: 'vs NO' });
+    expect(gameMatchup({ state: 'post', remaining: 0, label: 'Final', opponent: 'SF', home: false, score: 24, opponentScore: 20 })).toEqual({ score: '24-20', opponent: '@ SF' });
+    expect(gameMatchup({ state: 'pre', remaining: 1, label: 'Sun 1:00 PM ET', opponent: 'DAL', home: false })).toEqual({ opponent: '@ DAL' });
+    expect(gameMatchup({ state: 'pre', remaining: 1, label: '' })).toBeNull();
   });
 });

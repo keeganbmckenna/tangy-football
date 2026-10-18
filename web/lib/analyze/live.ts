@@ -64,6 +64,19 @@ export interface LiveGame {
   remaining: number;
   /** How the game stands, e.g. "Q3 5:21", "Final", "Sun 1:00 PM" */
   label: string;
+  /** This team's opponent and whether it's at home */
+  opponent?: string;
+  home?: boolean;
+  /** This team's score and its opponent's (once the game starts) */
+  score?: number;
+  opponentScore?: number;
+}
+
+/** The game's score and opponent from this team's side, like Sleeper: "10-17" and "vs NO" (no score before kickoff) */
+export function gameMatchup(g: LiveGame): { score?: string; opponent: string } | null {
+  if (!g.opponent) return null;
+  const opponent = `${g.home ? 'vs' : '@'} ${g.opponent}`;
+  return g.state === 'pre' || g.score === undefined ? { opponent } : { score: `${g.score}-${g.opponentScore ?? 0}`, opponent };
 }
 
 /** Injury statuses that mean a player won't play (or play on), and how much a doubtful one is expected to play */

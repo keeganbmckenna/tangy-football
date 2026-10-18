@@ -21,7 +21,7 @@ const fetchJson = async <T,>(url: string, revalidate: number): Promise<T> => {
 interface EspnEvent {
   date?: string;
   status: { clock?: number; period?: number; displayClock?: string; type: { state: string; shortDetail?: string } };
-  competitions: Array<{ competitors: Array<{ score?: string; team: { abbreviation: string } }> }>;
+  competitions: Array<{ competitors: Array<{ score?: string; homeAway?: string; team: { abbreviation: string } }> }>;
 }
 
 /** Kickoff as "Sun 1:00 PM ET" */
@@ -54,7 +54,17 @@ export async function scoreboard(season: string, week: number, revalidate = 5): 
         : state === 'in'
         ? `${period > 4 ? 'OT' : `Q${period}`} ${e.status.displayClock ?? ''}`.trim()
         : state === 'post' ? 'Final' : kickoff(e.date);
-      for (const c of [x, y]) games[ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation] = { state, remaining, label };
+      const code = (c: typeof x) => ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation;
+      for (const [c, o] of [[x, y], [y, x]]) {
+        games[code(c)] = {
+          state,
+          remaining,
+          label,
+          opponent: code(o),
+          home: c.homeAway === 'home',
+          ...(state !== 'pre' && { score: Number(c.score ?? 0), opponentScore: Number(o.score ?? 0) }),
+        };
+      }
     }
     return games;
   } catch (error) {

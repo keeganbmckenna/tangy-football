@@ -17,6 +17,8 @@ export interface MatchupPlayer {
   projected: number | null;
   /** Game status (live only), e.g. "Q3 5:21" */
   status?: string;
+  /** His team's score and opponent (live only), e.g. "10-17" and "vs NO" */
+  game?: { score?: string; opponent: string };
   /** Live only: his game is still to come, on, or over ('none' on a bye) */
   state?: 'pre' | 'in' | 'post' | 'none';
   injury?: string | null;
@@ -90,7 +92,16 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
   if (!p) return <td {...cellProps(null, right, `pt-2 text-sm text-[var(--muted)] ${right ? 'text-right' : ''}`)}>Empty</td>;
   const tone = injuryTone(p.injury);
   const proj = p.projected === null ? null : `${projLabel} ${p.projected.toFixed(1)}`;
-  const status = p.status && <span style={p.state === 'in' ? { color: RESULT_DOT_COLORS.W } : undefined}>{p.status}</span>;
+  // The clock (green while on) and the NFL score, like Sleeper: "Q3 8:12 10-17 vs NO", on its
+  // own line (phones drop kickoff's "ET" and can wrap before the score)
+  const et = p.status?.endsWith(' ET');
+  const clock = p.status && (
+    <span className="whitespace-nowrap" style={p.state === 'in' ? { color: RESULT_DOT_COLORS.W } : undefined}>
+      {et ? p.status.slice(0, -3) : p.status}
+      {et && <span className="hidden sm:inline"> ET</span>}
+    </span>
+  );
+  const game = p.game && <span className="whitespace-nowrap">{[p.game.score, p.game.opponent].filter(Boolean).join(' ')}</span>;
   // Still to play (or no game): a dash for his points, like Sleeper
   const notYet = p.state === 'pre' || p.state === 'none';
   const injury = tone && <span className="ml-1 font-semibold" style={{ color: tone }}>{p.injury}</span>;
@@ -105,13 +116,16 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
             <span className="sm:hidden">{short}</span>
             <span className="hidden sm:inline">{p.name}</span>
           </div>
-          {/* Phones: the game on its own line, so its time fits */}
           <div className="truncate text-[11px] text-[var(--muted)] sm:text-xs">
             {[p.position, p.team].filter(Boolean).join(' · ')}
-            {status && <span className="hidden sm:inline">{' · '}{status}</span>}
             {injury}
           </div>
-          {status && <div className="truncate text-[11px] text-[var(--muted)] sm:hidden">{status}</div>}
+          {clock && (
+            <div className="text-[10px] text-[var(--muted)] sm:text-[11px]">
+              {clock}
+              {game && <>{' '}{game}</>}
+            </div>
+          )}
         </div>
         {/* Points in the middle, beside the slot, with the projection under them */}
         <div className={`shrink-0 tabular-nums ${right ? 'text-left' : 'text-right'}`}>
