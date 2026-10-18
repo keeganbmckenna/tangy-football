@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import TeamAvatar from '@/components/ui/TeamAvatar';
 
 /**
  * Bracket layout shared by the projected brackets (Playoffs tab during the
@@ -29,6 +29,10 @@ export interface BoardGame {
   label?: string;
   top: BoardTeam;
   bottom: BoardTeam;
+  /** For a game that's been played: open both lineups */
+  onOpen?: () => void;
+  /** Its lineups are loading */
+  opening?: boolean;
 }
 
 export interface BoardColumn {
@@ -44,26 +48,6 @@ interface BracketBoardProps {
   extras?: { title: string; games: (BoardGame & { subtitle?: string })[] };
 }
 
-function Avatar({ team }: { team: BoardTeam }) {
-  // Fall back to the initial if the photo is missing or fails to load
-  const [failed, setFailed] = useState(false);
-  if (team.avatarUrl && !failed) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={team.avatarUrl}
-        alt=""
-        onError={() => setFailed(true)}
-        className="h-8 w-8 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-  return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--neutral-bg)] text-xs font-semibold text-[var(--neutral-text)]">
-      {team.name.charAt(0)}
-    </div>
-  );
-}
 
 function Slot({ team, decided }: { team: BoardTeam; decided: boolean }) {
   if (team.placeholder) {
@@ -79,7 +63,7 @@ function Slot({ team, decided }: { team: BoardTeam; decided: boolean }) {
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--neutral-bg)] text-[10px] font-bold text-[var(--foreground)]">
         {team.seed ?? '–'}
       </span>
-      <Avatar team={team} />
+      <TeamAvatar url={team.avatarUrl} name={team.name} />
       <div className="min-w-0 flex-1">
         <div
           className={`truncate text-sm ${team.won ? 'font-semibold text-[var(--success-text)]' : 'font-medium text-[var(--foreground)]'}`}
@@ -100,8 +84,8 @@ function Slot({ team, decided }: { team: BoardTeam; decided: boolean }) {
 
 function GameCard({ game, subtitle }: { game: BoardGame; subtitle?: string }) {
   const decided = !!(game.top.won || game.bottom.won);
-  return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+  const body = (
+    <>
       {(game.label || subtitle) && (
         <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
           <span>{game.label}</span>
@@ -113,7 +97,23 @@ function GameCard({ game, subtitle }: { game: BoardGame; subtitle?: string }) {
         <div className="h-px bg-[var(--border)]" />
         <Slot team={game.bottom} decided={decided} />
       </div>
-    </div>
+      {game.onOpen && (
+        <div className="mt-2 text-center text-[11px] text-[var(--muted)]">{game.opening ? 'Loading lineups…' : 'Tap for lineups'}</div>
+      )}
+    </>
+  );
+  // A game that's been played opens both lineups
+  return game.onOpen ? (
+    <button
+      type="button"
+      onClick={game.onOpen}
+      aria-label={`${game.top.name} vs ${game.bottom.name}: see lineups`}
+      className="block w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition-colors hover:bg-[var(--hover)]"
+    >
+      {body}
+    </button>
+  ) : (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">{body}</div>
   );
 }
 

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
 import LiveScore from '@/components/ui/LiveScore';
+import TeamAvatar from '@/components/ui/TeamAvatar';
 
 export interface MatchupPlayer {
   playerId: string;
@@ -22,6 +23,8 @@ export interface MatchupPlayer {
 
 export interface MatchupSide {
   name: string;
+  /** The team's photo */
+  avatarUrl?: string | null;
   score: number;
   /** Under the score, e.g. projected final and win odds */
   sub?: ReactNode;
@@ -130,7 +133,10 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
 
   const head = (s: MatchupSide, right: boolean) => (
     <div className={`min-w-0 flex-1 ${right ? 'text-right' : ''}`}>
-      <div className="truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
+      <div className={`flex items-center gap-2 ${right ? 'flex-row-reverse' : ''}`}>
+        <TeamAvatar url={s.avatarUrl} name={s.name} size="h-7 w-7" />
+        <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
+      </div>
       <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={s.score} align={right ? 'right' : 'left'} /></div>
       {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
     </div>

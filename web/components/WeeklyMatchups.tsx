@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
-import type { MatchupPlayersData } from '@/app/api/matchup-players/route';
+import { useState } from 'react';
+import { useMatchupLineups } from '@/components/useMatchupLineups';
+import TeamAvatar from '@/components/ui/TeamAvatar';
+import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { LeagueData, WeekMatchup } from '@/lib/types';
 
 interface WeeklyMatchupsProps {
@@ -22,57 +23,13 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
 
   const currentMatchups = matchups[selectedWeek] || [];
 
-  // Lineups: each week's player names and original projections, loaded on the first tap
-  const [players, setPlayers] = useState<Record<string, MatchupPlayersData['players']>>({});
-  const [open, setOpen] = useState<WeekMatchup | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const close = useCallback(() => setOpen(null), []);
-  const season = leagueData?.league.season;
-  const openMatchup = async (m: WeekMatchup) => {
-    const key = `${season}:${m.week}`;
-    if (!players[key]) {
-      setLoadingId(`${m.week}:${m.matchupId}`);
-      try {
-        const res = await fetch(`/api/matchup-players?season=${season}&week=${m.week}`);
-        const json = res.ok ? ((await res.json()) as MatchupPlayersData) : { players: {} };
-        setPlayers((all) => ({ ...all, [key]: json.players }));
-      } catch {
-        setPlayers((all) => ({ ...all, [key]: {} }));
-      } finally {
-        setLoadingId(null);
-      }
-    }
-    setOpen(m);
-  };
-  const side = (m: WeekMatchup, team: WeekMatchup['team1']): MatchupSide | null => {
-    const sm = leagueData?.matchups[m.week]?.find((x) => x.roster_id === team.rosterId);
-    if (!sm) return null;
-    const info = players[`${season}:${m.week}`] ?? {};
-    // Defenses' IDs are their team codes (one on bye has no projection to name it)
-    const isDefense = (id: string) => /^[A-Z]{2,3}$/.test(id);
-    const player = (id: string): MatchupPlayer => ({
-      playerId: id,
-      name: info[id]?.name ?? (isDefense(id) ? `${id} Defense` : `Player ${id}`),
-      position: info[id]?.position ?? (isDefense(id) ? 'DEF' : ''),
-      team: info[id]?.team ?? (isDefense(id) ? id : null),
-      points: sm.players_points?.[id] ?? 0,
-      projected: info[id] ? info[id].projected : null,
-    });
-    const starters = sm.starters ?? [];
-    const projected = starters.reduce((t, id) => t + (info[id]?.projected ?? 0), 0);
-    return {
-      name: team.name,
-      score: team.points,
-      sub: projected > 0 ? `projected ${projected.toFixed(1)}` : undefined,
-      starters: starters.map((id) => (!id || id === '0' ? null : player(id))),
-      bench: (sm.players ?? []).filter((id) => !starters.includes(id)).map(player).sort((x, y) => y.points - x.points),
-    };
-  };
-  const detail = open && (() => {
-    const a = side(open, open.team1);
-    const b = side(open, open.team2);
-    return a && b ? { a, b } : null;
-  })();
+  // Tap a matchup for both lineups
+  const lineups = useMatchupLineups(leagueData);
+  const game = (m: WeekMatchup) => ({
+    week: m.week,
+    a: { rosterId: m.team1.rosterId, name: m.team1.name, points: m.team1.points },
+    b: { rosterId: m.team2.rosterId, name: m.team2.name, points: m.team2.points },
+  });
 
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
@@ -104,7 +61,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
             <button
               type="button"
               key={index}
-              onClick={() => openMatchup(matchup)}
+              onClick={() => lineups.openLineups(game(matchup))}
               disabled={!leagueData}
               aria-label={`${matchup.team1.name} vs ${matchup.team2.name}: see lineups`}
               className="block w-full rounded-lg border border-[var(--border)] p-4 text-left transition-colors hover:bg-[var(--hover)] disabled:hover:bg-transparent"
@@ -112,39 +69,45 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
               <div className="flex items-center justify-between">
                 {/* Team 1 */}
                 <div
-                  className={`flex-1 ${
+                  className={`min-w-0 flex-1 ${
                     matchup.winner === 'team1'
                       ? 'font-bold text-[var(--success-text)]'
                       : 'text-[var(--foreground)]'
                   }`}
                 >
-                  <div className="text-lg">{matchup.team1.name}</div>
-                  <div className="text-sm text-[var(--muted)]">
+                  <div className="flex items-center gap-2 text-base sm:text-lg">
+                    <TeamAvatar url={teamAvatarUrl(leagueData, matchup.team1.rosterId)} name={matchup.team1.name} />
+                    <span className="min-w-0 truncate">{matchup.team1.name}</span>
+                  </div>
+                  <div className="truncate text-sm text-[var(--muted)]">
                     @{matchup.team1.username}
                   </div>
 
-                  <div className="text-2xl font-bold mt-2">
+                  <div className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">
                     {matchup.team1.points.toFixed(2)}
                   </div>
                 </div>
 
                 {/* VS */}
-                <div className="px-6 text-[var(--muted)] font-semibold">VS</div>
+                <div className="px-2 text-[var(--muted)] font-semibold sm:px-6">VS</div>
 
                 {/* Team 2 */}
                 <div
-                  className={`flex-1 text-right ${
+                  className={`min-w-0 flex-1 text-right ${
                     matchup.winner === 'team2'
                       ? 'font-bold text-[var(--success-text)]'
                       : 'text-[var(--foreground)]'
                   }`}
                 >
-                  <div className="text-lg">{matchup.team2.name}</div>
-                  <div className="text-sm text-[var(--muted)]">
+                  <div className="flex flex-row-reverse items-center gap-2 text-base sm:text-lg">
+                    <TeamAvatar url={teamAvatarUrl(leagueData, matchup.team2.rosterId)} name={matchup.team2.name} />
+                    <span className="min-w-0 truncate">{matchup.team2.name}</span>
+                  </div>
+                  <div className="truncate text-sm text-[var(--muted)]">
                     @{matchup.team2.username}
                   </div>
 
-                  <div className="text-2xl font-bold mt-2">
+                  <div className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">
                     {matchup.team2.points.toFixed(2)}
                   </div>
                 </div>
@@ -170,23 +133,14 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
               )}
               {leagueData && (
                 <div className="mt-1.5 text-center text-[11px] text-[var(--muted)]">
-                  {loadingId === `${matchup.week}:${matchup.matchupId}` ? 'Loading lineups…' : 'Tap for lineups'}
+                  {lineups.isLoading(game(matchup)) ? 'Loading lineups…' : 'Tap for lineups'}
                 </div>
               )}
             </button>
           ))
         )}
       </div>
-      {detail && (
-        <MatchupDetail
-          title={`Week ${open.week}: ${detail.a.name} vs ${detail.b.name}`}
-          a={detail.a}
-          b={detail.b}
-          slots={(leagueData?.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
-          footnote="Final points, with each player's Sleeper projection from before the games."
-          onClose={close}
-        />
-      )}
+      {lineups.dialog}
     </div>
   );
 }

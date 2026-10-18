@@ -36,7 +36,7 @@ While the regular season is in progress:
 - **Toilet Bowl If the Season Ended Now:** the projected toilet bowl bracket.
 - **What Each Team Needs:** each team's odds now, with a win and with a loss. Also clinched and eliminated, win-and-in scenarios in the last weeks, points races, and the team's biggest rooting interest this week.
 
-After the regular season, and for past seasons: the **Playoff Bracket** (with placement games) and the **Toilet Bowl** bracket.
+After the regular season, and for past seasons: the **Playoff Bracket** (with placement games) and the **Toilet Bowl** bracket. Tap a game that's been played to see both lineups.
 
 ## 📈 Weekly Performance
 - **Weekly Scores:** every score, colored by win or loss, with the margin, season average, and average score and margin in wins and in losses.

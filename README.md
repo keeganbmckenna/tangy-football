@@ -26,7 +26,7 @@ During the regular season:
 - **Toilet Bowl If the Season Ended Now** - The six non-playoff teams in the toilet bowl, where the lower score advances.
 - **What Each Team Needs** - Each team's odds now, with a win and with a loss; clinched and eliminated; in the last three weeks, win-and-in scenarios; and the team's biggest rooting interest this week.
 
-After the regular season, and for past seasons, the **Playoff Bracket** (with placement games) and the **Toilet Bowl**.
+After the regular season, and for past seasons, the **Playoff Bracket** (with placement games) and the **Toilet Bowl**. Tap a game that's been played for both lineups and benches, as in Overview's matchups.
 
 ### Weekly Performance
 - 📈 **Weekly Scores** - Every score, colored by win or loss, with season average and average score and margin in wins and losses.

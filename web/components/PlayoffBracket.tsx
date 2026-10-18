@@ -1,9 +1,11 @@
 'use client';
 
 import SectionCard from './ui/SectionCard';
-import BracketBoard, { type BoardColumn, type BoardTeam } from './BracketBoard';
+import BracketBoard, { type BoardColumn, type BoardGame, type BoardTeam } from './BracketBoard';
+import { useMatchupLineups } from './useMatchupLineups';
 import type { BracketGameView, BracketRoundView, BracketTeamView, PostseasonBrackets } from '@/lib/analyze/brackets';
 import type { GRADIENT_STYLES } from '@/lib/constants';
+import type { LeagueData } from '@/lib/types';
 
 const toBoardTeam = (t: BracketTeamView): BoardTeam =>
   t.rosterId === null
@@ -39,21 +41,38 @@ interface RealBracketCardProps {
   rounds: BracketRoundView[];
   placements: BracketGameView[];
   emptyMessage: string;
+  /** The season's league data, for opening a played game's lineups */
+  leagueData?: LeagueData | null;
 }
 
-/** A real (Sleeper) bracket in the shared bracket layout */
-export function RealBracketCard({ title, subtitle, gradientType, rounds, placements, emptyMessage }: RealBracketCardProps) {
+/** A real (Sleeper) bracket in the shared bracket layout; a played game opens both lineups */
+export function RealBracketCard({ title, subtitle, gradientType, rounds, placements, emptyMessage, leagueData }: RealBracketCardProps) {
+  const lineups = useMatchupLineups(leagueData);
+  const board = (g: BracketGameView): BoardGame => {
+    const base = { id: g.id, label: g.label, top: toBoardTeam(g.team1), bottom: toBoardTeam(g.team2) };
+    // Played: both teams set and scored, in a single week that has lineups
+    const week = g.weeks.length === 1 ? g.weeks[0] : null;
+    const { team1: x, team2: y } = g;
+    if (week === null || x.rosterId === null || y.rosterId === null || x.score === null || y.score === null || !lineups.canOpen(week)) return base;
+    const game = {
+      week,
+      label: g.label,
+      a: { rosterId: x.rosterId, name: x.name, points: x.score },
+      b: { rosterId: y.rosterId, name: y.name, points: y.score },
+    };
+    return { ...base, onOpen: () => lineups.openLineups(game), opening: lineups.isLoading(game) };
+  };
   const columns: BoardColumn[] = rounds.map((round, i) => ({
     title: round.title,
     subtitle: round.weekLabel,
     note: i === 0 ? byesNote(rounds) : undefined,
-    games: round.games.map((g) => ({ id: g.id, label: g.label, top: toBoardTeam(g.team1), bottom: toBoardTeam(g.team2) })),
+    games: round.games.map(board),
   }));
   const extras = {
     title: 'Placement games',
     games: [...placements]
       .sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0))
-      .map((g) => ({ id: g.id, label: g.label, subtitle: weekLabel(g.weeks), top: toBoardTeam(g.team1), bottom: toBoardTeam(g.team2) })),
+      .map((g) => ({ ...board(g), subtitle: weekLabel(g.weeks) })),
   };
   return (
     <SectionCard title={title} subtitle={subtitle} gradientType={gradientType}>
@@ -64,17 +83,20 @@ export function RealBracketCard({ title, subtitle, gradientType, rounds, placeme
           <BracketBoard columns={columns} extras={extras} />
         )}
       </div>
+      {lineups.dialog}
     </SectionCard>
   );
 }
 
 interface PlayoffBracketProps {
   brackets: PostseasonBrackets | null;
+  leagueData?: LeagueData | null;
 }
 
-export default function PlayoffBracket({ brackets }: PlayoffBracketProps) {
+export default function PlayoffBracket({ brackets, leagueData }: PlayoffBracketProps) {
   return (
     <RealBracketCard
+      leagueData={leagueData}
       title="Playoff Bracket"
       subtitle="League championship bracket"
       rounds={brackets?.winnersRounds ?? []}

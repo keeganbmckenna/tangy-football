@@ -532,14 +532,14 @@ export default function Home() {
             ) : (
               <ErrorBoundary>
                 <section>
-                  <PlayoffBracket brackets={postseasonBrackets} />
+                  <PlayoffBracket brackets={postseasonBrackets} leagueData={leagueData} />
                 </section>
               </ErrorBoundary>
             )}
             {!regularSeasonInProgress && leagueSettings?.hasToiletBowl && (
               <ErrorBoundary>
                 <section>
-                  <ToiletBowlBracket brackets={postseasonBrackets} />
+                  <ToiletBowlBracket brackets={postseasonBrackets} leagueData={leagueData} />
                 </section>
               </ErrorBoundary>
             )}

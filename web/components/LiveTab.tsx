@@ -5,6 +5,8 @@ import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
 import LiveScore from '@/components/ui/LiveScore';
+import TeamAvatar from '@/components/ui/TeamAvatar';
+import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
@@ -54,11 +56,14 @@ function TeamCell({ team }: { team: TeamStats }) {
 
 const oddsText = (p: number) => (p > 0.995 ? '>99%' : p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`);
 
-function SideSummary({ side, name, align }: { side: LiveSide; name: string; align: 'left' | 'right' }) {
+function SideSummary({ side, name, avatarUrl, align }: { side: LiveSide; name: string; avatarUrl: string | null; align: 'left' | 'right' }) {
   const left = [side.playing && `${side.playing} playing`, side.toPlay && `${side.toPlay} to play`].filter(Boolean).join(' · ') || 'done';
   return (
     <div className={`min-w-0 flex-1 ${align === 'right' ? 'text-right' : ''}`}>
-      <div className="truncate text-sm font-semibold text-[var(--foreground)]" title={name}>{name}</div>
+      <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+        <TeamAvatar url={avatarUrl} name={name} size="h-7 w-7" />
+        <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={name}>{name}</div>
+      </div>
       <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={side.score} align={align} /></div>
       <div className="text-xs tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
       <div className="whitespace-nowrap text-xs text-[var(--muted)]">{left}</div>
@@ -67,7 +72,19 @@ function SideSummary({ side, name, align }: { side: LiveSide; name: string; alig
 }
 
 /** Each real matchup with its live win odds */
-function LiveMatchups({ odds, names, myRosterId, onOpen }: { odds: LiveMatchupOdds[]; names: Map<number, string>; myRosterId: number | null; onOpen: (matchupId: number) => void }) {
+function LiveMatchups({
+  odds,
+  names,
+  avatar,
+  myRosterId,
+  onOpen,
+}: {
+  odds: LiveMatchupOdds[];
+  names: Map<number, string>;
+  avatar: (rosterId: number) => string | null;
+  myRosterId: number | null;
+  onOpen: (matchupId: number) => void;
+}) {
   return (
     <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6">
       {odds.map((m) => {
@@ -82,8 +99,8 @@ function LiveMatchups({ odds, names, myRosterId, onOpen }: { odds: LiveMatchupOd
             className={`rounded-lg border p-3 text-left transition-colors hover:bg-[var(--hover)] ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
           >
             <div className="flex items-start gap-3">
-              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} align="left" />
-              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} align="right" />
+              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} avatarUrl={avatar(m.a.rosterId)} align="left" />
+              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} avatarUrl={avatar(m.b.rosterId)} align="right" />
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs font-semibold tabular-nums">
               <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>
@@ -281,7 +298,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       >
         <div className="px-6 pt-4">{statusBar}</div>
         {view.odds ? (
-          <LiveMatchups odds={view.odds} names={view.names} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
+          <LiveMatchups odds={view.odds} names={view.names} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
         ) : (
           <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
         )}
@@ -397,6 +414,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           if (!sm) return null;
           return {
             name: view.names.get(s.rosterId) ?? `Team ${s.rosterId}`,
+            avatarUrl: teamAvatarUrl(leagueData, s.rosterId),
             score: s.score,
             sub: (
               <>

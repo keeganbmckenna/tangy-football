@@ -23,6 +23,12 @@ export function getAvatarUrl(user: SleeperUser | undefined): string | null {
   return null;
 }
 
+/** A roster's team photo (its manager's avatar), or null */
+export function teamAvatarUrl(data: LeagueData | null | undefined, rosterId: number): string | null {
+  const userId = data?.rosterToUserMap[rosterId];
+  return userId ? getAvatarUrl(data.userMap[userId]) : null;
+}
+
 /**
  * Gets custom team name from metadata or falls back to display name
  *
