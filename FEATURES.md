@@ -20,7 +20,7 @@ For a season before Sleeper, Overview shows that season's final standings and to
 
 ## 🔴 Live (current season, while a week is being played)
 Updates every 10 seconds while NFL games are on; scores flash green (or red) with the change when they move.
-- **Matchups:** every real matchup's live score, projected final and win odds, which update as the games play out. They count injuries, overtime, and how boom-or-bust each starter is. Tap one for both lineups and benches, player by player, with each player's box score so far.
+- **Matchups:** every real matchup's live score, projected final and win odds, which update as the games play out. They count injuries, overtime, and how boom-or-bust each starter is. Tap one for both lineups and benches, player by player, with each player's box score so far; players in a game are tinted green and those still to play show a dash.
 - **Live Standings:** the standings if the week ended now, each record shown before → now, with teams moving into or dropping out of a playoff spot flagged.
 - **Live Play-All:** each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 

@@ -417,7 +417,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             // A finished game: his projection from before it, to compare with what he scored
             projected: p.game?.state === 'post' ? p.original : p.projected,
             status: p.game ? p.game.label : 'No game',
-            live: p.game?.state === 'in',
+            state: p.game?.state ?? 'none',
             stats: formatStatLine(p.position, live.stats?.[p.playerId]) || undefined,
           };
         const side = (s: LiveSide, odds: number): MatchupSide | null => {
