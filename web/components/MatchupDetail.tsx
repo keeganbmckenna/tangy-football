@@ -69,7 +69,7 @@ function PlayerPhoto({ p }: { p: MatchupPlayer }) {
 
 function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: 'left' | 'right'; projLabel: string }) {
   const right = align === 'right';
-  if (!p) return <td className={`py-2 text-sm text-[var(--muted)] ${right ? 'text-right' : ''}`}>Empty</td>;
+  if (!p) return <td className={`pt-2 text-sm text-[var(--muted)] ${right ? 'text-right' : ''}`}>Empty</td>;
   const tone = injuryTone(p.injury);
   const proj = p.projected === null ? null : `${projLabel} ${p.projected.toFixed(1)}`;
   const status = p.status && <span style={p.live ? { color: RESULT_DOT_COLORS.W } : undefined}>{p.status}</span>;
@@ -77,7 +77,7 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
   // Phones: "J. Daniels" and "Jaguars", like Sleeper
   const short = p.position === 'DEF' ? p.name.split(' ').slice(-1)[0] : p.name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ');
   return (
-    <td className="py-2">
+    <td className="pt-2">
       <div className={`flex items-center gap-1.5 sm:gap-2 ${right ? 'flex-row-reverse text-right' : ''}`}>
         <PlayerPhoto p={p} />
         <div className="min-w-0 flex-1">
@@ -104,8 +104,16 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
           )}
         </div>
       </div>
-      {p.stats && (
-        <div className={`mt-0.5 text-[11px] leading-snug text-[var(--foreground)] opacity-80 [overflow-wrap:anywhere] sm:text-xs ${right ? 'text-right' : ''}`} title={p.stats}>
+    </td>
+  );
+}
+
+/** A player's box score line, in its own row under his so both players' points line up */
+function StatsCell({ p, align }: { p: MatchupPlayer | null; align: 'left' | 'right' }) {
+  return (
+    <td className="pb-2 align-top">
+      {p?.stats && (
+        <div className={`mt-0.5 text-[11px] leading-snug text-[var(--foreground)] opacity-80 [overflow-wrap:anywhere] sm:text-xs ${align === 'right' ? 'text-right' : ''}`} title={p.stats}>
           {/* Lines break only after a comma or dot, so "1 car" or "1 2PT" stays together */}
           {p.stats.replace(/([,·]?) /g, (m, after: string) => (after ? m : '\u00a0'))}
         </div>
@@ -151,13 +159,21 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
       {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
     </div>
   );
-  const rows = (left: Array<MatchupPlayer | null>, rightSide: Array<MatchupPlayer | null>, label: (i: number) => string) =>
+  const rows = (key: string, left: Array<MatchupPlayer | null>, rightSide: Array<MatchupPlayer | null>, label: (i: number) => string) =>
     Array.from({ length: Math.max(left.length, rightSide.length) }, (_, i) => (
-      <tr key={i}>
-        <PlayerCell p={left[i] ?? null} align="left" projLabel={projLabel} />
-        <td className="py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">{label(i)}</td>
-        <PlayerCell p={rightSide[i] ?? null} align="right" projLabel={projLabel} />
-      </tr>
+      // Each pair is its own group: the players, then their stat lines
+      <tbody key={`${key}${i}`} className="border-t border-[var(--border)] first:border-t-0">
+        <tr>
+          <PlayerCell p={left[i] ?? null} align="left" projLabel={projLabel} />
+          <td className="pt-2 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">{label(i)}</td>
+          <PlayerCell p={rightSide[i] ?? null} align="right" projLabel={projLabel} />
+        </tr>
+        <tr>
+          <StatsCell p={left[i] ?? null} align="left" />
+          <td />
+          <StatsCell p={rightSide[i] ?? null} align="right" />
+        </tr>
+      </tbody>
     ));
   const benchA = a.bench ?? [];
   const benchB = b.bench ?? [];
@@ -192,19 +208,19 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
               <col className="w-9 sm:w-11" />
               <col />
             </colgroup>
-            <tbody className="divide-y divide-[var(--border)]">
-              {rows(a.starters, b.starters, (i) => SLOT_LABEL[slots[i]] ?? slots[i] ?? '')}
-              {(benchA.length > 0 || benchB.length > 0) && (
-                <>
+            {rows('s', a.starters, b.starters, (i) => SLOT_LABEL[slots[i]] ?? slots[i] ?? '')}
+            {(benchA.length > 0 || benchB.length > 0) && (
+              <>
+                <tbody className="border-t border-[var(--border)]">
                   <tr>
                     <td className="pb-1 pt-4 text-xs font-semibold text-[var(--muted)]">Bench {benchTotal(benchA).toFixed(2)}</td>
                     <td />
                     <td className="pb-1 pt-4 text-right text-xs font-semibold text-[var(--muted)]">Bench {benchTotal(benchB).toFixed(2)}</td>
                   </tr>
-                  {rows(benchA, benchB, () => 'BN')}
-                </>
-              )}
-            </tbody>
+                </tbody>
+                {rows('b', benchA, benchB, () => 'BN')}
+              </>
+            )}
           </table>
           {footnote && <p className="mt-3 text-xs text-[var(--muted)]">{footnote}</p>}
         </div>
