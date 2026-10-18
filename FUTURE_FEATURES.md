@@ -12,7 +12,7 @@ This started as a brainstorm; much of it is now built. Each idea below has a **S
 - 🟡 **Partly built (12):** 2. Strength of Schedule Analysis, 3. Power Rankings vs. Standings, 8. Transaction History & Analysis, 11. Waiver Wire Impact Score, 13. Win Probability Analysis, 23. Trade Value Dashboard, 30. Playoff Simulator, 34. Rest of Season (ROS) Projections, 35. Matchup Predictor, 37. Season Story Arc, 38. Advanced Distribution Charts, 41. Alternative Standings
 - ⬜ **Not started (22):** 4. Consistency Scores, 5. Record vs. Top/Bottom Teams, 6. Roster Composition Analysis, 7. Optimal Lineup Analysis, 10. Player Performance Leaderboards, 12. Points Distribution Analysis, 14. Momentum Tracker, 16. Pythagorean Expectation, 17. League Scoring Pace Analysis, 18. Weekly Awards & Superlatives, 20. Championship Belt Tracker, 22. Weekly Recap Generator, 27. Enhanced Dashboard, 28. Team Detail Pages, 29. Team Comparison Tool, 32. Milestone Tracker, 36. Regression Candidates, 39. Transaction Network Graph, 40. Performance Radar Charts, 42. Efficiency Metrics, 44. Weekly Volatility Score, 45. Position Battle Tracker
 
-Built since this list was written, and not on it: Season History (champions, all-time standings and the seasons before Sleeper), the Trade Finder, sortable tables, and the "You" team picker. See [README.md](README.md) for how each built feature works.
+Built since this list was written, and not on it: Season History (champions, all-time standings and the seasons before Sleeper), the Trade Finder, sortable tables, the "You" team picker, shareable links, a home-screen app icon, the chalkboard background, smooth tab switches and a field-goal easter egg. See [README.md](README.md) for how each built feature works.
 
 ---
 
@@ -182,7 +182,7 @@ Deep dive into how each team constructs their roster and scoring.
 
 ### 7. Optimal Lineup Analysis
 **Complexity:** 🟡 Medium (5-8 hours)
-**Status:** ⬜ Not started (best lineups are computed for the odds model, but points left on the bench aren't shown).
+**Status:** ⬜ Not started (best lineups are computed for the odds model, but points left on the bench aren't shown). Sleeper already reports each team's max possible points (`ppts` on rosters) and every starter's points (`starters_points` on matchups), both in data the app fetches.
 
 Calculate best possible lineup each week vs actual lineup started.
 
@@ -205,7 +205,7 @@ Calculate best possible lineup each week vs actual lineup started.
 
 ### 8. Transaction History & Analysis
 **Complexity:** 🟡 Medium (6-8 hours)
-**Status:** 🟡 Partly: trades only (History → Trades). Adds, drops, waivers and FAAB aren't shown.
+**Status:** 🟡 Partly: trades only (History → Trades). Adds, drops, waivers and FAAB aren't shown. Sleeper's transactions include every FAAB bid, losing (`failed`) claims too, and rosters carry FAAB spent and total moves.
 
 Track and analyze all league transactions.
 

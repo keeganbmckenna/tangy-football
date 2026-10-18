@@ -1,175 +1,46 @@
-# Tangy Football - Web Application
+# Tangy Football - Web App
 
-Modern Next.js web application for fantasy football analytics and postseason brackets powered by the Sleeper API.
+The Next.js app behind https://tangy-football.vercel.app. The [main README](../README.md) covers every feature, the project layout, caching and deployment; [FEATURES.md](../FEATURES.md) is a plain-language tour.
 
-## Getting Started
+## Running it
 
-### Prerequisites
-
-- Node.js 20.x or later
-- npm or yarn
-
-### Installation
+Requires Node.js 20 or later.
 
 ```bash
-# Install dependencies
 npm install
-
-# Create environment file (optional)
-cp .env.local.example .env.local
-
-# Edit .env.local with your Sleeper league ID (if different from default)
-```
-
-### Development
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+Then open [http://localhost:3000](http://localhost:3000).
 
-### Building for Production
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm test` | Vitest in watch mode (`npx vitest run` runs once) |
+| `npm run test:coverage` | Tests with a coverage report |
+| `npm run lint` | ESLint |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
 
-```bash
-npm run build
-npm start
-```
+## League
 
-## Project Structure
-
-```
-web/
-├── app/                      # Next.js App Router
-│   ├── api/
-│   │   ├── league/          # League data and weekly matchups
-│   │   ├── players/         # Player name resolution with caching
-│   │   └── transactions/    # Transaction history data
-│   ├── page.tsx             # Main dashboard page
-│   ├── layout.tsx           # Root layout with metadata
-│   └── globals.css          # Global styles
-├── components/              # React components
-│   ├── ui/                  # Shared UI components
-│   │   └── SectionCard.tsx  # Reusable card component
-│   ├── BracketView.tsx      # Shared playoff/toilet bowl bracket UI
-│   ├── PlayoffBracket.tsx   # Playoff bracket wrapper
-│   ├── ToiletBowlBracket.tsx # Toilet bowl bracket wrapper
-│   ├── CumulativeScores.tsx
-│   ├── CustomTooltip.tsx
-│   ├── PlayEveryoneAnalysis.tsx
-│   ├── PlayoffRace.tsx      # Division standings & wild card
-│   ├── PointsVsMedian.tsx
-│   ├── StandingsOverTime.tsx
-│   ├── WeeklyMatchups.tsx
-│   ├── WeeklyPlayAll.tsx
-│   ├── WeeklyRankingsHeatmap.tsx
-│   └── WeeklyScores.tsx
-├── hooks/                   # Custom React hooks
-│   ├── useChartHover.ts     # Chart interaction state
-│   ├── useTeamColors.ts     # Team color mapping
-│   └── useTheme.tsx         # Theme preference handling
-├── lib/                     # Utilities and configuration
-│   ├── analyze/             # Analytics + postseason bracket modeling
-│   ├── __tests__/           # Vitest unit tests
-│   ├── transactionAnalyze.ts # Transaction processing
-│   ├── constants.ts         # Shared constants (colors, config)
-│   ├── config.ts            # App configuration
-│   ├── leagueSettings.ts    # League settings helpers
-│   └── types.ts             # TypeScript type definitions
-└── public/                  # Static assets
-```
-
-## Configuration
-
-### Environment Variables
-
-Create a `.env.local` file in the `web` directory:
+The app reads the `NEXT_PUBLIC_LEAGUE_ID` environment variable, falling back to the ID in `lib/config.ts`. To point it at another league, put this in `.env.local`:
 
 ```env
-# Your Sleeper League ID
 NEXT_PUBLIC_LEAGUE_ID=your_league_id_here
 ```
 
-Get your league ID from your Sleeper league URL:
-`https://sleeper.com/leagues/YOUR_LEAGUE_ID/league`
+The ID is in the league's Sleeper URL: `https://sleeper.com/leagues/YOUR_LEAGUE_ID/...`. Use the current season's league; earlier seasons are found by following Sleeper's `previous_league_id` chain.
 
-## Features
+## Layout
 
-- **Real-time Data**: Fetches live data from Sleeper API with smart caching
-- **Interactive Charts**: Hover over team names to highlight their performance across all visualizations
-- **Responsive Design**: Works seamlessly on desktop and mobile devices
-- **Postseason Brackets**: Playoff + toilet bowl brackets with placement games
-- **Smart Caching**: CDN and in-memory caching for optimal performance without stale data
+- `app/` - the page (`page.tsx`, all tabs, with the tab and season in the address bar), API routes under `app/api/` (league, live, playoff-odds, trade-data, trades, history, draft), the manifest and icons
+- `components/` - each tab's sections; `components/ui/` holds shared pieces
+- `hooks/` - theme, your team, table sorting, chart hover and taps, team colors
+- `lib/analyze/` - all the analytics (standings, play-all, brackets, playoff odds, live, draft, trades, trade and waiver finders, history), tested in `lib/__tests__/`
+- `lib/` - Sleeper fetching, config and cache durations, league settings, shared types
+- `public/data/` - pre-built draft data and trade history for completed seasons
 
-### Analytics Tabs
+## Stack
 
-1. **Overview**
-   - Division standings with leader indicators
-   - Wild card playoff race tracking
-   - Weekly head-to-head matchups
-
-2. **Postseason**
-   - Playoff bracket with round progression
-   - Toilet bowl bracket and placement games
-
-3. **Weekly Performance**
-   - Weekly scoring charts for all teams
-   - Rankings heatmap showing performance trends
-
-4. **Season Trends**
-   - Standings progression over time
-   - Cumulative scoring charts
-   - Points vs. median performance
-
-5. **Advanced Stats**
-   - Play-everyone record (record if you played all teams each week)
-   - Weekly play-all win percentages
-   - Luck analysis
-
-## Tech Stack
-
-- **Next.js 15** - React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS 4** - Utility-first styling
-- **Recharts** - Interactive data visualizations
-- **Vitest** - Unit testing framework
-- **Sleeper API** - Fantasy football data source with smart caching
-
-## Development
-
-### Code Organization
-
-- Components are organized by feature and reusability
-- Shared logic extracted into custom hooks
-- Constants centralized in `lib/constants.ts`
-- All data calculations in `lib/analyze/`
-
-### Key Patterns
-
-- Server Components for data fetching
-- Client Components for interactivity
-- Memoization for expensive calculations
-- Consistent color schemes across all visualizations
-
-## Deployment
-
-### Vercel (Recommended)
-
-1. Push your code to GitHub
-2. Import your repository in [Vercel](https://vercel.com)
-3. Set `NEXT_PUBLIC_LEAGUE_ID` in environment variables
-4. Deploy!
-
-### Other Platforms
-
-This is a standard Next.js application and can be deployed to any platform that supports Next.js:
-
-- AWS Amplify
-- Netlify
-- Railway
-- Render
-- Self-hosted with Docker
-
-## License
-
-MIT
+Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 4, Recharts 3 and Vitest, with data from the Sleeper API.
