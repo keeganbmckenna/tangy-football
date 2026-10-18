@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
@@ -98,32 +99,34 @@ export default function PlayEveryoneAnalysis({ data }: PlayEveryoneAnalysisProps
     >
       {/* Chart */}
       <div className="p-6 border-b border-[var(--border)]">
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={chartData} {...tap.chartProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
-            <XAxis
-              dataKey="name"
-              angle={-45}
-              textAnchor="end"
-              height={120}
-              interval={0}
-              tick={{ fill: CHART_THEME.tick }}
-              axisLine={{ stroke: CHART_THEME.axis }}
-              tickLine={{ stroke: CHART_THEME.axis }}
-              style={{ fontSize: '12px' }}
-            />
-            <YAxis
-              label={{ value: 'Wins', angle: -90, position: 'insideLeft', fill: CHART_THEME.tick }}
-              tick={{ fill: CHART_THEME.tick }}
-              axisLine={{ stroke: CHART_THEME.axis }}
-              tickLine={{ stroke: CHART_THEME.axis }}
-            />
-            <Tooltip active={tap.active} content={<BarChartTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
-            <Legend formatter={(value) => <span style={{ color: CHART_THEME.legend }}>{value}</span>} />
-            <Bar dataKey="Actual Wins" fill={ACTUAL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
-            <Bar dataKey="Play-All Wins" fill={PLAY_ALL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
-          </BarChart>
-        </ResponsiveContainer>
+        <LazyMount height={400}>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={chartData} {...tap.chartProps}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={120}
+                interval={0}
+                tick={{ fill: CHART_THEME.tick }}
+                axisLine={{ stroke: CHART_THEME.axis }}
+                tickLine={{ stroke: CHART_THEME.axis }}
+                style={{ fontSize: '12px' }}
+              />
+              <YAxis
+                label={{ value: 'Wins', angle: -90, position: 'insideLeft', fill: CHART_THEME.tick }}
+                tick={{ fill: CHART_THEME.tick }}
+                axisLine={{ stroke: CHART_THEME.axis }}
+                tickLine={{ stroke: CHART_THEME.axis }}
+              />
+              <Tooltip active={tap.active} content={<BarChartTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
+              <Legend formatter={(value) => <span style={{ color: CHART_THEME.legend }}>{value}</span>} />
+              <Bar isAnimationActive={false} dataKey="Actual Wins" fill={ACTUAL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
+              <Bar isAnimationActive={false} dataKey="Play-All Wins" fill={PLAY_ALL_COLOR} radius={[3, 3, 0, 0]} maxBarSize={28} />
+            </BarChart>
+          </ResponsiveContainer>
+        </LazyMount>
       </div>
 
       {/* Table */}

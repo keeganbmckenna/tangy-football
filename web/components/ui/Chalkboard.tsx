@@ -8,6 +8,10 @@ import { useEffect, useRef } from 'react';
  * direction. Purely decorative: it ignores taps, pauses while the tab is
  * hidden, and shows one still play when the device asks for reduced motion.
  * Cards are slightly see-through (globals.css), so it shows faintly behind them.
+ *
+ * Kept cheap to draw, since it's behind every page: no SVG filters (Safari draws them
+ * without the GPU), and the drift and fade move the whole layer, which the browser
+ * can slide and fade without redrawing it.
  */
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -41,7 +45,7 @@ export default function Chalkboard() {
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    const pan = svg.querySelector<SVGGElement>('.chalk-pan')!;
+    const pan = svg.parentElement!;
     const board = svg.querySelector<SVGGElement>('.chalk-board')!;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const timers: number[] = [];
@@ -50,7 +54,12 @@ export default function Chalkboard() {
     const draw = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      // The drift moves the whole layer (so the browser slides it rather than redrawing
+      // it every frame); it overhangs the screen by the drift distance on every side
+      const dist = Math.hypot(w, h) * 0.05;
+      const m = Math.ceil(dist) + 2;
+      pan.style.inset = `${-m}px`;
+      svg.setAttribute('viewBox', `${-m} ${-m} ${w + 2 * m} ${h + 2 * m}`);
       const n = play++;
       const angle = ANGLES[n % ANGLES.length];
       // Big enough to span the screen; on phones small enough to see the whole formation
@@ -58,8 +67,8 @@ export default function Chalkboard() {
       const cx = w * (0.42 + (0.16 * ((n * 37) % 10)) / 10);
       const cy = h * (0.38 + (0.24 * ((n * 53) % 10)) / 10);
       board.setAttribute('transform', `translate(${cx} ${cy}) rotate(${angle}) scale(${scale}) translate(-500 -110)`);
-      board.style.transition = 'none';
-      board.style.opacity = '1';
+      pan.style.transition = 'none';
+      pan.style.opacity = '1';
 
       const marks = document.createElementNS(NS, 'g');
       marks.innerHTML =
@@ -91,23 +100,19 @@ export default function Chalkboard() {
       });
       // A slow drift in its own direction, unrelated to the play's angle
       const heading = (HEADINGS[n % HEADINGS.length] * Math.PI) / 180;
-      const dist = Math.hypot(w, h) * 0.05;
       const dx = Math.cos(heading) * dist;
       const dy = Math.sin(heading) * dist;
       pan.style.transition = 'none';
       pan.style.transform = `translate(${-dx}px, ${-dy}px)`;
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
-          pan.style.transition = `transform ${CYCLE_MS}ms linear`;
+          pan.style.transition = `transform ${CYCLE_MS}ms linear, opacity 1.6s ease`;
           pan.style.transform = `translate(${dx}px, ${dy}px)`;
           routes.forEach((p) => (p.style.strokeDashoffset = '0'));
         })
       );
       timers.push(
-        window.setTimeout(() => {
-          board.style.transition = 'opacity 1.6s ease';
-          board.style.opacity = '0';
-        }, CYCLE_MS - 1700),
+        window.setTimeout(() => (pan.style.opacity = '0'), CYCLE_MS - 1700),
         window.setTimeout(draw, CYCLE_MS)
       );
     };
@@ -128,29 +133,23 @@ export default function Chalkboard() {
 
   return (
     <div className="chalkboard pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
-      <svg ref={svgRef} className="absolute inset-0 h-full w-full">
-        <defs>
-          {/* Rough edges, so it reads as chalk rather than clean vector lines */}
-          <filter id="chalk-rough">
-            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves={2} />
-            <feDisplacementMap in="SourceGraphic" scale={1.8} />
-          </filter>
-          <marker id="chalk-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-            <path d="M0 0 L10 5 L0 10" fill="none" stroke="currentColor" strokeWidth={2} />
-          </marker>
-        </defs>
-        <g className="chalk-pan">
+      <div className="absolute inset-0 will-change-transform">
+        <svg ref={svgRef} className="h-full w-full">
+          <defs>
+            <marker id="chalk-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10" fill="none" stroke="currentColor" strokeWidth={2} />
+            </marker>
+          </defs>
           <g
             className="chalk-board"
-            filter="url(#chalk-rough)"
             fill="none"
             stroke="currentColor"
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-        </g>
-      </svg>
+        </svg>
+      </div>
     </div>
   );
 }

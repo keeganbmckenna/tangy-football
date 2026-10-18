@@ -96,7 +96,7 @@ A switch counts the three sections above either with playoff and toilet bowl gam
   - tap a chart point for its details and tap again to close.
 - **Home screen app:** add it to your phone's home screen for a football icon and a full-screen view.
 - **Chalkboard background:** faint plays draw themselves behind the page, each at a new angle and slowly drifting; cards are slightly see-through so it shows faintly behind them.
-- **Smooth tab switches:** tabs crossfade instead of jumping.
+- **Smooth tab switches:** tabs crossfade instead of jumping (in Safari, the new tab fades in). Charts build as they come into view, so a tab shows up straight away.
 - **Home:** the league logo and name take you back to the current season's Overview.
 - **Easter egg:** mash the league logo. 🥅
 - **Light and dark themes:** follows your device by default; dark mode is true black.

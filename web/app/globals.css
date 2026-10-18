@@ -224,8 +224,7 @@ body {
 
 /* Header blends into the page; tabs are flat pills */
 :root[data-theme='dark'] .site-header {
-  background-color: rgb(0 0 0 / 0.85);
-  backdrop-filter: blur(10px);
+  background-color: rgb(0 0 0 / 0.9);
   box-shadow: none;
 }
 :root[data-theme='dark'] .tab-pills { background: transparent; border-color: transparent; }
@@ -270,8 +269,9 @@ tr.mine > td:first-child, tr.mine > th:first-child {
 
 /* Chalkboard background (components/ui/Chalkboard.tsx) */
 .chalkboard { color: var(--chalk); }
-/* The light header is see-through too, blurred, since the page scrolls under it */
-:root:not([data-theme='dark']) .site-header { background-color: rgb(255 255 255 / 0.85); backdrop-filter: blur(10px); }
+/* The light header is slightly see-through too. No backdrop blur: it would be redone
+   every frame the chalkboard moves, which Safari in particular can't keep up with */
+:root:not([data-theme='dark']) .site-header { background-color: rgb(255 255 255 / 0.92); }
 /* Stay solid over the see-through cards: pinned columns (scrolled numbers would show
    through) and dropdowns */
 .pin-col { background-color: var(--solid-elevated) !important; }
@@ -284,3 +284,8 @@ select { background-color: var(--solid-surface) !important; }
    would be drawn on top of the cards for the length of the switch */
 .site-header { view-transition-name: site-header; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
+/* Safari's View Transitions flicker (WebKit bugs 297845, 300877), so there the new tab
+   fades in instead (page.tsx) */
+.tab-fade { animation: tab-fade-in 180ms ease-out; }
+@keyframes tab-fade-in { from { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .tab-fade { animation: none; } }

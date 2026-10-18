@@ -52,6 +52,13 @@ import {
 import { getLeagueSettings } from '@/lib/leagueSettings';
 import { getTeamName } from '@/lib/analyze/teamIdentity';
 
+/** View Transitions, except in Safari (and so every iPhone browser), where they flicker */
+function canViewTransition() {
+  const ua = navigator.userAgent;
+  const safari = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+  return 'startViewTransition' in document && !safari;
+}
+
 /** Which weeks the season's numbers cover */
 function DataThrough({ leagueData, regularSeasonEnd }: { leagueData: LeagueData; regularSeasonEnd: number }) {
   const week = leagueData.lastScoredWeek;
@@ -76,6 +83,8 @@ export default function Home() {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState('');
   const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
+  // Where View Transitions aren't used, the new tab fades in instead (set after mount)
+  const [fadeTabs, setFadeTabs] = useState(false);
 
   // Calculated data
   const [standingsOverTime, setStandingsOverTime] = useState<Record<string, number[]>>({});
@@ -193,6 +202,7 @@ export default function Home() {
     const { tab, season } = readUrlState(window.location.search);
     if (tab) setActiveTab(tab);
     setMyUserId(readMyTeam());
+    setFadeTabs(!canViewTransition());
     (async () => {
       if (season && LEGACY_SEASONS.some((s) => s.season === season)) await fetchData(undefined, season);
       else if (!season || !(await fetchData(season))) await fetchData();
@@ -200,10 +210,10 @@ export default function Home() {
   }, [fetchData]);
 
   // Keep the address bar in step: a new history entry per change, so back/forward work
-  // Tabs crossfade where the browser supports View Transitions (and motion is welcome)
+  // Tabs crossfade with View Transitions where they work well (and motion is welcome)
   const switchTab = (id: string) => {
     const doc = document as Document & { startViewTransition?: (update: () => void) => unknown };
-    if (id === activeTab || !doc.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (id === activeTab || !doc.startViewTransition || !canViewTransition() || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setActiveTab(id);
       return;
     }
@@ -453,7 +463,7 @@ export default function Home() {
             </button>
           </div>
         ) : (
-        <>
+        <div key={activeTab} className={fadeTabs ? 'tab-fade space-y-8' : 'space-y-8'}>
         {/* Overview Tab */}
         {activeTab === 'overview' && isLegacySeason && (
           <ErrorBoundary>
@@ -612,7 +622,7 @@ export default function Home() {
 
         {/* Trades Tab */}
         {activeTab === 'trades' && showTradesTab && <TradesTab teamStats={teamStats} />}
-        </>
+        </div>
         )}
       </main>
       </MyTeamContext.Provider>

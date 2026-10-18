@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
@@ -193,43 +194,45 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
                   Actual wins: <span className="font-semibold text-[var(--foreground)]">{formatWinsLabel(team.actualWins)}</span>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 16 }} {...tapTooltip(team.username).chartProps}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
-                  <XAxis
-                    dataKey="wins"
-                    type="number"
-                    tick={{ fill: CHART_THEME.tick }}
-                    axisLine={{ stroke: CHART_THEME.axis }}
-                    tickLine={{ stroke: CHART_THEME.axis }}
-                    tickFormatter={formatWinsLabel}
-                    domain={[xAxisMin, xAxisMax]}
-                    ticks={xAxisTicks}
-                    allowDecimals={false}
-                    style={{ fontSize: '11px' }}
-                  />
-                  <YAxis
-                    tick={{ fill: CHART_THEME.tick }}
-                    axisLine={{ stroke: CHART_THEME.axis }}
-                    tickLine={{ stroke: CHART_THEME.axis }}
-                    tickFormatter={formatPercent}
-                    domain={[0, yAxisMax]}
-                    style={{ fontSize: '11px' }}
-                  />
-                  <Tooltip active={tapTooltip(team.username).active} content={<ScheduleLuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
-                  <Bar dataKey="frequency" minPointSize={1}>
-                    {chartData.map((entry) => {
-                      const fillColor = entry.isActual
-                        ? ACTUAL_BAR_COLOR
-                        : entry.frequency === 0
-                        ? 'transparent'
-                        : SIM_BAR_COLOR;
+              <LazyMount height={220}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 16 }} {...tapTooltip(team.username).chartProps}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
+                    <XAxis
+                      dataKey="wins"
+                      type="number"
+                      tick={{ fill: CHART_THEME.tick }}
+                      axisLine={{ stroke: CHART_THEME.axis }}
+                      tickLine={{ stroke: CHART_THEME.axis }}
+                      tickFormatter={formatWinsLabel}
+                      domain={[xAxisMin, xAxisMax]}
+                      ticks={xAxisTicks}
+                      allowDecimals={false}
+                      style={{ fontSize: '11px' }}
+                    />
+                    <YAxis
+                      tick={{ fill: CHART_THEME.tick }}
+                      axisLine={{ stroke: CHART_THEME.axis }}
+                      tickLine={{ stroke: CHART_THEME.axis }}
+                      tickFormatter={formatPercent}
+                      domain={[0, yAxisMax]}
+                      style={{ fontSize: '11px' }}
+                    />
+                    <Tooltip active={tapTooltip(team.username).active} content={<ScheduleLuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
+                    <Bar isAnimationActive={false} dataKey="frequency" minPointSize={1}>
+                      {chartData.map((entry) => {
+                        const fillColor = entry.isActual
+                          ? ACTUAL_BAR_COLOR
+                          : entry.frequency === 0
+                          ? 'transparent'
+                          : SIM_BAR_COLOR;
 
-                      return <Cell key={entry.winsLabel} fill={fillColor} />;
-                    })}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                        return <Cell key={entry.winsLabel} fill={fillColor} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </LazyMount>
             </div>
           );
         })}
