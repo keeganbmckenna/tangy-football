@@ -19,6 +19,8 @@ python season_odds.py          # season-level playoff and bye odds (several minu
 python season_odds_score.py    # scores season_odds.py's variants
 python live_pregame.py         # the Live tab's matchup win odds at kickoff: spread and calibration
 python live_defense.py         # defenses' points allowed: projection bias and spread, bracket scoring
+python trade_depth.py          # do missed games (bench depth) predict a roster's lineup better?
+python trade_depth_trades.py   # ... and the league's trades (trade_season.py with a depth variant)
 ```
 
 Requires numpy (installed with pandas by `uv sync`).
@@ -68,6 +70,22 @@ Requires numpy (installed with pandas by `uv sync`).
   also counts return yards). Projecting points allowed and weighing each bracket's points by
   its chance matched the actual average best (7.31). The Live tab does this through the game,
   so a defense's shutout bonus at kickoff doesn't count on top of its projection.
+
+- **Depth** (`trade_depth.py`, `trade_depth_trades.py`): starters miss games (of players
+  who played and were projected 8+, 9.5% missed their team's next game, rising to 19% eight
+  games out; QBs about 1.27x that, counting benchings). Valuing rosters on expected lineups
+  with those misses, so bench depth counts, did *not* predict better: rosters' real
+  points (correlation 0.414 vs 0.421 without) and the league's 84 trades (wins error 2.814 vs
+  2.723, playoff Brier 0.1434 vs 0.1396; worse beyond the 95% interval) both got worse, even
+  with a missing starter replaced by a free agent (2.779, 0.1431). Managers cover injuries
+  from waivers, and Sleeper's projections run a little low, so the trade tools keep valuing
+  the best lineup. Kept for reference.
+- **Injured players' returns**: of players who'd been playing and then missed a game, 68%
+  played their team's next game; of those out two in a row, 29% the next; then about a
+  quarter a game (25%, 28%). Sleeper projects an out player for every later week as if he's
+  back next week, so the odds model scales those weeks by these chances (no return from IR
+  before 4 games), unless Sleeper already has him out past next week. The archive's injury
+  statuses are from after the season, so this can't be backtested on past trades.
 
 Projections are always the ones known at the time: the week after the cutoff, carried
 forward with each NFL team's bye weeks. Sleeper's archived projections for later weeks

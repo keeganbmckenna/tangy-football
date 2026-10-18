@@ -1,5 +1,6 @@
 'use client';
 
+import { marketFair } from '@/lib/analyze/tradeFinder';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMyTeam } from '@/hooks/useMyTeam';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
@@ -694,6 +695,11 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
                       <p className="mt-2 text-[var(--foreground)]">
                         Market value: gives {give.total.toLocaleString()}, gets {get.total.toLocaleString()}
                         {give.valued < give.count || get.valued < get.count ? ' (kickers and defenses not valued)' : ''}
+                        {marketFair(gives.map((p) => data.players[p]?.value ?? 0), gets.map((p) => data.players[p]?.value ?? 0)) === false && (
+                          <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
+                            Overpays by market value
+                          </span>
+                        )}
                       </p>
                     )}
                   </div>

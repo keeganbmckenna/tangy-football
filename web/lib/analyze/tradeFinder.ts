@@ -76,8 +76,12 @@ export interface FoundTrade {
   /** Expected lineup points per remaining regular-season week, before -> after */
   lineup: { me: [number, number]; partner: [number, number] };
   odds: { me: [OddsLine, OddsLine]; partner: [OddsLine, OddsLine] };
-  /** FantasyCalc value sums: what you give and what you get */
-  market: { give: number; get: number; fair: boolean | null };
+  /**
+   * FantasyCalc value sums: what you give and what you get; fair: whether the partner gets
+   * enough back (the filter), mine: whether you do (a warning, since the model may see a
+   * reason to pay more)
+   */
+  market: { give: number; get: number; fair: boolean | null; mine: boolean | null };
   /** Forced roster moves */
   moves: { meDrops: string[]; meAdds: string[]; partnerDrops: string[]; partnerAdds: string[] };
 }
@@ -299,6 +303,7 @@ export function findTrades(
         give: c.gives.reduce((s, p) => s + value(p), 0),
         get: c.gets.reduce((s, p) => s + value(p), 0),
         fair: marketFair(c.gets.map(value), c.gives.map(value)),
+        mine: marketFair(c.gives.map(value), c.gets.map(value)),
       },
       moves: c.moves,
     });

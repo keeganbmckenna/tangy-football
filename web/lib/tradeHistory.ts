@@ -206,7 +206,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
         return p.position === 'DEF' ? playing.has(pid) : !!p.team && playing.has(p.team);
       };
       // Player values as the odds model sets them: projection blended with season production so far
-      const production = productionBefore.get(w0) ?? { points: {}, games: {} };
+      const production: SeasonProduction = productionBefore.get(w0) ?? { points: {}, games: {}, playedWeeks: {} };
       const weekProj = (w: number) => {
         const out: Record<string, { position: string; points: number }> = {};
         for (const [pid, p] of Object.entries(proj)) {

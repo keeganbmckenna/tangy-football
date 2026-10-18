@@ -176,7 +176,12 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
                         <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs font-medium text-[var(--neutral-text)]">{t.size}</span>
                         {t.market.fair === false && (
                           <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
-                            Lopsided by market value
+                            They overpay by market value
+                          </span>
+                        )}
+                        {t.market.mine === false && (
+                          <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
+                            You overpay by market value
                           </span>
                         )}
                       </div>
@@ -249,7 +254,9 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
               The market filter uses FantasyCalc redraft values and hides trades where the other manager gets back less than 85% of
               the value they give. Values are compared with a premium for the best player in a deal (in real trades, a 2-for-1 has
               cost about 1.36× the star&apos;s value). It only sees what the model sees: projections, this season&apos;s production
-              and the schedule, not what a manager actually wants.
+              and the schedule, not what a manager actually wants. A trade where you get back less than 85% of the value you give
+              is marked &ldquo;You overpay by market value&rdquo;: the model may still like it (a position you need), but the other
+              manager would likely take it as is, and you may be able to ask for more.
             </p>
           </div>
         </details>

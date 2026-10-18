@@ -3,6 +3,7 @@
  * and trade analyzer routes so both start from the same numbers.
  */
 
+import { backBy, INJURED, missedStreak } from './analyze/availability';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, SleeperRoster } from '@/lib/types';
 import {
@@ -85,6 +86,8 @@ export interface SeasonProduction {
   points: Record<string, number>;
   /** player ID -> games played this season */
   games: Record<string, number>;
+  /** player ID -> the weeks he played */
+  playedWeeks: Record<string, number[]>;
 }
 
 /**
@@ -112,14 +115,16 @@ export async function seasonProduction(season: string, throughWeek: number): Pro
 export function cumulativeProduction(weeks: Array<Record<string, { pts_half_ppr?: number; gp?: number }>>): SeasonProduction {
   const points: Record<string, number> = {};
   const games: Record<string, number> = {};
-  for (const week of weeks) {
+  const playedWeeks: Record<string, number[]> = {};
+  weeks.forEach((week, i) => {
     for (const [id, s] of Object.entries(week)) {
       if (!s.gp) continue;
       points[id] = (points[id] ?? 0) + (s.pts_half_ppr ?? 0);
       games[id] = (games[id] ?? 0) + s.gp;
+      (playedWeeks[id] ??= []).push(i + 1);
     }
-  }
-  return { points, games };
+  });
+  return { points, games, playedWeeks };
 }
 
 /** A week's player values (playerValue) for lineup building */
@@ -182,6 +187,40 @@ export interface OddsInputs {
   hasToiletBowl: boolean;
 }
 
+/**
+ * Players who are out: Sleeper projects every later week as if they're back next week,
+ * so scale each of those weeks by the chance they're back by then (availability.ts),
+ * from how many games in a row they've missed. Left alone when Sleeper already has a
+ * player out past next week (it then knows a timeline).
+ */
+export function discountInjured(
+  values: Record<number, Record<string, { position: string; points: number }>>,
+  players: Record<number, Record<string, ProjectedPlayer>>,
+  production: SeasonProduction,
+  schedule: Record<number, Set<string>>,
+  lastScoredWeek: number,
+  weeks: number[]
+): void {
+  const current = lastScoredWeek + 1;
+  const now = players[current] ?? players[weeks[0]];
+  if (!now) return;
+  for (const [id, p] of Object.entries(now)) {
+    if (!p.injury || !INJURED.has(p.injury) || !p.team) continue;
+    const team = p.team;
+    const teamWeeks = Array.from({ length: lastScoredWeek }, (_, i) => i + 1).filter((w) => schedule[w]?.has(team));
+    let missed = missedStreak(teamWeeks, new Set(production.playedWeeks[id] ?? []));
+    // Missing this week's game too
+    if (schedule[current]?.has(team) && (values[current]?.[id]?.points ?? 0) === 0) missed += 1;
+    if (missed === 0) continue;
+    const later = weeks.filter((w) => w > current && schedule[w]?.has(team));
+    if (!later.length || (values[later[0]]?.[id]?.points ?? 0) === 0) continue;
+    later.forEach((w, j) => {
+      const v = values[w]?.[id];
+      if (v) v.points *= backBy(missed, j + 1, p.injury === 'IR');
+    });
+  }
+}
+
 /** Current rosters, records, schedule, projections and team strength for the live season */
 export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs> {
   const { baseUrl } = SLEEPER_CONFIG;
@@ -237,9 +276,10 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
   const remainingWeeks = [...new Set(remaining.map((g) => g.week))].sort((a, b) => a - b);
   const playoffWeeks = remaining.length ? [playoffWeekStart, playoffWeekStart + 1, playoffWeekStart + 2] : [];
   const strengthWeeks = [...remainingWeeks, ...playoffWeeks];
-  const [perWeek, production] = await Promise.all([
+  const [perWeek, production, schedule] = await Promise.all([
     Promise.all(strengthWeeks.map((w) => weekProjections(league.season, w))),
     seasonProduction(league.season, lastScoredWeek),
+    teamsPlaying(league.season),
   ]);
   const players: Record<number, Record<string, ProjectedPlayer>> = {};
   const values: Record<number, Record<string, { position: string; points: number }>> = {};
@@ -250,10 +290,13 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     if (!week) return;
     players[w] = week;
     values[w] = weekValues(week, production);
+  });
+  if (schedule) discountInjured(values, players, production, schedule, lastScoredWeek, strengthWeeks);
+  for (const w of Object.keys(values).map(Number)) {
     lineups[w] = Object.fromEntries(
       rosters.map((r) => [r.roster_id, bestLineupPoints(r.players ?? [], values[w], rosterPositions)])
     );
-  });
+  }
   const projectionWeeks = Object.keys(lineups).map(Number);
   const { meanByWeek, spread } = teamStrength(weeklyScores, strengthWeeks, projectionWeeks.length ? lineups : null);
 
