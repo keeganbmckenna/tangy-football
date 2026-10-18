@@ -35,6 +35,8 @@ export interface ProjectedPlayer {
 
 interface ProjectionRow {
   player_id: string;
+  /** The player's team that week (player.team is his current one) */
+  team?: string | null;
   player?: {
     position?: string;
     first_name?: string;
@@ -64,7 +66,7 @@ export async function weekProjections(season: string, week: number): Promise<Rec
         position,
         points: r.stats?.pts_half_ppr ?? 0,
         name,
-        team: r.player?.team ?? null,
+        team: r.team ?? r.player?.team ?? null,
         injury: r.player?.injury_status ?? null,
       };
     }

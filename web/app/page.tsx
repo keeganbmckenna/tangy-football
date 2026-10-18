@@ -482,12 +482,13 @@ export default function Home() {
                   wildCard={wildCard}
                   standings={teamStats}
                   playoffTeams={leagueSettings?.playoffTeams ?? teamStats.length}
+                  divisionAvatars={leagueData?.divisionAvatars}
                 />
               </section>
             </ErrorBoundary>
             <ErrorBoundary>
               <section>
-                <WeeklyMatchups matchups={matchups} lastScoredWeek={leagueData?.lastScoredWeek} />
+                <WeeklyMatchups matchups={matchups} lastScoredWeek={leagueData?.lastScoredWeek} leagueData={leagueData} />
               </section>
             </ErrorBoundary>
           </>

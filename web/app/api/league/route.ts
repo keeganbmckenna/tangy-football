@@ -94,6 +94,11 @@ export async function GET(request: NextRequest) {
       if (targetLeague.metadata.division_2) divisionNames[2] = targetLeague.metadata.division_2;
       if (targetLeague.metadata.division_3) divisionNames[3] = targetLeague.metadata.division_3;
     }
+    const divisionAvatars: Record<number, string> = {};
+    for (const n of [1, 2, 3] as const) {
+      const url = targetLeague.metadata?.[`division_${n}_avatar`];
+      if (url) divisionAvatars[n] = url;
+    }
 
     return NextResponse.json({
       league: targetLeague,
@@ -105,6 +110,7 @@ export async function GET(request: NextRequest) {
       lastScoredWeek,
       availableSeasons,
       divisionNames,
+      divisionAvatars,
       winnersBracket,
       losersBracket,
     });

@@ -47,9 +47,14 @@ async function seasonScores(season: string, throughWeek: number): Promise<Record
 }
 
 interface EspnEvent {
-  status: { clock?: number; period?: number; type: { state: string } };
+  date?: string;
+  status: { clock?: number; period?: number; displayClock?: string; type: { state: string; shortDetail?: string } };
   competitions: Array<{ competitors: Array<{ score?: string; team: { abbreviation: string } }> }>;
 }
+
+/** Kickoff as "Sun 1:00 PM ET" */
+const kickoff = (iso?: string) =>
+  iso ? `${new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }).replace(',', '')} ET` : '';
 
 // ESPN's codes that differ from Sleeper's
 const ESPN_TEAM: Record<string, string> = { WSH: 'WAS' };
@@ -68,7 +73,11 @@ async function scoreboard(season: string, week: number): Promise<Record<string, 
       if (!x || !y) continue;
       const margin = Number(x.score ?? 0) - Number(y.score ?? 0);
       const remaining = gameRemaining(state, e.status.period ?? 0, e.status.clock ?? 0, margin);
-      for (const c of [x, y]) games[ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation] = { state, remaining };
+      const period = e.status.period ?? 0;
+      const label = state === 'in'
+        ? `${period > 4 ? 'OT' : `Q${period}`} ${e.status.displayClock ?? ''}`.trim()
+        : state === 'post' ? 'Final' : kickoff(e.date);
+      for (const c of [x, y]) games[ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation] = { state, remaining, label };
     }
     return games;
   } catch (error) {
@@ -77,12 +86,13 @@ async function scoreboard(season: string, week: number): Promise<Record<string, 
   }
 }
 
-/** This week's starters' projections (injuries counted) and how boom-or-bust each one is */
+/** This week's projections for every player in the matchups (injuries counted), and how boom-or-bust each one is */
 async function starterProjections(season: string, week: number, lastScoredWeek: number, matchups: SleeperMatchup[], games: Record<string, LiveGame>) {
   const [week_, history] = await Promise.all([projectionsFor(season, week), seasonScores(season, lastScoredWeek)]);
   if (!week_) return null;
   const out: Record<string, LiveProjection> = {};
-  for (const id of matchups.flatMap((m) => m.starters ?? [])) {
+  // Starters count toward the odds; bench players are only shown
+  for (const id of matchups.flatMap((m) => [...(m.starters ?? []), ...(m.players ?? [])])) {
     const p = week_[id];
     if (!p || id === '0') continue;
     const started = !!p.team && !!games[p.team] && games[p.team].state !== 'pre';
@@ -90,6 +100,9 @@ async function starterProjections(season: string, week: number, lastScoredWeek: 
       points: injuryAdjusted(p.points, p.injury, started),
       spreadRatio: playerSpreadRatio(p.position, history[id] ?? []),
       team: p.team,
+      name: p.name,
+      position: p.position,
+      injury: p.injury,
     };
   }
   return out;

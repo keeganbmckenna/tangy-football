@@ -9,13 +9,13 @@ A Next.js web app for our Sleeper fantasy football league: standings, live scori
 The season picker in the header switches every tab between seasons. Past Sleeper seasons are found by following each league's `previous_league_id`. Seasons before Sleeper (2017-2021) only have their final standings and the History tab. Weekly analytics count completed regular-season weeks only, and ties count as half a win everywhere.
 
 ### Overview
-- 🏆 **Division Standings** - Record, points, games back (GB) and points back (PB) per division, ranked by wins, then points for.
+- 🏆 **Division Standings** - Each division's photo from Sleeper, and record, points, games back (GB) and points back (PB) per division, ranked by wins, then points for.
 - 🎯 **Wild Card Race** - The non-division leaders ranked for the remaining playoff spots, with the cutoff line.
-- 🏈 **Weekly Matchups** - Results for any completed week.
+- 🏈 **Weekly Matchups** - Results for any completed week. Tap one for both lineups slot by slot and the benches at the time, with photos, each player's final points and his Sleeper projection from before the games (`/api/matchup-players`).
 
 ### Live (current season, during a game week)
 Refreshes every minute.
-- 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out add nothing and doubtful ones less. The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`).
+- 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out add nothing and doubtful ones less. The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`). Tap a matchup for both lineups and benches: each player's points so far, projected final, game clock and injury status.
 - 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 - 📊 **Live Standings** - The standings if the week ended now, with teams moving into or out of a playoff spot flagged.
 

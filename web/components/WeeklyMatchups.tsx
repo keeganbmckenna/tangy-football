@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { WeekMatchup } from '@/lib/types';
+import { useCallback, useState } from 'react';
+import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
+import type { MatchupPlayersData } from '@/app/api/matchup-players/route';
+import { LeagueData, WeekMatchup } from '@/lib/types';
 
 interface WeeklyMatchupsProps {
   matchups: Record<number, WeekMatchup[]>;
   lastScoredWeek?: number;
+  /** For each matchup's lineups (tap a matchup) */
+  leagueData?: LeagueData | null;
 }
 
-export default function WeeklyMatchups({ matchups, lastScoredWeek }: WeeklyMatchupsProps) {
+export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }: WeeklyMatchupsProps) {
   const weeks = Object.keys(matchups)
     .map(Number)
     // Only show completed weeks: the current unscored week's matchups are 0-0 "ties"
@@ -17,6 +21,58 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek }: WeeklyMatch
   const [selectedWeek, setSelectedWeek] = useState(weeks[weeks.length - 1] || 1); // Default to most recent completed week
 
   const currentMatchups = matchups[selectedWeek] || [];
+
+  // Lineups: each week's player names and original projections, loaded on the first tap
+  const [players, setPlayers] = useState<Record<string, MatchupPlayersData['players']>>({});
+  const [open, setOpen] = useState<WeekMatchup | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const close = useCallback(() => setOpen(null), []);
+  const season = leagueData?.league.season;
+  const openMatchup = async (m: WeekMatchup) => {
+    const key = `${season}:${m.week}`;
+    if (!players[key]) {
+      setLoadingId(`${m.week}:${m.matchupId}`);
+      try {
+        const res = await fetch(`/api/matchup-players?season=${season}&week=${m.week}`);
+        const json = res.ok ? ((await res.json()) as MatchupPlayersData) : { players: {} };
+        setPlayers((all) => ({ ...all, [key]: json.players }));
+      } catch {
+        setPlayers((all) => ({ ...all, [key]: {} }));
+      } finally {
+        setLoadingId(null);
+      }
+    }
+    setOpen(m);
+  };
+  const side = (m: WeekMatchup, team: WeekMatchup['team1']): MatchupSide | null => {
+    const sm = leagueData?.matchups[m.week]?.find((x) => x.roster_id === team.rosterId);
+    if (!sm) return null;
+    const info = players[`${season}:${m.week}`] ?? {};
+    // Defenses' IDs are their team codes (one on bye has no projection to name it)
+    const isDefense = (id: string) => /^[A-Z]{2,3}$/.test(id);
+    const player = (id: string): MatchupPlayer => ({
+      playerId: id,
+      name: info[id]?.name ?? (isDefense(id) ? `${id} Defense` : `Player ${id}`),
+      position: info[id]?.position ?? (isDefense(id) ? 'DEF' : ''),
+      team: info[id]?.team ?? (isDefense(id) ? id : null),
+      points: sm.players_points?.[id] ?? 0,
+      projected: info[id] ? info[id].projected : null,
+    });
+    const starters = sm.starters ?? [];
+    const projected = starters.reduce((t, id) => t + (info[id]?.projected ?? 0), 0);
+    return {
+      name: team.name,
+      score: team.points,
+      sub: projected > 0 ? `projected ${projected.toFixed(1)}` : undefined,
+      starters: starters.map((id) => (!id || id === '0' ? null : player(id))),
+      bench: (sm.players ?? []).filter((id) => !starters.includes(id)).map(player).sort((x, y) => y.points - x.points),
+    };
+  };
+  const detail = open && (() => {
+    const a = side(open, open.team1);
+    const b = side(open, open.team2);
+    return a && b ? { a, b } : null;
+  })();
 
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
@@ -45,10 +101,13 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek }: WeeklyMatch
           </p>
         ) : (
           currentMatchups.map((matchup, index) => (
-            <div
+            <button
+              type="button"
               key={index}
-                className="border border-[var(--border)] rounded-lg p-4 hover:shadow-md transition-shadow"
-
+              onClick={() => openMatchup(matchup)}
+              disabled={!leagueData}
+              aria-label={`${matchup.team1.name} vs ${matchup.team2.name}: see lineups`}
+              className="block w-full rounded-lg border border-[var(--border)] p-4 text-left transition-colors hover:bg-[var(--hover)] disabled:hover:bg-transparent"
             >
               <div className="flex items-center justify-between">
                 {/* Team 1 */}
@@ -109,10 +168,25 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek }: WeeklyMatch
                   Tie
                 </div>
               )}
-            </div>
+              {leagueData && (
+                <div className="mt-1.5 text-center text-[11px] text-[var(--muted)]">
+                  {loadingId === `${matchup.week}:${matchup.matchupId}` ? 'Loading lineups…' : 'Tap for lineups'}
+                </div>
+              )}
+            </button>
           ))
         )}
       </div>
+      {detail && (
+        <MatchupDetail
+          title={`Week ${open.week}: ${detail.a.name} vs ${detail.b.name}`}
+          a={detail.a}
+          b={detail.b}
+          slots={(leagueData?.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
+          footnote="Final points, with each player's Sleeper projection from before the games."
+          onClose={close}
+        />
+      )}
     </div>
   );
 }

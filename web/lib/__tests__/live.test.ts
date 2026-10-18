@@ -6,6 +6,7 @@ import {
   liveStandings,
   liveTeamStats,
   liveWinOdds,
+  liveLineup,
   gameRemaining,
   injuryAdjusted,
   playerSpreadRatio,
@@ -217,28 +218,37 @@ describe('live win odds', () => {
     expect(boomBust).toBeGreaterThan(POSITION_SPREAD_RATIO.WR);
   });
 
-  const proj = (points: number, team: string, spreadRatio = 0.6): LiveProjection => ({ points, team, spreadRatio });
+  const proj = (points: number, team: string, spreadRatio = 0.6): LiveProjection => ({ points, team, spreadRatio, name: 'P', position: 'WR', injury: null });
   const sm = (roster_id: number, points: number, starters: string[]): SleeperMatchup => ({ roster_id, matchup_id: 1, points, starters });
 
   it('favors the team ahead and settles as games finish', () => {
     const projections = { a1: proj(20, 'AAA'), b1: proj(20, 'BBB') };
     const matchups = [sm(1, 60, ['a1']), sm(2, 50, ['b1'])];
-    const pre: Record<string, LiveGame> = { AAA: { state: 'pre', remaining: 1 }, BBB: { state: 'pre', remaining: 1 } };
+    const pre: Record<string, LiveGame> = { AAA: { state: 'pre', remaining: 1, label: '' }, BBB: { state: 'pre', remaining: 1, label: '' } };
     const before = liveWinOdds(matchups, projections, pre, 25)[0];
     expect(before.aWinOdds).toBeGreaterThan(0.5);
     expect(before.aWinOdds).toBeLessThan(0.9);
     expect(before.a).toMatchObject({ projected: 80, toPlay: 1, playing: 0 });
-    const done: Record<string, LiveGame> = { AAA: { state: 'post', remaining: 0 }, BBB: { state: 'post', remaining: 0 } };
+    const done: Record<string, LiveGame> = { AAA: { state: 'post', remaining: 0, label: '' }, BBB: { state: 'post', remaining: 0, label: '' } };
     expect(liveWinOdds(matchups, projections, done, 25)[0].aWinOdds).toBe(1);
   });
 
   it('gives a volatile lineup a better chance to come back than a steady one', () => {
-    const games: Record<string, LiveGame> = { AAA: { state: 'pre', remaining: 1 }, BBB: { state: 'pre', remaining: 1 } };
+    const games: Record<string, LiveGame> = { AAA: { state: 'pre', remaining: 1, label: '' }, BBB: { state: 'pre', remaining: 1, label: '' } };
     // The rest of the league (which sets the scale) stays the same; only team 1's volatility changes
     const others = [3, 4, 5, 6, 7, 8].map((id) => ({ ...sm(id, 0, [`p${id}`]), matchup_id: 2 + Math.floor((id - 3) / 2) }));
     const otherProj = Object.fromEntries(others.map((o) => [`p${o.roster_id}`, proj(20, 'AAA')]));
     const odds = (ratio: number) =>
       liveWinOdds([sm(1, 0, ['a1']), sm(2, 20, ['b1']), ...others], { ...otherProj, a1: proj(20, 'AAA', ratio), b1: proj(20, 'BBB', 0.3) }, games, 25)[0].aWinOdds;
     expect(odds(1.2)).toBeGreaterThan(odds(0.3));
+  });
+
+  it("lists each starter's points so far and projected final", () => {
+    const m: SleeperMatchup = { roster_id: 1, matchup_id: 1, points: 12, starters: ['a1', '0', 'b1'], players_points: { a1: 10, b1: 2 } };
+    const games: Record<string, LiveGame> = { AAA: { state: 'in', remaining: 0.5, label: 'Q3 15:00' }, BBB: { state: 'post', remaining: 0, label: 'Final' } };
+    const rows = liveLineup(m, { a1: proj(20, 'AAA'), b1: proj(8, 'BBB') }, games);
+    expect(rows[1]).toBeNull();
+    expect(rows[0]).toMatchObject({ points: 10, projected: 20, game: { label: 'Q3 15:00' } });
+    expect(rows[2]).toMatchObject({ points: 2, projected: 2 });
   });
 });

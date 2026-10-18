@@ -65,6 +65,9 @@ export interface SleeperLeague {
     division_1?: string;
     division_2?: string;
     division_3?: string;
+    division_1_avatar?: string;
+    division_2_avatar?: string;
+    division_3_avatar?: string;
   };
   settings?: {
     leg?: number;
@@ -138,6 +141,8 @@ export interface LeagueData {
   lastScoredWeek: number;
   availableSeasons: string[];
   divisionNames?: Record<number, string>;
+  /** Division photos (image URLs) set in Sleeper, by division number */
+  divisionAvatars?: Record<number, string>;
   winnersBracket?: SleeperBracketMatchup[] | null;
   losersBracket?: SleeperBracketMatchup[] | null;
 }

@@ -14,13 +14,13 @@ The **You** picker highlights your team everywhere (✕ clears it).
 - **Data through:** a line saying which weeks the stats cover ("Stats through week 5 of 14").
 - **Division standings:** one card per division with record, points, games back (GB) and points back (PB); the leader gets a 🥇.
 - **Wild Card Race:** the non-division leaders ranked for the remaining playoff spots, with the playoff cutoff line and each team's division.
-- **Weekly Matchups:** every result for any completed week.
+- **Weekly Matchups:** every result for any completed week. Tap one to see both lineups and benches, with each player's points and his projection from before the game.
 
 For a season before Sleeper, Overview shows that season's final standings and top three.
 
 ## 🔴 Live (current season, while a week is being played)
 Refreshes every minute.
-- **Matchups:** every real matchup's live score, projected final and win odds, which update as the games play out. They count injuries, overtime, and how boom-or-bust each starter is.
+- **Matchups:** every real matchup's live score, projected final and win odds, which update as the games play out. They count injuries, overtime, and how boom-or-bust each starter is. Tap one for both lineups and benches, player by player.
 - **Live Play-All:** each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 - **Live Standings:** the standings if the week ended now, each record shown before → now, with teams moving into or dropping out of a playoff spot flagged.
 

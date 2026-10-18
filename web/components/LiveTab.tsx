@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
+import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
@@ -14,6 +15,7 @@ import { formatRecord } from '@/lib/analyze/playEveryone';
 import {
   liveMatchupStatus,
   livePlayAll,
+  liveLineup,
   liveWinOdds,
   scoreSpread,
   liveStandings,
@@ -59,14 +61,20 @@ function SideSummary({ side, name, align }: { side: LiveSide; name: string; alig
 }
 
 /** Each real matchup with its live win odds */
-function LiveMatchups({ odds, names, myRosterId }: { odds: LiveMatchupOdds[]; names: Map<number, string>; myRosterId: number | null }) {
+function LiveMatchups({ odds, names, myRosterId, onOpen }: { odds: LiveMatchupOdds[]; names: Map<number, string>; myRosterId: number | null; onOpen: (matchupId: number) => void }) {
   return (
     <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6">
       {odds.map((m) => {
         const mine = m.a.rosterId === myRosterId || m.b.rosterId === myRosterId;
         const a = m.aWinOdds;
         return (
-          <div key={m.matchupId} className={`rounded-lg border p-3 ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}>
+          <button
+            type="button"
+            key={m.matchupId}
+            onClick={() => onOpen(m.matchupId)}
+            aria-label={`${names.get(m.a.rosterId)} vs ${names.get(m.b.rosterId)}: see lineups`}
+            className={`rounded-lg border p-3 text-left transition-colors hover:bg-[var(--hover)] ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
+          >
             <div className="flex items-start gap-3">
               <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} align="left" />
               <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} align="right" />
@@ -79,7 +87,8 @@ function LiveMatchups({ odds, names, myRosterId }: { odds: LiveMatchupOdds[]; na
               </div>
               <span className="w-9 text-right" style={{ color: a <= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(1 - a)}</span>
             </div>
-          </div>
+            <div className="mt-1.5 text-center text-[11px] text-[var(--muted)]">Tap for lineups</div>
+          </button>
         );
       })}
     </div>
@@ -96,6 +105,9 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  // The matchup whose lineups are open (it stays live through refreshes)
+  const [openMatchup, setOpenMatchup] = useState<number | null>(null);
+  const closeMatchup = useCallback(() => setOpenMatchup(null), []);
   // Kept across the minute-by-minute refreshes
   const sort = useTableSort('livePlayAll');
   const me = useMyTeam();
@@ -244,7 +256,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       >
         <div className="px-6 pt-4">{statusBar}</div>
         {view.odds ? (
-          <LiveMatchups odds={view.odds} names={view.names} myRosterId={me.rosterId} />
+          <LiveMatchups odds={view.odds} names={view.names} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
         ) : (
           <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
         )}
@@ -340,8 +352,52 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           standings={view.standings.standings}
           playoffTeams={playoffTeams}
           annotations={view.annotations}
+          divisionAvatars={leagueData.divisionAvatars}
         />
       </div>
+      {openMatchup !== null && view.odds && live.projections && live.games && (() => {
+        const m = view.odds.find((o) => o.matchupId === openMatchup);
+        const { projections, games } = live;
+        const toPlayer = (p: ReturnType<typeof liveLineup>[number]): MatchupPlayer | null =>
+          p && {
+            ...p,
+            // A finished game's projection adds nothing: just the final points
+            projected: p.game?.state === 'post' ? null : p.projected,
+            status: p.game ? p.game.label : 'No game',
+            live: p.game?.state === 'in',
+          };
+        const side = (s: LiveSide, odds: number): MatchupSide | null => {
+          const sm = live.matchups.find((x) => x.roster_id === s.rosterId);
+          if (!sm) return null;
+          return {
+            name: view.names.get(s.rosterId) ?? `Team ${s.rosterId}`,
+            score: s.score,
+            sub: (
+              <>
+                proj {s.projected.toFixed(1)} ·{' '}
+                <span className="font-semibold" style={{ color: odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(odds)}</span>
+              </>
+            ),
+            starters: liveLineup(sm, projections, games).map(toPlayer),
+            bench: liveLineup(sm, projections, games, true)
+              .filter((p): p is NonNullable<typeof p> => !!p)
+              .map((p) => toPlayer(p)!)
+              .sort((x, y) => (y.projected ?? y.points) - (x.projected ?? x.points)),
+          };
+        };
+        const a = m && side(m.a, m.aWinOdds);
+        const b = m && side(m.b, 1 - m.aWinOdds);
+        return a && b ? (
+          <MatchupDetail
+            title={`${a.name} vs ${b.name}`}
+            a={a}
+            b={b}
+            slots={(leagueData.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
+            footnote="Projected finals are points so far plus each player's projection for the share of his game left. Bench players don't count toward the score. Injury statuses from Sleeper."
+            onClose={closeMatchup}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

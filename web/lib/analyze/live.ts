@@ -17,7 +17,7 @@ export interface LiveWeekData {
   lastScoredWeek: number;
   playoffWeekStart: number;
   matchups: SleeperMatchup[];
-  /** This week's projection and NFL team for each starter (missing if projections are unavailable) */
+  /** This week's projection and NFL team for each player in the matchups (missing if projections are unavailable) */
   projections?: Record<string, LiveProjection>;
   /** Each NFL team's game this week, by Sleeper team code (missing if the scoreboard is unavailable) */
   games?: Record<string, LiveGame>;
@@ -30,12 +30,17 @@ export interface LiveProjection {
   /** Spread of the player's weekly scores, as a share of his projection (see playerSpreadRatio) */
   spreadRatio: number;
   team: string | null;
+  name: string;
+  position: string;
+  injury: string | null;
 }
 
 export interface LiveGame {
   state: 'pre' | 'in' | 'post';
   /** Share of a regulation game still to play, 0-1, plus the expected overtime */
   remaining: number;
+  /** How the game stands, e.g. "Q3 5:21", "Final", "Sun 1:00 PM" */
+  label: string;
 }
 
 /** Injury statuses that mean a player won't play (or play on), and how much a doubtful one is expected to play */
@@ -128,6 +133,48 @@ export interface LiveMatchupOdds {
   b: LiveSide;
   /** Chance a wins (ties split evenly) */
   aWinOdds: number;
+}
+
+export interface LiveStarter {
+  playerId: string;
+  name: string;
+  position: string;
+  team: string | null;
+  injury: string | null;
+  /** Points so far this week */
+  points: number;
+  /** Points so far plus what's still expected */
+  projected: number;
+  game: LiveGame | null;
+}
+
+/** A matchup side's starters in lineup order (or, with bench, its bench players), each with points so far and projected final */
+export function liveLineup(
+  m: SleeperMatchup,
+  projections: Record<string, LiveProjection>,
+  games: Record<string, LiveGame>,
+  bench = false
+): Array<LiveStarter | null> {
+  const ids = bench ? (m.players ?? []).filter((id) => !(m.starters ?? []).includes(id)) : m.starters ?? [];
+  return ids.map((id) => {
+    // An empty slot
+    if (!id || id === '0') return null;
+    const p = projections[id];
+    const game = p?.team ? games[p.team] ?? null : null;
+    const points = m.players_points?.[id] ?? 0;
+    // Defenses' IDs are their team codes (one on bye has no projection to name it)
+    const defense = !p && /^[A-Z]{2,3}$/.test(id);
+    return {
+      playerId: id,
+      name: p?.name ?? (defense ? `${id} Defense` : id),
+      position: p?.position ?? (defense ? 'DEF' : ''),
+      team: p?.team ?? (defense ? id : null),
+      injury: p?.injury ?? null,
+      points,
+      projected: points + (p ? p.points * (game ? game.remaining : 0) : 0),
+      game,
+    };
+  });
 }
 
 /** Pooled week-to-week spread of team scores over completed weeks (the playoff odds model's spread) */

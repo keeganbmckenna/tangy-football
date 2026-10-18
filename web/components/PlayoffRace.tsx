@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { TeamStats, DivisionStanding, WildCardStanding } from '@/lib/types';
@@ -25,6 +26,8 @@ interface PlayoffRaceProps {
   playoffTeams: number;
   /** Keyed by roster ID; when given, rows show live-week details */
   annotations?: Map<number, StandingAnnotation>;
+  /** Division photos set in Sleeper, by division number */
+  divisionAvatars?: Record<number, string>;
 }
 
 interface TeamRowProps {
@@ -145,12 +148,13 @@ function TeamRow({
   );
 }
 
-function DivisionCard({ division, annotations }: { division: DivisionStanding; annotations?: Map<number, StandingAnnotation> }) {
+function DivisionCard({ division, annotations, avatar }: { division: DivisionStanding; annotations?: Map<number, StandingAnnotation>; avatar?: string }) {
   const leaderPoints = Math.max(...division.teams.map(t => t.totalPoints));
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow overflow-hidden">
       <div className="section-header bg-gradient-to-r from-blue-500 to-blue-700 px-4 py-3" data-tone="primary">
-        <h3 className="text-lg font-bold text-white">
+        <h3 className="flex items-center gap-2.5 text-lg font-bold text-white">
+          {avatar && <Image src={avatar} alt="" width={32} height={32} unoptimized className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-white/30" />}
           {division.divisionName || `Division ${division.division}`}
         </h3>
       </div>
@@ -314,14 +318,14 @@ function WildCardCard({
   );
 }
 
-export default function PlayoffRace({ divisions, wildCard, standings, playoffTeams, annotations }: PlayoffRaceProps) {
+export default function PlayoffRace({ divisions, wildCard, standings, playoffTeams, annotations, divisionAvatars }: PlayoffRaceProps) {
   return (
     <div className="space-y-6">
       {/* Division Standings or Overall Standings */}
       {divisions.length > 0 ? (
         <div className="space-y-6">
           {divisions.map((division) => (
-            <DivisionCard key={division.division} division={division} annotations={annotations} />
+            <DivisionCard key={division.division} division={division} annotations={annotations} avatar={divisionAvatars?.[division.division]} />
           ))}
         </div>
       ) : (
