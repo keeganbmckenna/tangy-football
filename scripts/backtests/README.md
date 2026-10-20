@@ -23,6 +23,7 @@ python trade_depth.py          # do missed games (bench depth) predict a roster'
 python trade_depth_trades.py   # ... and the league's trades (trade_season.py with a depth variant)
 python kalshi_ffpts.py         # Kalshi's player fantasy-points markets vs Sleeper's projections (2026)
 python streaming.py            # does assuming managers stream from waivers improve the odds?
+python loso.py                 # leave-one-season-out check of the five parameters tuned on these seasons
 ```
 
 Requires numpy (installed with pandas by `uv sync`).
@@ -121,4 +122,23 @@ were made just before those games, which would leak information.
   bit more afterwards, but streaming moves team strength by under a point a week against
   weekly swings of about 25, too little to sharpen the odds. Free agents score about what
   Sleeper projects (K, DEF, TE), RB and WR ones 8-12% less.
+
+- **Leave-one-season-out check** (`loso.py`): the five numbers tuned on 2022-2025 (projection
+  weight 0.75, season share 0.5, padding games 3, win-odds spreads 0.8/2.0, live spread 0.7),
+  each re-picked on three seasons and scored on the fourth. None should change:
+  - *Season share and padding* can't be pinned down: re-picked on weekly team points, share
+    ranged 0.25-1.0 and padding 6-10 across folds. The middle values stay.
+  - *Projection weight*: weekly points prefer 0.4-0.5 in every fold, but those values made
+    playoff odds clearly worse out of sample (Brier 0.1250 vs 0.1177, difference +0.0074,
+    95% +0.0019 to +0.0134). 0.75 was chosen on the playoff outcomes the tab shows.
+  - *Win-odds spreads* (lineup values as now): re-picked 0.5-0.6 next week and 1.4-1.8
+    later, better in 2 of 4 seasons; overall log loss 0.6584 vs 0.6593 (-0.0009, 95% -0.0031
+    to +0.0014). No scaling at all: 0.6639.
+  - *Live spread*: re-picked 0.60-0.75; 0.7 scored best out of sample (0.5904, vs 0.5941
+    for the picks and 0.5988 with no scaling).
+  - With no fitting at all (Sleeper projections at face value, no scaling), playoff Brier
+    was 0.1207 vs 0.1177 for the current values (+0.0031, 95% -0.0028 to +0.0091) and
+    single games clearly worse (log loss 0.6764 vs 0.6593).
+  The current values were chosen on these same seasons, so their scores here are slightly
+  optimistic; 2026, untouched by any tuning, is the clean test.
 
