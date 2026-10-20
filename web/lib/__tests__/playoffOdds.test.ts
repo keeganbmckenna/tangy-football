@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  streamValues,
+  STREAM_RANK,
+  bestLineup,
   seedTeams,
   projectedBracket,
   bestLineupPoints,
@@ -73,11 +76,11 @@ describe('bestLineupPoints', () => {
     };
     const players = Object.keys(proj);
     // RB slot takes rb1; flex takes rb2 (12) over nothing better; WR takes wr1
-    expect(bestLineupPoints(players, proj, ['QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF', 'BN', 'BN'])).toBe(20 + 15 + 14 + 9 + 12 + 8 + 7);
+    expect(bestLineupPoints(players, proj, ['QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF', 'BN', 'BN'], {})).toBe(20 + 15 + 14 + 9 + 12 + 8 + 7);
   });
 
   it('ignores players without projections and leaves unfillable slots empty', () => {
-    expect(bestLineupPoints(['x'], { qb: { position: 'QB', points: 20 } }, ['QB', 'RB'])).toBe(0);
+    expect(bestLineupPoints(['x'], { qb: { position: 'QB', points: 20 } }, ['QB', 'RB'], {})).toBe(0);
   });
 });
 
@@ -350,5 +353,49 @@ describe('formatOdds', () => {
     expect(formatOdds(0.9996)).toBe('>99.9%');
     expect(formatOdds(0.0996)).toBe('10%');
     expect(formatOdds(0.9004)).toBe('90%');
+  });
+});
+
+describe('streaming from waivers', () => {
+  const slots = ['QB', 'RB', 'FLEX', 'K', 'DEF', 'BN'];
+  const proj = {
+    qb: { position: 'QB', points: 20 },
+    rb: { position: 'RB', points: 12 },
+    k: { position: 'K', points: 6 },
+    // Free agents
+    k1: { position: 'K', points: 10 },
+    k2: { position: 'K', points: 9 },
+    k3: { position: 'K', points: 8 },
+    d1: { position: 'DEF', points: 7 },
+    fr1: { position: 'RB', points: 9 },
+    fr2: { position: 'RB', points: 7 },
+    fw1: { position: 'WR', points: 8 },
+    hurt: { position: 'WR', points: 0 },
+  };
+  const streams = streamValues(proj, new Set(['qb', 'rb', 'k']));
+
+  it("lists each position's free agents, best first (none projected for nothing)", () => {
+    expect(STREAM_RANK).toBe(3);
+    expect(streams).toEqual({ K: [10, 9, 8], DEF: [7], RB: [9, 7], WR: [8] });
+  });
+
+  it('streams kickers and defenses at the third-best free agent when that beats the roster', () => {
+    // Rostered kicker 6 < third-best 8; no defense rostered and one left on waivers: him
+    const lineup = bestLineup(['qb', 'rb', 'k'], proj, ['QB', 'K', 'DEF'], streams);
+    expect(lineup.starters.map((s) => s.playerId)).toEqual(['qb', 'stream:K', 'stream:DEF']);
+    expect(lineup.total).toBe(35);
+    expect(bestLineup(['qb', 'k1'], proj, ['QB', 'K'], streams).total).toBe(30);
+  });
+
+  it('fills a slot that would score nothing with the best free agent who can play it', () => {
+    // No second RB for FLEX: the best free agent among RB/WR/TE (RB 9); the empty RB slot
+    // before it takes nobody since rb starts there
+    const lineup = bestLineup(['qb', 'rb', 'k'], proj, slots, streams);
+    expect(lineup.starters.map((s) => s.playerId)).toEqual(['qb', 'rb', 'stream:K', 'stream:DEF', 'stream:RB']);
+    expect(lineup.total).toBe(20 + 12 + 8 + 7 + 9);
+    // Two empty RB-eligible slots take the best two free agents, not the best one twice
+    expect(bestLineup(['qb'], proj, ['QB', 'RB', 'RB'], streams).total).toBe(20 + 9 + 7);
+    // Without free agents, empty slots stay empty
+    expect(bestLineup(['qb', 'rb'], proj, slots, {}).total).toBe(32);
   });
 });

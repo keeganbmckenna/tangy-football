@@ -172,11 +172,46 @@ export interface LineupSlot {
   points: number;
 }
 
-/** The best lineup a roster can start: each starting slot's player, most restrictive slots first */
+/** Positions managers stream from waivers every week instead of holding: kickers and defenses */
+export const STREAMED = new Set(['K', 'DEF']);
+/**
+ * What streaming them is worth: the free agent this far down each week's list (the best ones
+ * go to whoever gets to waivers first, and other managers stream too)
+ */
+export const STREAM_RANK = 3;
+// (or the last one, when fewer are left)
+/** Free agents kept per position: enough for a few empty slots at once */
+const FREE_AGENT_DEPTH = 5;
+
+/** Each week's free agents: position -> their points that week, best first */
+export type Streams = Record<string, number[]>;
+
+/** The week's best free agents at each position, from every player's points and who's rostered */
+export function streamValues(projections: Record<string, { position: string; points: number }>, rostered: Set<string>): Streams {
+  const out: Streams = {};
+  for (const [id, p] of Object.entries(projections)) {
+    if (!rostered.has(id) && p.points > 0) (out[p.position] ??= []).push(p.points);
+  }
+  for (const pos of Object.keys(out)) out[pos] = out[pos].sort((a, b) => b - a).slice(0, FREE_AGENT_DEPTH);
+  return out;
+}
+
+/** Starter ID of a free agent picked up for a week, e.g. stream:K */
+export const streamId = (position: string) => `stream:${position}`;
+export const isStream = (id: string) => id.startsWith('stream:');
+
+/**
+ * The best lineup a roster can start: each starting slot's player, most restrictive slots
+ * first. Managers stream from waivers (streams: that week's free agents): a kicker or
+ * defense slot takes the STREAM_RANK-th best free agent when he beats the rostered one, and
+ * a slot that would otherwise score nothing (a bye or an injury with no backup) takes the
+ * best free agent who can play it.
+ */
 export function bestLineup(
   players: string[],
   projections: Record<string, { position: string; points: number }>,
-  rosterPositions: string[]
+  rosterPositions: string[],
+  streams: Streams
 ): { total: number; starters: LineupSlot[] } {
   const pool = players
     .filter((p) => projections[p])
@@ -189,9 +224,27 @@ export function bestLineup(
   const used = new Set<string>();
   const starters: LineupSlot[] = [];
   let total = 0;
+  // Free agents already picked up this week, by position
+  const taken: Record<string, number> = {};
+  const freeAgent = (pos: string) => streams[pos]?.[taken[pos] ?? 0] ?? 0;
   for (const { slot, eligible } of slots) {
     const pick = pool.find((p) => !used.has(p.id) && eligible.includes(p.position));
-    if (pick) {
+    const held = pick?.points ?? 0;
+    let stream: { pos: string; points: number } | null = null;
+    if (eligible.length === 1 && STREAMED.has(eligible[0])) {
+      const list = streams[eligible[0]] ?? [];
+      const points = list[Math.min(STREAM_RANK, list.length) - 1] ?? 0;
+      if (points > held) stream = { pos: eligible[0], points };
+    } else if (held <= 0) {
+      for (const pos of eligible) {
+        if (freeAgent(pos) > (stream?.points ?? 0)) stream = { pos, points: freeAgent(pos) };
+      }
+    }
+    if (stream) {
+      if (!STREAMED.has(stream.pos)) taken[stream.pos] = (taken[stream.pos] ?? 0) + 1;
+      total += stream.points;
+      starters.push({ slot, playerId: streamId(stream.pos), points: stream.points });
+    } else if (pick) {
       used.add(pick.id);
       total += pick.points;
       starters.push({ slot, playerId: pick.id, points: pick.points });
@@ -204,9 +257,10 @@ export function bestLineup(
 export function bestLineupPoints(
   players: string[],
   projections: Record<string, { position: string; points: number }>,
-  rosterPositions: string[]
+  rosterPositions: string[],
+  streams: Streams
 ): number {
-  return bestLineup(players, projections, rosterPositions).total;
+  return bestLineup(players, projections, rosterPositions, streams).total;
 }
 
 export const PROJECTION_WEIGHT = 0.75;

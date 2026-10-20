@@ -64,7 +64,7 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
             const season = Object.fromEntries(
               roster.filter((p) => inputs.positions[p]).map((p) => [p, { position: inputs.positions[p], points: data.players[p]?.expectedPerWeek ?? 0 }])
             );
-            const starters = bestLineup(roster, season, inputs.rosterPositions).starters.map((s) => s.playerId);
+            const starters = bestLineup(roster, season, inputs.rosterPositions, inputs.streams[g.week] ?? {}).starters.map((s) => s.playerId);
             const byes = starters.filter((p) => data.players[p]?.byeWeek === g.week).map((p) => data.players[p].name);
             return { week: g.week, opponent: g.a === me ? g.b : g.a, byes };
           });

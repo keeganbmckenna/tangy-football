@@ -7,7 +7,7 @@ import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
-import { bestLineup, formatOdds, simulatePlayoffOdds, type OddsResult, type TeamOdds } from '@/lib/analyze/playoffOdds';
+import { bestLineup, formatOdds, isStream, simulatePlayoffOdds, type OddsResult, type TeamOdds } from '@/lib/analyze/playoffOdds';
 import {
   lineupByWeek,
   meansAfterTrade,
@@ -475,8 +475,9 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
     };
     const proj = (players: string[]) =>
       Object.fromEntries(players.filter((p) => inputs.positions[p]).map((p) => [p, { position: inputs.positions[p], points: inputs.projections[p]?.[firstWeek] ?? 0 }]));
-    const startersBefore = bestLineup(change.before, proj(change.before), inputs.rosterPositions).starters;
-    const startersAfter = bestLineup(change.after, proj(change.after), inputs.rosterPositions).starters;
+    const streams = inputs.streams[firstWeek] ?? {};
+    const startersBefore = bestLineup(change.before, proj(change.before), inputs.rosterPositions, streams).starters;
+    const startersAfter = bestLineup(change.after, proj(change.after), inputs.rosterPositions, streams).starters;
     const ids = (s: typeof startersBefore) => new Set(s.map((x) => x.playerId));
     const before = ids(startersBefore);
     const after = ids(startersAfter);
@@ -488,7 +489,8 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
     };
   };
 
-  const playerName = (id: string) => data.players[id]?.name ?? id;
+  // A slot streamed from waivers (see bestLineup) reads as e.g. "Waiver K"
+  const playerName = (id: string) => (isStream(id) ? `Waiver ${id.slice('stream:'.length)}` : data.players[id]?.name ?? id);
   const marketTotal = (ids: string[]) => {
     const valued = ids.map((p) => data.players[p]?.value).filter((v): v is number => v !== null && v !== undefined);
     return { total: valued.reduce((s, v) => s + v, 0), valued: valued.length, count: ids.length };

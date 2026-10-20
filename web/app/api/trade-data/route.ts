@@ -8,7 +8,7 @@ import type { TradeDataResponse, TradeInputs, TradePlayerInfo } from '@/lib/anal
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v10';
 const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current';
 /** Free agents per position offered as pickups for roster spots a trade opens */
 const FREE_AGENTS_PER_POSITION = 15;
@@ -129,6 +129,9 @@ async function build(league: SleeperLeague): Promise<TradeDataResponse> {
       rosters: Object.fromEntries(odds.rosters.map((r) => [r.roster_id, r.players ?? []])),
       reserve: Object.fromEntries(odds.rosters.map((r) => [r.roster_id, r.reserve ?? []])),
       freeAgents,
+      streams: Object.fromEntries(
+        weeks.map((w) => [w, Object.fromEntries(Object.entries(odds.streams[w] ?? {}).map(([pos, v]) => [pos, v.map((x) => Math.round(x * 100) / 100)]))])
+      ),
       rosterPositions: league.roster_positions ?? [],
       lastScoredWeek: odds.lastScoredWeek,
     },
