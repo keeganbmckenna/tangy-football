@@ -21,6 +21,7 @@ python live_pregame.py         # the Live tab's matchup win odds at kickoff: spr
 python live_defense.py         # defenses' points allowed: projection bias and spread, bracket scoring
 python trade_depth.py          # do missed games (bench depth) predict a roster's lineup better?
 python trade_depth_trades.py   # ... and the league's trades (trade_season.py with a depth variant)
+python kalshi_ffpts.py         # Kalshi's player fantasy-points markets vs Sleeper's projections (2026)
 ```
 
 Requires numpy (installed with pandas by `uv sync`).
@@ -93,3 +94,17 @@ Requires numpy (installed with pandas by `uv sync`).
 Projections are always the ones known at the time: the week after the cutoff, carried
 forward with each NFL team's bye weeks. Sleeper's archived projections for later weeks
 were made just before those games, which would leak information.
+
+- **Kalshi's fantasy-points markets** (`kalshi_ffpts.py`): Kalshi lists one line per
+  player per game ("Over 21.6 fantasy points"), settled on Sleeper's full-PPR points. On
+  1,064 settled markets from 2026 weeks 1-6, priced just before kickoff: the line *is*
+  Sleeper's projection (median difference 0.13 points), so the market only prices over or
+  under it. Players finished under their projection 55% of the time (scores skew: a few
+  big games pull the average above the typical one), and the market knew it, pricing the
+  over at 42% on average. Its odds of the over beat Sleeper's (log loss 0.682 vs 0.691)
+  and a flat 45% (0.688), but by less than the noise (0.008 ± 0.008), and won only 4 of 6
+  weeks. As expected points, a 25% market blend cut squared error by 0.4 ± 0.2 (RMSE 6.97
+  vs 7.00); the market was closer in 51% of the biggest disagreements; it was overconfident
+  at the extremes (priced 30%, hit 41%). Too small to change the Live or Playoffs odds,
+  so they keep Sleeper's projections. Live in-game prices aren't tested here.
+
