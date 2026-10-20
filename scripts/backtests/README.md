@@ -22,6 +22,7 @@ python live_defense.py         # defenses' points allowed: projection bias and s
 python trade_depth.py          # do missed games (bench depth) predict a roster's lineup better?
 python trade_depth_trades.py   # ... and the league's trades (trade_season.py with a depth variant)
 python kalshi_ffpts.py         # Kalshi's player fantasy-points markets vs Sleeper's projections (2026)
+python streaming.py            # does assuming managers stream from waivers improve the odds?
 ```
 
 Requires numpy (installed with pandas by `uv sync`).
@@ -107,4 +108,17 @@ were made just before those games, which would leak information.
   vs 7.00); the market was closer in 51% of the biggest disagreements; it was overconfident
   at the extremes (priced 30%, hit 41%). Too small to change the Live or Playoffs odds,
   so they keep Sleeper's projections. Live in-game prices aren't tested here.
+
+- **Streaming from waivers** (`streaming.py`): the odds model with lineups that stream (a
+  K/DEF slot takes the 3rd-best free agent when better; a slot that would score 0 takes the
+  best free agent who can play it) vs roster-only lineups, every team at every week 3-13 of
+  2022-2025 (576 team-weeks, intervals clustered by team-season). Streaming did *not* help:
+  playoff Brier 0.1208 vs 0.1169 (+0.0039, 95% interval +0.0001 to +0.0080), worse in 3 of
+  4 seasons; rest-of-season wins and single games unchanged; future points per week 0.6%
+  better, within noise. The 3rd-best everywhere (+0.0035), K/DEF only (+0.0007) and best
+  everywhere (+0.0049) were no better. After the league's 81 trades it was the same (playoff
+  Brier +0.0064, wins -0.026, both within noise). Teams that streaming credits did score a
+  bit more afterwards, but streaming moves team strength by under a point a week against
+  weekly swings of about 25, too little to sharpen the odds. Free agents score about what
+  Sleeper projects (K, DEF, TE), RB and WR ones 8-12% less.
 
