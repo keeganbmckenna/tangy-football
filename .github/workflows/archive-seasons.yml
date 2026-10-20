@@ -1,0 +1,27 @@
+# Each offseason, archives any newly completed season's Sleeper data into data/sleeper/
+# (scripts/archive_season.py). By mid-March every week is long past Sleeper's stat
+# corrections (they run through the Thursday after each week's games).
+name: Archive seasons
+
+on:
+  schedule:
+    - cron: '0 12 15 3 *'   # March 15, 12:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive completed seasons
+        run: python3 scripts/archive_season.py
+      - name: Commit and push
+        run: |
+          git config user.name 'archive-seasons'
+          git config user.email 'archive-seasons@users.noreply.github.com'
+          git add data/sleeper
+          git commit -m "Archive completed seasons' Sleeper data" || exit 0
+          git push

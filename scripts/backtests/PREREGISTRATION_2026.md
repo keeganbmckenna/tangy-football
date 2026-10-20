@@ -77,4 +77,6 @@ Secondary:
 
 ## Log of changes after the first snapshot
 
-(none yet)
+- 2026-10-20: snapshots before kickoffs also save Sleeper's full projection file (every player's
+  injury status at the time), for future injury backtests. Data collection only; no analysis
+  above changes.

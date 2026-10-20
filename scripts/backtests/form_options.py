@@ -54,7 +54,7 @@ class Season:
         L = leagues[season]
         self.slots = L['roster_positions']; self.end = L['settings']['playoff_week_start'] - 1
         self.has_div = bool(L['settings'].get('divisions'))
-        R = json.load(open(f'{D}/rosters_{season}.json'))
+        R = J(f'rosters_{season}')
         self.ids = sorted(r['roster_id'] for r in R); self.ix = {r: i for i, r in enumerate(self.ids)}
         self.div = [next(x['settings'].get('division') or 0 for x in R if x['roster_id'] == r) for r in self.ids]
         self.M = {w: {m['roster_id']: m for m in J(f'm_{season}_{w}')} for w in range(1, self.end + 1)}

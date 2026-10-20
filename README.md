@@ -200,6 +200,17 @@ Sleeper data is fetched by the app's server routes and cached. Durations are set
 
 The site is hosted on Vercel at https://tangy-football.vercel.app. There's no Vercel config file in the repo, so build settings live in the Vercel project settings. The app is in `web/`, so the project's root directory is set to `web`. Every push to `main` deploys to production.
 
+## Data archive
+
+Completed seasons' Sleeper data (league, users, rosters, brackets, draft, matchups,
+transactions, every player's weekly projections and stats, the NFL schedule) is saved
+gzipped in `data/sleeper/{season}/` by `scripts/archive_season.py`. A finished season is
+static: Sleeper's stat corrections run through the Thursday after each week's games. The
+`Archive seasons` workflow adds each newly completed season every March 15. During the
+season, the `Prediction log` workflow saves the site's predictions and Sleeper's projections
+with each player's injury status before kickoffs to the `prediction-log` branch (Sleeper
+overwrites injury statuses, so they can't be recovered later).
+
 ## Technologies
 
 - **Next.js 15** (App Router) and **React 19**

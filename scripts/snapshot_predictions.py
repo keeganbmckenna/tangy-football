@@ -9,6 +9,8 @@ prediction-log branch. Each run saves, gzipped, from the deployed site:
                  and weekly values (Sleeper overwrites injury statuses, so they can't be
                  recovered later)
   live           the Live tab's inputs: matchups, projections, NFL game clocks
+  projections    (before kickoffs only) Sleeper's projections for every player, with each
+                 one's injury status at that moment, which Sleeper's archive overwrites
 
 to predictions/{season}/w{week}-{label}-{UTC time}.json.gz, where label says when it was
 taken: after-scoring (Wednesday), pre-thursday, pre-sunday or pre-monday (just before
@@ -44,13 +46,24 @@ def main():
     odds = snapshot.get('playoffOdds') or {}
     season = str(odds.get('season') or (snapshot.get('tradeData') or {}).get('season') or now.year)
     week = (odds.get('lastScoredWeek') or 0) + 1
+    # Before kickoffs: Sleeper's projections for every player with his injury status right now.
+    # Its archive keeps the projections but overwrites the statuses, so this is the only way
+    # to backtest injury handling later
+    if label.startswith('pre-'):
+        q = '&'.join(f'position%5B%5D={p}' for p in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'])
+        try:
+            req = urllib.request.Request(f'https://api.sleeper.com/projections/nfl/{season}/{week}?season_type=regular&{q}', headers={'User-Agent': 'curl/8'})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                snapshot['projections'] = json.load(r)
+        except Exception as e:
+            snapshot['errors']['projections'] = str(e)
     folder = os.path.join(OUT, season)
     os.makedirs(folder, exist_ok=True)
     name = f"w{week:02d}-{label}-{now.strftime('%Y%m%dT%H%MZ')}.json.gz"
     with gzip.open(os.path.join(folder, name), 'wt') as f:
         json.dump(snapshot, f, separators=(',', ':'))
     print(f'saved {folder}/{name}; errors: {snapshot["errors"] or "none"}')
-    if len(snapshot['errors']) == 3:
+    if all(k in snapshot['errors'] for k in ('playoffOdds', 'tradeData', 'live')):
         sys.exit(1)
 
 

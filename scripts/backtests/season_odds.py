@@ -28,7 +28,7 @@ out = {v: [] for v in VARIANTS}
 for season in ['2022', '2023', '2024', '2025']:
     L = leagues[season]; slots = L['roster_positions']; end = L['settings']['playoff_week_start'] - 1
     has_div = bool(L['settings'].get('divisions'))
-    R = json.load(open(f'{D}/rosters_{season}.json')); ids = sorted(r['roster_id'] for r in R)
+    R = J(f'rosters_{season}'); ids = sorted(r['roster_id'] for r in R)
     ix = {r: i for i, r in enumerate(ids)}; div = [next(x['settings'].get('division') or 0 for x in R if x['roster_id'] == r) for r in ids]
     M = {w: {m['roster_id']: m for m in J(f'm_{season}_{w}')} for w in range(1, end + 1)}
     raw = {w: J(f'proj_{season}_{w}') for w in range(1, end + 1)}

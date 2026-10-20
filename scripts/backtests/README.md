@@ -1,7 +1,10 @@
 # Backtests
 
 Checks behind the playoff odds and the Trades tab, run on this league's 2022-2025
-seasons. Every script reads a local cache of Sleeper data, so fetch it first. Run
+seasons. Every script reads a local cache of Sleeper data, falling back to the completed
+seasons archived in `data/sleeper/` (`scripts/archive_season.py`, refreshed each offseason
+by `.github/workflows/archive-seasons.yml`), so the 2022-2025 backtests run without
+fetching anything; `fetch_history.py` is only needed for the current season. Run
 from this directory:
 
 ```bash
