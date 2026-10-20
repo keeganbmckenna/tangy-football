@@ -46,6 +46,35 @@ describe('injured players coming back', () => {
     expect(values[9].healthy.points).toBe(20);
   });
 
+  it('discounts a player hurt in his last game from this week on, as if he had missed one', () => {
+    // Played weeks 1-5, ruled out after week 5's game; Sleeper still projects 15 every week
+    const values: Record<number, Record<string, { position: string; points: number }>> = {};
+    const players: Record<number, Record<string, ProjectedPlayer>> = {};
+    for (const w of [6, 7, 8]) {
+      values[w] = { evans: { position: 'WR', points: 15 }, maybe: { position: 'WR', points: 10 } };
+      players[w] = { evans: { ...player('Out', 'KC'), position: 'WR' }, maybe: { ...player('Doubtful', 'KC'), position: 'WR' } };
+    }
+    const production: SeasonProduction = { points: {}, games: {}, playedWeeks: { evans: [1, 2, 3, 4, 5], maybe: [1, 2, 3, 4, 5] } };
+    discountInjured(values, players, production, schedule, 5, [6, 7, 8]);
+    expect(values[6].evans.points).toBeCloseTo(15 * 0.76);
+    expect(values[7].evans.points).toBeCloseTo(15 * (1 - 0.24 * 0.6));
+    expect(values[6].maybe.points).toBe(10);
+  });
+
+  it("discounts this week too when Sleeper still projects a player who's out", () => {
+    // Missed week 5, out, and Sleeper projects 22 for this week (6) on anyway
+    const values: Record<number, Record<string, { position: string; points: number }>> = {};
+    const players: Record<number, Record<string, ProjectedPlayer>> = {};
+    for (const w of [6, 7]) {
+      values[w] = { lamar: { position: 'QB', points: 22 } };
+      players[w] = { lamar: player('Out') };
+    }
+    const production: SeasonProduction = { points: {}, games: {}, playedWeeks: { lamar: [1, 2, 3, 4] } };
+    discountInjured(values, players, production, schedule, 5, [6, 7]);
+    expect(values[6].lamar.points).toBeCloseTo(22 * 0.76);
+    expect(values[7].lamar.points).toBeCloseTo(22 * (1 - 0.24 * 0.6));
+  });
+
   it('leaves a known timeline alone: Sleeper already has him out past next week', () => {
     const values: Record<number, Record<string, { position: string; points: number }>> = {};
     const players: Record<number, Record<string, ProjectedPlayer>> = {};

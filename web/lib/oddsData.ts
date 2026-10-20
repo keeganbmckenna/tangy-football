@@ -209,12 +209,25 @@ export function discountInjured(
     const team = p.team;
     const teamWeeks = Array.from({ length: lastScoredWeek }, (_, i) => i + 1).filter((w) => schedule[w]?.has(team));
     let missed = missedStreak(teamWeeks, new Set(production.playedWeeks[id] ?? []));
-    // Missing this week's game too
-    if (schedule[current]?.has(team) && (values[current]?.[id]?.points ?? 0) === 0) missed += 1;
-    if (missed === 0) continue;
-    const later = weeks.filter((w) => w > current && schedule[w]?.has(team));
-    if (!later.length || (values[later[0]]?.[id]?.points ?? 0) === 0) continue;
-    later.forEach((w, j) => {
+    const plays = (w: number) => schedule[w]?.has(team);
+    let games: number[];
+    if (plays(current) && (values[current]?.[id]?.points ?? 0) === 0) {
+      // Sleeper already has him out this week: that's one more game missed
+      missed += 1;
+      games = weeks.filter((w) => w > current && plays(w));
+    } else if (p.injury === 'Doubtful') {
+      // He may well play this week: only the weeks after are in doubt
+      if (missed === 0) continue;
+      games = weeks.filter((w) => w > current && plays(w));
+    } else {
+      // Ruled out, but early in the week Sleeper still projects him this week. One hurt in his
+      // last game (played it, ruled out since: Mike Evans, week 6 of 2026) counts as having
+      // missed one.
+      missed = Math.max(missed, 1);
+      games = weeks.filter((w) => w >= current && plays(w));
+    }
+    if (!games.length || (values[games[0]]?.[id]?.points ?? 0) === 0) continue;
+    games.forEach((w, j) => {
       const v = values[w]?.[id];
       if (v) v.points *= backBy(missed, j + 1, p.injury === 'IR');
     });
