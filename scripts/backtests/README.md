@@ -28,6 +28,9 @@ python kalshi_ffpts.py         # Kalshi's player fantasy-points markets vs Sleep
 python streaming.py            # does assuming managers stream from waivers improve the odds?
 python stream_weight.py        # waiver pickups for empty/bye slots, with the projection weight re-fitted
 python loso.py                 # leave-one-season-out check of the five parameters tuned on these seasons
+python injuries.py             # official NFL injury reports (nflverse) vs who played and what they scored
+python crawl_leagues.py        # collect other Sleeper leagues like ours (local cache, not committed)
+python leagues_fit.py          # the playoff model on those leagues
 python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
 
@@ -157,4 +160,31 @@ were made just before those games, which would leak information.
   +0.0060); K/DEF streaming alone was neutral. The playoff odds keep holes at 0. Side
   finding, not acted on (to test after 2026, per the preregistration): picked on playoff
   Brier, the projection weight comes out 0.9-1.0 in every fold, not 0.75.
+
+- **Official injury reports** (`injuries.py`): nflverse's weekly reports for 2022-2025 (6,941
+  QB/RB/WR/TE/K rows, all matched to Sleeper through DynastyProcess's ID table), against
+  Sleeper's stats and pre-game projections. Of players listed **Doubtful, 0 of 134 played**
+  (the Live tab counts 30% of a doubtful player's projection before kickoff); Out, 1 of 937.
+  **Questionable** players played 73% of the time and scored 0.89 of their pre-game
+  projection (95% 0.84-0.94), against 0.98 for players not on the report; the model counts
+  them in full. Players who played last week and are on this week's report played 81%
+  (Questionable 79%). Among players missing games for any reason, 52%, 30%, 22% and 19%
+  played after missing 1, 2, 3 and 4+; not comparable to the model's return rates, which
+  only cover injuries Sleeper projects to end.
+
+- **Other leagues** (`crawl_leagues.py`, `leagues_fit.py`): 816 redraft league-seasons like
+  ours (200+ a season, found from 18,000+ leagues reached through dezdroppedit27's and our
+  managers' leagues), playoff odds from weeks 4, 7 and 10 (2,448 snapshots), intervals
+  resampling leagues. Consistent in all four seasons and in the most, middle and least
+  active thirds of leagues (our league sits in the most active third):
+  - A **lower projection weight** predicts better: Brier 0.1610 at 0.5 and 0.1603 at 0.4 vs
+    0.1649 at 0.75 (the site's) and 0.1703 at 1.0.
+  - **Projection-only values** beat the half-season-production blend (0.1634 vs 0.1649 at
+    0.75).
+  - **Filling bye-week holes with the best free agent** helps (0.1634 vs 0.1649 at 0.75).
+  - Together, projection-only with bye-week fill at weight 0.5: **0.1593** (-0.0057, 95%
+    -0.0066 to -0.0047), about 3.5% better; 0.4 is no different (0.1591).
+  Our league alone pointed the other way (weight 0.9-1.0, no fill), on 48 team-seasons; the
+  816 leagues make that most likely noise. The site is unchanged for now (see
+  PREREGISTRATION_2026.md).
 

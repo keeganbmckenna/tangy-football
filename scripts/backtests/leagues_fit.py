@@ -8,8 +8,8 @@ team's best lineup per remaining week (byes score 0), expected score = league av
 weight x (lineup - league's average lineup), the remaining real schedule simulated 1,000
 times. Scored on who made the playoffs (top N by wins, then points) with Brier score.
 
-Compared: the projection weight (0.5-1.1), projection-only values, and bye-week holes filled
-by the best free agent who can play them. Intervals resample leagues. Run crawl_leagues.py
+Compared: the projection weight (0.3-1.1), projection-only values, bye-week holes filled
+by the best free agent who can play them, and both together. Intervals resample leagues. Run crawl_leagues.py
 first.
 """
 import glob, gzip, json, math, os, statistics as st, sys
@@ -19,7 +19,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE = os.path.join(HERE, '..', '..', 'data', 'sleeper')
 SNAPSHOTS = (4, 7, 10)
-WEIGHTS = (0.5, 0.6, 0.75, 0.9, 1.0, 1.1)
+WEIGHTS = (0.3, 0.4, 0.5, 0.6, 0.75, 0.9, 1.0, 1.1)
 N = 1000
 SLOT = {'FLEX': ('RB', 'WR', 'TE'), 'WRRB_FLEX': ('RB', 'WR'), 'REC_FLEX': ('WR', 'TE')}
 POS = ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
@@ -106,6 +106,14 @@ def league_rows(path, rng):
             for r in ids: PF[ix[r]] += pts[w][r]
         return W, PF
     Wf, PFf = record(end)
+    # How active the league is: starting slots left empty or given to a player on bye, per team-week
+    team_of = {}
+    for r in arch(season, f'projections/{end}'): team_of[r['player_id']] = r.get('team')
+    sched = arch(season, 'schedule'); playing = defaultdict(set)
+    for g in sched: playing[g['week']].update((g['home'], g['away']))
+    holes = sum(1 for w in range(1, end + 1) for m in M[w] for p in (m.get('starters') or [])
+                if p in ('0', '', None) or (team_of.get(p) or (p if p.isalpha() else None)) not in playing[w] and (team_of.get(p) or p.isalpha()))
+    activity = holes / (T * end)
     made = np.zeros(T); made[np.lexsort((-PFf, -Wf))[:n_po]] = 1
     rows = []
     for e in SNAPSHOTS:
@@ -116,20 +124,24 @@ def league_rows(path, rng):
         lg = st.mean(pts[w][r] for w in range(1, e) for r in ids)
         sq = sum((pts[w][r] - st.mean(pts[x][r] for x in range(1, e))) ** 2 for r in ids for w in range(1, e))
         sd = max(math.sqrt(sq / (T * (e - 2))), 15)
-        B = {v: {} for v in ('blend', 'proj', 'byes')}
+        B = {v: {} for v in ('blend', 'proj', 'byes', 'projbyes')}
         for w in range(e, end + 1):
-            fa = defaultdict(list)
+            fa, fa_proj = defaultdict(list), defaultdict(list)
             for p, (pos, wk) in vals.items():
-                if p not in rostered and wk.get(w, (0, 0))[0] > 0: fa[pos].append(wk[w][0])
-            for pos in fa: fa[pos].sort(reverse=True)
+                if p not in rostered and wk.get(w, (0, 0))[0] > 0: fa[pos].append(wk[w][0]); fa_proj[pos].append(wk[w][1])
+            for pos in fa: fa[pos].sort(reverse=True); fa_proj[pos].sort(reverse=True)
             bye = {r: [p for p in rosters.get(r, []) if p in vals and vals[p][1].get(e, (0, 0))[1] > 0 and vals[p][1].get(w, (0, 0))[1] == 0] for r in ids}
             B['blend'][w] = np.array([lineup(rosters.get(r, []), vals, slots, w, 0) for r in ids])
             B['proj'][w] = np.array([lineup(rosters.get(r, []), vals, slots, w, 1) for r in ids])
             B['byes'][w] = np.array([lineup(rosters.get(r, []), vals, slots, w, 0, fa, bye[r]) for r in ids])
+            B['projbyes'][w] = np.array([lineup(rosters.get(r, []), vals, slots, w, 1, fa_proj, bye[r]) for r in ids])
         W0, PF0 = record(e - 1)
         noise = {w: rng.standard_normal((N, T)) for w in range(e, end + 1)}
         variants = {f'blend@{wt}': ('blend', wt) for wt in WEIGHTS}
-        variants.update({'proj@0.75': ('proj', 0.75), 'proj@1.0': ('proj', 1.0), 'byes@0.75': ('byes', 0.75), 'byes@1.0': ('byes', 1.0)})
+        variants.update({f'proj@{wt}': ('proj', wt) for wt in (0.5, 0.75, 1.0)})
+        variants.update({f'byes@{wt}': ('byes', wt) for wt in (0.5, 0.75, 1.0)})
+        variants.update({f'projbyes@{wt}': ('projbyes', wt) for wt in (0.4, 0.5, 0.6)})
+        variants.update({f'proj@{wt}': ('proj', wt) for wt in (0.4, 0.6)})
         for name, (kind, wt) in variants.items():
             Wv = np.repeat(W0[None], N, 0); PFv = np.repeat(PF0[None], N, 0)
             for w in range(e, end + 1):
@@ -141,7 +153,7 @@ def league_rows(path, rng):
             order = np.argsort(-(Wv + PFv / (PFv.max(1, keepdims=True) + 1)), axis=1)
             seeds = np.argsort(order, axis=1)
             p = (seeds < n_po).mean(0)
-            rows.append((L['league_id'], season, e, name, float(np.mean((p - made) ** 2)), T))
+            rows.append((L['league_id'], season, e, name, float(np.mean((p - made) ** 2)), activity))
     return rows
 
 
@@ -169,6 +181,15 @@ def report(rows):
     for name in sorted(by, key=lambda n: (n.split('@')[0], float(n.split('@')[1]))):
         x = np.array([np.mean(by[name][k]) for k in leagues]); d = x - base
         print(f'{name:12} {x.mean():13.4f}  {d.mean():+.4f} ({np.percentile(d[boot].mean(1), 2.5):+.4f} to {np.percentile(d[boot].mean(1), 97.5):+.4f})')
+    # By how active the league is (holes per team-week), thirds
+    act = {}
+    for lid, season, e, name, br, a in rows: act[(lid, season)] = a
+    cuts = np.quantile([act[k] for k in leagues], [1 / 3, 2 / 3])
+    print(f'\nleague activity: holes per team-week, thirds cut at {cuts[0]:.3f} / {cuts[1]:.3f} (our league 2022-2025: 0.019)')
+    for label, lo, hi in (('most active', -1, cuts[0]), ('middle', cuts[0], cuts[1]), ('least active', cuts[1], 9)):
+        ks = [k for k in leagues if lo < act[k] <= hi]
+        best = min(by, key=lambda n: np.mean([np.mean(by[n][k]) for k in ks]))
+        print(f'  {label:12} ({len(ks)} leagues): ' + '  '.join(f"{n} {np.mean([np.mean(by[n][k]) for k in ks]):.4f}" for n in ('blend@0.5', 'blend@0.75', 'blend@1.0', 'byes@0.75', 'proj@0.75')) + f'   best: {best}')
     for season in ('2022', '2023', '2024', '2025'):
         ks = [k for k in leagues if k[1] == season]
         if ks: print(f'  {season} ({len(ks)} leagues): ' + '  '.join(f"{n} {np.mean([np.mean(by[n][k]) for k in ks]):.4f}" for n in ('blend@0.75', 'blend@1.0', 'byes@0.75', 'byes@1.0')))
