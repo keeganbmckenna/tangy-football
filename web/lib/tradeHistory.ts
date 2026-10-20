@@ -24,7 +24,6 @@ import {
 } from '@/lib/oddsData';
 import {
   bestLineupPoints,
-  streamValues,
   playerValue,
   seedTeams,
   teamStrength,
@@ -233,13 +232,10 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
         };
       });
       const weeklyScores = Object.fromEntries(rosters.map((r) => [r.roster_id, record(matchups, r.roster_id, w0 - 1).scores]));
-      // Free agents at the time, for streaming (see bestLineup)
-      const rostered = new Set([...beforeRosters.values()].flat());
-      const streams = Object.fromEntries(strengthWeeks.map((w) => [w, streamValues(projByWeek[w], rostered)]));
       const lineups: Record<number, Record<number, number>> = {};
       for (const w of strengthWeeks) {
         lineups[w] = Object.fromEntries(
-          rosters.map((r) => [r.roster_id, bestLineupPoints(beforeRosters.get(r.roster_id) ?? [], projByWeek[w], rosterPositions, streams[w])])
+          rosters.map((r) => [r.roster_id, bestLineupPoints(beforeRosters.get(r.roster_id) ?? [], projByWeek[w], rosterPositions)])
         );
       }
       const { meanByWeek, spread } = teamStrength(weeklyScores, strengthWeeks, lineups);
@@ -251,7 +247,6 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
         positions: Object.fromEntries(involved.filter((pid) => proj[pid]).map((pid) => [pid, proj[pid].position])),
         rosters: Object.fromEntries(trade.sides.map((s) => [s.rosterId, beforeRosters.get(s.rosterId) ?? []])),
         freeAgents: [],
-        streams,
         rosterPositions,
         lastScoredWeek: w0 - 1,
       };

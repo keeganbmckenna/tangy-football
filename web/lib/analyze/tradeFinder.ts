@@ -22,7 +22,7 @@
  * 1.75-norm of their values, which reproduces that premium.
  */
 
-import { bestLineup, simulatePlayoffOdds, type OddsResult, type Streams } from './playoffOdds';
+import { bestLineup, simulatePlayoffOdds, type OddsResult } from './playoffOdds';
 import {
   expectedWins as expectedWinsFor,
   meansAfterTrade,
@@ -146,15 +146,7 @@ export function findTrades(
   for (const [p, position] of Object.entries(inputs.positions)) {
     avg[p] = { position, points: regular.reduce((s, w) => s + (inputs.projections[p]?.[w] ?? 0), 0) / Math.max(regular.length, 1) };
   }
-  // Free agents to stream from, averaged the same way
-  const avgStreams: Streams = {};
-  for (const w of regular) {
-    for (const [pos, list] of Object.entries(inputs.streams[w] ?? {})) {
-      const out = (avgStreams[pos] ??= []);
-      list.forEach((v, i) => (out[i] = (out[i] ?? 0) + v / Math.max(regular.length, 1)));
-    }
-  }
-  const lineup = (players: string[]) => bestLineup(players, avg, inputs.rosterPositions, avgStreams).total;
+  const lineup = (players: string[]) => bestLineup(players, avg, inputs.rosterPositions).total;
   const pool = (id: number) =>
     (inputs.rosters[id] ?? [])
       .filter((p) => avg[p] && !NOT_TRADED.has(avg[p].position) && !(inputs.reserve?.[id] ?? []).includes(p))
@@ -214,7 +206,7 @@ export function findTrades(
       const week = Object.fromEntries(
         players.filter((p) => inputs.positions[p]).map((p) => [p, { position: inputs.positions[p], points: inputs.projections[p]?.[w] ?? 0 }])
       );
-      return bestLineup(players, week, inputs.rosterPositions, inputs.streams[w] ?? {}).total;
+      return bestLineup(players, week, inputs.rosterPositions).total;
     });
     return byWeek.reduce((s, v) => s + v, 0) / Math.max(byWeek.length, 1);
   };

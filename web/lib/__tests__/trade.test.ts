@@ -35,7 +35,6 @@ function inputs(overrides: Partial<TradeInputs> = {}): TradeInputs {
       2: ['qb2', 'rb3', 'wr4', 'wr5', 'rb4', 'te1'],
     },
     freeAgents: ['fa_wr', 'fa_qb', 'fa_rb'],
-    streams: {},
     rosterPositions: ROSTER_POSITIONS,
     lastScoredWeek: 6,
     ...overrides,

@@ -25,7 +25,7 @@ function league(values: Partial<Record<string, number | null>> = {}): TradeDataR
   const projections = Object.fromEntries(Object.entries(PLAYERS).map(([id, [, pts]]) => [id, Object.fromEntries(WEEKS.map((w) => [w, pts]))]));
   const positions = Object.fromEntries(Object.entries(PLAYERS).map(([id, [pos]]) => [id, pos]));
   const week = Object.fromEntries(Object.entries(PLAYERS).map(([id, [pos, pts]]) => [id, { position: pos, points: pts }]));
-  const lineups = Object.fromEntries(WEEKS.map((w) => [w, Object.fromEntries(Object.entries(ROSTERS).map(([r, ps]) => [r, bestLineupPoints(ps, week, ROSTER_POSITIONS, {})]))]));
+  const lineups = Object.fromEntries(WEEKS.map((w) => [w, Object.fromEntries(Object.entries(ROSTERS).map(([r, ps]) => [r, bestLineupPoints(ps, week, ROSTER_POSITIONS)]))]));
   const scores = { 1: [100, 100], 2: [100, 100], 3: [100, 100], 4: [100, 100] };
   const { meanByWeek } = teamStrength(scores, WEEKS, lineups);
   const teams = [1, 2, 3, 4].map((id) => ({ rosterId: id, teamName: '', username: '', division: 0, wins: 1, losses: 1, ties: 0, pointsFor: 200 }));
@@ -45,7 +45,7 @@ function league(values: Partial<Record<string, number | null>> = {}): TradeDataR
     ],
     meanByWeek,
     spread: 20,
-    inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: [], streams: {}, rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
+    inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: [], rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
     players: Object.fromEntries(Object.entries(PLAYERS).map(([id, [pos, pts, value]]) => [
       id,
       { id, name: id, position: pos, team: null, injury: null, expectedPerWeek: pts, seasonPerGame: null, value: id in values ? values[id]! : value, byeWeek: null },

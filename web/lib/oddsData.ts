@@ -8,8 +8,6 @@ import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, SleeperRoster } from '@/lib/types';
 import {
   bestLineupPoints,
-  streamValues,
-  type Streams,
   playerValue,
   teamStrength,
   type OddsTeam,
@@ -183,8 +181,6 @@ export interface OddsInputs {
   players: Record<number, Record<string, ProjectedPlayer>>;
   /** week -> every player's value (projection blended with season production) */
   values: Record<number, Record<string, { position: string; points: number }>>;
-  /** week -> that week's best free agents by position, which lineups stream from (see bestLineup) */
-  streams: Record<number, Streams>;
   production: SeasonProduction;
   meanByWeek: Record<number, Record<number, number>>;
   spread: number;
@@ -309,14 +305,9 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     values[w] = weekValues(week, production);
   });
   if (schedule) discountInjured(values, players, production, schedule, lastScoredWeek, strengthWeeks);
-  // Managers stream from waivers: kickers and defenses every week, and anyone to fill a slot
-  // that would otherwise score nothing
-  const rostered = new Set(rosters.flatMap((r) => r.players ?? []));
-  const streams: Record<number, Streams> = {};
   for (const w of Object.keys(values).map(Number)) {
-    streams[w] = streamValues(values[w], rostered);
     lineups[w] = Object.fromEntries(
-      rosters.map((r) => [r.roster_id, bestLineupPoints(r.players ?? [], values[w], rosterPositions, streams[w])])
+      rosters.map((r) => [r.roster_id, bestLineupPoints(r.players ?? [], values[w], rosterPositions)])
     );
   }
   const projectionWeeks = Object.keys(lineups).map(Number);
@@ -342,7 +333,6 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     projectionWeeks,
     players,
     values,
-    streams,
     production,
     meanByWeek,
     spread,

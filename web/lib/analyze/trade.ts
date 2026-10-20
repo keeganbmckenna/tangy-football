@@ -21,7 +21,6 @@
 
 import {
   bestLineup,
-  type Streams,
   PROJECTION_WEIGHT,
   simulatePlayoffOdds,
   type OddsResult,
@@ -47,8 +46,6 @@ export interface TradeInputs {
   reserve?: Record<number, string[]>;
   /** Best available free agents, for refilling roster spots a trade opens */
   freeAgents: string[];
-  /** week -> that week's best free agents by position, which lineups stream from (see bestLineup) */
-  streams: Record<number, Streams>;
   rosterPositions: string[];
   lastScoredWeek: number;
 }
@@ -83,7 +80,7 @@ const weekProjections = (inputs: TradeInputs, week: number, players: string[]) =
 /** Projected best-lineup points for each projection week */
 export function lineupByWeek(inputs: TradeInputs, players: string[]): Record<number, number> {
   return Object.fromEntries(
-    inputs.weeks.map((w) => [w, bestLineup(players, weekProjections(inputs, w, players), inputs.rosterPositions, inputs.streams[w] ?? {}).total])
+    inputs.weeks.map((w) => [w, bestLineup(players, weekProjections(inputs, w, players), inputs.rosterPositions).total])
   );
 }
 

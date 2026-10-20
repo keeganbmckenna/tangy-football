@@ -24,7 +24,7 @@ function league(): TradeDataResponse {
       Object.fromEntries(
         Object.entries(ROSTERS).map(([r, ps]) => [
           r,
-          bestLineupPoints(ps, Object.fromEntries(ps.map((p) => [p, { position: positions[p], points: projections[p][w] }])), ROSTER_POSITIONS, {}),
+          bestLineupPoints(ps, Object.fromEntries(ps.map((p) => [p, { position: positions[p], points: projections[p][w] }])), ROSTER_POSITIONS),
         ])
       ),
     ])
@@ -43,7 +43,7 @@ function league(): TradeDataResponse {
     remaining: WEEKS.map((w) => ({ week: w, a: 1, b: 2 })),
     meanByWeek,
     spread: 20,
-    inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: ['faWR', 'faWR2', 'faQB'], streams: {}, rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
+    inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: ['faWR', 'faWR2', 'faQB'], rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
     players: Object.fromEntries(
       Object.entries(PROJ).map(([id, [pos]]) => [
         id,
