@@ -8,7 +8,7 @@ at the bottom with its date.
 
 ## Model under test
 
-The deployed site as of main commit `3b4da99` (tag `model-2026-w7`): the playoff model with
+The deployed site as of main commit `3b4da99` (the commit hash identifies it; a tag such as `model-2026-w7` can be added on GitHub): the playoff model with
 player values half projection, half season points per game (padded with 3 games of
 projection), a team's expected score at the league average plus 0.75 of its best lineup's
 distance from the league's, single-game spreads of 0.8x the weekly spread next week and 2x
