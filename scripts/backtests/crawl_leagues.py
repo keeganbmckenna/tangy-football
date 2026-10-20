@@ -8,10 +8,13 @@ For each: the league object, rosters and every week's matchups (lineups and poin
 are followed through every league seen, kept or not, so the sample keeps growing.
 
 Sleeper's API is public and read-only; its docs ask for under 1,000 calls a minute, and this
-stays near 450. Saved to cache/leagues/{season}/{league_id}.json.gz (not committed: other
+stays near 700. Saved to cache/leagues/{season}/{league_id}.json.gz (not committed: other
 people's leagues; analyses use aggregates only).
 
-    python crawl_leagues.py [--per-season 300] [--seasons 2022 2023 2024 2025]
+    python crawl_leagues.py [--per-season 300] [--seasons 2022 2023 2024 2025] [--seed USER_ID ...]
+
+Seeded first from dezdroppedit27 (869000996184055808), whose leagues are full of serious
+players, then our other managers.
 """
 import argparse, gzip, json, os, queue, threading, time, urllib.request
 from collections import deque
@@ -19,7 +22,7 @@ from collections import deque
 API = 'https://api.sleeper.app/v1'
 OURS = '1323741311471194112'
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache', 'leagues')
-CALLS_PER_MIN = 450
+CALLS_PER_MIN = 700
 
 
 class Limiter:
@@ -127,8 +130,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--per-season', type=int, default=300)
     ap.add_argument('--seasons', nargs='*', default=['2025', '2024', '2023', '2022'])
+    ap.add_argument('--seed', nargs='*', default=[], help='user IDs to start from (before our league\'s managers)')
     args = ap.parse_args()
-    seeds = []
+    seeds = list(args.seed)
     for season in ('2022', '2023', '2024', '2025', '2026'):
         path = os.path.join(os.path.dirname(OUT), '..', '..', '..', 'data', 'sleeper', season, 'users.json.gz')
         if os.path.exists(path):
