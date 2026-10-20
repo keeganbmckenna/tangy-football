@@ -25,3 +25,4 @@ scripts/backtests/rows.json
 scripts/backtests/trade_season.json
 scripts/backtests/fo_*.json
 scripts/backtests/streaming*.json
+scripts/backtests/leagues_fit.json
