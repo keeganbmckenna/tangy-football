@@ -1,0 +1,58 @@
+# Saves the site's predictions on a schedule, for scoring the 2026 season out of sample
+# (scripts/snapshot_predictions.py, scripts/backtests/PREREGISTRATION_2026.md). Snapshots are
+# committed to the prediction-log branch, which has deploys turned off (web/vercel.json there).
+name: Prediction log
+
+on:
+  schedule:
+    # Times in UTC; GitHub can start scheduled runs late, so each is well before kickoff
+    - cron: '0 15 * * 3'    # Wednesday, after the week is scored and waivers run
+    - cron: '30 21 * * 4'   # Thursday, before Thursday night's kickoff
+    - cron: '0 15 * * 0'    # Sunday, before the 1 PM ET games (London games kick off earlier)
+    - cron: '30 21 * * 1'   # Monday, before Monday night's kickoff
+  workflow_dispatch:
+    inputs:
+      label:
+        description: 'Snapshot label (default: by weekday)'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prediction-log
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the prediction-log branch (created on the first run)
+        run: |
+          git config --global user.name 'prediction-log'
+          git config --global user.email 'prediction-log@users.noreply.github.com'
+          if git ls-remote --exit-code --heads origin prediction-log >/dev/null; then
+            git fetch origin prediction-log
+            git worktree add log origin/prediction-log
+            git -C log checkout -B prediction-log origin/prediction-log
+          else
+            git worktree add --detach log
+            git -C log checkout --orphan prediction-log
+            git -C log rm -rf --quiet .
+            mkdir -p log/web
+            # No Vercel deploys for this branch
+            echo '{ "git": { "deploymentEnabled": false } }' > log/web/vercel.json
+            printf '# Prediction log\n\nSnapshots saved by .github/workflows/prediction-log.yml on main.\nSee scripts/backtests/PREREGISTRATION_2026.md there.\n' > log/README.md
+          fi
+
+      - name: Save a snapshot
+        run: OUT_DIR=log/predictions python3 scripts/snapshot_predictions.py ${{ github.event.inputs.label }}
+
+      - name: Commit and push
+        run: |
+          cd log
+          git add -A
+          git commit -m "Prediction snapshot $(date -u +%Y-%m-%dT%H:%MZ)" || exit 0
+          for i in 1 2 3; do git push origin prediction-log && break; sleep 5; git pull --rebase origin prediction-log; done

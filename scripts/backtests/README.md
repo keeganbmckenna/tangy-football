@@ -24,6 +24,7 @@ python trade_depth_trades.py   # ... and the league's trades (trade_season.py wi
 python kalshi_ffpts.py         # Kalshi's player fantasy-points markets vs Sleeper's projections (2026)
 python streaming.py            # does assuming managers stream from waivers improve the odds?
 python loso.py                 # leave-one-season-out check of the five parameters tuned on these seasons
+python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
 
 Requires numpy (installed with pandas by `uv sync`).
