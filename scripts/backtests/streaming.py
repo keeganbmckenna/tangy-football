@@ -12,6 +12,8 @@ draws, for every team at every week 3-13:
   all3       the 3rd-best free agent everywhere (empty slots too)
   kdef       K and DEF streamed (3rd best); empty slots stay at 0
   best       the best free agent everywhere
+  empty      only a slot that would score 0 takes the best free agent who can play it (no
+             K/DEF streaming): a manager covering a bye or injury with no backup
 
 Free agents are the players with a projection that week who aren't on any roster that week.
 Scored on playoff odds (Brier, log loss), rest-of-season wins (squared error) and single
@@ -26,11 +28,12 @@ from form_options import Season, N
 SLOT = {'FLEX': ['RB', 'WR', 'TE']}
 STREAMED = {'K', 'DEF'}
 # name -> (rank streamed at K/DEF or None, rank used for empty slots or None)
-RULES = {'none': (None, None), 'built': (3, 1), 'all3': (3, 3), 'kdef': (3, None), 'best': (1, 1)}
+RULES = {'none': (None, None), 'built': (3, 1), 'all3': (3, 3), 'kdef': (3, None), 'best': (1, 1), 'empty': (None, 1)}
 
 
-def best_stream(players, proj, slots, fa, kdef_rank, empty_rank):
-    """Best lineup with streaming. fa: position -> free agents' points that week, best first."""
+def best_stream(players, proj, slots, fa, kdef_rank, empty_rank, on_bye=None):
+    """Best lineup with streaming. fa: position -> free agents' points that week, best first.
+    on_bye: if given, only a hole a rostered player on bye would have filled takes a free agent"""
     pool = sorted([(proj[p][1], p, proj[p][0]) for p in players if p in proj], reverse=True)
     sl = sorted([SLOT.get(s, [s]) for s in slots if s not in ('BN', 'IR')], key=len)
     used, taken, tot = set(), {}, 0.0
@@ -42,7 +45,7 @@ def best_stream(players, proj, slots, fa, kdef_rank, empty_rank):
             lst = fa.get(el[0], [])
             v = lst[min(kdef_rank, len(lst)) - 1] if lst else 0.0
             if v > held: stream = (el[0], v)
-        elif held <= 0 and empty_rank:
+        elif held <= 0 and empty_rank and (on_bye is None or any(proj.get(p, ('', 0))[0] in el for p in on_bye)):
             for pos in el:
                 lst = fa.get(pos, []); i = taken.get(pos, 0) + empty_rank - 1
                 v = lst[min(i, len(lst) - 1)] if lst else 0.0

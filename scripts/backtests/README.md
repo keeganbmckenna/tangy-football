@@ -26,6 +26,7 @@ python trade_depth.py          # do missed games (bench depth) predict a roster'
 python trade_depth_trades.py   # ... and the league's trades (trade_season.py with a depth variant)
 python kalshi_ffpts.py         # Kalshi's player fantasy-points markets vs Sleeper's projections (2026)
 python streaming.py            # does assuming managers stream from waivers improve the odds?
+python stream_weight.py        # waiver pickups for empty/bye slots, with the projection weight re-fitted
 python loso.py                 # leave-one-season-out check of the five parameters tuned on these seasons
 python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
@@ -145,4 +146,15 @@ were made just before those games, which would leak information.
     single games clearly worse (log loss 0.6764 vs 0.6593).
   The current values were chosen on these same seasons, so their scores here are slightly
   optimistic; 2026, untouched by any tuning, is the clean test.
+
+- **Waiver pickups for holes, re-checked** (`stream_weight.py`, `streaming.py`'s `empty`):
+  managers here do cover byes and injuries. In 2022-2025's real lineups, 13 of 672
+  team-weeks started an empty slot or a player on bye (2%), and 41 of 48 team-seasons never
+  did. Yet filling a hole (or only a bye-week hole) with the best free agent still scored
+  worse on playoff odds, even with the projection weight re-picked out of sample for each
+  rule: Brier 0.1200 vs 0.1156 (+0.0044, 95% -0.0001 to +0.0095), worse in 3 of 4 seasons.
+  Without the re-fit, filling only holes (no K/DEF streaming) was +0.0041 (95% +0.0023 to
+  +0.0060); K/DEF streaming alone was neutral. The playoff odds keep holes at 0. Side
+  finding, not acted on (to test after 2026, per the preregistration): picked on playoff
+  Brier, the projection weight comes out 0.9-1.0 in every fold, not 0.75.
 
