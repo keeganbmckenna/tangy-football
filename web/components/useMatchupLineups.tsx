@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import type { MatchupPlayersData } from '@/app/api/matchup-players/route';
-import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
+import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import type { LeagueData } from '@/lib/types';
 
@@ -71,6 +71,7 @@ export function useMatchupLineups(leagueData: LeagueData | null | undefined) {
     const projected = starters.reduce((t, id) => t + (info[id]?.projected ?? 0), 0);
     return {
       name: team.name,
+      username: leagueData ? getTeamName(team.rosterId, leagueData).username : undefined,
       avatarUrl: teamAvatarUrl(leagueData, team.rosterId),
       score: team.points,
       sub: projected > 0 ? `projected ${projected.toFixed(1)}` : undefined,

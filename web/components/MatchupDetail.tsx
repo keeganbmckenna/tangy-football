@@ -28,6 +28,8 @@ export interface MatchupPlayer {
 
 export interface MatchupSide {
   name: string;
+  /** The manager's Sleeper username */
+  username?: string;
   /** The team's photo */
   avatarUrl?: string | null;
   score: number;
@@ -191,6 +193,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
         <TeamAvatar url={s.avatarUrl} name={s.name} size="h-7 w-7" />
         <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
       </div>
+      {s.username && <div className="truncate text-xs text-[var(--muted)]">@{s.username}</div>}
       <div className="text-xl font-bold tabular-nums text-[var(--foreground)] sm:text-2xl"><LiveScore value={s.score} align={right ? 'right' : 'left'} /></div>
       {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
     </div>

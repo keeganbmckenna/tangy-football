@@ -72,6 +72,8 @@ async function starterProjections(
       : undefined;
     out[id] = {
       points: defense ? defenseExpected(0, false, 0, defense, 1, allowedScoring(scoring)) : injuryAdjusted(p.points, p.injury, started),
+      // A player hurt during his game still shows what he was projected for
+      ...(!defense && { original: p.points }),
       ...(defense ? { defense } : {}),
       spreadRatio: playerSpreadRatio(p.position, history[id] ?? []),
       team: p.team,

@@ -44,6 +44,8 @@ export interface LiveScoresData {
 export interface LiveProjection {
   /** Projected half-PPR points, already zero for players ruled out and cut for doubtful ones */
   points: number;
+  /** Sleeper's projection as it is, for showing: a player ruled out during his game keeps it */
+  original?: number;
   /** Spread of the player's weekly scores, as a share of his projection (see playerSpreadRatio) */
   spreadRatio: number;
   team: string | null;
@@ -82,6 +84,9 @@ export function gameMatchup(g: LiveGame): { score?: string; opponent: string } |
 /** Injury statuses that mean a player won't play (or play on), and how much a doubtful one is expected to play */
 const RULED_OUT = new Set(['Out', 'IR', 'PUP', 'Sus', 'NA', 'DNR', 'COV']);
 const DOUBTFUL_SHARE = 0.3;
+
+/** Whether a status means he won't play (or play on, once his game has started) */
+export const isRuledOut = (status: string | null | undefined) => !!status && RULED_OUT.has(status);
 
 /** A starter's expected points for the week given his injury status (doubtful only matters before kickoff) */
 export function injuryAdjusted(points: number, status: string | null, gameStarted: boolean): number {
@@ -281,7 +286,7 @@ export function liveLineup(
       injury: p?.injury ?? null,
       points,
       projected: points + (p ? expectedAdd(id, p, points, game, context) : 0),
-      original: p ? p.points : null,
+      original: p ? p.original ?? p.points : null,
       game,
     };
   });

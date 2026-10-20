@@ -6,7 +6,7 @@ import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
 import LiveScore from '@/components/ui/LiveScore';
 import TeamAvatar from '@/components/ui/TeamAvatar';
-import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
+import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
@@ -23,6 +23,7 @@ import {
   liveLineup,
   liveWinOdds,
   gameMatchup,
+  isRuledOut,
   scoreSpread,
   liveStandings,
   liveTeamStats,
@@ -59,7 +60,7 @@ function TeamCell({ team }: { team: TeamStats }) {
 
 const oddsText = (p: number) => (p > 0.995 ? '>99%' : p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`);
 
-function SideSummary({ side, name, avatarUrl, align }: { side: LiveSide; name: string; avatarUrl: string | null; align: 'left' | 'right' }) {
+function SideSummary({ side, name, username, avatarUrl, align }: { side: LiveSide; name: string; username: string; avatarUrl: string | null; align: 'left' | 'right' }) {
   const left = [side.playing && `${side.playing} playing`, side.toPlay && `${side.toPlay} to play`].filter(Boolean).join(' · ') || 'done';
   return (
     <div className={`min-w-0 flex-1 ${align === 'right' ? 'text-right' : ''}`}>
@@ -67,6 +68,7 @@ function SideSummary({ side, name, avatarUrl, align }: { side: LiveSide; name: s
         <TeamAvatar url={avatarUrl} name={name} size="h-7 w-7" />
         <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={name}>{name}</div>
       </div>
+      <div className="truncate text-xs text-[var(--muted)]">@{username}</div>
       <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={side.score} align={align} /></div>
       <div className="text-xs tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
       <div className="whitespace-nowrap text-xs text-[var(--muted)]">{left}</div>
@@ -78,12 +80,14 @@ function SideSummary({ side, name, avatarUrl, align }: { side: LiveSide; name: s
 function LiveMatchups({
   odds,
   names,
+  username,
   avatar,
   myRosterId,
   onOpen,
 }: {
   odds: LiveMatchupOdds[];
   names: Map<number, string>;
+  username: (rosterId: number) => string;
   avatar: (rosterId: number) => string | null;
   myRosterId: number | null;
   onOpen: (matchupId: number) => void;
@@ -102,8 +106,8 @@ function LiveMatchups({
             className={`rounded-lg border p-3 text-left transition-colors hover:bg-[var(--hover)] ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
           >
             <div className="flex items-start gap-3">
-              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} avatarUrl={avatar(m.a.rosterId)} align="left" />
-              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} avatarUrl={avatar(m.b.rosterId)} align="right" />
+              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} username={username(m.a.rosterId)} avatarUrl={avatar(m.a.rosterId)} align="left" />
+              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} username={username(m.b.rosterId)} avatarUrl={avatar(m.b.rosterId)} align="right" />
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs font-semibold tabular-nums">
               <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>
@@ -309,7 +313,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       >
         <div className="px-6 pt-4">{statusBar}</div>
         {view.odds ? (
-          <LiveMatchups odds={view.odds} names={view.names} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
+          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
         ) : (
           <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
         )}
@@ -412,11 +416,19 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         const m = view.odds.find((o) => o.matchupId === openMatchup);
         const { projections, games } = live;
         const defense = { allowed: live.allowed, allowedScoring: live.allowedScoring };
+        // A finished game, or one he's been ruled out of: his projection from before it, to
+        // compare with what he scored (his projected final is just his points by then). One
+        // ruled out who never got on the field was projected for nothing.
+        const shownProjection = (p: NonNullable<ReturnType<typeof liveLineup>[number]>) => {
+          const over = p.game?.state === 'post' || (p.game?.state === 'in' && isRuledOut(p.injury));
+          if (!over) return p.projected;
+          const played = p.points !== 0 || !!live.stats?.[p.playerId];
+          return isRuledOut(p.injury) && !played ? 0 : p.original;
+        };
         const toPlayer = (p: ReturnType<typeof liveLineup>[number]): MatchupPlayer | null =>
           p && {
             ...p,
-            // A finished game: his projection from before it, to compare with what he scored
-            projected: p.game?.state === 'post' ? p.original : p.projected,
+            projected: shownProjection(p),
             status: p.game ? p.game.label : 'No game',
             game: (p.game && gameMatchup(p.game)) || undefined,
             state: p.game?.state ?? 'none',
@@ -427,6 +439,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           if (!sm) return null;
           return {
             name: view.names.get(s.rosterId) ?? `Team ${s.rosterId}`,
+            username: getTeamName(s.rosterId, leagueData).username,
             avatarUrl: teamAvatarUrl(leagueData, s.rosterId),
             score: s.score,
             sub: (

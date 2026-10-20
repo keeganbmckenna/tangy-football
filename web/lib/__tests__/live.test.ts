@@ -257,6 +257,14 @@ describe('live win odds', () => {
     expect(rows[2]).toMatchObject({ points: 2, projected: 2, original: 8 });
   });
 
+  it('keeps the projection of a player ruled out during his game, adding nothing more for him', () => {
+    const m: SleeperMatchup = { roster_id: 1, matchup_id: 1, points: 2.7, starters: ['hurt'], players_points: { hurt: 2.7 } };
+    const games: Record<string, LiveGame> = { AAA: { state: 'in', remaining: 0.5, label: 'Q2 3:00' } };
+    // The route zeroes his points for the odds and keeps Sleeper's 11.3 to show
+    const [row] = liveLineup(m, { hurt: { ...proj(0, 'AAA'), original: 11.3, injury: 'Out' } }, games);
+    expect(row).toMatchObject({ points: 2.7, projected: 2.7, original: 11.3 });
+  });
+
   it("scores live stats with the league's settings, and totals each team's starters", () => {
     const scoring = { pass_yd: 0.04, pass_td: 4, rec: 0.5, rec_yd: 0.1, fum_lost: -2 };
     expect(leaguePoints({ pass_yd: 250, pass_td: 2, gp: 1 }, scoring)).toBe(18);
