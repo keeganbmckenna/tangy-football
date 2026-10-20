@@ -14,9 +14,11 @@ people's leagues; analyses use aggregates only).
     python crawl_leagues.py [--per-season 300] [--seasons 2022 2023 2024 2025] [--seed USER_ID ...]
 
 Seeded first from dezdroppedit27 (869000996184055808), whose leagues are full of serious
-players, then our other managers.
+players, then our other managers. For seasons before ours (Sleeper's projections start in
+2018), --seed-from-cache starts from every manager already collected, and each season first
+walks back the league histories (previous_league_id) of the leagues collected a season later.
 """
-import argparse, gzip, json, os, queue, threading, time, urllib.request
+import argparse, glob, gzip, json, os, queue, threading, time, urllib.request
 from collections import deque
 
 API = 'https://api.sleeper.app/v1'
@@ -79,6 +81,29 @@ def save_league(season, l):
     return rosters
 
 
+def cached_managers():
+    """Every manager in leagues already collected (any season), to seed older seasons"""
+    out = []
+    for f in glob.glob(os.path.join(OUT, '*', '*.json.gz')):
+        try:
+            out += [r.get('owner_id') for r in json.load(gzip.open(f, 'rt')).get('rosters') or [] if r.get('owner_id')]
+        except Exception:
+            pass
+    return list(dict.fromkeys(out))
+
+
+def predecessors(season):
+    """The previous season of every league collected for the next season (league histories)"""
+    out = []
+    for f in glob.glob(os.path.join(OUT, str(int(season) + 1), '*.json.gz')):
+        try:
+            prev = json.load(gzip.open(f, 'rt'))['league'].get('previous_league_id')
+        except Exception:
+            continue
+        if prev and prev != '0': out.append(prev)
+    return out
+
+
 def crawl(season, cap, seeds):
     have = {f[:-8] for f in os.listdir(os.path.join(OUT, season))} if os.path.isdir(os.path.join(OUT, season)) else set()
     users, seen_users, seen_leagues = deque(seeds), set(seeds), set(have)
@@ -111,6 +136,15 @@ def crawl(season, cap, seeds):
             with lock:
                 if o and o not in seen_users: seen_users.add(o); users.append(o)
 
+    # Walk league histories back first: last season's league of every league collected a season later
+    for lid in predecessors(season):
+        if kept >= cap: break
+        if lid in seen_leagues: continue
+        seen_leagues.add(lid)
+        l = get(f'{API}/league/{lid}')
+        if l and l.get('season') == season and like_ours(l): work.put(l)
+        elif l and len(users) < 500: expand(lid)
+    work.join()
     while users and kept < cap:
         uid = users.popleft()
         for l in get(f'{API}/user/{uid}/leagues/nfl/{season}') or []:
@@ -131,6 +165,7 @@ def main():
     ap.add_argument('--per-season', type=int, default=300)
     ap.add_argument('--seasons', nargs='*', default=['2025', '2024', '2023', '2022'])
     ap.add_argument('--seed', nargs='*', default=[], help='user IDs to start from (before our league\'s managers)')
+    ap.add_argument('--seed-from-cache', action='store_true', help='also start from every manager in leagues already collected (for older seasons)')
     args = ap.parse_args()
     seeds = list(args.seed)
     for season in ('2022', '2023', '2024', '2025', '2026'):
@@ -138,6 +173,9 @@ def main():
         if os.path.exists(path):
             seeds += [u['user_id'] for u in json.load(gzip.open(path, 'rt'))]
     seeds = list(dict.fromkeys(seeds)) or [u['user_id'] for u in get(f'{API}/league/{OURS}/users')]
+    if args.seed_from_cache:
+        seeds = list(dict.fromkeys(seeds + cached_managers()))
+        print(f'{len(seeds)} seed managers', flush=True)
     for season in args.seasons:
         crawl(season, args.per_season, seeds)
 

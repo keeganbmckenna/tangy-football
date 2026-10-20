@@ -11,7 +11,8 @@ completed season in the league's history goes to data/sleeper/{season}/:
   players                                            Sleeper's player database when archived
 
 plus a manifest with when it was archived. Seasons already archived are skipped unless
---force. Run by .github/workflows/archive-seasons.yml each offseason, or by hand:
+--force. With --nfl-only, only the NFL projections, stats and schedule (seasons before our
+league, 2018-2021, used by the other-league backtests; Sleeper's projections start in 2018). Run by .github/workflows/archive-seasons.yml each offseason, or by hand:
 
     python scripts/archive_season.py [season ...] [--force]
 
@@ -86,11 +87,31 @@ def archive(league, players):
                               'weeks': list(WEEKS), 'source': 'scripts/archive_season.py'})
 
 
+def archive_nfl(season):
+    """Only the NFL side of a season (projections, stats, schedule): for seasons before our league,
+    which the other-league backtests need"""
+    folder = os.path.join(OUT, season)
+    print(f'{season}: archiving NFL data', flush=True)
+    save(folder, 'schedule', get(f'https://api.sleeper.com/schedule/nfl/regular/{season}'))
+    for w in WEEKS:
+        save(folder, f'projections/{w}', get(f'https://api.sleeper.com/projections/nfl/{season}/{w}?season_type=regular&{POSITIONS}'))
+        save(folder, f'stats/{w}', get(f'{API}/stats/nfl/regular/{season}/{w}'))
+    save(folder, 'manifest', {'season': season, 'nflOnly': True, 'archivedAt': dt.datetime.now(dt.timezone.utc).isoformat(timespec='seconds'),
+                              'weeks': list(WEEKS), 'source': 'scripts/archive_season.py --nfl-only'})
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('seasons', nargs='*')
     parser.add_argument('--force', action='store_true', help='re-archive seasons already archived')
+    parser.add_argument('--nfl-only', action='store_true', help='archive only NFL projections, stats and schedule for the given seasons')
     args = parser.parse_args()
+    if args.nfl_only:
+        for season in args.seasons:
+            if os.path.exists(os.path.join(OUT, season, 'manifest.json.gz')) and not args.force:
+                print(f'{season}: already archived'); continue
+            archive_nfl(season)
+        return
     leagues = history()
     done = []
     players = None
