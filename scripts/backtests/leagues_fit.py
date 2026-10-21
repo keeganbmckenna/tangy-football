@@ -1,4 +1,4 @@
-"""The playoff model on hundreds of other Sleeper leagues (crawl_leagues.py), 2022-2025.
+"""The playoff model on thousands of other Sleeper leagues (crawl_leagues.py), 2018-2025.
 
 Our league has 48 team-seasons; the crawled leagues like ours (redraft, 10-14 teams, one QB,
 half or full PPR, no divisions) have thousands. For each league-season, from snapshot weeks
@@ -8,8 +8,9 @@ team's best lineup per remaining week (byes score 0), expected score = league av
 weight x (lineup - league's average lineup), the remaining real schedule simulated 1,000
 times. Scored on who made the playoffs (top N by wins, then points) with Brier score.
 
-Compared: the projection weight (0.3-1.1), projection-only values, bye-week holes filled
-by the best free agent who can play them, and both together. Intervals resample leagues. Run crawl_leagues.py
+Compared: the projection weight (0.1-1.1), projection-only values, bye-week holes filled
+by the best free agent who can play them, both together, and persistent team uncertainty
+(one random offset per team per simulated season, sd tau) instead of a lower weight. Intervals resample leagues. Run crawl_leagues.py
 first.
 """
 import glob, gzip, json, math, os, statistics as st, sys
@@ -19,7 +20,10 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE = os.path.join(HERE, '..', '..', 'data', 'sleeper')
 SNAPSHOTS = (4, 7, 10)
-WEIGHTS = (0.3, 0.4, 0.5, 0.6, 0.75, 0.9, 1.0, 1.1)
+WEIGHTS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 0.9, 1.0, 1.1)
+# Persistent team uncertainty: each simulated season draws one offset per team (sd tau, points
+# per week), held for every remaining week, on top of the weekly noise
+TAUS = (5, 10, 15)
 N = 1000
 SLOT = {'FLEX': ('RB', 'WR', 'TE'), 'WRRB_FLEX': ('RB', 'WR'), 'REC_FLEX': ('WR', 'TE')}
 POS = ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
@@ -137,15 +141,18 @@ def league_rows(path, rng):
             B['projbyes'][w] = np.array([lineup(rosters.get(r, []), vals, slots, w, 1, fa_proj, bye[r]) for r in ids])
         W0, PF0 = record(e - 1)
         noise = {w: rng.standard_normal((N, T)) for w in range(e, end + 1)}
+        team_noise = rng.standard_normal((N, T))
         variants = {f'blend@{wt}': ('blend', wt) for wt in WEIGHTS}
         variants.update({f'proj@{wt}': ('proj', wt) for wt in (0.5, 0.75, 1.0)})
         variants.update({f'byes@{wt}': ('byes', wt) for wt in (0.5, 0.75, 1.0)})
         variants.update({f'projbyes@{wt}': ('projbyes', wt) for wt in (0.4, 0.5, 0.6)})
         variants.update({f'proj@{wt}': ('proj', wt) for wt in (0.4, 0.6)})
-        for name, (kind, wt) in variants.items():
+        variants.update({f'{k}@{wt}+tau{t}': (k, wt, t) for k in ('blend', 'projbyes') for wt in (0.75, 1.0) for t in TAUS})
+        for name, spec in variants.items():
+            kind, wt = spec[0], spec[1]; tau = spec[2] if len(spec) > 2 else 0
             Wv = np.repeat(W0[None], N, 0); PFv = np.repeat(PF0[None], N, 0)
             for w in range(e, end + 1):
-                b = B[kind][w]; sc = (lg + wt * (b - b.mean()))[None] + sd * noise[w]
+                b = B[kind][w]; sc = (lg + wt * (b - b.mean()))[None] + sd * noise[w] + tau * team_noise
                 for a, c in games[w]:
                     Wv[:, a] += sc[:, a] > sc[:, c]; Wv[:, c] += sc[:, c] > sc[:, a]
                 PFv += sc
@@ -178,7 +185,7 @@ def report(rows):
     base = np.array([np.mean(by['blend@0.75'][k]) for k in leagues])
     boot = np.random.default_rng(2).integers(0, len(leagues), (4000, len(leagues)))
     print(f"{'variant':12} {'playoff Brier':>13}  vs current (weight 0.75), 95% by league")
-    for name in sorted(by, key=lambda n: (n.split('@')[0], float(n.split('@')[1]))):
+    for name in sorted(by, key=lambda n: (n.split('@')[0], float(n.split('@')[1].split('+')[0]), n)):
         x = np.array([np.mean(by[name][k]) for k in leagues]); d = x - base
         print(f'{name:12} {x.mean():13.4f}  {d.mean():+.4f} ({np.percentile(d[boot].mean(1), 2.5):+.4f} to {np.percentile(d[boot].mean(1), 97.5):+.4f})')
     # By how active the league is (holes per team-week), thirds
@@ -190,9 +197,27 @@ def report(rows):
         ks = [k for k in leagues if lo < act[k] <= hi]
         best = min(by, key=lambda n: np.mean([np.mean(by[n][k]) for k in ks]))
         print(f'  {label:12} ({len(ks)} leagues): ' + '  '.join(f"{n} {np.mean([np.mean(by[n][k]) for k in ks]):.4f}" for n in ('blend@0.5', 'blend@0.75', 'blend@1.0', 'byes@0.75', 'proj@0.75')) + f'   best: {best}')
-    for season in ('2022', '2023', '2024', '2025'):
+    seasons = sorted({k[1] for k in leagues})
+    print('\nby season (Brier; current = blend@0.75):')
+    show = ('blend@0.75', 'blend@0.5', 'proj@0.5', 'byes@0.75', 'projbyes@0.5')
+    print('  season leagues  ' + '  '.join(f'{n:>12}' for n in show))
+    wins = defaultdict(int)
+    for season in seasons:
         ks = [k for k in leagues if k[1] == season]
-        if ks: print(f'  {season} ({len(ks)} leagues): ' + '  '.join(f"{n} {np.mean([np.mean(by[n][k]) for k in ks]):.4f}" for n in ('blend@0.75', 'blend@1.0', 'byes@0.75', 'byes@1.0')))
+        m = {n: np.mean([np.mean(by[n][k]) for k in ks]) for n in show}
+        for n in show[1:]: wins[n] += m[n] < m['blend@0.75']
+        print(f'  {season}  {len(ks):6d}  ' + '  '.join(f'{m[n]:12.4f}' for n in show))
+    print('  better than current in: ' + ', '.join(f'{n} {wins[n]} of {len(seasons)}' for n in show[1:]))
+    # Leave one season out: pick the best variant on the other seasons, score the held-out one
+    print('\nleave-one-season-out (variant picked on the other seasons):')
+    tot_pick = tot_cur = n = 0
+    for season in seasons:
+        train = [k for k in leagues if k[1] != season]; test = [k for k in leagues if k[1] == season]
+        pick = min(by, key=lambda v: np.mean([np.mean(by[v][k]) for k in train]))
+        bp = np.mean([np.mean(by[pick][k]) for k in test]); bc = np.mean([np.mean(by['blend@0.75'][k]) for k in test])
+        tot_pick += bp * len(test); tot_cur += bc * len(test); n += len(test)
+        print(f'  held out {season}: picked {pick:13} {bp:.4f} vs current {bc:.4f}')
+    print(f'  overall: picked {tot_pick / n:.4f} vs current {tot_cur / n:.4f} ({(tot_pick - tot_cur) / n:+.4f})')
 
 
 if __name__ == '__main__':

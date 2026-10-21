@@ -172,19 +172,25 @@ were made just before those games, which would leak information.
   played after missing 1, 2, 3 and 4+; not comparable to the model's return rates, which
   only cover injuries Sleeper projects to end.
 
-- **Other leagues** (`crawl_leagues.py`, `leagues_fit.py`): 816 redraft league-seasons like
-  ours (200+ a season, found from 18,000+ leagues reached through dezdroppedit27's and our
-  managers' leagues), playoff odds from weeks 4, 7 and 10 (2,448 snapshots), intervals
-  resampling leagues. Consistent in all four seasons and in the most, middle and least
-  active thirds of leagues (our league sits in the most active third):
-  - A **lower projection weight** predicts better: Brier 0.1610 at 0.5 and 0.1603 at 0.4 vs
-    0.1649 at 0.75 (the site's) and 0.1703 at 1.0.
-  - **Projection-only values** beat the half-season-production blend (0.1634 vs 0.1649 at
-    0.75).
-  - **Filling bye-week holes with the best free agent** helps (0.1634 vs 0.1649 at 0.75).
-  - Together, projection-only with bye-week fill at weight 0.5: **0.1593** (-0.0057, 95%
-    -0.0066 to -0.0047), about 3.5% better; 0.4 is no different (0.1591).
-  Our league alone pointed the other way (weight 0.9-1.0, no fill), on 48 team-seasons; the
-  816 leagues make that most likely noise. The site is unchanged for now (see
-  PREREGISTRATION_2026.md).
+- **Other leagues** (`crawl_leagues.py`, `leagues_fit.py`): 2,025 redraft league-seasons like
+  ours, 2018-2025 (about 300 a season for 2018-2021, 200 for 2022-2025; found through
+  dezdroppedit27's and our managers' leagues and league histories; Sleeper's projections
+  start in 2018 and are equally predictive every season, correlation 0.52-0.56 with actual
+  points). Playoff odds from weeks 4, 7 and 10 (6,075 snapshots), intervals resampling
+  leagues:
+  - **The projection weight should be much lower.** Brier 0.1525 at 0.3 vs 0.1604 at 0.75
+    (the site's), 0.1674 at 1.0; 0.2 and 0.1 are worse again. Better than 0.75 in all 8
+    seasons; picked out of sample (leave one season out) it's 0.3 every time, scoring
+    0.1525 vs 0.1604. The best weight rises through the season: 0.2-0.3 from week 4, 0.3
+    from week 7, 0.4-0.5 from week 10. Projected gaps between teams regress most of the way
+    to the mean.
+  - **Persistent team uncertainty** (one random offset per team per simulated season) helps
+    at 0.75 (sd 15: 0.1564) but doesn't replace the lower weight.
+  - **Projection-only values and bye-week waiver fill** each help at 0.75 (0.1599, 0.1593)
+    and in all 8 seasons, but little once the weight is lower (projection-only with fill at
+    0.4: 0.1528, vs 0.1525 for the blend at 0.3).
+  - The same in the most, middle and least active thirds of leagues; our league sits in the
+    most active third, whose best was projection-only with fill at 0.4.
+  Our league alone pointed to 0.9-1.0 on 48 team-seasons; against 2,025 league-seasons that
+  is most likely noise. The site is unchanged for now (see PREREGISTRATION_2026.md).
 
