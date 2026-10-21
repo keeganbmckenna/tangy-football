@@ -33,10 +33,12 @@ python crawl_leagues.py        # collect other Sleeper leagues like ours (local 
 python leagues_fit.py          # the playoff model on those leagues
 python brier_floor.py          # how low the playoff Brier can go: coin flip vs model vs perfect team strength
 python strength_model.py       # fit team strength (lineup + points so far) and its uncertainty
+python gpu_sim.py              # the same simulation on the GPU, every snapshot at once, with intervals (--check: matches the CPU)
+python drift.py                # does team strength drift through the season? (GPU)
 python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
 
-Requires numpy (installed with pandas by `uv sync`).
+Requires numpy (installed with pandas by `uv sync`); `gpu_sim.py` also needs PyTorch (with CUDA for speed).
 
 ## What they found
 
@@ -211,4 +213,28 @@ were made just before those games, which would leak information.
     measured from training residuals beyond weekly noise, the same in every fold), out of
     sample: **0.194/0.152/0.109 (0.152)**, the best of everything tried; without that
     uncertainty the fitted means are overconfident (0.154).
+
+- **More leagues, cleaned, on the GPU** (`crawl_leagues.py`, `gpu_sim.py`): the crawl now has
+  7,385 league-seasons (about 1,000 a season 2019-2025; 2018 ran out at 353). League-seasons
+  where more than 10% of team-weeks scored 0 (teams that started nobody; 73, 1%) are dropped
+  (`leagues_fit.played`); the results are the same at 5%, 30% or keeping them. On 21,928
+  snapshots, 10,000 simulated seasons each, out of sample: coin flip 0.1599, lineup 0.3
+  0.1553, **fitted + tau 0.1544**; fitted + tau beats lineup 0.3 by 0.0009 (95% 0.0007 to
+  0.0011), better in 7 of 8 seasons, tied at week 4. Coefficients and tau barely moved
+  (tau about 9.4/9.0/7.5). `gpu_sim.py --check` feeds the CPU simulator the same random
+  draws and matches it to 1e-16; the whole table with intervals takes 13s instead of about 6
+  minutes. With 1,000 simulated seasons every Brier carries about +0.00015 of simulation
+  noise (p(1-p)/1000), the same for every model; 10,000 brings it to 0.00002.
+- **Calibration** (exploratory): fitted + tau's playoff odds are calibrated (Brier
+  reliability term 0.0000-0.0001, calibration slope 0.96), so what's left is resolution:
+  knowing team strength better, not reshaping the odds.
+- **Drift** (`drift.py`): weekly residuals' covariance falls with the gap between weeks
+  (strength changes during a season). Measured on training residuals, not tuned: an AR(1)
+  drift (fixed part about 8 + drifting part about 9 points, week-to-week correlation
+  0.56-0.73) or a random walk (7.5 + about 4 points a week). Both beat the current fixed
+  offset in 8 of 8 seasons, but by 0.0001 (95% 0.00007 to 0.00013), and half of that is the
+  measurement method (a fixed offset measured the same way: 0.00005). Drift alone: 0.00005,
+  about 1% of the fitted model's gain over the coin flip. It passes the rule set before the
+  run (which had no minimum size); too small to be worth adding to the site on its own, but
+  the state-space strength model should let strength drift.
 

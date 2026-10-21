@@ -87,6 +87,16 @@ def lineup(players, vals, slots, w, k, fa=None, bye=None):
     return tot
 
 
+
+# A league-season counts only if it was played: at most 10% of team-weeks at 0 points (a team
+# that started nobody). About 1% of the crawled leagues fail, most with several teams abandoned.
+MAX_ZERO = 0.1
+
+
+def played(pts, ids, end, max_zero=MAX_ZERO):
+    return np.mean([pts[w][r] == 0 for w in range(1, end + 1) for r in ids]) <= max_zero
+
+
 def league_rows(path, rng):
     d = json.load(gzip.open(path, 'rt'))
     L, M = d['league'], {int(w): m for w, m in d['matchups'].items()}
@@ -95,6 +105,7 @@ def league_rows(path, rng):
     if any(w not in M for w in range(1, end + 1)): return []
     ids = sorted(m['roster_id'] for m in M[1]); ix = {r: i for i, r in enumerate(ids)}; T = len(ids)
     pts = {w: {m['roster_id']: (m.get('points') or 0) for m in M[w]} for w in range(1, end + 1)}
+    if not played(pts, ids, end): return []
     games = {}
     for w in range(1, end + 1):
         by = defaultdict(list)

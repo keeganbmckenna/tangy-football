@@ -28,9 +28,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FEATURES = ['lineup', 'ppg', 'allplay', 'bench', 'top']
 
 
-def collect():
+def collect(max_zero=LF.MAX_ZERO):
+    """Every snapshot of every played league-season (LF.played), cached in strength_data.pkl"""
     path = os.path.join(HERE, 'strength_data.pkl')
-    if os.path.exists(path): return pickle.load(open(path, 'rb'))
+    if os.path.exists(path):
+        return [r for r in pickle.load(open(path, 'rb')) if LF.played(r['pts'], r['ids'], r['end'], max_zero)]
     data = []
     for f in sorted(glob.glob(os.path.join(HERE, 'cache', 'leagues', '*', '*.json.gz'))):
         try:
@@ -67,7 +69,7 @@ def collect():
         except Exception as ex:
             print('skip', os.path.basename(f), ex)
     pickle.dump(data, open(path, 'wb'))
-    return data
+    return [r for r in data if LF.played(r['pts'], r['ids'], r['end'], max_zero)]
 
 
 def fit(rows, cols):

@@ -16,8 +16,9 @@ Read this first when picking the model work up on another machine.
   played) and `data/sleeper/2018-2021/` (NFL projections, stats, schedules only; Sleeper's
   projections start in 2018). `scripts/backtests/common.py` reads the archive
   automatically.
-- **Data not in the repo (public repo; other people's leagues):** 2,025 crawled redraft
-  league-seasons (2018-2025) for `leagues_fit.py`, `brier_floor.py`, `strength_model.py`.
+- **Data not in the repo (public repo; other people's leagues):** 7,385 crawled redraft
+  league-seasons (2018-2025; 2,025 in `crawled-leagues-2018-2025.tar`, the rest crawled
+  October 21 with `--calls-per-min 900`, about 3 hours) for `leagues_fit.py`, `brier_floor.py`, `strength_model.py`.
   Unpack `crawled-leagues-2018-2025.tar` so files sit at
   `scripts/backtests/cache/leagues/{season}/{league_id}.json.gz`, or rebuild with
   `crawl_leagues.py` (about 3 hours, rate limited).
@@ -51,6 +52,10 @@ Read this first when picking the model work up on another machine.
    vs new on 2026 at season end. Not yet approved.
 2. The trade tools use the same 0.75 weight on a trade's lineup change; test trades at
    scale (crawl the leagues' transactions) before changing it.
+
+Update (October 21, evening): on all 7,385 leagues, run on the GPU (`gpu_sim.py`), the
+same conclusions hold: fitted + tau 0.1544 vs lineup 0.3 0.1553 vs coin flip 0.1599. Strength
+drift (`drift.py`) is real but worth only 0.00005. See the end of `README.md`.
 
 ## Next experiments
 
