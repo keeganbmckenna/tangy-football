@@ -31,6 +31,8 @@ python loso.py                 # leave-one-season-out check of the five paramete
 python injuries.py             # official NFL injury reports (nflverse) vs who played and what they scored
 python crawl_leagues.py        # collect other Sleeper leagues like ours (local cache, not committed)
 python leagues_fit.py          # the playoff model on those leagues
+python brier_floor.py          # how low the playoff Brier can go: coin flip vs model vs perfect team strength
+python strength_model.py       # fit team strength (lineup + points so far) and its uncertainty
 python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
 
@@ -193,4 +195,20 @@ were made just before those games, which would leak information.
     most active third, whose best was projection-only with fill at 0.4.
   Our league alone pointed to 0.9-1.0 on 48 team-seasons; against 2,025 league-seasons that
   is most likely noise. The site is unchanged for now (see PREREGISTRATION_2026.md).
+
+- **How low can the Brier go?** (`brier_floor.py`, `strength_model.py`, the 2,025 crawled
+  league-seasons, weeks 4/7/10). With every remaining game a coin flip (standings only):
+  0.200/0.159/0.116 (0.158 overall). The site's lineup model at 0.75: 0.205/0.164/0.112
+  (0.160), no better than the coin flip. Knowing each team's actual rest-of-season average
+  (unknowable, the floor for any strength model, since weekly swings stay random):
+  0.110/0.093/0.072 (0.092). A Brier near 0.10 needs nearly perfect team strength; the
+  number mostly measures how much season is left.
+  - **Team strength fitted directly** on 68,784 team-snapshots: projected lineup and points
+    per game so far each explain about as much of a team's rest-of-season scoring (week 10:
+    R^2 0.26 each, 0.34 together; coefficients about 0.35-0.39 on the lineup and 0.18-0.48 on
+    points per game, the latter rising through the season). Simulated with the uncertainty
+    the fit leaves (sd about 10 points a week at week 4, 9.5 at week 7, 7.8 at week 10,
+    measured from training residuals beyond weekly noise, the same in every fold), out of
+    sample: **0.194/0.152/0.109 (0.152)**, the best of everything tried; without that
+    uncertainty the fitted means are overconfident (0.154).
 
