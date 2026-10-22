@@ -141,12 +141,17 @@ def random_divisions(gen, b, n=12, k=3):
     return (torch.rand((b, n), device=DEV, generator=gen).argsort(-1).argsort(-1) % k)
 
 
-def season(P, idx, n, sims, gen, schedule, model=None, div=None):
+def season(P, idx, n, sims, gen, schedule, model=None, div=None, bracket=None):
     """Final rank and wins distributions, (M, b, n, n) and (M, b, n, NW), for snapshots idx (all
     with n teams). model=(off (M, b, n), tau (M, b), sd (M, b)) simulates the remaining scores as
     gpu_sim.simulate does; None replays the actual scores. schedule: 'real', 'random' (round
     robins) or 'ours' (our format, with its divisions). div (b, n): divisions on the real schedule
-    (our seeding: division winners first, by record, then the rest); None and not 'ours': none."""
+    (our seeding: division winners first, by record, then the rest); None and not 'ours': none.
+    bracket: also play our playoffs (6 teams: 3 v 6 and 4 v 5, then 1 and 2 host, then the final,
+    higher score advancing) and toilet bowl (the other 6, worst first, lower score advancing) as
+    playoffOdds.ts does, and return title and last-place probabilities (M, b, n) as well: True
+    simulates the three playoff weeks with the model; with model None, the actual playoff-week
+    points (b, 3, n)."""
     b = len(idx); K = P['opp'].shape[1]
     weeks = t(P['weeks'][idx])
     if model:
@@ -196,7 +201,20 @@ def season(P, idx, n, sims, gen, schedule, model=None, div=None):
         flat = (tid * size + v).permute(0, 2, 1, 3).reshape(M, b, sims * n)
         c = torch.zeros((M, b, n * size), device=DEV).scatter_add_(-1, flat, torch.ones_like(flat, dtype=torch.float32))
         return c.view(M, b, n, size) / sims
-    return hist(rank, n), hist((2 * W).round().long().clamp(0, NW - 1), NW)
+    out = (hist(rank, n), hist((2 * W).round().long().clamp(0, NW - 1), NW))
+    if bracket is None: return out
+    rounds = [base + sdm[:, None, :, None] * torch.randn((sims, b, n), device=DEV, generator=gen)[None] if model
+              else t(bracket)[:, r][None, None].expand(M, sims, b, n) for r in range(3)]
+    best, worst = key.argsort(-1, descending=True), key.argsort(-1)
+    at = lambda order, i: order[..., i:i + 1]
+    def play(r, a_, c_, higher):
+        sa, sc_ = rounds[r].gather(-1, a_), rounds[r].gather(-1, c_)
+        return torch.where(sa > sc_ if higher else sa < sc_, a_, c_)
+    def bowl(order, higher):  # seeds 1-6 of the order: 4 v 5 and 3 v 6, then 1 and 2 host, then the final
+        x, y = play(0, at(order, 3), at(order, 4), higher), play(0, at(order, 2), at(order, 5), higher)
+        return play(2, play(1, at(order, 0), x, higher), play(1, at(order, 1), y, higher), higher)
+    onehot = lambda w: torch.zeros((M, sims, b, n), device=DEV).scatter_(-1, w, 1.0).mean(1)
+    return out + (onehot(bowl(best, True)), onehot(bowl(worst, False)))
 
 
 def score(F, G_, Fw, Gw, n, playoff, own):
