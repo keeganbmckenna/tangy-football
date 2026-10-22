@@ -12,6 +12,10 @@ spread (at least 15). Fitted here on every crawled 12-team league-season (2018-2
 league excluded), each snapshot week separately. Weeks 1-2 have no fit (no spread to measure
 yet); the site uses week 3's.
 
+Also the single-game model (single_games.py, model E, adopted for the trade tools' weekly odds):
+for each snapshot week and 1-4 weeks ahead, a team's score that week centred on the league's,
+regressed on that week's lineup gap and the points-per-game gap, with its residual sd.
+
 Writes web/lib/analyze/strengthModel.json. --fixture also writes
 web/lib/__tests__/fixtures/fittedOdds.json: two of our league's real snapshots (2025 week 8,
 2024 week 5, with divisions) with the inputs the site would compute and this reference's
@@ -25,6 +29,7 @@ import torch
 import gpu_sim as G
 import leagues_fit as LF
 import rank_odds as R
+import single_games as SG
 from common import ARCHIVE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -33,13 +38,19 @@ WEB = os.path.join(HERE, '..', '..', 'web', 'lib')
 
 def fit_all():
     data = [r for r in G.S.collect(weekly=True) if len(r['ids']) == 12]
-    P = G.pack(data); weeks = {}
+    P = G.pack(data); weeks = {}; games = {}
+    Lw = SG.load_lineups(data); Lw_gap = Lw - np.nanmean(Lw, -1, keepdims=True); Y = SG.week_scores(data)
     for e in np.unique(P['e']):
         rows = P['e'] == e
         if rows.sum() < 500: continue
         b = G.fit(P, rows, [0, 1])
         weeks[str(int(e))] = {'lineup': round(float(b[0]), 4), 'ppg': round(float(b[1]), 4), 'tau': round(G.tau_for(P, rows, [0, 1], b), 3)}
-    return weeks, len(np.unique(P['league']))
+        games[str(int(e))] = {}
+        for hh in range(SG.H):
+            if not np.isfinite(Y[rows, hh]).any(): continue
+            bb, rs = SG.fit_single_week(P, Lw_gap, Y, rows, hh)
+            games[str(int(e))][str(hh + 1)] = {'lineup': round(float(bb[0]), 4), 'ppg': round(float(bb[1]), 4), 'sd': round(rs, 3)}
+    return weeks, games, len(np.unique(P['league']))
 
 
 def fixture(season, e, model, sims=200000):
@@ -85,13 +96,17 @@ def fixture(season, e, model, sims=200000):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--fixture', action='store_true'); a = ap.parse_args()
-    weeks, n = fit_all()
+    weeks, games, n = fit_all()
     out = {'model': 'fitted lineup + points per game, with persistent team uncertainty (scripts/backtests/export_model.py)',
-           'fittedOn': f'{n} crawled 12-team league-seasons, 2018-2025', 'exported': datetime.date.today().isoformat(), 'weeks': weeks}
+           'fittedOn': f'{n} crawled 12-team league-seasons, 2018-2025', 'exported': datetime.date.today().isoformat(), 'weeks': weeks,
+           'singleGame': {'about': "a team's score in one week, h weeks ahead (1 = next), centred on the league's: lineup x that week's lineup gap "
+                                   '+ ppg x points-per-game gap, residual sd (single_games.py, model E)', 'weeks': games}}
     path = os.path.join(WEB, 'analyze', 'strengthModel.json')
     json.dump(out, open(path, 'w'), indent=2); open(path, 'a').write('\n')
     print(f'{path}: weeks {min(map(int, weeks))}-{max(map(int, weeks))} from {n} league-seasons')
-    for e, c in weeks.items(): print(f'  week {e:>2}: lineup {c["lineup"]:+.3f}  ppg {c["ppg"]:+.3f}  tau {c["tau"]:.2f}')
+    for e, c in weeks.items():
+        print(f'  week {e:>2}: lineup {c["lineup"]:+.3f}  ppg {c["ppg"]:+.3f}  tau {c["tau"]:.2f}   single games, weeks ahead: '
+              + '  '.join(f'{h_}: {g_["lineup"]:.2f}/{g_["ppg"]:.2f}/{g_["sd"]:.1f}' for h_, g_ in games[e].items()))
     if a.fixture:
         fx = [fixture('2025', 8, weeks), fixture('2024', 5, weeks)]
         os.makedirs(os.path.join(WEB, '__tests__', 'fixtures'), exist_ok=True)
