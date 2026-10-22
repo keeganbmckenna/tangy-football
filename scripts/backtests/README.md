@@ -259,4 +259,14 @@ were made just before those games, which would leak information.
   [-0.0008, -0.0005], wins CRPS -0.024 [-0.026, -0.023] wins (8 of 8 seasons). Still tied at
   week 4. 10,000 round robins per target instead of 2,000 change nothing (the target's
   noise cancels in the scoring).
+- **Every week, our league's rules** (`rank_odds.py --weekly --rules ours`; the primary score
+  preregistered on 2026-10-21): a snapshot every week from 3 to the end of the regular season,
+  12-team leagues (4,488), 3 random divisions with division winners seeded first (our league
+  has used divisions since 2024: rivals twice, the other 8 once), real schedules. Playoff
+  Brier pooled over weeks: coin flip 0.1420, site (lineup 0.75) 0.1432, lineup 0.3 0.1378,
+  **fitted + tau 0.1371**; fitted + tau beats the site by 0.0062 (95% 0.0059 to 0.0065, 8 of
+  8 seasons) and lineup 0.3 by 0.00075 (0.00053 to 0.00098, 7 of 8), and is best or tied at
+  every week (week 3: 0.214 vs 0.220 for a coin flip; week 10: 0.117 vs 0.122; week 13:
+  0.067 vs 0.069). The site's model is worse than a coin flip through week 8. Without
+  divisions the numbers are within 0.0003 of these.
 

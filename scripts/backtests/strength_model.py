@@ -28,9 +28,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FEATURES = ['lineup', 'ppg', 'allplay', 'bench', 'top']
 
 
-def collect(max_zero=LF.MAX_ZERO):
-    """Every snapshot of every played league-season (LF.played), cached in strength_data.pkl"""
-    path = os.path.join(HERE, 'strength_data.pkl')
+def collect(max_zero=LF.MAX_ZERO, weekly=False):
+    """Every snapshot of every played league-season (LF.played), cached in strength_data.pkl.
+    weekly: a snapshot every week from 3 (the first with a spread to measure) to the end of the
+    regular season, cached in strength_data_weekly.pkl; otherwise weeks 4, 7 and 10 with at
+    least 3 weeks left."""
+    path = os.path.join(HERE, 'strength_data_weekly.pkl' if weekly else 'strength_data.pkl')
     if os.path.exists(path):
         return [r for r in pickle.load(open(path, 'rb')) if LF.played(r['pts'], r['ids'], r['end'], max_zero)]
     data = []
@@ -49,8 +52,8 @@ def collect(max_zero=LF.MAX_ZERO):
                 for m in M[w]:
                     if m.get('matchup_id') is not None: by[m['matchup_id']].append(ix[m['roster_id']])
                 games[w] = [tuple(v) for v in by.values() if len(v) == 2]
-            for e in LF.SNAPSHOTS:
-                if e >= end - 1: continue
+            for e in (range(3, end + 1) if weekly else LF.SNAPSHOTS):
+                if not weekly and e >= end - 1: continue
                 vals = LF.table(season, e, ppr)
                 rosters = {m['roster_id']: (m.get('players') or []) for m in M[e]}
                 lineup = np.array([np.mean([LF.lineup(rosters.get(r, []), vals, slots, w, 0) for w in range(e, end + 1)]) for r in ids])
@@ -65,6 +68,7 @@ def collect(max_zero=LF.MAX_ZERO):
                 X = np.column_stack([lineup, ppg, allplay, dep[:, 0], dep[:, 1]])
                 X = X - X.mean(0)
                 data.append(dict(league=L['league_id'], season=season, e=e, ids=ids, games=games, pts=pts, end=end, n_po=n_po,
+                                 median=bool(L['settings'].get('league_average_match')),
                                  X=X, y=future - future.mean(), lg=st.mean(pts[w][r] for w in range(1, e) for r in ids)))
         except Exception as ex:
             print('skip', os.path.basename(f), ex)

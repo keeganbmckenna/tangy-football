@@ -127,8 +127,9 @@ def offsets(P):
     off = np.zeros((len(NAMES), B, T)); tau = np.zeros((len(NAMES), B))
     off[1] = 0.3 * P['X'][:, :, 0]; off[4] = P['y']
     for s in np.unique(P['season']):
-        for e in LF.SNAPSHOTS:
+        for e in np.unique(P['e']):
             train = (P['season'] != s) & (P['e'] == e); test = (P['season'] == s) & (P['e'] == e)
+            if not test.any(): continue
             b = fit(P, train, [0, 1])
             off[2, test] = off[3, test] = P['X'][test][:, :, [0, 1]] @ b
             tau[3, test] = tau_for(P, train, [0, 1], b)

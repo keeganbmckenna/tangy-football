@@ -2,7 +2,12 @@
 
 Our rules, applied to every crawled league (whatever its own settings): head-to-head wins only
 (no median game), ties broken by points for, top 6 make the playoffs, top 2 get byes. Each
-league keeps its own teams, weekly scores and regular-season length.
+league keeps its own teams, weekly scores and regular-season length. --rules ours adds our
+divisions (12-team leagues only): 3 random divisions of 4, division winners seeded 1-3 by
+record, then the rest; development schedules in our format (our 2024-2025 schedules as
+templates, teams shuffled into the slots and weeks into random order: division rivals twice,
+the other 8 once). --weekly scores a snapshot every week from 3 to the end of the regular
+season; the preregistered primary score is --weekly --rules ours, final check.
 
 Two evaluations, every model fitted leaving one season out (gpu_sim.offsets):
 
@@ -33,7 +38,22 @@ import leagues_fit as LF
 DEV = G.DEV
 PLAYOFF, BYE = 6, 2
 NW = 37  # final wins in half-win steps, 0-18
-METRICS = ['playoff Brier', 'bye Brier', 'rank RPS', 'wins CRPS']
+METRICS = ['playoff Brier', 'bye Brier', 'rank RPS', 'wins CRPS', 'own-size playoff']
+# The models compared ('site' is the deployed model: lineup weight 0.75)
+NAMES = ['coin flip', 'site (0.75)', 'lineup 0.3', 'fitted lineup+ppg', 'fitted + tau', 'perfect strength']
+COMPARE = [('fitted + tau', 'lineup 0.3'), ('fitted + tau', 'site (0.75)'), ('fitted + tau', 'fitted lineup+ppg'),
+           ('lineup 0.3', 'coin flip')]
+
+
+def models(P):
+    """Names, offsets (M, B, T), persistent sd (M, B) and weekly sd (M, B), fitted leaving the
+    snapshot's season out where fitted (gpu_sim.offsets)"""
+    off5, tau5 = G.offsets(P)  # coin flip, lineup 0.3, fitted lineup+ppg, fitted + tau, perfect strength
+    B, T = P['y'].shape; M = len(NAMES)
+    off = np.zeros((M, B, T)); tau = np.zeros((M, B)); sd = np.repeat(P['sd'][None], M, 0)
+    for i, j in ((0, 0), (2, 1), (3, 2), (4, 3), (5, 4)): off[i], tau[i] = off5[j], tau5[j]
+    off[1] = 0.75 * P['X'][:, :, 0]
+    return NAMES, off * P['teams'], tau, sd
 
 
 def t(a, dt=torch.float32):
@@ -59,29 +79,77 @@ def random_round_robin(gen, sims, b, n, weeks=18):
     return torch.stack([inv.gather(-1, R[order[..., (w - 1) % (n - 1)]].gather(-1, pos)) for w in range(1, weeks + 1)], 2)
 
 
-def season(P, idx, n, sims, gen, schedule, model=None):
+
+def our_templates():
+    """Our league's real schedules (2024, 2025: 3 divisions of 4, division rivals twice and the
+    other 8 once, 14 weeks) as slot tables: opp (templates, 14, 12) and the slots' divisions"""
+    import gzip, json, os
+    from common import ARCHIVE
+    opps, divs = [], []
+    for season_ in ('2024', '2025'):
+        R = json.load(gzip.open(os.path.join(ARCHIVE, season_, 'rosters.json.gz'), 'rt'))
+        div = {r['roster_id']: (r.get('settings') or {}).get('division') for r in R}
+        if len(R) != 12 or len(set(div.values())) != 3: continue
+        slot = {rid: i for i, rid in enumerate(sorted(div, key=lambda r: (div[r], r)))}
+        O = np.zeros((14, 12), np.int64)
+        for w in range(1, 15):
+            by = {}
+            for m in json.load(gzip.open(os.path.join(ARCHIVE, season_, 'matchups', f'{w}.json.gz'), 'rt')):
+                by.setdefault(m['matchup_id'], []).append(slot[m['roster_id']])
+            for a_, b_ in by.values(): O[w - 1, a_] = b_; O[w - 1, b_] = a_
+        opps.append(O); divs.append(np.array([div[r] for r in sorted(slot, key=slot.get)]) - 1)
+    return np.stack(opps), np.stack(divs)
+
+
+TEMPLATES = None
+
+
+def our_schedule(gen, sims, b, weeks=18):
+    """Random schedules in our format: a template, teams shuffled into its slots (so divisions are
+    random), its 14 weeks in random order (repeating if a season runs longer). Opponents
+    (sims, b, weeks, 12) and divisions (sims, b, 12)"""
+    global TEMPLATES
+    if TEMPLATES is None: TEMPLATES = tuple(t(x, torch.int64) for x in our_templates())
+    O, D = TEMPLATES
+    k = torch.randint(len(O), (sims, b), device=DEV, generator=gen)
+    pos = torch.rand((sims, b, 12), device=DEV, generator=gen).argsort(-1); inv = pos.argsort(-1)
+    order = torch.rand((sims, b, 14), device=DEV, generator=gen).argsort(-1)
+    opp = torch.stack([inv.gather(-1, O[k, order[..., (w - 1) % 14]].gather(-1, pos)) for w in range(1, weeks + 1)], 2)
+    return opp, D[k].gather(-1, pos)
+
+
+def random_divisions(gen, b, n=12, k=3):
+    """One random assignment of n teams to k equal divisions per snapshot (b, n)"""
+    return (torch.rand((b, n), device=DEV, generator=gen).argsort(-1).argsort(-1) % k)
+
+
+def season(P, idx, n, sims, gen, schedule, model=None, div=None):
     """Final rank and wins distributions, (M, b, n, n) and (M, b, n, NW), for snapshots idx (all
-    with n teams). model=(off (M, b, n), tau (M, b)) simulates the remaining scores as
-    gpu_sim.simulate does; None replays the actual scores. schedule: 'real' or 'random'."""
+    with n teams). model=(off (M, b, n), tau (M, b), sd (M, b)) simulates the remaining scores as
+    gpu_sim.simulate does; None replays the actual scores. schedule: 'real', 'random' (round
+    robins) or 'ours' (our format, with its divisions). div (b, n): divisions on the real schedule
+    (our seeding: division winners first, by record, then the rest); None and not 'ours': none."""
     b = len(idx); K = P['opp'].shape[1]
     weeks = t(P['weeks'][idx])
     if model:
-        off, tau = t(model[0]), t(model[1]); M = off.shape[0]
-        lg, sd = t(P['lg'][idx]), t(P['sd'][idx])
+        off, tau, sdm = t(model[0]), t(model[1]), t(model[2]); M = off.shape[0]
+        lg = t(P['lg'][idx])
         team = torch.randn((sims, b, n), device=DEV, generator=gen)
         base = (lg[:, None] + off)[:, None] + tau[:, None, :, None] * team[None]
     else:
         M = 1; pts = t(P['pts'][idx][:, :, :n])
     W = t(P['W0'][idx][:, :n]).expand(M, sims, b, n).clone(); PF = t(P['PF0'][idx][:, :n]).expand(M, sims, b, n).clone()
-    if schedule == 'random':
-        rr = random_round_robin(gen, sims, b, n); e = t(P['e'][idx], torch.int64)
+    if schedule in ('random', 'ours'):
+        e = t(P['e'][idx], torch.int64)
+        if schedule == 'random': rr = random_round_robin(gen, sims, b, n)
+        else: rr, div = our_schedule(gen, sims, b)
     else:
         opp = t(P['opp'][idx][:, :, :n], torch.int64)
     for k in range(K):
         if not bool(weeks[:, k].any()): break
-        sc = base + t(P['sd'][idx])[None, None, :, None] * torch.randn((sims, b, n), device=DEV, generator=gen)[None] if model \
+        sc = base + sdm[:, None, :, None] * torch.randn((sims, b, n), device=DEV, generator=gen)[None] if model \
             else pts[:, k][None, None].expand(M, sims, b, n)
-        if schedule == 'random':
+        if schedule in ('random', 'ours'):
             o = rr.gather(2, (e + k - 1).clamp(max=rr.shape[2] - 1)[None, :, None, None].expand(sims, b, 1, n)).squeeze(2)
             o = o[None].expand(M, sims, b, n); has = (weeks[:, k] > 0)[None, None, :, None]
         else:
@@ -90,6 +158,11 @@ def season(P, idx, n, sims, gen, schedule, model=None):
         W += ((sc > theirs).float() + 0.5 * (sc == theirs).float()) * has
         PF += sc * weeks[:, k][None, None, :, None]
     key = W + PF / (PF.max(-1, keepdim=True).values + 1)
+    if div is not None:
+        dv = (div if div.dim() == 3 else div[None].expand(sims, b, n))[None].expand(M, sims, b, n)
+        for d in range(int(dv.max()) + 1):
+            top = key.masked_fill(dv != d, -math.inf).argmax(-1, keepdim=True)
+            key = key.scatter_add(-1, top, torch.full_like(top, 1000, dtype=key.dtype))
     rank = key.argsort(-1, descending=True).argsort(-1)
     tid = torch.arange(n, device=DEV)
     def hist(v, size):
@@ -99,65 +172,91 @@ def season(P, idx, n, sims, gen, schedule, model=None):
     return hist(rank, n), hist((2 * W).round().long().clamp(0, NW - 1), NW)
 
 
-def score(F, G_, Fw, Gw, n, playoff=PLAYOFF):
+def score(F, G_, Fw, Gw, n, playoff, own):
     """Expected scores per model and snapshot (M, b, metric), averaged over the snapshot's teams;
-    the target G_ (1, b, n, n) and Gw may be distributions (schedule-averaged) or one-hot (real)"""
+    the target G_ (1, b, n, n) and Gw may be distributions (schedule-averaged) or one-hot (real).
+    playoff: our cutoff; own (b,): each league's own number of playoff teams"""
     cF, cG = F.cumsum(-1), G_.cumsum(-1); wF, wG = Fw.cumsum(-1), Gw.cumsum(-1)
     b2 = lambda p, q: (p - q) ** 2 + q * (1 - q)
+    at = lambda c, k: c.gather(-1, t(k - 1, torch.int64)[None, :, None, None].expand(c.shape[0], -1, n, 1)).squeeze(-1)
     out = [b2(cF[..., playoff - 1], cG[..., playoff - 1]), b2(cF[..., BYE - 1], cG[..., BYE - 1]),
-           b2(cF[..., :-1], cG[..., :-1]).sum(-1) / (n - 1), 0.5 * b2(wF[..., :-1], wG[..., :-1]).sum(-1)]
+           b2(cF[..., :-1], cG[..., :-1]).sum(-1) / (n - 1), 0.5 * b2(wF[..., :-1], wG[..., :-1]).sum(-1),
+           b2(at(cF, own), at(cG, own))]
     return torch.stack([o.mean(-1) for o in out], -1).cpu().numpy()
 
 
-def main():
+def main(model_set=models, compare=COMPARE):
+    """model_set(P) -> (names, offsets, persistent sd, weekly sd); compare: name pairs to difference"""
     ap = argparse.ArgumentParser()
     ap.add_argument('--sims', type=int, default=4000); ap.add_argument('--target-sims', type=int, default=2000)
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--cutoff', choices=['6', 'half'], default='6', help="playoff teams: our 6 in every league, or half the league (our 6 of 12)")
+    ap.add_argument('--rules', choices=['plain', 'ours'], default='plain', help="ours: 12-team leagues only, with our 3 divisions (random), our schedule format and division-winner seeding")
+    ap.add_argument('--weekly', action='store_true', help='a snapshot every week from 3 to the end of the regular season (strength_model.collect(weekly=True))')
     a = ap.parse_args(); t0 = time.time()
-    P = G.pack(G.S.collect()); B = len(P['e'])
-    off, tau = G.offsets(P); M = len(G.NAMES)
+    data = G.S.collect(weekly=a.weekly)
+    if a.rules == 'ours': data = [r for r in data if len(r['ids']) == 12]
+    P = G.pack(data); B = len(P['e']); ours = a.rules == 'ours'
+    gen_div = torch.Generator(device=DEV).manual_seed(a.seed + 1)
+    names, off, tau, sd = model_set(P); M = len(names); ix = {n: i for i, n in enumerate(names)}
     gen = torch.Generator(device=DEV).manual_seed(a.seed)
     res = {ev: np.zeros((M, B, len(METRICS))) for ev in ('development', 'final check')}
     nteams = P['teams'].sum(1); mismatch = 0
     for n in sorted(set(nteams)):
         ids = np.where(nteams == n)[0]; chunk = max(1, int(1.5e8 // (M * a.sims * n)))
         for s in range(0, len(ids), chunk):
-            ii = ids[s:s + chunk]; model = (off[:, ii, :n], tau[:, ii])
-            real_r, real_w = season(P, ii, n, 1, gen, 'real')
-            # the real schedule and actual scores must reproduce who made it (the league's own cutoff)
-            own = (real_r[0].cumsum(-1).gather(-1, t(P['n_po'][ii] - 1, torch.int64)[:, None, None].expand(len(ii), n, 1)).squeeze(-1)).cpu().numpy()
-            mismatch += int((own != P['made'][ii][:, :n]).any(1).sum())
-            avg_r, avg_w = season(P, ii, n, a.target_sims, gen, 'random')
-            Fr, Fw = season(P, ii, n, a.sims, gen, 'random', model)
+            ii = ids[s:s + chunk]; model = (off[:, ii, :n], tau[:, ii], sd[:, ii])
+            div = random_divisions(gen_div, len(ii)) if ours else None
+            if ours:
+                real_r, real_w = season(P, ii, n, 1, gen, 'real', div=div)
+            else:
+                real_r, real_w = season(P, ii, n, 1, gen, 'real')
+                # the real schedule and actual scores must reproduce who made it (the league's own cutoff)
+                own = (real_r[0].cumsum(-1).gather(-1, t(P['n_po'][ii] - 1, torch.int64)[:, None, None].expand(len(ii), n, 1)).squeeze(-1)).cpu().numpy()
+                mismatch += int((own != P['made'][ii][:, :n]).any(1).sum())
+            sched = 'ours' if ours else 'random'
+            avg_r, avg_w = season(P, ii, n, a.target_sims, gen, sched)
             po = PLAYOFF if a.cutoff == '6' else n // 2
-            res['development'][:, ii] = score(Fr, avg_r, Fw, avg_w, n, po)
-            Fr, Fw = season(P, ii, n, a.sims, gen, 'real', model)
-            res['final check'][:, ii] = score(Fr, real_r, Fw, real_w, n, po)
-    print(f"playoff cutoff: {'top 6 in every league' if a.cutoff == '6' else 'top half of each league'}")
-    print(f'{B} snapshots; real schedules reproduce the actual outcome in all but {mismatch}. '
-          f'{a.sims} simulated seasons per forecast, {a.target_sims} random round robins per target, {time.time() - t0:.0f}s')
+            Fr, Fw = season(P, ii, n, a.sims, gen, sched, model)
+            res['development'][:, ii] = score(Fr, avg_r, Fw, avg_w, n, po, P['n_po'][ii])
+            Fr, Fw = season(P, ii, n, a.sims, gen, 'real', model, div=div)
+            res['final check'][:, ii] = score(Fr, real_r, Fw, real_w, n, po, P['n_po'][ii])
+    weeks = np.unique(P['e']); seasons = np.unique(P['season']); everything = np.ones(B, bool); twelve = nteams == 12
+    print(f"playoff cutoff: {'top 6 in every league' if a.cutoff == '6' else 'top half of each league'}; 'own-size playoff' uses each league's own number"
+          + ("; OUR RULES: 12-team leagues, 3 random divisions, division winners seeded first, development on our schedule format" if ours else ''))
+    print(f'{B} snapshots (weeks {weeks.min()}-{weeks.max()}); '
+          + ('' if ours else f'real schedules reproduce the actual outcome in all but {mismatch}; ')
+          + f'{a.sims} simulated seasons per forecast, {a.target_sims} random schedules per target, {time.time() - t0:.0f}s')
     for ev, r in res.items():
-        print(f'\n{ev}' + (' (schedule-averaged target, forecasts without the schedule)' if ev == 'development' else ' (real schedule, real outcome)'))
-        print(f"{'':>20}" + ''.join(f'{m:>15}' for m in METRICS))
-        for m in range(M): print(f'{G.NAMES[m]:>20}' + ''.join(f'{r[m, :, j].mean():15.4f}' for j in range(len(METRICS))))
-        print(f"{'playoff Brier by week':>20}" + ''.join(f'   week {e}: ' + ' / '.join(f'{r[m, P["e"] == e, 0].mean():.4f}' for m in (0, 1, 3)) for e in LF.SNAPSHOTS) + '  (coin flip / lineup 0.3 / fitted + tau)')
+        print(f'\n{ev}' + (' (schedule-averaged target, forecasts without the schedule)' if ev == 'development' else ' (real schedule, real outcome)')
+              + (', pooled over every snapshot week' if a.weekly else ''))
+        print(f"{'':>21}" + ''.join(f'{m:>17}' for m in METRICS) + f"{'12-team playoff':>17}")
+        for m in range(M): print(f'{names[m]:>21}' + ''.join(f'{r[m, :, j].mean():17.4f}' for j in range(len(METRICS))) + f'{r[m, twelve, 0].mean():17.4f}')
+    r = res['final check']
+    print('\nplayoff Brier by snapshot week (final check, our cutoff):')
+    print(f"{'week':>5} {'snapshots':>9}" + ''.join(f'{n[:14]:>15}' for n in names))
+    for e in weeks:
+        sel = P['e'] == e
+        print(f'{e:5d} {sel.sum():9d}' + ''.join(f'{r[m, sel, 0].mean():15.4f}' for m in range(M)))
     print('\ndifferences, 95% interval resampling leagues (seasons better of 8); interval width, final check / development:')
-    seasons = np.unique(P['season']); everything = np.ones(B, bool)
-    for i, j in ((3, 1), (3, 2), (1, 0)):
+    for i, j in ((ix[a], ix[b]) for a, b in compare):
         for k, met in enumerate(METRICS):
-            line = f'  {G.NAMES[i]} - {G.NAMES[j]}, {met:>13}:'; widths = []
+            line = f'  {names[i]} - {names[j]}, {met:>16}:'; widths = []
             for ev in ('development', 'final check'):
                 d = res[ev][i, :, k] - res[ev][j, :, k]; m, lo, hi = G.interval(P, d, everything); widths.append(hi - lo)
                 line += f'  {ev[:5]} {m:+.5f} [{lo:+.5f}, {hi:+.5f}] ({sum(d[P["season"] == s].mean() < 0 for s in seasons)})'
             print(line + f'  width x{widths[1] / widths[0]:.1f}')
-    print('\nby league size, final check: fitted + tau - lineup 0.3, 95% interval resampling leagues')
-    for n in sorted(set(nteams)):
-        sel = nteams == n
-        print(f'  {n} teams ({len(np.unique(P["league"][sel]))} leagues): ' + '  '.join(
-            f'{met} {r[0]:+.5f} [{r[1]:+.5f}, {r[2]:+.5f}]' for met, r in
-            ((METRICS[k], G.interval(P, res['final check'][3, :, k] - res['final check'][1, :, k], sel)) for k in range(len(METRICS)))))
-
+    print('\nby league size, final check, 95% interval resampling leagues (seasons better of 8):')
+    for a_, b_ in compare:
+        print(f'  {a_} - {b_}')
+        for n in sorted(set(nteams)):
+            sel = nteams == n
+            parts = []
+            for k in range(len(METRICS)):
+                d = r[ix[a_], :, k] - r[ix[b_], :, k]; q = G.interval(P, d, sel)
+                won = sum(d[sel & (P['season'] == s_)].mean() < 0 for s_ in seasons)
+                parts.append(f'{METRICS[k]} {q[0]:+.5f} [{q[1]:+.5f}, {q[2]:+.5f}] ({won})')
+            print(f'    {n} teams ({len(np.unique(P["league"][sel]))} leagues): ' + '  '.join(parts))
 
 if __name__ == '__main__':
     main()

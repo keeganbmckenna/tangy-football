@@ -75,6 +75,36 @@ Secondary:
 - GitHub can start scheduled runs late; a Sunday snapshot that lands after 1 PM ET kickoff is
   excluded from anything about kickoff.
 
+## Addendum (2026-10-21): rules for a better simulator, set before its every-week results
+
+The model research (`README.md`, `HANDOFF.md`) moves to building the most accurate simulator
+for every odds the site shows. The owner chose to ship each improvement as soon as it is
+proven, logged below with its date; the questions above (P1-P3, H1) are still scored on the
+deployed model as of each Wednesday snapshot, and `eval_2026.py` scores old against new.
+
+- **Primary score** (weeks 4, 7 and 10 had already been studied; every other week had not):
+  playoff Brier on the crawled leagues with 12 teams, under our rules (3 divisions of 4,
+  assigned at random in the crawled leagues; head-to-head wins, then points for; the
+  division winners and 3 wildcards make the playoffs, division winners seeded 1-3, top 2
+  get byes), on real schedules (`rank_odds.py --weekly --rules ours`), from a snapshot every week from week 3 to the end of the regular season (week
+  3 is the first with a weekly spread to measure), leave one season out on 2018-2025.
+- **Secondary:** bye Brier, final rank (ranked probability score), wins (CRPS), playoff
+  Brier pooled over all league sizes and with each league's own playoff size, title and
+  toilet bowl, single games and Live at kickoff (log loss), calibration slope.
+- **A change is adopted only if** it beats the model it would replace on the primary score
+  held out, with a 95% interval resampling leagues (checked again resampling groups of
+  leagues that share managers) excluding zero, in at least 5 of 8 seasons, **and by at
+  least 0.0005 Brier**. Otherwise the simpler model stays. Development may use the
+  schedule-averaged targets (`rank_odds.py`); the decision uses real schedules.
+- **One-shot confirmation:** after the 2026 season, 2026 leagues are crawled with the same
+  rules (`crawl_leagues.py --seasons 2026`) and the adopted model, frozen, is scored on them
+  once. Nothing is tuned on 2026 before that.
+- **Own league:** each candidate is also scored on our 2022-2025 seasons, which are not in
+  the crawl (fitted on crawled leagues only); reported with intervals, never tuned on.
+- Every variant tried goes in `LOG.md`, failures included.
+- Drafted the same day without divisions; corrected on finding that our league has used 3
+  divisions since 2024 (2026 too). Both versions are run and reported; they agree.
+
 ## Log of changes after the first snapshot
 
 - 2026-10-20: snapshots before kickoffs also save Sleeper's full projection file (every player's
