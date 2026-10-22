@@ -38,6 +38,8 @@ python drift.py                # does team strength drift through the season? (G
 python schedule_luck.py        # how much the schedule decides, and the value of knowing it (GPU)
 python rank_odds.py            # rank, wins, playoff and bye odds under our rules, scored without schedule luck (GPU)
 python headroom.py             # how much better any team-strength model could do: a ceiling for the playoff odds (GPU)
+python own_league.py           # the models fitted on crawled leagues, scored on our 2022-2025 seasons
+python league_activity.py      # the fitted model's edge over the site's model by league activity (roster churn)
 python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
 
@@ -280,4 +282,15 @@ were made just before those games, which would leak information.
   almost all of it in weeks 3-10 (0.030 at week 3, 0.007 at week 10, nothing after week 12).
   Knowing future changes too: 0.114. So better team strength is worth pursuing, mostly for
   early-season odds; no strength model can get far below 0.12 on these leagues.
+- **Our own league** (`own_league.py`, 2022-2025, every week from 3, our real divisions; the
+  rebuilt playoff teams match the real brackets in all 4 seasons). Fitted on crawled leagues
+  only: playoff Brier coin flip 0.145, site (0.75) 0.125, lineup 0.3 0.132, fitted + tau
+  0.126. Fitted + tau beats the coin flip and lineup 0.3 here too but not the site's model
+  (+0.0014; better in 1 of 4 seasons), whose settings were chosen on these same seasons.
+  Among crawled 12-team leagues, 4 league-seasons that unfavourable to the fitted model turn
+  up about 5% of the time (per league-season difference: mean -0.0062, sd 0.0095).
+  **Activity doesn't explain it** (`league_activity.py`): our league is among the most active
+  (roster churn 1.75-2.46 players added per team per week, 66th-93rd percentile), and the
+  fitted model's edge over the site is the same in every fifth of activity (-0.0058 to
+  -0.0068, most active fifth -0.0064 [-0.0075, -0.0053]).
 

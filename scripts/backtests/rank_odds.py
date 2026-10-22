@@ -192,6 +192,7 @@ def main(model_set=models, compare=COMPARE):
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--cutoff', choices=['6', 'half'], default='6', help="playoff teams: our 6 in every league, or half the league (our 6 of 12)")
     ap.add_argument('--rules', choices=['plain', 'ours'], default='plain', help="ours: 12-team leagues only, with our 3 divisions (random), our schedule format and division-winner seeding")
+    ap.add_argument('--save', help='save per-snapshot scores to this .npz (cache/ is git-ignored)')
     ap.add_argument('--weekly', action='store_true', help='a snapshot every week from 3 to the end of the regular season (strength_model.collect(weekly=True))')
     a = ap.parse_args(); t0 = time.time()
     data = G.S.collect(weekly=a.weekly)
@@ -222,6 +223,9 @@ def main(model_set=models, compare=COMPARE):
             Fr, Fw = season(P, ii, n, a.sims, gen, 'real', model, div=div)
             res['final check'][:, ii] = score(Fr, real_r, Fw, real_w, n, po, P['n_po'][ii])
     weeks = np.unique(P['e']); seasons = np.unique(P['season']); everything = np.ones(B, bool); twelve = nteams == 12
+    if a.save:
+        np.savez(a.save, names=np.array(names), metrics=np.array(METRICS), development=res['development'], final=res['final check'],
+                 league=P['league'], season=P['season'], e=P['e'], teams=nteams)
     print(f"playoff cutoff: {'top 6 in every league' if a.cutoff == '6' else 'top half of each league'}; 'own-size playoff' uses each league's own number"
           + ("; OUR RULES: 12-team leagues, 3 random divisions, division winners seeded first, development on our schedule format" if ours else ''))
     print(f'{B} snapshots (weeks {weeks.min()}-{weeks.max()}); '

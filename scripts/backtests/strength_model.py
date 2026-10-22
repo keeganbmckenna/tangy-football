@@ -40,40 +40,46 @@ def collect(max_zero=LF.MAX_ZERO, weekly=False):
     for f in sorted(glob.glob(os.path.join(HERE, 'cache', 'leagues', '*', '*.json.gz'))):
         try:
             d = json.load(gzip.open(f, 'rt'))
-            L, M = d['league'], {int(w): m for w, m in d['matchups'].items()}
-            season = L['season']; ppr = L['scoring_settings'].get('rec'); slots = L['roster_positions']
-            end = (L['settings'].get('playoff_week_start') or 15) - 1; n_po = L['settings'].get('playoff_teams') or 6
-            if any(w not in M for w in range(1, end + 1)): continue
-            ids = sorted(m['roster_id'] for m in M[1]); ix = {r: i for i, r in enumerate(ids)}; T = len(ids)
-            pts = {w: {m['roster_id']: (m.get('points') or 0) for m in M[w]} for w in range(1, end + 1)}
-            games = {}
-            for w in range(1, end + 1):
-                by = defaultdict(list)
-                for m in M[w]:
-                    if m.get('matchup_id') is not None: by[m['matchup_id']].append(ix[m['roster_id']])
-                games[w] = [tuple(v) for v in by.values() if len(v) == 2]
-            for e in (range(3, end + 1) if weekly else LF.SNAPSHOTS):
-                if not weekly and e >= end - 1: continue
-                vals = LF.table(season, e, ppr)
-                rosters = {m['roster_id']: (m.get('players') or []) for m in M[e]}
-                lineup = np.array([np.mean([LF.lineup(rosters.get(r, []), vals, slots, w, 0) for w in range(e, end + 1)]) for r in ids])
-                ppg = np.array([st.mean(pts[w][r] for w in range(1, e)) for r in ids])
-                allplay = np.array([np.mean([np.mean([pts[w][r] > pts[w][o] for o in ids if o != r]) for w in range(1, e)]) for r in ids])
-                def depth(r):
-                    v = sorted((vals[p][1].get(e, (0, 0))[0] for p in rosters.get(r, []) if p in vals), reverse=True)
-                    n_start = len([s for s in slots if s not in ('BN', 'IR', 'TAXI')])
-                    return sum(v[n_start:n_start + 3]), sum(v[:2])
-                dep = np.array([depth(r) for r in ids])
-                future = np.array([st.mean(pts[w][r] for w in range(e, end + 1)) for r in ids])
-                X = np.column_stack([lineup, ppg, allplay, dep[:, 0], dep[:, 1]])
-                X = X - X.mean(0)
-                data.append(dict(league=L['league_id'], season=season, e=e, ids=ids, games=games, pts=pts, end=end, n_po=n_po,
-                                 median=bool(L['settings'].get('league_average_match')),
-                                 X=X, y=future - future.mean(), lg=st.mean(pts[w][r] for w in range(1, e) for r in ids)))
+            data += league_snapshots(d['league'], {int(w): m for w, m in d['matchups'].items()}, weekly)
         except Exception as ex:
             print('skip', os.path.basename(f), ex)
     pickle.dump(data, open(path, 'wb'))
     return [r for r in data if LF.played(r['pts'], r['ids'], r['end'], max_zero)]
+
+
+def league_snapshots(L, M, weekly=False):
+    """Snapshots of one league-season: L the league object, M {week: matchups}"""
+    out = []
+    season = L['season']; ppr = L['scoring_settings'].get('rec'); slots = L['roster_positions']
+    end = (L['settings'].get('playoff_week_start') or 15) - 1; n_po = L['settings'].get('playoff_teams') or 6
+    if any(w not in M for w in range(1, end + 1)): return out
+    ids = sorted(m['roster_id'] for m in M[1]); ix = {r: i for i, r in enumerate(ids)}; T = len(ids)
+    pts = {w: {m['roster_id']: (m.get('points') or 0) for m in M[w]} for w in range(1, end + 1)}
+    games = {}
+    for w in range(1, end + 1):
+        by = defaultdict(list)
+        for m in M[w]:
+            if m.get('matchup_id') is not None: by[m['matchup_id']].append(ix[m['roster_id']])
+        games[w] = [tuple(v) for v in by.values() if len(v) == 2]
+    for e in (range(3, end + 1) if weekly else LF.SNAPSHOTS):
+        if not weekly and e >= end - 1: continue
+        vals = LF.table(season, e, ppr)
+        rosters = {m['roster_id']: (m.get('players') or []) for m in M[e]}
+        lineup = np.array([np.mean([LF.lineup(rosters.get(r, []), vals, slots, w, 0) for w in range(e, end + 1)]) for r in ids])
+        ppg = np.array([st.mean(pts[w][r] for w in range(1, e)) for r in ids])
+        allplay = np.array([np.mean([np.mean([pts[w][r] > pts[w][o] for o in ids if o != r]) for w in range(1, e)]) for r in ids])
+        def depth(r):
+            v = sorted((vals[p][1].get(e, (0, 0))[0] for p in rosters.get(r, []) if p in vals), reverse=True)
+            n_start = len([s for s in slots if s not in ('BN', 'IR', 'TAXI')])
+            return sum(v[n_start:n_start + 3]), sum(v[:2])
+        dep = np.array([depth(r) for r in ids])
+        future = np.array([st.mean(pts[w][r] for w in range(e, end + 1)) for r in ids])
+        X = np.column_stack([lineup, ppg, allplay, dep[:, 0], dep[:, 1]])
+        X = X - X.mean(0)
+        out.append(dict(league=L['league_id'], season=season, e=e, ids=ids, games=games, pts=pts, end=end, n_po=n_po,
+                         median=bool(L['settings'].get('league_average_match')),
+                         X=X, y=future - future.mean(), lg=st.mean(pts[w][r] for w in range(1, e) for r in ids)))
+    return out
 
 
 def fit(rows, cols):
