@@ -1,6 +1,7 @@
 """The models fitted on other leagues, scored on ours: 2022-2025, every week from 3.
 
-Our league isn't in the crawl, so models fitted on the crawled 12-team leagues (leaving the
+Our league is kept out of the crawled data (leagues_fit.OURS: two of its seasons had been
+crawled), so models fitted on the crawled 12-team leagues (leaving the
 same season out, as everywhere else) are out of sample here. Snapshots are built by the same
 code (strength_model.league_snapshots) from the archive (data/sleeper/), with our real
 divisions (2024 on) and seeding: division winners first, then the rest by record and points.

@@ -27,7 +27,7 @@ def rows_for(path, rng):
     if any(w not in M for w in range(1, end + 1)): return []
     ids = sorted(m['roster_id'] for m in M[1]); ix = {r: i for i, r in enumerate(ids)}; T = len(ids)
     pts = {w: {m['roster_id']: (m.get('points') or 0) for m in M[w]} for w in range(1, end + 1)}
-    if not LF.played(pts, ids, end): return []
+    if not LF.played(pts, ids, end) or L['league_id'] in LF.OURS: return []
     games = {}
     for w in range(1, end + 1):
         by = defaultdict(list)

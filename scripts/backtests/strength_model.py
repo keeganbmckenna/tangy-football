@@ -29,13 +29,14 @@ FEATURES = ['lineup', 'ppg', 'allplay', 'bench', 'top']
 
 
 def collect(max_zero=LF.MAX_ZERO, weekly=False):
-    """Every snapshot of every played league-season (LF.played), cached in strength_data.pkl.
+    """Every snapshot of every played league-season (LF.played), except our own league (LF.OURS),
+    cached in strength_data.pkl.
     weekly: a snapshot every week from 3 (the first with a spread to measure) to the end of the
     regular season, cached in strength_data_weekly.pkl; otherwise weeks 4, 7 and 10 with at
     least 3 weeks left."""
     path = os.path.join(HERE, 'strength_data_weekly.pkl' if weekly else 'strength_data.pkl')
     if os.path.exists(path):
-        return [r for r in pickle.load(open(path, 'rb')) if LF.played(r['pts'], r['ids'], r['end'], max_zero)]
+        return [r for r in pickle.load(open(path, 'rb')) if LF.played(r['pts'], r['ids'], r['end'], max_zero) and r['league'] not in LF.OURS]
     data = []
     for f in sorted(glob.glob(os.path.join(HERE, 'cache', 'leagues', '*', '*.json.gz'))):
         try:
@@ -44,7 +45,7 @@ def collect(max_zero=LF.MAX_ZERO, weekly=False):
         except Exception as ex:
             print('skip', os.path.basename(f), ex)
     pickle.dump(data, open(path, 'wb'))
-    return [r for r in data if LF.played(r['pts'], r['ids'], r['end'], max_zero)]
+    return [r for r in data if LF.played(r['pts'], r['ids'], r['end'], max_zero) and r['league'] not in LF.OURS]
 
 
 def league_snapshots(L, M, weekly=False):

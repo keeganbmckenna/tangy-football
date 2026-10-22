@@ -93,6 +93,15 @@ def lineup(players, vals, slots, w, k, fa=None, bye=None):
 MAX_ZERO = 0.1
 
 
+def ours():
+    """League IDs of every season of our league (the archive): kept out of the crawled data, so
+    checks on our league stay out of sample"""
+    return {json.load(gzip.open(f, 'rt'))['league_id'] for f in glob.glob(os.path.join(ARCHIVE, '*', 'league.json.gz'))}
+
+
+OURS = ours()
+
+
 def played(pts, ids, end, max_zero=MAX_ZERO):
     return np.mean([pts[w][r] == 0 for w in range(1, end + 1) for r in ids]) <= max_zero
 
@@ -105,7 +114,7 @@ def league_rows(path, rng):
     if any(w not in M for w in range(1, end + 1)): return []
     ids = sorted(m['roster_id'] for m in M[1]); ix = {r: i for i, r in enumerate(ids)}; T = len(ids)
     pts = {w: {m['roster_id']: (m.get('points') or 0) for m in M[w]} for w in range(1, end + 1)}
-    if not played(pts, ids, end): return []
+    if not played(pts, ids, end) or L['league_id'] in OURS: return []
     games = {}
     for w in range(1, end + 1):
         by = defaultdict(list)
