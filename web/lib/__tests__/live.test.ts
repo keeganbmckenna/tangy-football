@@ -206,12 +206,13 @@ describe('live win odds', () => {
     expect(gameRemaining('in', 5, 30, 0)).toBeLessThanOrEqual(0.5 / 60);
   });
 
-  it('drops players ruled out and discounts doubtful ones before kickoff', () => {
+  it('drops players ruled out and doubtful ones, and discounts questionable ones, before kickoff', () => {
     expect(injuryAdjusted(15, 'Out', false)).toBe(0);
     expect(injuryAdjusted(15, 'IR', true)).toBe(0);
-    expect(injuryAdjusted(15, 'Doubtful', false)).toBeCloseTo(4.5);
+    expect(injuryAdjusted(15, 'Doubtful', false)).toBe(0);
     expect(injuryAdjusted(15, 'Doubtful', true)).toBe(15);
-    expect(injuryAdjusted(15, 'Questionable', false)).toBe(15);
+    expect(injuryAdjusted(15, 'Questionable', false)).toBeCloseTo(13.5);
+    expect(injuryAdjusted(15, 'Questionable', true)).toBe(15);
     expect(injuryAdjusted(15, null, false)).toBe(15);
   });
 

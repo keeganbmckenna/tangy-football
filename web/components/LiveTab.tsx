@@ -305,7 +305,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         footer={
           <span>
             Each starter still to play is expected to add his Sleeper projection for the share of his NFL game left, with a
-            chance of overtime when a game is close late. Players ruled out count for nothing and doubtful ones for less.
+            chance of overtime when a game is close late. Players ruled out or doubtful count for nothing, and questionable ones for 90% of their projection
+            until their game starts.
             How much the score could still swing depends on the time left and how boom-or-bust each starter has been this
             season. Before kickoff these odds were well calibrated on the league&apos;s 2022-2025 matchups. Projected scores are the current score plus what&apos;s still expected.
           </span>

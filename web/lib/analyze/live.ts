@@ -81,17 +81,25 @@ export function gameMatchup(g: LiveGame): { score?: string; opponent: string } |
   return g.state === 'pre' || g.score === undefined ? { opponent } : { score: `${g.score}-${g.opponentScore ?? 0}`, opponent };
 }
 
-/** Injury statuses that mean a player won't play (or play on), and how much a doubtful one is expected to play */
+/**
+ * Injury statuses that mean a player won't play (or play on), and how much of his projection a
+ * listed player is expected to score before kickoff. NFL injury reports 2022-2025
+ * (scripts/backtests/injuries.py): no player listed Doubtful played (0 of 134); Questionable
+ * players Sleeper still projected scored 0.89 of it (95% 0.84-0.94; 0.83-0.95 by season), against
+ * 0.98 for players not on the report.
+ */
 const RULED_OUT = new Set(['Out', 'IR', 'PUP', 'Sus', 'NA', 'DNR', 'COV']);
-const DOUBTFUL_SHARE = 0.3;
+const DOUBTFUL_SHARE = 0;
+const QUESTIONABLE_SHARE = 0.9;
 
 /** Whether a status means he won't play (or play on, once his game has started) */
 export const isRuledOut = (status: string | null | undefined) => !!status && RULED_OUT.has(status);
 
-/** A starter's expected points for the week given his injury status (doubtful only matters before kickoff) */
+/** A starter's expected points for the week given his injury status (doubtful and questionable only matter before kickoff) */
 export function injuryAdjusted(points: number, status: string | null, gameStarted: boolean): number {
   if (status && RULED_OUT.has(status)) return 0;
   if (status === 'Doubtful' && !gameStarted) return points * DOUBTFUL_SHARE;
+  if (status === 'Questionable' && !gameStarted) return points * QUESTIONABLE_SHARE;
   return points;
 }
 
