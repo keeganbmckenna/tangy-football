@@ -30,7 +30,13 @@ python stream_weight.py        # waiver pickups for empty/bye slots, with the pr
 python loso.py                 # leave-one-season-out check of the five parameters tuned on these seasons
 python injuries.py             # official NFL injury reports (nflverse) vs who played and what they scored
 python crawl_leagues.py        # collect other Sleeper leagues like ours (local cache, not committed)
+python crawl_leagues.py --divisions --seed-from-cache --per-season 1000   # leagues in our exact format (12 teams, 3 divisions, 6 playoff teams) -> cache/leagues_div
+python crawl_leagues.py --check-divisions  # per season: division leagues kept, and how many play our schedule exactly
+python crawl_leagues.py --transactions     # weeks 1-18 of transactions (waivers, trades, FAAB) for every cached league -> cache/transactions
+python crawl_leagues.py --histories        # earlier seasons of every cached league (previous_league_id, back to 2017) -> cache/history
+python crawl_leagues.py --summary          # files per season in each cache folder, each read back
 python leagues_fit.py          # the playoff model on those leagues
+python player_weeks.py         # every rostered player-week of those leagues: projection, points, played, injury report (--check)
 python brier_floor.py          # how low the playoff Brier can go: coin flip vs model vs perfect team strength
 python strength_model.py       # fit team strength (lineup + points so far) and its uncertainty
 python gpu_sim.py              # the same simulation on the GPU, every snapshot at once, with intervals (--check: matches the CPU)
