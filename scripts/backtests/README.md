@@ -37,6 +37,7 @@ python gpu_sim.py              # the same simulation on the GPU, every snapshot 
 python drift.py                # does team strength drift through the season? (GPU)
 python schedule_luck.py        # how much the schedule decides, and the value of knowing it (GPU)
 python rank_odds.py            # rank, wins, playoff and bye odds under our rules, scored without schedule luck (GPU)
+python headroom.py             # how much better any team-strength model could do: a ceiling for the playoff odds (GPU)
 python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
 
@@ -269,4 +270,14 @@ were made just before those games, which would leak information.
   every week (week 3: 0.214 vs 0.220 for a coin flip; week 10: 0.117 vs 0.122; week 13:
   0.067 vs 0.069). The site's model is worse than a coin flip through week 8. Without
   divisions the numbers are within 0.0003 of these.
+- **Headroom** (`headroom.py`, 12-team leagues, every week): a team's rest-of-season average
+  splits into what the fitted model explains (24% of its variance), current strength it
+  misses but could know (13%), change still to come (8%: injuries, trades) and weekly luck
+  (56%). The model captures about two thirds of the knowable part. In a simulated world
+  where the missed strength is real (fair to within 0.003 Brier: the real world is slightly
+  noisier), knowing every team's current strength would lower the pooled playoff Brier from
+  0.1368 to about 0.124. That's a gain of 0.013, against 0.0049 gained so far over a coin flip,
+  almost all of it in weeks 3-10 (0.030 at week 3, 0.007 at week 10, nothing after week 12).
+  Knowing future changes too: 0.114. So better team strength is worth pursuing, mostly for
+  early-season odds; no strength model can get far below 0.12 on these leagues.
 

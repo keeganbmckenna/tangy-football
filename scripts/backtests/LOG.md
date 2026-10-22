@@ -20,4 +20,5 @@ use. Scores are out of sample (leave one season out) unless marked. Details in `
 | 2026-10-21 | scratch | learning curve: 5-100% of training leagues | flat from ~320 leagues | no more crawling |
 | 2026-10-21 | `rank_odds.py --weekly` | every snapshot week 3 to the end (85,710 snapshots) | fitted + tau best or tied at every week; site model worse than a coin flip until week 8 | evaluation method |
 | 2026-10-21 | `rank_odds.py --weekly --rules ours` | our rules with divisions, 12-team leagues, our schedule format | fitted + tau 0.1371 vs site 0.1432 (-0.0062 [-0.0065, -0.0059], 8 of 8) vs lineup 0.3 0.1378 (-0.00075 [-0.00098, -0.00053], 7 of 8) | **M1 passes the adoption rule** |
+| 2026-10-21 | `headroom.py` | ceiling: share of the fitted model's missed strength known (rho 0-1), knowable share from the random-walk split | knowable gain 0.013 (0.1368 -> ~0.124), 2.6x the gain so far, almost all in weeks 3-10 | continue the ladder |
 
