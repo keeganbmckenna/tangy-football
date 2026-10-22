@@ -99,12 +99,12 @@ def season(P, idx, n, sims, gen, schedule, model=None):
     return hist(rank, n), hist((2 * W).round().long().clamp(0, NW - 1), NW)
 
 
-def score(F, G_, Fw, Gw, n):
+def score(F, G_, Fw, Gw, n, playoff=PLAYOFF):
     """Expected scores per model and snapshot (M, b, metric), averaged over the snapshot's teams;
     the target G_ (1, b, n, n) and Gw may be distributions (schedule-averaged) or one-hot (real)"""
     cF, cG = F.cumsum(-1), G_.cumsum(-1); wF, wG = Fw.cumsum(-1), Gw.cumsum(-1)
     b2 = lambda p, q: (p - q) ** 2 + q * (1 - q)
-    out = [b2(cF[..., PLAYOFF - 1], cG[..., PLAYOFF - 1]), b2(cF[..., BYE - 1], cG[..., BYE - 1]),
+    out = [b2(cF[..., playoff - 1], cG[..., playoff - 1]), b2(cF[..., BYE - 1], cG[..., BYE - 1]),
            b2(cF[..., :-1], cG[..., :-1]).sum(-1) / (n - 1), 0.5 * b2(wF[..., :-1], wG[..., :-1]).sum(-1)]
     return torch.stack([o.mean(-1) for o in out], -1).cpu().numpy()
 
@@ -113,6 +113,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--sims', type=int, default=4000); ap.add_argument('--target-sims', type=int, default=2000)
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--cutoff', choices=['6', 'half'], default='6', help="playoff teams: our 6 in every league, or half the league (our 6 of 12)")
     a = ap.parse_args(); t0 = time.time()
     P = G.pack(G.S.collect()); B = len(P['e'])
     off, tau = G.offsets(P); M = len(G.NAMES)
@@ -129,9 +130,11 @@ def main():
             mismatch += int((own != P['made'][ii][:, :n]).any(1).sum())
             avg_r, avg_w = season(P, ii, n, a.target_sims, gen, 'random')
             Fr, Fw = season(P, ii, n, a.sims, gen, 'random', model)
-            res['development'][:, ii] = score(Fr, avg_r, Fw, avg_w, n)
+            po = PLAYOFF if a.cutoff == '6' else n // 2
+            res['development'][:, ii] = score(Fr, avg_r, Fw, avg_w, n, po)
             Fr, Fw = season(P, ii, n, a.sims, gen, 'real', model)
-            res['final check'][:, ii] = score(Fr, real_r, Fw, real_w, n)
+            res['final check'][:, ii] = score(Fr, real_r, Fw, real_w, n, po)
+    print(f"playoff cutoff: {'top 6 in every league' if a.cutoff == '6' else 'top half of each league'}")
     print(f'{B} snapshots; real schedules reproduce the actual outcome in all but {mismatch}. '
           f'{a.sims} simulated seasons per forecast, {a.target_sims} random round robins per target, {time.time() - t0:.0f}s')
     for ev, r in res.items():
@@ -148,6 +151,12 @@ def main():
                 d = res[ev][i, :, k] - res[ev][j, :, k]; m, lo, hi = G.interval(P, d, everything); widths.append(hi - lo)
                 line += f'  {ev[:5]} {m:+.5f} [{lo:+.5f}, {hi:+.5f}] ({sum(d[P["season"] == s].mean() < 0 for s in seasons)})'
             print(line + f'  width x{widths[1] / widths[0]:.1f}')
+    print('\nby league size, final check: fitted + tau - lineup 0.3, 95% interval resampling leagues')
+    for n in sorted(set(nteams)):
+        sel = nteams == n
+        print(f'  {n} teams ({len(np.unique(P["league"][sel]))} leagues): ' + '  '.join(
+            f'{met} {r[0]:+.5f} [{r[1]:+.5f}, {r[2]:+.5f}]' for met, r in
+            ((METRICS[k], G.interval(P, res['final check'][3, :, k] - res['final check'][1, :, k], sel)) for k in range(len(METRICS)))))
 
 
 if __name__ == '__main__':
