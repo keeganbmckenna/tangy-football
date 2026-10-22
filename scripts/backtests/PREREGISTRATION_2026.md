@@ -125,4 +125,16 @@ deployed model as of each Wednesday snapshot, and `eval_2026.py` scores old agai
     season, on this frozen model.
   - P2 (single games), P3 (Live) and H1 (injury fix) are unchanged: the trade tools, single
     games and Live still use the earlier model.
+- 2026-10-22, before any week-7 game: **the trade tools and the Live tab's injury handling ship.**
+  - Trade tools: single-game win odds from a model fitted for one week's score
+    (`singleGameModel`; single_games.py: next week -0.00071 Brier, 6 of 8 seasons; 2-4 weeks
+    -0.00344, 8 of 8), and a trade's lineup change weighted by the fitted lineup weight
+    instead of 0.75 (trades.py: a trade's projected change showed up at 0.43, 95% 0.40-0.46).
+    The trade data keeps logging the earlier model's `meanByWeek` and `spread`, so **P2 is
+    scored on both**: the earlier model as specified above, and the shipped single-game model
+    (`model.games`) on the same games.
+  - Live tab: Doubtful players count 0 and Questionable 0.9 of their projection before
+    kickoff (injuries.py). **P3** (archive replay at kickoff) is unaffected: the archive's
+    injury statuses are from after the season.
+  - Past seasons' trade grades regenerated on the fitted models.
 
