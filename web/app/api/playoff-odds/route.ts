@@ -17,11 +17,14 @@ import {
 export const dynamic = 'force-dynamic';
 
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v14';
 
 async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
   const inputs = await loadOddsInputs(league);
-  const { format, teams, remaining, lastScoredWeek, regularSeasonEnd, playoffWeekStart, meanByWeek, spread, hasToiletBowl } = inputs;
+  const { format, teams, remaining, lastScoredWeek, regularSeasonEnd, playoffWeekStart, hasToiletBowl } = inputs;
+  // The fitted model (fittedStrength); the earlier one only without projections
+  const { meanByWeek, spread } = inputs.fitted ?? inputs;
+  const teamSpread = inputs.fitted?.teamSpread ?? 0;
   const { seeds, divisionWinners } = seedTeams(teams, format);
   const toilet = toiletSeeds(teams, seeds);
   const status = lastScoredWeek >= regularSeasonEnd ? 'complete' : lastScoredWeek === 0 ? 'not_started' : 'in_progress';
@@ -40,7 +43,7 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
     toiletSeeds: toilet,
     toiletBracket: hasToiletBowl ? projectedToiletBracket(toilet, playoffWeekStart) : [],
     odds: remaining.length
-      ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 20000, 2026, playoffWeekStart, hasToiletBowl)
+      ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 20000, 2026, playoffWeekStart, hasToiletBowl, teamSpread)
       : null,
     scenarios: playoffScenarios(teams, remaining, format),
     pointsRaces: pointsRaces(teams, format),

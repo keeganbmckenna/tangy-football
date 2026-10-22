@@ -8,16 +8,20 @@
  * cards. Ties on record are broken by points for, which matches every past
  * Sleeper bracket in this league.
  *
- * Simulation model (backtested on 2022-2025, scripts/backtests/form_options.py):
- * each player is worth a blend of his projection for the week and his own
- * season points per game (see playerValue); a team's expected score is the
- * league average plus 75% of how far its best lineup of those values sits
- * above or below the league's average lineup. Weekly scores are normal around
- * that with the league's pooled week-to-week spread. Team strength comes only
- * from the current roster, so trades and pickups count fully and two teams
- * that swap rosters swap strengths. Each remaining week uses that week's
- * projections, so bye weeks only count when they happen.
+ * Simulation model (fittedStrength; scripts/backtests/export_model.py, adopted under
+ * scripts/backtests/PREREGISTRATION_2026.md): each player is worth a blend of his
+ * projection for the week and his own season points per game (see playerValue). A
+ * team's expected score is the league average so far, plus a weight on how far its
+ * best lineup of those values (averaged over the remaining regular-season weeks)
+ * sits from the league's, plus a weight on how far its points per game so far sit
+ * from the league's; both weights were fitted for each week of the season on
+ * thousands of other 12-team leagues. Each simulated season also gives each team one
+ * random offset (the uncertainty that fit leaves, measured the same way), and each
+ * week normal noise with the league's pooled week-to-week spread. Out of sample this
+ * beat the earlier model (75% of the lineup gap, teamStrength) in 8 of 8 seasons.
+ * teamStrength stays for the trade tools and as the fallback without projections.
  */
+import strengthModel from './strengthModel.json';
 
 export interface OddsTeam {
   rosterId: number;
@@ -236,16 +240,11 @@ export function playerValue(projection: number, seasonPoints: number, gamesPlaye
  * holds each team's best lineup of player values (playerValue) per remaining
  * week. Weeks without lineups fall back to the team's season scoring.
  */
-export function teamStrength(
-  weeklyScores: Record<number, number[]>,
-  weeks: number[],
-  lineups: Record<number, Record<number, number>> | null
-): { meanByWeek: Record<number, Record<number, number>>; spread: number } {
+/** League scoring so far and the pooled week-to-week spread */
+function leagueLevel(weeklyScores: Record<number, number[]>): { league: number; spread: number } {
   const ids = Object.keys(weeklyScores).map(Number);
   const all = ids.flatMap((id) => weeklyScores[id]);
   const league = all.length ? all.reduce((s, v) => s + v, 0) / all.length : 100;
-
-  // Pooled within-team spread
   let sq = 0;
   let n = 0;
   for (const id of ids) {
@@ -255,7 +254,55 @@ export function teamStrength(
     s.forEach((v) => (sq += (v - m) ** 2));
     n += s.length - 1;
   }
-  const spread = n > 0 ? Math.max(Math.sqrt(sq / n), MIN_SPREAD) : DEFAULT_SPREAD;
+  return { league, spread: n > 0 ? Math.max(Math.sqrt(sq / n), MIN_SPREAD) : DEFAULT_SPREAD };
+}
+
+/** The fitted weights for a snapshot week (the first week not yet played), clamped to the weeks fitted */
+export function fittedWeights(snapshotWeek: number): { lineup: number; ppg: number; tau: number } {
+  const fitted = Object.keys(strengthModel.weeks).map(Number);
+  const week = Math.min(Math.max(snapshotWeek, Math.min(...fitted)), Math.max(...fitted));
+  return (strengthModel.weeks as Record<string, { lineup: number; ppg: number; tau: number }>)[String(week)];
+}
+
+/**
+ * The fitted model: expected score per team (the same every remaining week, playoffs
+ * included), the week-to-week spread and the persistent team spread (teamSpread, one draw
+ * per team per simulated season). regularWeeks are the remaining regular-season weeks the
+ * lineup is averaged over. Null without a lineup for every team in some regular week.
+ */
+export function fittedStrength(
+  weeklyScores: Record<number, number[]>,
+  weeks: number[],
+  regularWeeks: number[],
+  lineups: Record<number, Record<number, number>>,
+  snapshotWeek: number
+): { meanByWeek: Record<number, Record<number, number>>; spread: number; teamSpread: number } | null {
+  const ids = Object.keys(weeklyScores).map(Number);
+  const full = regularWeeks.filter((w) => lineups[w] && ids.every((id) => lineups[w][id] !== undefined));
+  if (!ids.length || !full.length) return null;
+  const { league, spread } = leagueLevel(weeklyScores);
+  const avg = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+  const lineup = new Map(ids.map((id) => [id, avg(full.map((w) => lineups[w][id]))]));
+  const ppg = new Map(ids.map((id) => [id, weeklyScores[id].length ? avg(weeklyScores[id]) : league]));
+  const lineupMean = avg([...lineup.values()]);
+  const ppgMean = avg([...ppg.values()]);
+  const c = fittedWeights(snapshotWeek);
+  const meanByWeek: Record<number, Record<number, number>> = {};
+  for (const week of weeks) {
+    meanByWeek[week] = Object.fromEntries(
+      ids.map((id) => [id, league + c.lineup * (lineup.get(id)! - lineupMean) + c.ppg * (ppg.get(id)! - ppgMean)])
+    );
+  }
+  return { meanByWeek, spread, teamSpread: c.tau };
+}
+
+export function teamStrength(
+  weeklyScores: Record<number, number[]>,
+  weeks: number[],
+  lineups: Record<number, Record<number, number>> | null
+): { meanByWeek: Record<number, Record<number, number>>; spread: number } {
+  const ids = Object.keys(weeklyScores).map(Number);
+  const { league, spread } = leagueLevel(weeklyScores);
 
   const form: Record<number, number> = {};
   for (const id of ids) {
@@ -367,7 +414,9 @@ export function simulatePlayoffOdds(
    * championship odds, and (if toiletBowl) the 6-team toilet bowl for last place.
    */
   playoffWeekStart?: number,
-  toiletBowl = true
+  toiletBowl = true,
+  /** Persistent team uncertainty: one normal offset per team per simulated season (fittedStrength) */
+  teamSpread = 0
 ): OddsResult {
   const normal = rng(seed);
   const ids = teams.map((t) => t.rosterId);
@@ -381,7 +430,8 @@ export function simulatePlayoffOdds(
     })
   );
   const meanFor = (week: number, id: number) => meanByWeek[week]?.[id] ?? avgMean.get(id)!;
-  const score = (week: number, id: number) => meanFor(week, id) + spread * normal();
+  let offset: Map<number, number> | null = null;
+  const score = (week: number, id: number) => meanFor(week, id) + (offset?.get(id) ?? 0) + spread * normal();
   const lastPlace = new Map(ids.map((id) => [id, 0]));
   const champion = new Map(ids.map((id) => [id, 0]));
   const toiletBye = new Map(ids.map((id) => [id, 0]));
@@ -408,6 +458,7 @@ export function simulatePlayoffOdds(
 
   const winTotals = new Map(ids.map((id) => [id, 0]));
   for (let s = 0; s < sims; s++) {
+    if (teamSpread > 0) offset = new Map(ids.map((id) => [id, teamSpread * normal()]));
     const sim = teams.map((t) => ({ ...t }));
     const byId = new Map(sim.map((t) => [t.rosterId, t]));
     const nextWinners: boolean[] = [];

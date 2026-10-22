@@ -5,6 +5,8 @@ import {
   bestLineupPoints,
   playerValue,
   teamStrength,
+  fittedStrength,
+  fittedWeights,
   simulatePlayoffOdds,
   statusFor,
   playoffScenarios,
@@ -16,6 +18,7 @@ import {
   type PlayoffFormat,
   type RemainingGame,
 } from '../analyze/playoffOdds';
+import fittedOdds from './fixtures/fittedOdds.json';
 
 const team = (rosterId: number, division: number, wins: number, losses: number, pointsFor = 1000): OddsTeam => ({
   rosterId, teamName: `T${rosterId}`, username: `u${rosterId}`, division, wins, losses, ties: 0, pointsFor,
@@ -124,6 +127,32 @@ describe('teamStrength', () => {
   });
 });
 
+describe('fittedStrength', () => {
+  const scores = { 1: [120, 130], 2: [80, 90] };
+  const lineups = { 3: { 1: 100, 2: 140 }, 4: { 1: 140, 2: 140 } };
+
+  it('is the league average plus the fitted weights on the lineup gap and the points-per-game gap', () => {
+    const c = fittedWeights(3);
+    const r = fittedStrength(scores, [3, 4, 15], [3, 4], lineups, 3)!;
+    // league 105; lineups average 120 (team 1) and 140 (team 2): gap -10 / +10; ppg 125 / 85: gap +20 / -20
+    expect(r.meanByWeek[3][1]).toBeCloseTo(105 - 10 * c.lineup + 20 * c.ppg);
+    expect(r.meanByWeek[3][2]).toBeCloseTo(105 + 10 * c.lineup - 20 * c.ppg);
+    // the same every week, playoff weeks included
+    expect(r.meanByWeek[15][1]).toBeCloseTo(r.meanByWeek[3][1]);
+    expect(r.spread).toBe(15);
+    expect(r.teamSpread).toBe(c.tau);
+  });
+
+  it('uses the nearest fitted week outside the weeks fitted', () => {
+    expect(fittedWeights(1)).toEqual(fittedWeights(3));
+    expect(fittedWeights(17)).toEqual(fittedWeights(14));
+  });
+
+  it('is null without a lineup for every team', () => {
+    expect(fittedStrength(scores, [3], [3], { 3: { 1: 100 } }, 3)).toBeNull();
+  });
+});
+
 describe('simulatePlayoffOdds', () => {
   const teams = [team(1, 1, 3, 1), team(2, 1, 2, 2), team(3, 1, 1, 3), team(4, 2, 3, 1), team(5, 2, 2, 2), team(6, 2, 1, 3)];
   const remaining: RemainingGame[] = [
@@ -146,6 +175,16 @@ describe('simulatePlayoffOdds', () => {
     const a = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7);
     const b = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7);
     expect(a.teams[1].playoffs).toBe(b.teams[1].playoffs);
+  });
+
+  it('leaves the odds unchanged without persistent team uncertainty, and evens them out with it', () => {
+    const plain = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7);
+    const zero = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7, undefined, true, 0);
+    expect(zero.teams[1].playoffs).toBe(plain.teams[1].playoffs);
+    const wide = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 8000, 7, undefined, true, 30);
+    const base = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 8000, 7);
+    // the favorite's odds come down when team strength is uncertain
+    expect(wide.teams[1].playoffs).toBeLessThan(base.teams[1].playoffs);
   });
 
   it('reports how this week changes the odds', () => {
@@ -352,3 +391,26 @@ describe('formatOdds', () => {
     expect(formatOdds(0.9004)).toBe('90%');
   });
 });
+
+// Two of our league's real snapshots (2025 week 8, 2024 week 5, with divisions) and the Python
+// reference's odds from 200,000 simulated seasons (scripts/backtests/export_model.py --fixture)
+describe('fitted model parity with the Python reference', () => {
+  for (const fx of fittedOdds) {
+    it(`matches ${fx.season} week ${fx.snapshotWeek} within simulation error`, () => {
+      expect(fittedWeights(fx.snapshotWeek)).toEqual(fx.model);
+      const weeks = Array.from({ length: fx.regularSeasonEnd - fx.snapshotWeek + 1 }, (_, i) => fx.snapshotWeek + i);
+      const lineups = fx.lineups as unknown as Record<number, Record<number, number>>;
+      const r = fittedStrength(fx.weeklyScores as unknown as Record<number, number[]>, weeks, weeks, lineups, fx.snapshotWeek)!;
+      expect(r.spread).toBeCloseTo(fx.spread, 6);
+      const teams: OddsTeam[] = fx.teams.map((t) => ({ ...t, teamName: '', username: '' }));
+      const { teams: odds } = simulatePlayoffOdds(teams, fx.remaining, fx.format, r.meanByWeek, r.spread, 20000, 1, undefined, true, r.teamSpread);
+      const ref = fx.reference as Record<string, { playoffs: number; bye: number }>;
+      for (const t of fx.teams) {
+        // 20,000 seasons: sd at most 0.0035 per probability; 0.015 is over 4 sd
+        expect(Math.abs(odds[t.rosterId].playoffs - ref[t.rosterId].playoffs)).toBeLessThan(0.015);
+        expect(Math.abs(odds[t.rosterId].bye - ref[t.rosterId].bye)).toBeLessThan(0.015);
+      }
+    });
+  }
+});
+

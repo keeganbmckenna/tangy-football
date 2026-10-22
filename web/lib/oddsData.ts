@@ -10,6 +10,7 @@ import {
   bestLineupPoints,
   playerValue,
   teamStrength,
+  fittedStrength,
   type OddsTeam,
   type PlayoffFormat,
   type RemainingGame,
@@ -182,8 +183,11 @@ export interface OddsInputs {
   /** week -> every player's value (projection blended with season production) */
   values: Record<number, Record<string, { position: string; points: number }>>;
   production: SeasonProduction;
+  /** The earlier model (teamStrength): the trade tools and the logged single-game odds use it */
   meanByWeek: Record<number, Record<number, number>>;
   spread: number;
+  /** The fitted model for the playoff odds (fittedStrength); null without projections for the remaining weeks */
+  fitted: { meanByWeek: Record<number, Record<number, number>>; spread: number; teamSpread: number } | null;
   hasToiletBowl: boolean;
 }
 
@@ -312,6 +316,7 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
   }
   const projectionWeeks = Object.keys(lineups).map(Number);
   const { meanByWeek, spread } = teamStrength(weeklyScores, strengthWeeks, projectionWeeks.length ? lineups : null);
+  const fitted = fittedStrength(weeklyScores, strengthWeeks, remainingWeeks, lineups, lastScoredWeek + 1);
 
   // Sleeper only creates this season's losers bracket when the playoffs start,
   // so go by last season's league too
@@ -336,6 +341,7 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     production,
     meanByWeek,
     spread,
+    fitted,
     hasToiletBowl,
   };
 }

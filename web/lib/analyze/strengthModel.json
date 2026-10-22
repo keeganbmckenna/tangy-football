@@ -1,0 +1,67 @@
+{
+  "model": "fitted lineup + points per game, with persistent team uncertainty (scripts/backtests/export_model.py)",
+  "fittedOn": "4486 crawled 12-team league-seasons, 2018-2025",
+  "exported": "2026-10-22",
+  "weeks": {
+    "3": {
+      "lineup": 0.4065,
+      "ppg": 0.0813,
+      "tau": 8.67
+    },
+    "4": {
+      "lineup": 0.3732,
+      "ppg": 0.1423,
+      "tau": 8.83
+    },
+    "5": {
+      "lineup": 0.3282,
+      "ppg": 0.2258,
+      "tau": 8.746
+    },
+    "6": {
+      "lineup": 0.317,
+      "ppg": 0.2868,
+      "tau": 8.34
+    },
+    "7": {
+      "lineup": 0.2763,
+      "ppg": 0.3957,
+      "tau": 8.443
+    },
+    "8": {
+      "lineup": 0.3203,
+      "ppg": 0.4121,
+      "tau": 8.06
+    },
+    "9": {
+      "lineup": 0.382,
+      "ppg": 0.4102,
+      "tau": 7.617
+    },
+    "10": {
+      "lineup": 0.3815,
+      "ppg": 0.4823,
+      "tau": 7.353
+    },
+    "11": {
+      "lineup": 0.4234,
+      "ppg": 0.4942,
+      "tau": 6.84
+    },
+    "12": {
+      "lineup": 0.4903,
+      "ppg": 0.4779,
+      "tau": 5.245
+    },
+    "13": {
+      "lineup": 0.5161,
+      "ppg": 0.4147,
+      "tau": 2.066
+    },
+    "14": {
+      "lineup": 0.8385,
+      "ppg": 0.279,
+      "tau": 0.0
+    }
+  }
+}
