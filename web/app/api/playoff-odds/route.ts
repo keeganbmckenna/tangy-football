@@ -45,6 +45,14 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
     odds: remaining.length
       ? simulatePlayoffOdds(teams, remaining, format, meanByWeek, spread, 20000, 2026, playoffWeekStart, hasToiletBowl, teamSpread)
       : null,
+    previousModel:
+      remaining.length && inputs.fitted
+        ? Object.fromEntries(
+            Object.values(
+              simulatePlayoffOdds(teams, remaining, format, inputs.meanByWeek, inputs.spread, 20000, 2026, playoffWeekStart, hasToiletBowl).teams
+            ).map((o) => [o.rosterId, { playoffs: o.playoffs, bye: o.bye, champion: o.champion }])
+          )
+        : null,
     scenarios: playoffScenarios(teams, remaining, format),
     pointsRaces: pointsRaces(teams, format),
     remainingWeeks: inputs.remainingWeeks.length,

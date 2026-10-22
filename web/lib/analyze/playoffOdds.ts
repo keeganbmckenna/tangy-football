@@ -837,6 +837,11 @@ export interface PlayoffOddsResponse {
   divisionWinners: number[];
   bracket: ProjectedBracketGame[];
   odds: OddsResult | null;
+  /**
+   * The earlier model's odds (teamStrength, lineup weight 0.75), logged next to the fitted
+   * model's for the 2026 head-to-head (scripts/backtests/PREREGISTRATION_2026.md); not shown
+   */
+  previousModel: Record<number, { playoffs: number; bye: number; champion: number | null }> | null;
   scenarios: Record<number, TeamScenarios>;
   pointsRaces: Record<number, PointsRace[]>;
   remainingWeeks: number;

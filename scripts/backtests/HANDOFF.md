@@ -6,7 +6,10 @@ Read this first when picking the model work up on another machine.
 
 - **Branch:** `claude/draft-page-week-data-eult1a` has everything below; `main` is the deployed
   site (Vercel, root directory `web/`). Push to main only when the owner says so.
-- **Site model (deployed, frozen for 2026 per `PREREGISTRATION_2026.md`):** playoff odds
+- **Site model (shipped 2026-10-22):** the playoff odds use the fitted model
+  (`fittedStrength`, `strengthModel.json` from `export_model.py`); the earlier model below is
+  logged next to it (`previousModel`) for the 2026 head-to-head and still drives the trade
+  tools, single games and Live. **Earlier model:** playoff odds
   from player values (half Sleeper projection, half season points per game padded with 3
   games of projection), team expected score = league average + 0.75 x (best lineup - league
   average lineup), weekly noise only, holes (byes/injuries with no backup) score 0. Injury
@@ -49,7 +52,8 @@ Read this first when picking the model work up on another machine.
 
 1. Ship the fitted strength model + measured uncertainty, and the Doubtful (0) /
    Questionable (0.9) fixes, logging the change in `PREREGISTRATION_2026.md` and scoring old
-   vs new on 2026 at season end. Not yet approved.
+   vs new on 2026 at season end. **Shipped 2026-10-22** (the fitted model; the injury-report
+   fixes not yet).
 2. The trade tools use the same 0.75 weight on a trade's lineup change; test trades at
    scale (crawl the leagues' transactions) before changing it.
 

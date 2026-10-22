@@ -110,3 +110,19 @@ deployed model as of each Wednesday snapshot, and `eval_2026.py` scores old agai
 - 2026-10-20: snapshots before kickoffs also save Sleeper's full projection file (every player's
   injury status at the time), for future injury backtests. Data collection only; no analysis
   above changes.
+- 2026-10-22, before any week-7 game: **the fitted model ships and becomes the model under
+  test.** The site's playoff odds now use `fittedStrength` (web/lib/analyze/playoffOdds.ts:
+  lineup and points-per-game weights and a persistent team spread per snapshot week, fitted
+  on 2018-2025 crawled 12-team leagues by scripts/backtests/export_model.py; no 2026 data
+  used), adopted under the addendum's rule (rank_odds.py --weekly --rules ours: -0.0062 vs the
+  earlier model, 8 of 8 seasons). Frozen as of the commit that adds this entry.
+  - **P1 becomes a head-to-head.** Every playoff-odds snapshot from deploy on logs both
+    models: `odds` (fitted) and `previousModel` (the earlier model above, unchanged). Scored
+    on weeks 7-14: playoff Brier of each and the difference, with an interval resampling
+    teams. Snapshots before deploy have the earlier model only and are scored as before.
+    Twelve teams over eight weeks is weak evidence; no decision rests on it alone.
+  - **The confirmatory test** is the addendum's one-shot crawl of 2026 leagues after the
+    season, on this frozen model.
+  - P2 (single games), P3 (Live) and H1 (injury fix) are unchanged: the trade tools, single
+    games and Live still use the earlier model.
+
