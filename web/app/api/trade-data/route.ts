@@ -3,12 +3,12 @@ import { unstable_cache } from 'next/cache';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague } from '@/lib/types';
 import { fetchJson, loadOddsInputs, teamsPlaying } from '@/lib/oddsData';
-import type { TradeDataResponse, TradeInputs, TradePlayerInfo } from '@/lib/analyze/trade';
+import { earlierTradeModel, type TradeDataResponse, type TradeInputs, type TradePlayerInfo } from '@/lib/analyze/trade';
 
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current';
 /** Free agents per position offered as pickups for roster spots a trade opens */
 const FREE_AGENTS_PER_POSITION = 15;
@@ -122,6 +122,13 @@ async function build(league: SleeperLeague): Promise<TradeDataResponse> {
     remaining: odds.remaining,
     meanByWeek: odds.meanByWeek,
     spread: odds.spread,
+    model:
+      odds.fitted && odds.games
+        ? {
+            season: { meanByWeek: odds.fitted.meanByWeek, spread: odds.fitted.spread, teamSpread: odds.fitted.teamSpread, lineupWeight: odds.fitted.lineupWeight },
+            games: odds.games,
+          }
+        : earlierTradeModel(odds.meanByWeek, odds.spread, odds.lastScoredWeek, odds.remainingWeeks),
     inputs: {
       weeks,
       projections,

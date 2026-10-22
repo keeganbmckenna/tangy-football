@@ -7,6 +7,8 @@ import {
   teamStrength,
   fittedStrength,
   fittedWeights,
+  singleGameModel,
+  singleGameWeights,
   simulatePlayoffOdds,
   statusFor,
   playoffScenarios,
@@ -150,6 +152,28 @@ describe('fittedStrength', () => {
 
   it('is null without a lineup for every team', () => {
     expect(fittedStrength(scores, [3], [3], { 3: { 1: 100 } }, 3)).toBeNull();
+  });
+});
+
+describe('singleGameModel', () => {
+  const scores = { 1: [120, 130], 2: [80, 90] };
+  const lineups = { 3: { 1: 100, 2: 140 }, 4: { 1: 140, 2: 140 } };
+
+  it("is each week's single-game lineup weight on that week's lineup gap plus the points-per-game weight", () => {
+    const g = singleGameModel(scores, [3, 4], lineups, 2)!;
+    const next = singleGameWeights(3, 1);
+    const later = singleGameWeights(3, 2);
+    // week 3 (next week): lineups 100 / 140 -> gaps -20 / +20; ppg 125 / 85 -> +20 / -20
+    expect(g.meanByWeek[3][1]).toBeCloseTo(-20 * next.lineup + 20 * next.ppg);
+    expect(g.meanByWeek[4][1]).toBeCloseTo(20 * later.ppg); // equal lineups in week 4
+    expect(g.spreadByWeek[3]).toBe(next.sd);
+    expect(g.lineupWeightByWeek[4]).toBe(later.lineup);
+    // next week's lineup counts more than a later week's
+    expect(next.lineup).toBeGreaterThan(later.lineup);
+  });
+
+  it('is null without a lineup for every team', () => {
+    expect(singleGameModel(scores, [3], { 3: { 1: 100 } }, 2)).toBeNull();
   });
 });
 

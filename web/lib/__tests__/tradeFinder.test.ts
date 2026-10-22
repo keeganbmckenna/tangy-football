@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bestLineupPoints, teamStrength } from '../analyze/playoffOdds';
-import type { TradeDataResponse } from '../analyze/trade';
+import { earlierTradeModel, type TradeDataResponse } from '../analyze/trade';
 import { findTrades, marketFair, packageValue } from '../analyze/tradeFinder';
 
 // Lineup: QB, RB, WR and two bench spots. Team 1 has two good QBs and a weak RB;
@@ -45,6 +45,7 @@ function league(values: Partial<Record<string, number | null>> = {}): TradeDataR
     ],
     meanByWeek,
     spread: 20,
+    model: earlierTradeModel(meanByWeek, 20, 6, [7, 8]),
     inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: [], rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
     players: Object.fromEntries(Object.entries(PLAYERS).map(([id, [pos, pts, value]]) => [
       id,

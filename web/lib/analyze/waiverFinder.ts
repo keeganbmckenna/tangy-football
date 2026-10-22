@@ -16,6 +16,7 @@ import {
   expectedWins,
   lineupByWeek,
   meansAfterTrade,
+  type TradeModel,
   rosterAfterTrade,
   weeklyWinProbability,
   type TradeDataResponse,
@@ -80,29 +81,29 @@ export function findPickups(
   const target = options.target;
   const game = typeof target === 'number' ? data.remaining.find((g) => g.week === target && (g.a === me || g.b === me)) : undefined;
   const opponent = game ? (game.a === me ? game.b : game.a) : null;
-  const winOdds = (means: Record<number, Record<number, number>>) =>
+  const winOdds = (m: TradeModel) =>
     game && opponent !== null
-      ? weeklyWinProbability(means[game.week]?.[me] ?? 0, means[game.week]?.[opponent] ?? 0, data.spread, game.week - inputs.lastScoredWeek)
+      ? weeklyWinProbability(m.games.meanByWeek[game.week]?.[me] ?? 0, m.games.meanByWeek[game.week]?.[opponent] ?? 0, m.games.spreadByWeek[game.week] ?? 25)
       : 0;
 
-  const baseWins = expectedWins(me, data.remaining, data.meanByWeek, data.spread);
-  const baseWeekWin = winOdds(data.meanByWeek);
+  const baseWins = expectedWins(me, data.remaining, data.model);
+  const baseWeekWin = winOdds(data.model);
   const baseLineup = lineupByWeek(inputs, inputs.rosters[me] ?? []);
 
-  const scored: Array<{ add: string; drop: string[]; means: Record<number, Record<number, number>>; score: number; lineup: [number, number]; weekLineup: [number, number]; weekWin: number }> = [];
+  const scored: Array<{ add: string; drop: string[]; means: TradeModel; score: number; lineup: [number, number]; weekLineup: [number, number]; weekWin: number }> = [];
   inputs.freeAgents.forEach((fa, i) => {
     const change = rosterAfterTrade(inputs, { rosterId: me, sends: [], receives: [fa] });
     // Picking someone up only to drop him isn't a move
     if (change.dropped.includes(fa)) return;
-    const { meanByWeek } = meansAfterTrade(data.meanByWeek, inputs, [change]);
+    const { model } = meansAfterTrade(data.model, inputs, [change]);
     const after = lineupByWeek(inputs, change.after);
-    const weekWin = winOdds(meanByWeek);
-    const score = typeof target === 'number' ? weekWin - baseWeekWin : expectedWins(me, data.remaining, meanByWeek, data.spread) - baseWins;
+    const weekWin = winOdds(model);
+    const score = typeof target === 'number' ? weekWin - baseWeekWin : expectedWins(me, data.remaining, model) - baseWins;
     if (score > 1e-6) {
       scored.push({
         add: fa,
         drop: change.dropped,
-        means: meanByWeek,
+        means: model,
         score,
         lineup: [avg(baseLineup), avg(after)],
         weekLineup: typeof target === 'number' ? [baseLineup[target] ?? 0, after[target] ?? 0] : [0, 0],
@@ -122,9 +123,9 @@ export function findPickups(
       return n < PER_POSITION;
     })
     .slice(0, FINALISTS);
-  const simulate = (means: Record<number, Record<number, number>>) =>
-    simulatePlayoffOdds(data.teams, data.remaining, data.format, means, data.spread, sims, seed, data.playoffWeekStart, data.hasToiletBowl);
-  const base = simulate(data.meanByWeek);
+  const simulate = (m: TradeModel) =>
+    simulatePlayoffOdds(data.teams, data.remaining, data.format, m.season.meanByWeek, m.season.spread, sims, seed, data.playoffWeekStart, data.hasToiletBowl, m.season.teamSpread);
+  const base = simulate(data.model);
   const results = finalists.map((c, i) => {
     const after = simulate(c.means);
     onProgress({ stage: 'simulating', done: i + 1, total: finalists.length });

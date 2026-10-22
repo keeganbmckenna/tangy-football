@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bestLineupPoints, teamStrength } from '../analyze/playoffOdds';
-import type { TradeDataResponse } from '../analyze/trade';
+import { earlierTradeModel, type TradeDataResponse } from '../analyze/trade';
 import { findPickups } from '../analyze/waiverFinder';
 
 // Lineup: QB, RB, WR and two bench spots. Team 1's WR is on bye in week 8.
@@ -43,6 +43,7 @@ function league(): TradeDataResponse {
     remaining: WEEKS.map((w) => ({ week: w, a: 1, b: 2 })),
     meanByWeek,
     spread: 20,
+    model: earlierTradeModel(meanByWeek, 20, 6, [7, 8]),
     inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: ['faWR', 'faWR2', 'faQB'], rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
     players: Object.fromEntries(
       Object.entries(PROJ).map(([id, [pos]]) => [

@@ -27,11 +27,15 @@ import {
   playerValue,
   seedTeams,
   teamStrength,
+  fittedStrength,
+  singleGameModel,
   type OddsTeam,
   type RemainingGame,
 } from '@/lib/analyze/playoffOdds';
 import {
   meansAfterTrade,
+  earlierTradeModel,
+  type TradeModel,
   parseTrades,
   starterPoints,
   tradeSeasonOdds,
@@ -238,7 +242,15 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
           rosters.map((r) => [r.roster_id, bestLineupPoints(beforeRosters.get(r.roster_id) ?? [], projByWeek[w], rosterPositions)])
         );
       }
-      const { meanByWeek, spread } = teamStrength(weeklyScores, strengthWeeks, lineups);
+      const regularWeeks = strengthWeeks.filter((w) => w <= regularSeasonEnd);
+      // The models as of that week: fitted (season odds) and single-game, the earlier one without projections
+      const earlier = teamStrength(weeklyScores, strengthWeeks, lineups);
+      const fitted = fittedStrength(weeklyScores, strengthWeeks, regularWeeks, lineups, w0);
+      const games = singleGameModel(weeklyScores, regularWeeks, lineups, w0 - 1);
+      const model: TradeModel =
+        fitted && games
+          ? { season: { meanByWeek: fitted.meanByWeek, spread: fitted.spread, teamSpread: fitted.teamSpread, lineupWeight: fitted.lineupWeight }, games }
+          : earlierTradeModel(earlier.meanByWeek, earlier.spread, w0 - 1, regularWeeks);
 
       const involved = trade.sides.flatMap((s) => [...(beforeRosters.get(s.rosterId) ?? []), ...(afterRosters.get(s.rosterId) ?? [])]);
       const inputs: TradeInputs = {
@@ -257,9 +269,8 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
         dropped: [],
         added: [],
       }));
-      const traded = meansAfterTrade(meanByWeek, inputs, changes);
-      const odds = tradeSeasonOdds(teams, remaining, format, meanByWeek, traded.meanByWeek, spread, playoffWeekStart, hasToiletBowl, HISTORY_SIMS);
-      const regularWeeks = strengthWeeks.filter((w) => w <= regularSeasonEnd);
+      const traded = meansAfterTrade(model, inputs, changes);
+      const odds = tradeSeasonOdds(teams, remaining, format, model, traded.model, playoffWeekStart, hasToiletBowl, HISTORY_SIMS);
       atTime = new Map(
         trade.sides.map((s) => {
           const b = odds.before.teams[s.rosterId];

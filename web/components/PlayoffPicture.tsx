@@ -349,13 +349,15 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           gradientType="info"
           footer={
             <span>
-              Each simulated week, a team scores around the strength of its current roster: each player is worth half his
-              projection for that week (so byes count) and half his points per game this season, and the team&apos;s best
-              lineup of those values sets its expected score, with this season&apos;s week-to-week spread. Backtested on every
-              team at every week of 2022–2025, the odds were well calibrated: teams given 50–75% made it 61% of the time,
-              teams given 75–95% made it 87% of the time, and no team under 2% made it. Playoff bye odds were
-              overconfident in testing, so treat them as rougher. The win/loss column shows the selected odds after a win or a loss
-              this week.
+              Each simulated week, a team scores around its expected strength: the league&apos;s average so far, plus a
+              weight on how far its best projected lineup sits from the league&apos;s (each player worth half his projection for
+              that week and half his points per game this season) and a weight on how far its points per game sit from the
+              league&apos;s. Both weights were fitted for each week of the season on 4,486 other 12-team leagues (2018–2025).
+              Each simulated season also shifts each team by a random amount for how far off that estimate could be, held all
+              season, on top of this season&apos;s week-to-week spread. Tested on those leagues, the odds were well calibrated
+              (teams given 30% made the playoffs 31% of the time, 50% made it 50%, 88% made it 87%) and beat the earlier model
+              at every week of the season. Bye and title odds are rougher: a single game swings them. The win/loss column shows
+              the selected odds after a win or a loss this week.
               {hasTitle && (
                 <> Title odds play out the playoff bracket (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}, higher score
                   advances) with the same model.</>

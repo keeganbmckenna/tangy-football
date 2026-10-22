@@ -2,27 +2,27 @@
  * Trade analysis: what a trade does to both teams' weekly and season outlook,
  * and grades for past trades.
  *
- * Built on the playoff-odds model (playoffOdds.ts), where team strength comes
- * only from the current roster: each player is worth a blend of his projection
- * and his season production, and a team's expected score moves with 75% of its
- * best lineup of those values. A trade changes the rosters, so each team's
- * expected score moves by 75% of its lineup change, exactly like any other
- * roster: swap two whole teams and each becomes the other (records already
- * banked stay put). Backtested on every 2022-2025 trade
- * (scripts/backtests/trade_season.py, form_options.py), this predicted the
- * trading teams' playoff odds better than ignoring trades, giving trades less
- * credit, or keeping season scoring with the team.
- *
- * Single-game win odds more than a week out were overconfident, so the weekly
- * win odds use a spread fitted out of sample: 0.8x the league's week-to-week
- * spread next week, 2x after. The season odds keep the playoff model's spread,
- * which backtested as well calibrated.
+ * Built on the playoff-odds models (playoffOdds.ts), where team strength comes
+ * from the current roster's projected lineup and the team's points per game so
+ * far. A trade changes the rosters, so each team's expected score moves by the
+ * model's weight on its lineup change, like any other roster change:
+ * - Season odds (fittedStrength): the trade's change in the lineup averaged over
+ *   the remaining weeks, times the fitted lineup weight for this week of the
+ *   season (about 0.3-0.5). On 28,899 teams in trades in other leagues
+ *   (scripts/backtests/trades.py) a trade's projected change showed up at 0.43
+ *   (95% 0.40-0.46), in line with that weight; the earlier 0.75 overstated trades.
+ * - Weekly win odds (singleGameModel): that week's lineup change times the
+ *   single-game lineup weight (about 0.8 next week, about 0.3 later), with that
+ *   week's spread; it beat the earlier weekly odds out of sample (single_games.py).
+ * The earlier model (75% of the lineup change, 0.8x / 2x spreads) stays as the
+ * fallback when there are no projections (earlierTradeModel).
  */
 
 import {
   bestLineup,
   PROJECTION_WEIGHT,
   simulatePlayoffOdds,
+  type GameModel,
   type OddsResult,
   type OddsTeam,
   type PlayoffFormat,
@@ -140,31 +140,59 @@ export function rosterAfterTrade(inputs: TradeInputs, move: TradeMove, unavailab
 // ---------------------------------------------------------------------------
 // Trade effect
 
+type Means = Record<number, Record<number, number>>;
+
+/** What the trade tools need from the odds models (the trade-data route builds it) */
+export interface TradeModel {
+  /** Season simulation: expected score per week, week-to-week spread, persistent team spread, weight on a trade's average lineup change */
+  season: { meanByWeek: Means; spread: number; teamSpread: number; lineupWeight: number };
+  /** Single games: expected margin per week, spread per week, weight on that week's lineup change */
+  games: GameModel;
+}
+
+/** The earlier trade model (75% of each week's lineup change, 0.8x / 2x spreads), for when there are no projections */
+export function earlierTradeModel(meanByWeek: Means, spread: number, lastScoredWeek: number, regularWeeks: number[]): TradeModel {
+  const weeks = regularWeeks.filter((w) => meanByWeek[w]);
+  return {
+    season: { meanByWeek, spread, teamSpread: 0, lineupWeight: PROJECTION_WEIGHT },
+    games: {
+      meanByWeek: Object.fromEntries(weeks.map((w) => [w, meanByWeek[w]])),
+      spreadByWeek: Object.fromEntries(weeks.map((w) => [w, winOddsSpreadScale(w - lastScoredWeek) * spread])),
+      lineupWeightByWeek: Object.fromEntries(weeks.map((w) => [w, PROJECTION_WEIGHT])),
+    },
+  };
+}
+
 /**
- * Expected scores after a trade: each changed team's expected score moves by
- * the playoff model's projection weight times its projected lineup change.
+ * The models after a trade: in the season model each changed team's expected score moves by the
+ * lineup weight times its lineup change averaged over the remaining regular-season weeks (the
+ * weeks the single-game model covers), in every week; in the single-game model by that week's
+ * weight times that week's change.
  */
 export function meansAfterTrade(
-  meanByWeek: Record<number, Record<number, number>>,
+  model: TradeModel,
   inputs: TradeInputs,
   changes: RosterChange[]
-): { meanByWeek: Record<number, Record<number, number>>; lineupDelta: Record<number, Record<number, number>> } {
-  const after: Record<number, Record<number, number>> = {};
-  for (const [w, means] of Object.entries(meanByWeek)) after[Number(w)] = { ...means };
+): { model: TradeModel; lineupDelta: Record<number, Record<number, number>> } {
+  const copy = (m: Means): Means => Object.fromEntries(Object.entries(m).map(([w, v]) => [Number(w), { ...v }]));
+  const season = copy(model.season.meanByWeek);
+  const games = copy(model.games.meanByWeek);
+  const regular = Object.keys(games).map(Number);
   const lineupDelta: Record<number, Record<number, number>> = {};
   for (const c of changes) {
     const was = lineupByWeek(inputs, c.before);
     const now = lineupByWeek(inputs, c.after);
-    lineupDelta[c.rosterId] = {};
-    for (const w of inputs.weeks) {
-      const delta = now[w] - was[w];
-      lineupDelta[c.rosterId][w] = delta;
-      if (after[w]?.[c.rosterId] !== undefined) {
-        after[w][c.rosterId] += PROJECTION_WEIGHT * delta;
-      }
+    lineupDelta[c.rosterId] = Object.fromEntries(inputs.weeks.map((w) => [w, now[w] - was[w]]));
+    const seasonWeeks = regular.filter((w) => w in lineupDelta[c.rosterId]);
+    const avg = seasonWeeks.length ? seasonWeeks.reduce((s, w) => s + lineupDelta[c.rosterId][w], 0) / seasonWeeks.length : 0;
+    for (const w of Object.keys(season).map(Number)) {
+      if (season[w][c.rosterId] !== undefined) season[w][c.rosterId] += model.season.lineupWeight * avg;
+    }
+    for (const w of regular) {
+      if (games[w][c.rosterId] !== undefined) games[w][c.rosterId] += model.games.lineupWeightByWeek[w] * (lineupDelta[c.rosterId][w] ?? 0);
     }
   }
-  return { meanByWeek: after, lineupDelta };
+  return { model: { season: { ...model.season, meanByWeek: season }, games: { ...model.games, meanByWeek: games } }, lineupDelta };
 }
 
 // ---------------------------------------------------------------------------
@@ -178,30 +206,23 @@ export function normalCdf(z: number): number {
   return z >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
 }
 
-/** Spread multiplier for one game's win odds, by weeks ahead (fitted out of sample) */
+/** The earlier model's spread multiplier for one game's win odds, by weeks ahead (earlierTradeModel) */
 export const winOddsSpreadScale = (weeksAhead: number) => (weeksAhead <= 1 ? 0.8 : 2);
 
-/** Chance a team with this expected score beats one with oppMean */
-export function weeklyWinProbability(mean: number, oppMean: number, spread: number, weeksAhead: number): number {
-  return normalCdf((mean - oppMean) / (winOddsSpreadScale(weeksAhead) * spread * Math.SQRT2));
+/** Chance a team with this expected score (or margin) beats one with oppMean, at that week's spread */
+export function weeklyWinProbability(mean: number, oppMean: number, spread: number): number {
+  return normalCdf((mean - oppMean) / (spread * Math.SQRT2));
 }
 
-/**
- * Expected wins over a team's remaining games: the sum of its single-game win
- * odds at the playoff model's spread (what the season simulation averages to).
- */
-export function expectedWins(
-  rosterId: number,
-  remaining: RemainingGame[],
-  meanByWeek: Record<number, Record<number, number>>,
-  spread: number
-): number {
+/** One remaining game's win odds for a team under the single-game model */
+const gameWinProbability = (games: GameModel, week: number, rosterId: number, opponent: number) =>
+  weeklyWinProbability(games.meanByWeek[week]?.[rosterId] ?? 0, games.meanByWeek[week]?.[opponent] ?? 0, games.spreadByWeek[week] ?? 25);
+
+/** Expected wins over a team's remaining games: the sum of its single-game win odds */
+export function expectedWins(rosterId: number, remaining: RemainingGame[], model: TradeModel): number {
   return remaining
     .filter((g) => g.a === rosterId || g.b === rosterId)
-    .reduce((s, g) => {
-      const opp = g.a === rosterId ? g.b : g.a;
-      return s + normalCdf(((meanByWeek[g.week]?.[rosterId] ?? 0) - (meanByWeek[g.week]?.[opp] ?? 0)) / (spread * Math.SQRT2));
-    }, 0);
+    .reduce((s, g) => s + gameWinProbability(model.games, g.week, rosterId, g.a === rosterId ? g.b : g.a), 0);
 }
 
 export interface WeekOutlook {
@@ -211,21 +232,13 @@ export interface WeekOutlook {
 }
 
 /** A team's win odds in each remaining regular-season game */
-export function weeklyOutlook(
-  rosterId: number,
-  remaining: RemainingGame[],
-  meanByWeek: Record<number, Record<number, number>>,
-  spread: number,
-  lastScoredWeek: number
-): WeekOutlook[] {
+export function weeklyOutlook(rosterId: number, remaining: RemainingGame[], model: TradeModel): WeekOutlook[] {
   return remaining
     .filter((g) => g.a === rosterId || g.b === rosterId)
     .sort((x, y) => x.week - y.week)
     .map((g) => {
       const opponent = g.a === rosterId ? g.b : g.a;
-      const mean = meanByWeek[g.week]?.[rosterId] ?? 0;
-      const oppMean = meanByWeek[g.week]?.[opponent] ?? 0;
-      return { week: g.week, opponent, winProbability: weeklyWinProbability(mean, oppMean, spread, g.week - lastScoredWeek) };
+      return { week: g.week, opponent, winProbability: gameWinProbability(model.games, g.week, rosterId, opponent) };
     });
 }
 
@@ -245,18 +258,16 @@ export function tradeSeasonOdds(
   teams: OddsTeam[],
   remaining: RemainingGame[],
   format: PlayoffFormat,
-  before: Record<number, Record<number, number>>,
-  after: Record<number, Record<number, number>>,
-  spread: number,
+  before: TradeModel,
+  after: TradeModel,
   playoffWeekStart: number,
   toiletBowl: boolean,
   sims = 20000,
   seed = 2026
 ): TradeOdds {
-  return {
-    before: simulatePlayoffOdds(teams, remaining, format, before, spread, sims, seed, playoffWeekStart, toiletBowl),
-    after: simulatePlayoffOdds(teams, remaining, format, after, spread, sims, seed, playoffWeekStart, toiletBowl),
-  };
+  const run = (m: TradeModel) =>
+    simulatePlayoffOdds(teams, remaining, format, m.season.meanByWeek, m.season.spread, sims, seed, playoffWeekStart, toiletBowl, m.season.teamSpread);
+  return { before: run(before), after: run(after) };
 }
 
 // ---------------------------------------------------------------------------
@@ -359,8 +370,11 @@ export interface TradeDataResponse {
   hasToiletBowl: boolean;
   teams: OddsTeam[];
   remaining: RemainingGame[];
+  /** The earlier model's expected scores and spread, logged for the 2026 evaluation (single games, P2) */
   meanByWeek: Record<number, Record<number, number>>;
   spread: number;
+  /** What the tools use */
+  model: TradeModel;
   inputs: TradeInputs;
   players: Record<string, TradePlayerInfo>;
   /** FantasyCalc values loaded */

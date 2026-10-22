@@ -26,6 +26,7 @@ import { bestLineup, simulatePlayoffOdds, type OddsResult } from './playoffOdds'
 import {
   expectedWins as expectedWinsFor,
   meansAfterTrade,
+  type TradeModel,
   rosterAfterTrade,
   type TradeDataResponse,
 } from './trade';
@@ -199,8 +200,7 @@ export function findTrades(
       return true;
     })
     .slice(0, SHORTLIST);
-  const expectedWins = (id: number, means: Record<number, Record<number, number>>) =>
-    expectedWinsFor(id, data.remaining, means, data.spread);
+  const expectedWins = (id: number, m: TradeModel) => expectedWinsFor(id, data.remaining, m);
   const avgLineup = (players: string[]) => {
     const byWeek = regular.map((w) => {
       const week = Object.fromEntries(
@@ -210,10 +210,10 @@ export function findTrades(
     });
     return byWeek.reduce((s, v) => s + v, 0) / Math.max(byWeek.length, 1);
   };
-  const baseWins = Object.fromEntries(data.teams.map((t) => [t.rosterId, expectedWins(t.rosterId, data.meanByWeek)]));
+  const baseWins = Object.fromEntries(data.teams.map((t) => [t.rosterId, expectedWins(t.rosterId, data.model)]));
 
   type Rescored = Screened & {
-    means: Record<number, Record<number, number>>;
+    means: TradeModel;
     winGain: number;
     lineup: FoundTrade['lineup'];
     moves: FoundTrade['moves'];
@@ -222,15 +222,15 @@ export function findTrades(
   shortlist.forEach((c, i) => {
     const mine = rosterAfterTrade(inputs, { rosterId: me, sends: c.gives, receives: c.gets });
     const theirs = rosterAfterTrade(inputs, { rosterId: c.partner, sends: c.gets, receives: c.gives }, mine.added);
-    const { meanByWeek } = meansAfterTrade(data.meanByWeek, inputs, [mine, theirs]);
-    const winGain = expectedWins(me, meanByWeek) - baseWins[me];
-    const partnerWinGain = expectedWins(c.partner, meanByWeek) - baseWins[c.partner];
+    const { model } = meansAfterTrade(data.model, inputs, [mine, theirs]);
+    const winGain = expectedWins(me, model) - baseWins[me];
+    const partnerWinGain = expectedWins(c.partner, model) - baseWins[c.partner];
     const lineupMine: [number, number] = [avgLineup(mine.before), avgLineup(mine.after)];
     const lineupTheirs: [number, number] = [avgLineup(theirs.before), avgLineup(theirs.after)];
     if (winGain > 0 && lineupTheirs[1] - lineupTheirs[0] >= -PARTNER_LINEUP_SLACK && partnerWinGain > -0.1) {
       rescored.push({
         ...c,
-        means: meanByWeek,
+        means: model,
         winGain,
         lineup: { me: lineupMine, partner: lineupTheirs },
         moves: { meDrops: mine.dropped, meAdds: mine.added, partnerDrops: theirs.dropped, partnerAdds: theirs.added },
@@ -256,9 +256,9 @@ export function findTrades(
     .slice(0, FINALISTS);
 
   // Stage 3: simulate the finalists on the same draws as the baseline
-  const simulate = (means: Record<number, Record<number, number>>, n: number) =>
-    simulatePlayoffOdds(data.teams, data.remaining, data.format, means, data.spread, n, seed, data.playoffWeekStart, data.hasToiletBowl);
-  const base = simulate(data.meanByWeek, sims);
+  const simulate = (m: TradeModel, n: number) =>
+    simulatePlayoffOdds(data.teams, data.remaining, data.format, m.season.meanByWeek, m.season.spread, n, seed, data.playoffWeekStart, data.hasToiletBowl, m.season.teamSpread);
+  const base = simulate(data.model, sims);
   const notHurt = (b: OddsLine, a: OddsLine) =>
     a.playoffs >= b.playoffs - ODDS_TOLERANCE &&
     (a.champion ?? 0) >= (b.champion ?? 0) - ODDS_TOLERANCE &&
@@ -284,7 +284,7 @@ export function findTrades(
       return n < SHOWN_PER_PARTNER;
     })
     .slice(0, SHOWN);
-  const fullBase = simulate(data.meanByWeek, finalSims);
+  const fullBase = simulate(data.model, finalSims);
   const results: FoundTrade[] = [];
   shown.forEach((c, i) => {
     const after = simulate(c.means, finalSims);

@@ -11,6 +11,7 @@ import { bestLineup, formatOdds, simulatePlayoffOdds, type OddsResult, type Team
 import {
   lineupByWeek,
   meansAfterTrade,
+  type TradeModel,
   rosterAfterTrade,
   weeklyOutlook,
   type RosterChange,
@@ -71,7 +72,7 @@ function useOddsSimulator() {
       return new Promise((resolve) =>
         setTimeout(() => {
           const r = request;
-          resolve(simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl));
+          resolve(simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl, r.teamSpread));
         }, 0)
       );
     }
@@ -365,13 +366,14 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
   const hasDivisions = data.format.hasDivisions;
   const firstWeek = data.remaining.reduce((m, g) => Math.min(m, g.week), Infinity);
 
-  const request = (meanByWeek: Record<number, Record<number, number>>) =>
+  const request = (model: TradeModel) =>
     simulate({
       teams: data.teams,
       remaining: data.remaining,
       format: data.format,
-      meanByWeek,
-      spread: data.spread,
+      meanByWeek: model.season.meanByWeek,
+      spread: model.season.spread,
+      teamSpread: model.season.teamSpread,
       sims: SIMS,
       seed: SEED,
       playoffWeekStart: data.playoffWeekStart,
@@ -381,7 +383,7 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
   // Odds without a trade (the Playoffs tab's numbers), once
   useEffect(() => {
     let cancelled = false;
-    request(data.meanByWeek).then((r) => !cancelled && setBaseOdds(r));
+    request(data.model).then((r) => !cancelled && setBaseOdds(r));
     return () => {
       cancelled = true;
     };
@@ -392,18 +394,17 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
     if (teamA === null || teamB === null || sendA.length + sendB.length === 0) return null;
     const changeA = rosterAfterTrade(inputs, { rosterId: teamA, sends: sendA, receives: sendB });
     const changeB = rosterAfterTrade(inputs, { rosterId: teamB, sends: sendB, receives: sendA }, changeA.added);
-    const { meanByWeek } = meansAfterTrade(data.meanByWeek, inputs, [changeA, changeB]);
-    const outlook = (id: number, means: Record<number, Record<number, number>>) =>
-      weeklyOutlook(id, data.remaining, means, data.spread, inputs.lastScoredWeek);
+    const { model } = meansAfterTrade(data.model, inputs, [changeA, changeB]);
+    const outlook = (id: number, m: TradeModel) => weeklyOutlook(id, data.remaining, m);
     return {
       key: `${teamA}:${[...sendA].sort().join(',')}|${teamB}:${[...sendB].sort().join(',')}`,
       changes: { a: changeA, b: changeB },
-      meanByWeek,
+      model,
       outlook: {
-        aBefore: outlook(teamA, data.meanByWeek),
-        aAfter: outlook(teamA, meanByWeek),
-        bBefore: outlook(teamB, data.meanByWeek),
-        bAfter: outlook(teamB, meanByWeek),
+        aBefore: outlook(teamA, data.model),
+        aAfter: outlook(teamA, model),
+        bBefore: outlook(teamB, data.model),
+        bAfter: outlook(teamB, model),
       },
     };
   }, [data, inputs, teamA, teamB, sendA, sendB]);
@@ -412,7 +413,7 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
   useEffect(() => {
     if (!trade) return;
     let cancelled = false;
-    request(trade.meanByWeek).then((odds) => !cancelled && setTradeOdds({ key: trade.key, odds }));
+    request(trade.model).then((odds) => !cancelled && setTradeOdds({ key: trade.key, odds }));
     return () => {
       cancelled = true;
     };
@@ -574,7 +575,7 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
               <h3 className="text-lg font-semibold text-[var(--foreground)]">Win odds each week</h3>
               <p className="mb-3 text-sm text-[var(--muted)]">
                 Each team&apos;s chance to win its game, without the trade (dashed) and with it (solid). Games more than a
-                week away are deliberately cautious: single games that far out have been hard to call.
+                week away are less certain: next week&apos;s lineup says much less about them.
               </p>
               <WinOddsChart rows={chartRows} nameA={nameA} nameB={nameB} />
             </div>
@@ -672,7 +673,11 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
                       </span>
                       )
                     </p>
-                    <p className="text-xs text-[var(--muted)]">If nothing else changes. The odds count 75% of this, the same weight the playoff model gives every team&apos;s lineup.</p>
+                    <p className="text-xs text-[var(--muted)]">
+                      If nothing else changes. The season odds count {Math.round(data.model.season.lineupWeight * 100)}% of this, the
+                      weight the playoff model gives every team&apos;s lineup this week; on real trades in other leagues, about 43% of
+                      a trade&apos;s projected change showed up.
+                    </p>
                     {(s.in.length > 0 || s.out.length > 0) && (
                       <p className="mt-2 text-[var(--foreground)]">
                         Week {firstWeek} lineup:{' '}
@@ -744,22 +749,21 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
               <summary className="cursor-pointer font-medium text-[var(--foreground)]">How this works</summary>
               <div className="mt-3 space-y-2">
                 <p>
-                  The &quot;before&quot; numbers are the Playoffs tab&apos;s: 20,000 simulated seasons on the real schedule. Each
-                  player is worth half his projection for the week and half his points per game this season, and a team&apos;s
-                  expected score is the league average plus 75% of how far its best lineup of those values is above or below the
-                  league&apos;s. The &quot;after&quot; run uses the same random draws, so differences come from the trade, not
-                  simulation noise.
+                  The &quot;before&quot; numbers are the Playoffs tab&apos;s: 20,000 simulated seasons on the real schedule, with
+                  each team&apos;s strength from its projected lineup and its points per game so far (weights fitted on thousands
+                  of other 12-team leagues). The &quot;after&quot; run uses the same random draws, so differences come from the
+                  trade, not simulation noise.
                 </p>
                 <p>
-                  Team strength comes only from who&apos;s on the roster, so a trade counts like any other roster: the players
-                  bring their projections and their season production with them, and two teams that swap whole rosters swap
-                  strengths (records already banked stay put). Backtested on this league&apos;s 2022-2025 trades, this predicted
-                  the trading teams&apos; playoff odds better than the other ways tried.
+                  A trade changes the rosters, so it moves each team&apos;s expected score by the model&apos;s lineup weight times
+                  its change in projected lineup (averaged over the remaining weeks), like any other roster change; points already
+                  scored stay with the team. On 28,899 teams in real trades in other leagues, a trade&apos;s projected change
+                  showed up at 43% (95% 40–46%), close to that weight.
                 </p>
                 <p>
-                  Weekly win odds use a wider spread for games more than a week away (2× the week-to-week spread, 0.8× next week),
-                  which matched how those games actually went in the same backtest. The table&apos;s season odds keep the
-                  Playoffs tab&apos;s spread, which backtested as well calibrated.
+                  Weekly win odds use a model fitted for single games: next week&apos;s lineup counts heavily (byes, injuries and
+                  pickups are already in it) and later weeks lean more on points per game, each with that week&apos;s spread. On
+                  over a million games in other leagues it beat the earlier weekly odds, next week and further out.
                 </p>
                 <p>
                   Trades that leave a roster over the limit drop the player who costs the lineup least; trades that open a spot

@@ -11,6 +11,8 @@ export interface OddsRequest {
   format: PlayoffFormat;
   meanByWeek: Record<number, Record<number, number>>;
   spread: number;
+  /** Persistent team uncertainty (simulatePlayoffOdds teamSpread) */
+  teamSpread: number;
   sims: number;
   seed: number;
   playoffWeekStart: number;
@@ -25,6 +27,6 @@ const ctx = self as unknown as {
 
 ctx.onmessage = (event) => {
   const r = event.data;
-  const result = simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl);
+  const result = simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl, r.teamSpread);
   ctx.postMessage({ id: r.id, result });
 };

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  earlierTradeModel,
+  expectedWins,
   lineupByWeek,
   meansAfterTrade,
   normalCdf,
@@ -10,6 +12,7 @@ import {
   weeklyOutlook,
   weeklyWinProbability,
   type TradeInputs,
+  type TradeModel,
 } from '../analyze/trade';
 import type { SleeperMatchup, SleeperTransaction } from '../types';
 
@@ -80,47 +83,66 @@ describe('rosterAfterTrade', () => {
   });
 });
 
+// A trade model like the trade-data route builds: season means (and the weight on a trade's average
+// lineup change) and single-game margins (with each week's weight and spread)
+const tradeModel = (season: Record<number, Record<number, number>>, games: Record<number, Record<number, number>>): TradeModel => ({
+  season: { meanByWeek: season, spread: 25, teamSpread: 0, lineupWeight: 0.4 },
+  games: { meanByWeek: games, spreadByWeek: { 7: 22, 8: 24 }, lineupWeightByWeek: { 7: 0.8, 8: 0.3 } },
+});
+
 describe('trade effect', () => {
-  it("moves each team's expected score by the model's projection weight times its lineup change", () => {
+  it("moves the season means by the lineup weight times the average change, and each game by that week's weight", () => {
     const inp = inputs();
-    const before = { 7: { 1: 100, 2: 100 }, 8: { 1: 100, 2: 100 } };
+    const before = tradeModel({ 7: { 1: 100, 2: 100 }, 8: { 1: 100, 2: 100 }, 15: { 1: 100, 2: 100 } }, { 7: { 1: 0, 2: 0 }, 8: { 1: 0, 2: 0 } });
     const changes = [
       rosterAfterTrade(inp, { rosterId: 1, sends: ['wr2'], receives: ['wr4'] }),
       rosterAfterTrade(inp, { rosterId: 2, sends: ['wr4'], receives: ['wr2'] }),
     ];
-    const { meanByWeek, lineupDelta } = meansAfterTrade(before, inp, changes);
+    const { model, lineupDelta } = meansAfterTrade(before, inp, changes);
     // Team 1: wr4 (16) starts at WR and wr1 (14) moves to FLEX over rb2 (10): 59 -> 65
     expect(lineupDelta[1][7]).toBe(6);
-    expect(meanByWeek[7][1]).toBeCloseTo(100 + 0.75 * 6);
-    expect(meanByWeek[8][1]).toBeCloseTo(100 + 0.75 * 6);
+    expect(model.season.meanByWeek[7][1]).toBeCloseTo(100 + 0.4 * 6);
+    // the season move is the same in every week, playoff weeks too
+    expect(model.season.meanByWeek[15][1]).toBeCloseTo(100 + 0.4 * 6);
+    expect(model.games.meanByWeek[7][1]).toBeCloseTo(0.8 * 6);
+    expect(model.games.meanByWeek[8][1]).toBeCloseTo(0.3 * 6);
     // Team 2 loses its best WR: wr5 (9) moves up, rb4 (5) leaves the FLEX for wr2 (8)
     expect(lineupDelta[2][7]).toBe(-8);
     // The input isn't changed
-    expect(before[7][1]).toBe(100);
+    expect(before.season.meanByWeek[7][1]).toBe(100);
   });
 
   it('turns each team into the other when they swap whole rosters', () => {
-    const inp = inputs();
-    // Team strength as the playoff model builds it: 75% projection, 25% form
+    const inp = { ...inputs(), weeks: [7] };
+    // Team strength as the fitted model builds it: a weight on the lineup plus the team's own season form
     const lineup = (r: number) => lineupByWeek(inp, inp.rosters[r])[7];
-    const form = { 1: 90, 2: 110 };
-    const strength = (proj: number, f: number) => 0.75 * proj + 0.25 * f;
-    const before = { 7: { 1: strength(lineup(1), form[1]), 2: strength(lineup(2), form[2]) } };
+    const form = { 1: -5, 2: 5 };
+    const before = tradeModel(
+      { 7: { 1: 100 + 0.4 * lineup(1) + form[1], 2: 100 + 0.4 * lineup(2) + form[2] } },
+      { 7: { 1: 0.8 * lineup(1) + form[1], 2: 0.8 * lineup(2) + form[2] } }
+    );
     const changes = [
       rosterAfterTrade(inp, { rosterId: 1, sends: inp.rosters[1], receives: inp.rosters[2] }),
       rosterAfterTrade(inp, { rosterId: 2, sends: inp.rosters[2], receives: inp.rosters[1] }),
     ];
-    const { meanByWeek } = meansAfterTrade(before, { ...inp, weeks: [7] }, changes);
-    // Team 1 now has team 2's projection; only its own season form stays
-    expect(meanByWeek[7][1]).toBeCloseTo(strength(lineup(2), form[1]));
-    expect(meanByWeek[7][2]).toBeCloseTo(strength(lineup(1), form[2]));
+    const { model } = meansAfterTrade(before, inp, changes);
+    // Team 1 now has team 2's lineup; only its own season form stays
+    expect(model.season.meanByWeek[7][1]).toBeCloseTo(100 + 0.4 * lineup(2) + form[1]);
+    expect(model.games.meanByWeek[7][2]).toBeCloseTo(0.8 * lineup(1) + form[2]);
   });
 
   it('leaves everything unchanged for an empty trade', () => {
     const inp = inputs();
-    const before = { 7: { 1: 100, 2: 95 }, 8: { 1: 100, 2: 95 } };
-    const { meanByWeek } = meansAfterTrade(before, inp, [rosterAfterTrade(inp, { rosterId: 1, sends: [], receives: [] })]);
-    expect(meanByWeek).toEqual(before);
+    const before = tradeModel({ 7: { 1: 100, 2: 95 }, 8: { 1: 100, 2: 95 } }, { 7: { 1: 2, 2: -2 }, 8: { 1: 2, 2: -2 } });
+    const { model } = meansAfterTrade(before, inp, [rosterAfterTrade(inp, { rosterId: 1, sends: [], receives: [] })]);
+    expect(model).toEqual(before);
+  });
+
+  it('falls back to the earlier model: 75% of each change, 0.8x the spread next week and 2x after', () => {
+    const m = earlierTradeModel({ 7: { 1: 105, 2: 95 }, 8: { 1: 105, 2: 95 } }, 25, 6, [7, 8]);
+    expect(m.games.spreadByWeek).toEqual({ 7: 0.8 * 25, 8: 2 * 25 });
+    expect(m.games.lineupWeightByWeek[7]).toBe(0.75);
+    expect(m.season.teamSpread).toBe(0);
   });
 });
 
@@ -131,12 +153,12 @@ describe('weekly win odds', () => {
     expect(normalCdf(-1)).toBeCloseTo(0.1587, 3);
   });
 
-  it('is 50% for equal teams and less confident further ahead', () => {
-    expect(weeklyWinProbability(100, 100, 25, 1)).toBeCloseTo(0.5);
-    const next = weeklyWinProbability(110, 100, 25, 1);
-    const later = weeklyWinProbability(110, 100, 25, 4);
-    expect(next).toBeGreaterThan(later);
-    expect(later).toBeGreaterThan(0.5);
+  it('is 50% for equal teams and less confident with a wider spread', () => {
+    expect(weeklyWinProbability(100, 100, 25)).toBeCloseTo(0.5);
+    const tight = weeklyWinProbability(110, 100, 20);
+    const wide = weeklyWinProbability(110, 100, 40);
+    expect(tight).toBeGreaterThan(wide);
+    expect(wide).toBeGreaterThan(0.5);
   });
 
   it("lists a team's remaining games with its opponent", () => {
@@ -145,11 +167,12 @@ describe('weekly win odds', () => {
       { week: 7, a: 1, b: 3 },
       { week: 7, a: 2, b: 4 },
     ];
-    const means = { 7: { 1: 110, 2: 100, 3: 100, 4: 100 }, 8: { 1: 100, 2: 100, 3: 100, 4: 100 } };
-    const outlook = weeklyOutlook(1, remaining, means, 25, 6);
+    const model = tradeModel({}, { 7: { 1: 10, 2: 0, 3: 0, 4: 0 }, 8: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+    const outlook = weeklyOutlook(1, remaining, model);
     expect(outlook.map((o) => [o.week, o.opponent])).toEqual([[7, 3], [8, 2]]);
-    expect(outlook[0].winProbability).toBeGreaterThan(0.5);
+    expect(outlook[0].winProbability).toBeCloseTo(normalCdf(10 / (22 * Math.SQRT2)));
     expect(outlook[1].winProbability).toBeCloseTo(0.5);
+    expect(expectedWins(1, remaining, model)).toBeCloseTo(outlook[0].winProbability + 0.5);
   });
 });
 
@@ -159,16 +182,19 @@ describe('tradeSeasonOdds', () => {
   }));
   const remaining = [7, 8, 9].flatMap((w) => Array.from({ length: 6 }, (_, i) => ({ week: w, a: i * 2 + 1, b: i * 2 + 2 })));
   const means = (bump: number) =>
-    Object.fromEntries([7, 8, 9, 15, 16, 17].map((w) => [w, Object.fromEntries(teams.map((t) => [t.rosterId, 100 + (t.rosterId === 5 ? bump : 0)]))]));
+    tradeModel(
+      Object.fromEntries([7, 8, 9, 15, 16, 17].map((w) => [w, Object.fromEntries(teams.map((t) => [t.rosterId, 100 + (t.rosterId === 5 ? bump : 0)]))])),
+      {}
+    );
   const format = { playoffTeams: 6, hasDivisions: true, byes: 2 };
 
   it('gives identical odds for an unchanged team (same random draws)', () => {
-    const { before, after } = tradeSeasonOdds(teams, remaining, format, means(0), means(0), 25, 15, true, 2000);
+    const { before, after } = tradeSeasonOdds(teams, remaining, format, means(0), means(0), 15, true, 2000);
     expect(after.teams[5]).toEqual(before.teams[5]);
   });
 
   it('raises the odds of a team that gets stronger', () => {
-    const { before, after } = tradeSeasonOdds(teams, remaining, format, means(0), means(8), 25, 15, true, 2000);
+    const { before, after } = tradeSeasonOdds(teams, remaining, format, means(0), means(8), 15, true, 2000);
     expect(after.teams[5].playoffs).toBeGreaterThan(before.teams[5].playoffs);
     expect(after.teams[5].champion!).toBeGreaterThan(before.teams[5].champion!);
     expect(after.teams[5].lastPlace!).toBeLessThan(before.teams[5].lastPlace!);

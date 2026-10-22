@@ -276,7 +276,7 @@ export function fittedStrength(
   regularWeeks: number[],
   lineups: Record<number, Record<number, number>>,
   snapshotWeek: number
-): { meanByWeek: Record<number, Record<number, number>>; spread: number; teamSpread: number } | null {
+): { meanByWeek: Record<number, Record<number, number>>; spread: number; teamSpread: number; lineupWeight: number } | null {
   const ids = Object.keys(weeklyScores).map(Number);
   const full = regularWeeks.filter((w) => lineups[w] && ids.every((id) => lineups[w][id] !== undefined));
   if (!ids.length || !full.length) return null;
@@ -293,7 +293,60 @@ export function fittedStrength(
       ids.map((id) => [id, league + c.lineup * (lineup.get(id)! - lineupMean) + c.ppg * (ppg.get(id)! - ppgMean)])
     );
   }
-  return { meanByWeek, spread, teamSpread: c.tau };
+  return { meanByWeek, spread, teamSpread: c.tau, lineupWeight: c.lineup };
+}
+
+type SingleGameWeights = { lineup: number; ppg: number; sd: number };
+
+/**
+ * Single-game weights for a snapshot week and a game weeksAhead away (1 = next week),
+ * clamped to the weeks and horizons fitted (scripts/backtests/single_games.py, model E)
+ */
+export function singleGameWeights(snapshotWeek: number, weeksAhead: number): SingleGameWeights {
+  const fitted = strengthModel.singleGame.weeks as Record<string, Record<string, SingleGameWeights>>;
+  const weeks = Object.keys(fitted).map(Number);
+  const byAhead = fitted[String(Math.min(Math.max(snapshotWeek, Math.min(...weeks)), Math.max(...weeks)))];
+  const horizons = Object.keys(byAhead).map(Number);
+  return byAhead[String(Math.min(Math.max(weeksAhead, 1), Math.max(...horizons)))];
+}
+
+/** Single-game model: each team's expected margin per week (relative to the league), the spread, and the weight on that week's lineup */
+export interface GameModel {
+  meanByWeek: Record<number, Record<number, number>>;
+  spreadByWeek: Record<number, number>;
+  lineupWeightByWeek: Record<number, number>;
+}
+
+/**
+ * Single games, fitted for a single week's score rather than the rest of the season: a team's
+ * score in a week is the league's plus the week's lineup weight times its lineup gap that week
+ * plus a weight on its points-per-game gap, with that week's spread. Next week's lineup counts
+ * heavily (about 0.8: byes, injuries and pickups are already in it); further out, points per
+ * game takes over. Out of sample it beat the earlier model's single-game odds next week and 2-4
+ * weeks ahead (single_games.py). Null without a lineup for every team in some remaining week.
+ */
+export function singleGameModel(
+  weeklyScores: Record<number, number[]>,
+  regularWeeks: number[],
+  lineups: Record<number, Record<number, number>>,
+  lastScoredWeek: number
+): GameModel | null {
+  const ids = Object.keys(weeklyScores).map(Number);
+  const weeks = regularWeeks.filter((w) => lineups[w] && ids.every((id) => lineups[w][id] !== undefined));
+  if (!ids.length || !weeks.length) return null;
+  const { league } = leagueLevel(weeklyScores);
+  const avg = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+  const ppg = new Map(ids.map((id) => [id, weeklyScores[id].length ? avg(weeklyScores[id]) : league]));
+  const ppgMean = avg([...ppg.values()]);
+  const model: GameModel = { meanByWeek: {}, spreadByWeek: {}, lineupWeightByWeek: {} };
+  for (const w of weeks) {
+    const c = singleGameWeights(lastScoredWeek + 1, w - lastScoredWeek);
+    const lineupMean = avg(ids.map((id) => lineups[w][id]));
+    model.meanByWeek[w] = Object.fromEntries(ids.map((id) => [id, c.lineup * (lineups[w][id] - lineupMean) + c.ppg * (ppg.get(id)! - ppgMean)]));
+    model.spreadByWeek[w] = c.sd;
+    model.lineupWeightByWeek[w] = c.lineup;
+  }
+  return model;
 }
 
 export function teamStrength(
