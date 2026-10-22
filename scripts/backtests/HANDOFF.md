@@ -55,7 +55,9 @@ Read this first when picking the model work up on another machine.
 
 Update (October 21, evening): on all 7,385 leagues, run on the GPU (`gpu_sim.py`), the
 same conclusions hold: fitted + tau 0.1544 vs lineup 0.3 0.1553 vs coin flip 0.1599. Strength
-drift (`drift.py`) is real but worth only 0.00005. See the end of `README.md`.
+drift (`drift.py`) is real but worth only 0.00005. `rank_odds.py` scores rank, wins, playoff and
+bye odds under our league's rules with schedule luck averaged out (intervals 1.3-2x narrower);
+fitted + tau is best on all of them. See the end of `README.md`.
 
 ## Next experiments
 

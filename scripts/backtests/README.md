@@ -35,6 +35,8 @@ python brier_floor.py          # how low the playoff Brier can go: coin flip vs 
 python strength_model.py       # fit team strength (lineup + points so far) and its uncertainty
 python gpu_sim.py              # the same simulation on the GPU, every snapshot at once, with intervals (--check: matches the CPU)
 python drift.py                # does team strength drift through the season? (GPU)
+python schedule_luck.py        # how much the schedule decides, and the value of knowing it (GPU)
+python rank_odds.py            # rank, wins, playoff and bye odds under our rules, scored without schedule luck (GPU)
 python eval_2026.py DIR        # after the 2026 season: score the saved predictions (PREREGISTRATION_2026.md)
 ```
 
@@ -237,4 +239,24 @@ were made just before those games, which would leak information.
   about 1% of the fitted model's gain over the coin flip. It passes the rule set before the
   run (which had no minimum size); too small to be worth adding to the site on its own, but
   the state-space strength model should let strength drift.
+- **Schedule luck** (`schedule_luck.py`): 99% of the crawled leagues' schedules are round
+  robins (everyone once before anyone twice). Replaying each league's actual weekly scores
+  under 1,000 random round robins, the schedule alone could change the playoff fate of 70%
+  of teams (5-95%); 8.3% made it on their real schedule though they'd miss on most, 8.9%
+  missed though they'd make it on most. With every score known, the schedule still leaves a
+  playoff Brier of 0.120. Knowing the real remaining schedule improves the forecast a little:
+  0.0003 (95% 0.0002 to 0.0004), 8 of 8 seasons, 0.0006 at week 10, so the site keeps
+  simulating the real schedule.
+- **Our rules, without schedule luck** (`rank_odds.py`): every league scored under our rules
+  (head-to-head wins only, then points; top 6 make the playoffs, top 2 get byes), on
+  playoff and bye Brier and on the full distributions of final rank (ranked probability
+  score) and wins (CRPS). Development target: actual remaining scores averaged over random
+  round robins, against forecasts made without the schedule (an exact expected score, same
+  ranking of models in expectation). It narrows intervals 1.3-2.0x (worth about 2-4 times the
+  leagues) and agrees with the real-schedule check. Fitted + tau is best on all four, in both:
+  real schedule playoff Brier 0.1555 vs 0.1564 (lineup 0.3) vs 0.1611 (coin flip); vs lineup
+  0.3 -0.0009 [-0.0011, -0.0006], bye -0.0002 [-0.0004, -0.0001], rank RPS -0.0006
+  [-0.0008, -0.0005], wins CRPS -0.024 [-0.026, -0.023] wins (8 of 8 seasons). Still tied at
+  week 4. 10,000 round robins per target instead of 2,000 change nothing (the target's
+  noise cancels in the scoring).
 
