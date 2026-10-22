@@ -118,6 +118,24 @@ def our_schedule(gen, sims, b, weeks=18):
     return opp, D[k].gather(-1, pos)
 
 
+def schedule_divisions(r):
+    """Divisions a 12-team league's own schedule implies: in 96% of crawled 12-team, 14-week
+    leagues each team's twice-played opponents form 3 groups of 4, exactly our division
+    schedule. Group index per team, or -1s when the schedule doesn't split that way."""
+    from collections import Counter
+    n = len(r['ids']); meet = Counter()
+    for w in range(1, r['end'] + 1):
+        for a_, b_ in r['games'][w]: meet[(min(a_, b_), max(a_, b_))] += 1
+    twice = {i: {j for (a_, b_), c in meet.items() if c >= 2 for i2, j in ((a_, b_), (b_, a_)) if i2 == i} for i in range(n)}
+    groups = {frozenset(twice[i] | {i}) for i in range(n)}
+    if n != 12 or len(groups) != 3 or any(len(g) != 4 for g in groups) or any(len(twice[i]) != 3 for i in range(n)):
+        return np.full(n, -1)
+    out = np.zeros(n, np.int64)
+    for k, g in enumerate(sorted(groups, key=min)):
+        for i in g: out[i] = k
+    return out
+
+
 def random_divisions(gen, b, n=12, k=3):
     """One random assignment of n teams to k equal divisions per snapshot (b, n)"""
     return (torch.rand((b, n), device=DEV, generator=gen).argsort(-1).argsort(-1) % k)
@@ -133,9 +151,11 @@ def season(P, idx, n, sims, gen, schedule, model=None, div=None):
     weeks = t(P['weeks'][idx])
     if model:
         off, tau, sdm = t(model[0]), t(model[1]), t(model[2]); M = off.shape[0]
+        df = t(model[3]) if len(model) > 3 and model[3] is not None else None  # weekly noise: Student t (unit variance) per model
         lg = t(P['lg'][idx])
         team = torch.randn((sims, b, n), device=DEV, generator=gen)
-        base = (lg[:, None] + off)[:, None] + tau[:, None, :, None] * team[None]
+        tau_ = tau[:, None, :, None] if tau.dim() == 2 else tau[:, None]  # per snapshot (M, b) or per team (M, b, n)
+        base = (lg[:, None] + off)[:, None] + tau_ * team[None]
     else:
         M = 1; pts = t(P['pts'][idx][:, :, :n])
     W = t(P['W0'][idx][:, :n]).expand(M, sims, b, n).clone(); PF = t(P['PF0'][idx][:, :n]).expand(M, sims, b, n).clone()
@@ -147,8 +167,15 @@ def season(P, idx, n, sims, gen, schedule, model=None, div=None):
         opp = t(P['opp'][idx][:, :, :n], torch.int64)
     for k in range(K):
         if not bool(weeks[:, k].any()): break
-        sc = base + sdm[:, None, :, None] * torch.randn((sims, b, n), device=DEV, generator=gen)[None] if model \
-            else pts[:, k][None, None].expand(M, sims, b, n)
+        if model:
+            z = torch.randn((sims, b, n), device=DEV, generator=gen)[None].expand(M, sims, b, n)
+            if df is not None:  # t = z / sqrt(chi2_df / df), scaled to unit variance; models with df 0 stay normal
+                d_ = df.clamp(min=2.5)[:, None, None, None]
+                g = torch._standard_gamma((d_ / 2).expand(M, sims, b, n).contiguous(), generator=gen) * 2 / d_
+                z = torch.where(df[:, None, None, None] > 0, z / g.sqrt() * torch.sqrt((d_ - 2) / d_), z)
+            sc = base + sdm[:, None, :, None] * z
+        else:
+            sc = pts[:, k][None, None].expand(M, sims, b, n)
         if schedule in ('random', 'ours'):
             o = rr.gather(2, (e + k - 1).clamp(max=rr.shape[2] - 1)[None, :, None, None].expand(sims, b, 1, n)).squeeze(2)
             o = o[None].expand(M, sims, b, n); has = (weeks[:, k] > 0)[None, None, :, None]
@@ -198,16 +225,19 @@ def main(model_set=models, compare=COMPARE):
     data = G.S.collect(weekly=a.weekly)
     if a.rules == 'ours': data = [r for r in data if len(r['ids']) == 12]
     P = G.pack(data); B = len(P['e']); ours = a.rules == 'ours'
+    implied = np.stack([schedule_divisions(r) for r in data]) if ours else None
+    if ours: print(f"divisions: {np.mean(implied[:, 0] >= 0):.0%} of snapshots from the league's own schedule (twice-played groups of 4), the rest random")
     gen_div = torch.Generator(device=DEV).manual_seed(a.seed + 1)
-    names, off, tau, sd = model_set(P); M = len(names); ix = {n: i for i, n in enumerate(names)}
+    ms = model_set(P); names, off, tau, sd = ms[:4]; df = ms[4] if len(ms) > 4 else None
+    M = len(names); ix = {n: i for i, n in enumerate(names)}
     gen = torch.Generator(device=DEV).manual_seed(a.seed)
     res = {ev: np.zeros((M, B, len(METRICS))) for ev in ('development', 'final check')}
     nteams = P['teams'].sum(1); mismatch = 0
     for n in sorted(set(nteams)):
         ids = np.where(nteams == n)[0]; chunk = max(1, int(1.5e8 // (M * a.sims * n)))
         for s in range(0, len(ids), chunk):
-            ii = ids[s:s + chunk]; model = (off[:, ii, :n], tau[:, ii], sd[:, ii])
-            div = random_divisions(gen_div, len(ii)) if ours else None
+            ii = ids[s:s + chunk]; model = (off[:, ii, :n], tau[:, ii] if tau.ndim == 2 else tau[:, ii, :n], sd[:, ii], df)
+            div = (torch.where(t(implied[ii] >= 0, torch.bool), t(implied[ii], torch.int64), random_divisions(gen_div, len(ii))) if ours else None)
             if ours:
                 real_r, real_w = season(P, ii, n, 1, gen, 'real', div=div)
             else:

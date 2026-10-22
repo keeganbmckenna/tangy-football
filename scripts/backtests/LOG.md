@@ -23,4 +23,7 @@ use. Scores are out of sample (leave one season out) unless marked. Details in `
 | 2026-10-21 | `headroom.py` | ceiling: share of the fitted model's missed strength known (rho 0-1), knowable share from the random-walk split | knowable gain 0.013 (0.1368 -> ~0.124), 2.6x the gain so far, almost all in weeks 3-10 | continue the ladder |
 | 2026-10-21 | `own_league.py` | fitted on crawl, scored on our 2022-2025 | fitted + tau 0.126 vs site 0.125 (+0.0014, 1 of 4 seasons); ~5% chance for a typical league; site tuned on these seasons | reported, not tuned |
 | 2026-10-21 | `league_activity.py` | fitted vs site edge by roster churn fifth | flat (-0.0058 to -0.0068); activity doesn't explain our league | no |
+| 2026-10-22 | `rank_odds.py --rules ours` | divisions from each league's own schedule (twice-played groups of 4, 74% of snapshots) instead of random | baseline fitted + tau 0.1372 (vs 0.1371 random) | evaluation method |
+| 2026-10-22 | `improvements.py` | ewm / last-3 / median ppg, score vs starters' projections, all four, nonlinear terms, per-team tau, shrunk spread, t(8) noise | best: all four -0.00020 [-0.00039, -0.00000] (7 of 8); vs projection alone -0.00017; t noise worse (+0.00006); none reaches 0.0005 | no |
+| 2026-10-22 | `player_values.py` | player value share of season ppg 0 / 0.25 / 0.5 (site) / 0.75, padding 1 / 3 / 8 | projection-only best: -0.00027 [-0.00033, -0.00021] (6 of 8), monotone in the share; below 0.0005 | no (simplification noted) |
 
