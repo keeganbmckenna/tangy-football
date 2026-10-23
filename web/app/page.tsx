@@ -26,6 +26,7 @@ import { readUrlState, urlSearchFor } from '@/lib/urlState';
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import PlayoffPicture from '@/components/PlayoffPicture';
+import OddsHistoryChart from '@/components/OddsHistoryChart';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { FootballSpinner } from '@/components/ui/Football';
@@ -540,6 +541,13 @@ export default function Home() {
               <ErrorBoundary>
                 <section>
                   <ToiletBowlBracket brackets={postseasonBrackets} leagueData={leagueData} />
+                </section>
+              </ErrorBoundary>
+            )}
+            {!regularSeasonInProgress && leagueData && !isLegacySeason && (
+              <ErrorBoundary>
+                <section>
+                  <OddsHistoryChart season={selectedSeason || leagueData.league.season} teamStats={teamStats} />
                 </section>
               </ErrorBoundary>
             )}

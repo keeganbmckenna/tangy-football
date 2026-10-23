@@ -35,6 +35,7 @@ While the regular season is in progress:
   Also shows how this week's win or loss changes them.
 - **Toilet Bowl If the Season Ended Now:** the projected toilet bowl bracket.
 - **What Each Team Needs:** each team's odds now, with a win and with a loss. Also clinched and eliminated, win-and-in scenarios in the last weeks, points races, and the team's biggest rooting interest this week.
+- **Odds Week by Week:** a chart of how every team's odds moved from the draft to now. Pick what to follow: making the playoffs, a bye, the division, the title, a toilet bowl bye or losing the toilet bowl. Each point is what the model would have said at the time. Finished seasons show it too.
 
 After the regular season, and for past seasons: the **Playoff Bracket** (with placement games) and the **Toilet Bowl** bracket. Tap a game that's been played to see both lineups.
 

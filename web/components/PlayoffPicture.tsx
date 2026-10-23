@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import RetryButton from '@/components/ui/RetryButton';
 import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
+import OddsHistoryChart from '@/components/OddsHistoryChart';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
@@ -367,8 +368,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                   model.</>
               )}
               {(hasTitle || hasToilet) && (
-                <> With only four past champions and toilet bowl losers, these couldn&apos;t be backtested, so treat them as a rough
-                  guide.</>
+                <> Tested on thousands of other leagues&apos; real brackets, these beat the earlier model and a coin flip, but a
+                  title mostly comes down to a few single games, so they move a lot.</>
               )}
             </span>
           }
@@ -473,6 +474,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           </div>
         </SectionCard>
       )}
+
+      <OddsHistoryChart season={data.season} teamStats={teamStats} liveOdds={data.odds} lastScoredWeek={data.lastScoredWeek} />
 
       <SectionCard
         title="What Each Team Needs"

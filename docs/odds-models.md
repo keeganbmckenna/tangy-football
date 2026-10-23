@@ -64,6 +64,12 @@ model, whose settings were chosen on those seasons (`own_league.py`).
 24%, misses 13% that could in principle be known, and the rest is change still to come (8%) and
 weekly luck (56%). No team-strength model can get far below about 0.12 on these leagues.
 
+**Odds week by week** (`web/lib/oddsHistory.ts`): the Playoffs tab's chart re-runs this model as
+of the draft and after every completed week, with only what was known then: the drafted rosters
+(then each week's), records and scores so far, season production so far, and that week's
+projections carried forward with byes. Past injury statuses aren't kept, so earlier points don't
+discount injured players.
+
 ## Single-game win odds (trade tools)
 
 A team's score in a week *h* weeks ahead is modelled directly: a weight on that week's lineup gap

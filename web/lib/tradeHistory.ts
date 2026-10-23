@@ -48,7 +48,8 @@ import {
 /** Fewer runs than the live odds: each past trade needs two, and the paired draws keep the difference steady */
 const HISTORY_SIMS = 5000;
 
-const record = (matchups: Record<number, SleeperMatchup[]>, rosterId: number, throughWeek: number) => {
+/** A team's record, points for and weekly scores through a week */
+export const record = (matchups: Record<number, SleeperMatchup[]>, rosterId: number, throughWeek: number) => {
   let wins = 0;
   let losses = 0;
   let ties = 0;
@@ -69,7 +70,8 @@ const record = (matchups: Record<number, SleeperMatchup[]>, rosterId: number, th
   return { wins, losses, ties, pointsFor, scores };
 };
 
-const gamesFrom = (matchups: Record<number, SleeperMatchup[]>, fromWeek: number, toWeek: number): RemainingGame[] => {
+/** Every scheduled game from one week through another */
+export const gamesFrom = (matchups: Record<number, SleeperMatchup[]>, fromWeek: number, toWeek: number): RemainingGame[] => {
   const games: RemainingGame[] = [];
   for (let w = fromWeek; w <= toWeek; w++) {
     const pairs = new Map<number, number[]>();

@@ -92,4 +92,9 @@ export const CACHE_CONFIG = {
    * new week is scored or a trade completes).
    */
   tradeHistory: 3600,
+
+  /**
+   * Week-by-week odds history (1 hour; rebuilt as soon as a new week is scored)
+   */
+  oddsHistory: 3600,
 } as const;
