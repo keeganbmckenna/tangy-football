@@ -33,7 +33,6 @@ import argparse, math, time
 import numpy as np
 import torch
 import gpu_sim as G
-import leagues_fit as LF
 
 DEV = G.DEV
 PLAYOFF, BYE = 6, 2

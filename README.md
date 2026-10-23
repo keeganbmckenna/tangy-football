@@ -1,8 +1,21 @@
 # Tangy Football
 
+[![CI](https://github.com/keeganbmckenna/tangy-football/actions/workflows/ci.yml/badge.svg)](https://github.com/keeganbmckenna/tangy-football/actions/workflows/ci.yml)
+
 A Next.js web app for our Sleeper fantasy football league: standings, live scoring, playoff odds, weekly and season analytics, draft grades, trade and waiver tools, and the league's full history. Live at https://tangy-football.vercel.app.
 
-[FEATURES.md](FEATURES.md) is a plain-language tour of the site. This README covers how things work and how to run it.
+## Documentation
+
+| Document | For |
+|---|---|
+| [FEATURES.md](FEATURES.md) | A plain-language tour of every tab |
+| [docs/odds-models.md](docs/odds-models.md) | How the playoff, title, trade and live odds are computed, and the evidence for each |
+| [docs/data.md](docs/data.md) | Data sources, what's archived in the repo and what isn't |
+| [docs/league-settings.md](docs/league-settings.md) | How the league's structure is read from Sleeper |
+| [docs/roadmap.md](docs/roadmap.md) | Ideas not built yet |
+| [web/README.md](web/README.md) | Running and developing the web app |
+| [scripts/README.md](scripts/README.md) | The data maintenance scripts |
+| [scripts/backtests/README.md](scripts/backtests/README.md) | The model research and backtests |
 
 ## Features
 
@@ -15,14 +28,14 @@ The season picker in the header switches every tab between seasons. Past Sleeper
 
 ### Live (current season, during a game week)
 While an NFL game is being played, scores and game clocks update every 10 seconds (once a minute otherwise), and a score that changes flashes green or red with the change beside it. Scores are computed from Sleeper's live player stats with the league's scoring settings, which Sleeper refreshes every 30 seconds against 60 for its matchup scores (the two agree exactly). Projections and injury statuses refresh every 2 minutes.
-- 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out add nothing and doubtful ones less. Defenses are projected in the league's scoring with points allowed handled by bracket: every defense starts a game in the shutout bracket (10 points here), so instead of adding its projection on top, the tab projects where its points allowed will end up and weighs each bracket by its chance, which can be negative (`scripts/backtests/live_defense.py`). The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`). Tap a matchup for both lineups and benches: each player's points so far, box score line, projected final, injury status and NFL game (clock, score and opponent, like "Q3 8:12 10-17 vs NO"), with players in a game tinted green and those still to play showing a dash.
+- 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out or doubtful add nothing and questionable ones 90% of their projection until their game starts. Defenses are projected in the league's scoring with points allowed handled by bracket: every defense starts a game in the shutout bracket (10 points here), so instead of adding its projection on top, the tab projects where its points allowed will end up and weighs each bracket by its chance, which can be negative (`scripts/backtests/live_defense.py`). The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`). Tap a matchup for both lineups and benches: each player's points so far, box score line, projected final, injury status and NFL game (clock, score and opponent, like "Q3 8:12 10-17 vs NO"), with players in a game tinted green and those still to play showing a dash.
 - 📊 **Live Standings** - The standings if the week ended now, with teams moving into or out of a playoff spot flagged.
 - 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 
 ### Playoffs
 During the regular season:
 - **If the Season Ended Now** - The projected bracket: division winners take the top seeds, then wild cards (ties go to points for); seeds 1-2 get byes.
-- **Playoff Odds** - 20,000 simulations of the real remaining schedule, giving playoff, division, bye, title and toilet bowl odds, and how this week's win or loss changes them. Each team's weekly score centers on its current roster: each player is worth half his Sleeper projection for that week (so byes and injuries count) and half his points per game this season, and a team's expected score is the league average plus 75% of how far its best lineup is from the league's. A player who's out is projected by Sleeper as if he's back next week, so his later weeks are scaled by his chance of being back by then (76% the next game after missing one, 40% after two, then 38% and about half, for injuries that end that season; no return from IR before 4 games), unless Sleeper already has him out longer. Early in a week Sleeper still projects players who are ruled out, so a player marked Out or on IR has this week discounted too, and one hurt in his last game counts as having missed one.
+- **Playoff Odds** - 20,000 simulations of the real remaining schedule, giving playoff, division, bye, title and toilet bowl odds, and how this week's win or loss changes them. Each team's expected score combines its best projected lineup (each player worth half his Sleeper projection and half his points per game this season) and its points per game so far, with weights fitted for each week of the season on thousands of other 12-team leagues, plus a per-team uncertainty held for the whole simulated season. Players who are out are discounted by their chance of being back. Details and evidence: [docs/odds-models.md](docs/odds-models.md).
 - **Toilet Bowl If the Season Ended Now** - The six non-playoff teams in the toilet bowl, where the lower score advances.
 - **What Each Team Needs** - Each team's odds now, with a win and with a loss; clinched and eliminated; in the last three weeks, win-and-in scenarios; and the team's biggest rooting interest this week.
 
@@ -48,7 +61,7 @@ Line charts of standings over time, cumulative scores, and points above or below
 Completed seasons' drafts are pre-built JSON in `web/public/data/drafts/`; the season in progress is built live.
 
 ### Trades & Waivers (current season, during the regular season)
-- 🔄 **Trade Analyzer** (until the trade deadline) - Pick two managers and the players moving. Shows each team's win odds for every remaining week with and without the trade, season odds before → after (20,000 simulations each), lineup changes and forced roster moves, each player's [FantasyCalc](https://fantasycalc.com) market value, and which other teams' odds move. Each side is marked "Overpays by market value" when it gets back less than 85% of the market value it gives (with a premium for the best player in a deal). Players take their projections and season production with them; on the league's 2022-2025 trades this predicted playoff odds better than the alternatives tried (see `scripts/backtests/`).
+- 🔄 **Trade Analyzer** (until the trade deadline) - Pick two managers and the players moving. Shows each team's win odds for every remaining week with and without the trade, season odds before → after (20,000 simulations each), lineup changes and forced roster moves, each player's [FantasyCalc](https://fantasycalc.com) market value, and which other teams' odds move. Each side is marked "Overpays by market value" when it gets back less than 85% of the market value it gives (with a premium for the best player in a deal). A trade moves each team's odds by the model's weight on its lineup change, measured on thousands of real trades in other leagues ([docs/odds-models.md](docs/odds-models.md#trades)); weekly win odds come from a model fitted for single games.
 - 🔎 **Trade Finder** (until the trade deadline) - Pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager, keeping those that raise your playoff and title odds without hurting the other side. A market filter (on by default) hides trades where the other manager gets back much less FantasyCalc value, and a trade where you do is marked "You overpay by market value". Each result opens in the analyzer.
 - 🧲 **Waiver Finder** - The free agents who'd help you most, for the rest of the season or one specific week (to cover a bye), each with the player it would drop, ranked by how much they raise your odds.
 
@@ -105,7 +118,7 @@ All-time records, head to head and rivalries count regular-season, playoff and t
 │   │   ├── tradeHistory.ts       # Builds a season's graded trade history
 │   │   ├── historyData.ts        # Builds the all-seasons history
 │   │   ├── data/legacyHistory.ts # Seasons before Sleeper (final standings, top three, first names)
-│   │   ├── leagueSettings.ts     # League structure from Sleeper settings (see LEAGUE_SETTINGS_UPDATE.md)
+│   │   ├── leagueSettings.ts     # League structure from Sleeper settings (see docs/league-settings.md)
 │   │   ├── tableSort.ts          # Table sorting
 │   │   ├── urlState.ts           # Tab and season in the address bar
 │   │   ├── constants.ts
@@ -114,12 +127,12 @@ All-time records, head to head and rivalries count regular-season, playoff and t
 │   └── public/
 │       ├── data/                 # Pre-built draft data and trade history per season
 │       └── icon-*.png            # Home-screen icons for Android
-├── scripts/                      # Python data scripts
-│   └── backtests/                # Backtests behind the playoff odds and trade analyzer
-├── docs/                         # Research notes
+├── scripts/                      # Data maintenance scripts (see scripts/README.md)
+│   └── backtests/                # Model research: backtests, simulators, model export
+├── data/sleeper/                 # Archived Sleeper data for completed seasons
+├── docs/                         # Odds models, data, league settings, roadmap, API notes
+├── .github/workflows/            # CI, prediction log, season archive
 ├── FEATURES.md                   # Plain-language tour of every tab
-├── FUTURE_FEATURES.md            # Ideas not built yet
-├── LEAGUE_SETTINGS_UPDATE.md     # How the league's structure is read from Sleeper
 └── pyproject.toml, uv.lock       # Python project (uv)
 ```
 
@@ -144,28 +157,16 @@ Other commands (from `web/`):
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
 
-### Python Scripts (optional)
+### Python (data scripts and model research)
 
-Requires Python 3.13 and [uv](https://docs.astral.sh/uv/). Install dependencies (requests, pandas, openpyxl) from the repo root:
+Requires Python 3.13 and [uv](https://docs.astral.sh/uv/). From the repo root:
 
 ```bash
-uv sync
+uv sync               # numpy, pandas, pyarrow, requests
+uv sync --extra gpu   # also PyTorch, for the GPU simulators
 ```
 
-Run the scripts from the repo root:
-
-| Script | What it does |
-|---|---|
-| `uv run python scripts/fetch_data.py` | Fetches league info, users, rosters and matchups from week 1 to the current week into `league_data.json` |
-| `uv run python scripts/analyze_data.py` | Reads `league_data.json` and writes `fantasy_analysis.xlsx` (Raw Scores, Raw Records, Scores, Standings sheets) |
-| `uv run python scripts/build_draft_data.py [season ...]` | Rebuilds `web/public/data/drafts/{season}.json` from Sleeper (all of 2022-2026 if no season is given) |
-| `uv run python scripts/build_trade_history.py [season ...] [--url URL]` | Rebuilds `web/public/data/trades/{season}.json` for completed seasons from a running app's `/api/trades/{season}` (default `http://localhost:3000`; all completed seasons if none given) |
-
-The backtests in `scripts/backtests/` have their own README.
-
-`league_data.json` and `fantasy_analysis.xlsx` are generated files and are gitignored.
-
-The scripts don't read `NEXT_PUBLIC_LEAGUE_ID`. `fetch_data.py` has the current league ID hard-coded, and `build_draft_data.py` has a hard-coded season → league/draft ID table.
+The data maintenance scripts are described in [scripts/README.md](scripts/README.md) and the model research in [scripts/backtests/README.md](scripts/backtests/README.md).
 
 ## Configuration
 
@@ -196,6 +197,18 @@ Sleeper data is fetched by the app's server routes and cached. Durations are set
 | League history (all seasons) | 5 minutes, rebuilt as soon as a new week is scored; completed seasons' Sleeper data 1 day |
 | League avatar favicon | 1 hour |
 
+## Testing and CI
+
+From `web/`: `npx tsc --noEmit` type-checks, `npm run lint` lints, `npx vitest run` runs the tests and `npm run build` builds. The [CI workflow](.github/workflows/ci.yml) runs all four on every push to `main` and every pull request, and checks that the Python scripts compile. The odds simulator's tests include a parity check against the Python reference model (`web/lib/__tests__/fixtures/fittedOdds.json`).
+
+## Automation
+
+| Workflow | When | What it does |
+|---|---|---|
+| [CI](.github/workflows/ci.yml) | Every push to `main` and every pull request | Type check, lint, tests and build of the web app; Python compile check |
+| [Prediction log](.github/workflows/prediction-log.yml) | Wednesdays, and before Thursday, Sunday and Monday kickoffs | Saves the site's odds and every player's injury status to the `prediction-log` branch for the 2026 evaluation |
+| [Archive seasons](.github/workflows/archive-seasons.yml) | Every March 15 | Adds the newly completed season to `data/sleeper/` |
+
 ## Deployment
 
 The site is hosted on Vercel at https://tangy-football.vercel.app. There's no Vercel config file in the repo, so build settings live in the Vercel project settings. The app is in `web/`, so the project's root directory is set to `web`. Every push to `main` deploys to production.
@@ -221,4 +234,4 @@ overwrites injury statuses, so they can't be recovered later).
 - **Sleeper API** (`api.sleeper.app/v1`) for leagues, users, rosters, matchups, transactions, brackets, drafts and weekly player stats (draft grades and the odds model's player values), plus weekly player projections and the NFL schedule from `api.sleeper.com` for playoff odds and trades. The `api.sleeper.com` endpoints aren't part of Sleeper's documented API.
 - **ESPN's scoreboard** (`site.api.espn.com`) for NFL game clocks in the Live tab's win odds. Also undocumented; without it the odds are hidden.
 - **FantasyCalc** (`api.fantasycalc.com`) for redraft trade values in the trade analyzer. Also undocumented; the analyzer works without it.
-- **Python 3.13** with requests, pandas and openpyxl for the data scripts
+- **Python 3.13** with numpy, pandas, pyarrow and requests for the data scripts, and PyTorch for the model research's GPU simulators

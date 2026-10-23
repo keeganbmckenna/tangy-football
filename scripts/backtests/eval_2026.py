@@ -22,7 +22,7 @@ Nothing here may be changed after the first 2026 snapshot except to fix bugs (lo
 import glob, gzip, json, math, os, statistics as st, sys
 from collections import defaultdict
 import numpy as np
-from form_options import Season, N
+from form_options import Season
 
 SEASON = '2026'
 RULED_OUT = {'Out', 'IR', 'PUP', 'Sus', 'NA', 'DNR', 'COV'}

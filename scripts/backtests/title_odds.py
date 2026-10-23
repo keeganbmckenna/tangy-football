@@ -17,7 +17,6 @@ import argparse, glob, gzip, json, os
 import numpy as np
 import torch
 import gpu_sim as G
-import leagues_fit as LF
 import own_league as OL
 import rank_odds as R
 from common import ARCHIVE

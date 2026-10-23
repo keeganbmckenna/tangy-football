@@ -23,7 +23,7 @@ differences from 'none'. Run fetch_history.py first.
 import math, statistics as st, sys
 import numpy as np
 from common import J
-from form_options import Season, N
+from form_options import Season
 
 SLOT = {'FLEX': ['RB', 'WR', 'TE']}
 STREAMED = {'K', 'DEF'}

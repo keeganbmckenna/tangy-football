@@ -1,4 +1,6 @@
-import statistics as st, numpy as np, math, random
+"""Per-game predictions for every game of 2022-2025 at every horizon (writes games.npy for
+game_calibration.py)."""
+import statistics as st, numpy as np, math
 from common import J, best, leagues
 
 G = []  # season, t0, h, won, dProjBye, dProjNoBye, dForm, sd

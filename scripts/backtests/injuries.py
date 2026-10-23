@@ -17,9 +17,8 @@ unique name and position:
 
 Downloads nflverse's injuries_{season}.csv into cache/nflverse/.
 """
-import csv, gzip, io, json, os, re, statistics as st, urllib.request
+import csv, gzip, json, os, re, statistics as st, urllib.request
 from collections import defaultdict
-import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE = os.path.join(HERE, '..', '..', 'data', 'sleeper')

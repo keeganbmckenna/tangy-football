@@ -25,10 +25,8 @@ Testing several at once: a winner here is exploratory until the one-shot 2026 ch
     python improvements.py   (needs cache/player_weeks.parquet from player_weeks.py)
 """
 import math, os, sys
-from collections import defaultdict
 import numpy as np
 import gpu_sim as G
-import leagues_fit as LF
 import rank_odds as R
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 def vs_projection(data):
     """Per snapshot: each team's average of (its score - its starters' projections) so far"""
-    import pyarrow.parquet as pq, pyarrow.compute as pc
+    import pyarrow.parquet as pq
     t = pq.read_table(os.path.join(HERE, 'cache', 'player_weeks.parquet'), columns=['league_id', 'roster_id', 'week', 'started', 'proj'],
                       filters=[('started', '=', True)])
     df = t.to_pandas(); df['proj'] = df['proj'].fillna(0)

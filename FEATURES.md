@@ -1,6 +1,6 @@
 # Tangy Football - Feature Tour
 
-Everything the site does, tab by tab, in plain language. [README.md](README.md) has the technical details (how the odds model works, what each number means, caching, and how to run it).
+Everything the site does, tab by tab, in plain language. [README.md](README.md) has the technical details (what each number means, caching, and how to run it), and [docs/odds-models.md](docs/odds-models.md) explains how the odds are computed.
 
 The **Season** picker in the header switches every tab between seasons:
 - **2022 onward:** everything comes from Sleeper.

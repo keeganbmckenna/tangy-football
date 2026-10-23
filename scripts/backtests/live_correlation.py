@@ -27,7 +27,6 @@ cancel, and the variance scale already absorbs the average. Late-game situations
 correlated players left) can't be tested on this data.
 """
 import math, os
-from collections import defaultdict
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq

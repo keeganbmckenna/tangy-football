@@ -1,11 +1,19 @@
 [project]
-name = "fantasy-football-2026"
-version = "0.1.0"
-description = "Add your description here"
+name = "tangy-football"
+version = "1.0.0"
+description = "Data scripts and model research behind the Tangy Football fantasy league site"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "openpyxl>=3.1.5",
+    "numpy>=2.0",
     "pandas>=2.3.3",
+    "pyarrow>=20.0",
     "requests>=2.32.5",
 ]
+
+[project.optional-dependencies]
+# GPU simulators and model research (scripts/backtests/gpu_sim.py and friends)
+gpu = ["torch>=2.8"]
+
+[tool.uv]
+package = false

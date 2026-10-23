@@ -1,3 +1,4 @@
+"""Scores season_odds.py's variants (season.pkl): Brier, log loss and calibration."""
 import pickle, numpy as np, random
 out = pickle.load(open('season.pkl', 'rb'))
 def metrics(rows, key):  # key 2=playoffs, 3=bye

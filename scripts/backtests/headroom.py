@@ -22,12 +22,10 @@ our cutoff (top 6), leave one season out, no divisions (they change the Brier by
 
     python headroom.py [--sims 2000] [--draws 8]
 """
-import argparse, math, time
+import argparse, time
 import numpy as np
-import torch
 import gpu_sim as G
 import drift as D
-import leagues_fit as LF
 
 RHOS = (0.0, 0.25, 0.5, 0.75, 1.0)
 

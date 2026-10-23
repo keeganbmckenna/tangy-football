@@ -54,7 +54,7 @@ def league_snapshots(L, M, weekly=False):
     season = L['season']; ppr = L['scoring_settings'].get('rec'); slots = L['roster_positions']
     end = (L['settings'].get('playoff_week_start') or 15) - 1; n_po = L['settings'].get('playoff_teams') or 6
     if any(w not in M for w in range(1, end + 1)): return out
-    ids = sorted(m['roster_id'] for m in M[1]); ix = {r: i for i, r in enumerate(ids)}; T = len(ids)
+    ids = sorted(m['roster_id'] for m in M[1]); ix = {r: i for i, r in enumerate(ids)}
     pts = {w: {m['roster_id']: (m.get('points') or 0) for m in M[w]} for w in range(1, end + 1)}
     games = {}
     for w in range(1, end + 1):

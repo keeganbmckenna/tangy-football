@@ -1,4 +1,5 @@
-import numpy as np, math, random
+"""Single-game win odds from games.npy: calibration and the spread that fits best."""
+import numpy as np, math
 G = np.load('games.npy'); season, t0, h, won, dB, dN, dF, sd = G.T
 erf = np.vectorize(math.erf)
 def probs(w1, wl, byes_later, s1, sl):

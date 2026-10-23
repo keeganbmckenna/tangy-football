@@ -14,8 +14,7 @@ player leaves a hole for the rest of the season that the site wouldn't have). We
 import math, statistics as st
 from collections import defaultdict
 import numpy as np
-from common import best
-from form_options import Season, N
+from form_options import Season
 from streaming import best_stream
 
 SEASONS = ['2022', '2023', '2024', '2025']

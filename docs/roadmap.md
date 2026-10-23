@@ -1,6 +1,6 @@
 # Future Features
 
-Ideas not built yet, grouped by theme. What's already built is described in [FEATURES.md](FEATURES.md) and [README.md](README.md).
+Ideas not built yet, grouped by theme. What's already built is described in [FEATURES.md](../FEATURES.md) and [README.md](../README.md).
 
 ## Lineups and roster moves
 

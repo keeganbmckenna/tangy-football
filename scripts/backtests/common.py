@@ -1,5 +1,5 @@
 """Shared helpers for the backtests: cached Sleeper data, best lineup, least squares."""
-import json, glob, gzip, os, statistics as st
+import json, glob, gzip, os
 import numpy as np
 
 

@@ -1,6 +1,6 @@
 # Tangy Football - Web App
 
-The Next.js app behind https://tangy-football.vercel.app. The [main README](../README.md) covers every feature, the project layout, caching and deployment; [FEATURES.md](../FEATURES.md) is a plain-language tour.
+The Next.js app behind https://tangy-football.vercel.app. The [main README](../README.md) covers every feature, the project layout, caching and deployment; [FEATURES.md](../FEATURES.md) is a plain-language tour, and [docs/odds-models.md](../docs/odds-models.md) explains the odds models in `lib/analyze/`.
 
 ## Running it
 
@@ -17,6 +17,7 @@ Then open [http://localhost:3000](http://localhost:3000).
 |---|---|
 | `npm run dev` | Development server |
 | `npm test` | Vitest in watch mode (`npx vitest run` runs once) |
+| `npx tsc --noEmit` | Type check |
 | `npm run test:coverage` | Tests with a coverage report |
 | `npm run lint` | ESLint |
 | `npm run build` | Production build |
@@ -39,6 +40,7 @@ The ID is in the league's Sleeper URL: `https://sleeper.com/leagues/YOUR_LEAGUE_
 - `hooks/` - theme, your team, table sorting, chart hover and taps, team colors
 - `lib/analyze/` - all the analytics (standings, play-all, brackets, playoff odds, live, draft, trades, trade and waiver finders, history), tested in `lib/__tests__/`
 - `lib/` - Sleeper fetching, config and cache durations, league settings, shared types
+- `lib/analyze/strengthModel.json` - the fitted odds-model weights, exported by `scripts/backtests/export_model.py`
 - `public/data/` - pre-built draft data and trade history for completed seasons
 
 ## Stack

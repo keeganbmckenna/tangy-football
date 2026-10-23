@@ -23,7 +23,7 @@ import contextlib, io, math, runpy, statistics as st
 from collections import defaultdict
 import numpy as np
 from common import best
-from form_options import Season, N
+from form_options import Season
 
 SEASONS = ['2022', '2023', '2024', '2025']
 SHARES = [0.0, 0.25, 0.5, 0.75, 1.0]      # season share (0 = projection only)
@@ -196,9 +196,8 @@ def cached_collect():
 def main():
     data = cached_collect()
     spreads_only(data)
-    rng = np.random.default_rng(31)
     print('\nleave-one-season-out picks (share, shrink, weight, s_next, s_later):')
-    rows = defaultdict(lambda: defaultdict(float)); counts = defaultdict(int)
+    rows = defaultdict(lambda: defaultdict(float))
     brier = defaultdict(list)
     for s in SEASONS:
         train = [x for x in SEASONS if x != s]

@@ -11,7 +11,7 @@ against what happened. Prints squared error of wins and Brier of playoffs.
 """
 import json, random, statistics as st, math
 import numpy as np
-from common import D, J, best, leagues
+from common import J, best, leagues
 
 rng = np.random.default_rng(11); N = 3000
 VARIANTS = {

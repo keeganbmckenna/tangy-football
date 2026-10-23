@@ -8,7 +8,6 @@
 
     python schedule_luck.py
 """
-import math
 from collections import Counter
 import numpy as np, torch
 import gpu_sim as G, leagues_fit as LF, rank_odds as R

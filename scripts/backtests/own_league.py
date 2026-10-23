@@ -77,7 +77,7 @@ def main():
         sel = P['e'] == e
         print(f'  week {e:2d}: ' + ' / '.join(f'{brier["playoff"][m, sel].mean():.4f}' for m in range(4)))
     # Paired differences; rough interval resampling team-seasons (too narrow, see above)
-    rng = np.random.default_rng(0); team_season = [(int(P['season'][i]), j) for i in range(B) for j in range(12)]
+    rng = np.random.default_rng(0)
     print('\nfitted + tau minus each, playoff Brier: by season; pooled with a rough interval (team-seasons resampled)')
     for m in range(3):
         d = brier['playoff'][3] - brier['playoff'][m]

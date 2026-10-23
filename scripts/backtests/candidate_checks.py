@@ -14,7 +14,7 @@ Needs manager_features.py's saved scores (cache/manager_features.npz).
     python candidate_checks.py
 """
 import gzip, json, os
-from collections import Counter, defaultdict
+from collections import Counter
 import numpy as np
 import torch
 import gpu_sim as G
@@ -74,7 +74,7 @@ def main():
             if r.get('owner_id'): record[r['owner_id']][int(s)].append((ppg[r['roster_id']] - mu) / sd)
         rosters[Lg['league_id']] = {w: {m['roster_id']: (set(m.get('players') or []), m.get('starters') or []) for m in M[w]} for w in range(1, end + 1)}
     Fo, has = MF.features(rows, owners, record, rosters)
-    print(f'  our teams with a track record: ' + ', '.join(f'{s} {has[np.array([r["season"] == s for r in rows])].mean():.0%}' for s in ('2022', '2023', '2024', '2025')))
+    print('  our teams with a track record: ' + ', '.join(f'{s} {has[np.array([r["season"] == s for r in rows])].mean():.0%}' for s in ('2022', '2023', '2024', '2025')))
     Po = G.pack(rows); B, T = Po['y'].shape
     crawl = [r for r in G.S.collect(weekly=True) if len(r['ids']) == 12]; C = G.pack(crawl)
     Fc, _ = MF.features(crawl, owners, record, rosters)
@@ -98,7 +98,7 @@ def main():
     for i, n in enumerate((BASE, CAND)):
         print(f'  {n:<24}' + ''.join(f'  {s} {br[i, Po["season"] == int(s)].mean():.4f}' for s in ('2022', '2023', '2024', '2025')) + f'  pooled {br[i].mean():.4f}')
     dd = br[1] - br[0]
-    print(f'  difference: ' + '  '.join(f'{s} {dd[Po["season"] == int(s)].mean():+.4f}' for s in ('2022', '2023', '2024', '2025')) + f'  pooled {dd.mean():+.4f}')
+    print('  difference: ' + '  '.join(f'{s} {dd[Po["season"] == int(s)].mean():+.4f}' for s in ('2022', '2023', '2024', '2025')) + f'  pooled {dd.mean():+.4f}')
 
 
 if __name__ == '__main__':

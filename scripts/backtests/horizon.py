@@ -1,5 +1,5 @@
-# How well do projections known at week t0 predict a team's score h weeks later?
-import json, os, statistics as st, numpy as np
+"""How well do projections known at week t0 predict a team's score h weeks later?"""
+import statistics as st, numpy as np
 from common import J, best, leagues, ols
 out = []
 for season in ['2022', '2023', '2024', '2025']:

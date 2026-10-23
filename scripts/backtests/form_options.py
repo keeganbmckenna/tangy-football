@@ -22,9 +22,9 @@ Scored on rest-of-season wins (squared error) and playoff odds (Brier).
 Run fetch_history.py first, then `python form_options.py trades` and
 `python form_options.py all`, and score with form_options_score.py.
 """
-import json, math, random, statistics as st, sys
+import json, math, statistics as st, sys
 import numpy as np
-from common import D, J, best, leagues
+from common import J, best, leagues
 
 N = 3000
 # (name, projection share, games of projection the season PPG is shrunk toward)

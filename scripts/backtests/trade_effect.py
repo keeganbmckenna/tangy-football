@@ -44,7 +44,6 @@ for lab, B in [('model w/ counterfactual roster', bC), ('model w/ actual roster'
 res = y - (0.75 * bC + 0.25 * f)
 b, se, _ = ols([d], res); print('residual ~ Δ: slope %.3f ± %.3f' % (b[1], se[1]))
 # cluster bootstrap by trade-team for honest SE
-import random
 random.seed(1); keys = sorted({(x['tid'], x['r']) for x in rows}); idx = {}
 for i, x in enumerate(rows): idx.setdefault((x['tid'], x['r']), []).append(i)
 sl = []

@@ -34,7 +34,7 @@ def get(url, name, pause=0.0):
             with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'curl/8'}), timeout=60) as r:
                 data = json.load(r)
             break
-        except Exception as e:  # rate limits and blips: back off and retry
+        except Exception:  # rate limits and blips: back off and retry
             if attempt == 7:
                 raise
             time.sleep(min(2 ** attempt, 30))

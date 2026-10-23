@@ -63,7 +63,6 @@ def build_season(season: str, league_id: str, draft_id: str) -> dict:
     draft = get(f"{BASE}/draft/{draft_id}")
     picks = get(f"{BASE}/draft/{draft_id}/picks")
     league = get(f"{BASE}/league/{league_id}")
-    users = get(f"{BASE}/league/{league_id}/users")
     rosters = get(f"{BASE}/league/{league_id}/rosters")
 
     draft_type = draft.get("type", "snake")

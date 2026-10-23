@@ -1,6 +1,7 @@
-# Season-level backtest: playoff and bye odds at each week vs what actually happened
-import json, statistics as st, numpy as np, math
-from common import D, J, best, leagues
+"""Season-level backtest: playoff and bye odds at each week vs what actually happened
+(writes season.pkl; several minutes)."""
+import statistics as st, numpy as np, math
+from common import J, best, leagues
 rng = np.random.default_rng(7); N = 4000
 def seeds(wins, pf, div, has_div):
     # wins: (N,T) arrays; returns (N,T) seed rank 1..T (playoff seeds 1-6 per league rules)
