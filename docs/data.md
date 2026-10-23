@@ -21,6 +21,7 @@ The app's server routes fetch and cache all of it; durations are in `CACHE_CONFI
 | `data/sleeper/{season}/` | Completed seasons: league, users, rosters, brackets, draft, matchups, transactions, every player's weekly projections and stats, the NFL schedule. 2018-2021 hold NFL projections, stats and schedules only (Sleeper's projections start in 2018) | `scripts/archive_season.py`, run by the `Archive seasons` workflow every March 15 |
 | `web/public/data/drafts/{season}.json` | Pre-built draft boards for completed seasons | `scripts/build_draft_data.py` |
 | `web/public/data/trades/{season}.json` | Pre-built trade grades for completed seasons | `scripts/build_trade_history.py` |
+| `web/public/data/odds-history/{season}.json` | Pre-built week-by-week odds for completed seasons | `scripts/build_odds_history.py` |
 | `web/lib/analyze/strengthModel.json` | The fitted odds-model weights | `scripts/backtests/export_model.py` |
 | `prediction-log` branch | The site's odds and every player's injury status before kickoffs and on Wednesdays, for the 2026 evaluation (Sleeper overwrites injury statuses, so they can't be recovered later) | The `Prediction log` workflow (`scripts/snapshot_predictions.py`) |
 

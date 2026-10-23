@@ -24,6 +24,19 @@ interface OddsHistoryChartProps {
   liveOdds?: OddsResult | null;
   /** Weeks scored, to know which checkpoint the live odds replace */
   lastScoredWeek?: number;
+  /** A finished season: load the pre-built file (web/public/data/odds-history/) first */
+  complete?: boolean;
+}
+
+/** Finished seasons are pre-built (scripts/build_odds_history.py); the season in progress is built live */
+async function loadHistory(season: string, complete: boolean) {
+  if (complete) {
+    const res = await fetch(`/data/odds-history/${season}.json`).catch(() => null);
+    if (res?.ok) return (await res.json()) as OddsHistoryResponse;
+  }
+  const res = await fetch(`/api/odds-history/${season}`);
+  if (!res.ok) throw new Error('Failed to load the odds history');
+  return (await res.json()) as OddsHistoryResponse;
 }
 
 type Outcome = keyof OddsSnapshot;
@@ -33,7 +46,7 @@ type Outcome = keyof OddsSnapshot;
  * completed week, the playoff-odds model re-run with only what was known then
  * (/api/odds-history/{season}, lib/oddsHistory.ts).
  */
-export default function OddsHistoryChart({ season, teamStats, liveOdds, lastScoredWeek }: OddsHistoryChartProps) {
+export default function OddsHistoryChart({ season, teamStats, liveOdds, lastScoredWeek, complete = false }: OddsHistoryChartProps) {
   const [data, setData] = useState<OddsHistoryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -45,17 +58,13 @@ export default function OddsHistoryChart({ season, teamStats, liveOdds, lastScor
   useEffect(() => {
     let cancelled = false;
     setData(null);
-    fetch(`/api/odds-history/${season}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load the odds history');
-        return res.json() as Promise<OddsHistoryResponse>;
-      })
+    loadHistory(season, complete)
       .then((json) => !cancelled && setData(json))
       .catch((err) => !cancelled && setError(err instanceof Error ? err.message : 'Failed to load the odds history'));
     return () => {
       cancelled = true;
     };
-  }, [season, attempt]);
+  }, [season, complete, attempt]);
 
   const usernames = useMemo(() => teamStats.map((t) => t.username), [teamStats]);
   const teamColors = useTeamColors(teamStats, usernames);

@@ -38,7 +38,7 @@ During the regular season:
 - **Playoff Odds** - 20,000 simulations of the real remaining schedule, giving playoff, division, bye, title and toilet bowl odds, and how this week's win or loss changes them. Each team's expected score combines its best projected lineup (each player worth half his Sleeper projection and half his points per game this season) and its points per game so far, with weights fitted for each week of the season on thousands of other 12-team leagues, plus a per-team uncertainty held for the whole simulated season. Players who are out are discounted by their chance of being back. Details and evidence: [docs/odds-models.md](docs/odds-models.md).
 - **Toilet Bowl If the Season Ended Now** - The six non-playoff teams in the toilet bowl, where the lower score advances.
 - **What Each Team Needs** - Each team's odds now, with a win and with a loss; clinched and eliminated; in the last three weeks, win-and-in scenarios; and the team's biggest rooting interest this week.
-- 📈 **Odds Week by Week** - A line per team showing how its chance to make the playoffs, get a bye, win the division, win the league, get a toilet bowl bye or lose the toilet bowl (picked from a dropdown) moved from the draft through each completed week. Each point re-runs the odds model with only what was known then: the drafted rosters, then each week's, records so far and that week's projections (`/api/odds-history/{season}`, `web/lib/oddsHistory.ts`).
+- 📈 **Odds Week by Week** - A line per team showing how its chance to make the playoffs, get a bye, win the division, win the league, get a toilet bowl bye or lose the toilet bowl (picked from a dropdown) moved from the draft through each completed week. Each point re-runs the odds model with only what was known then: the drafted rosters, then each week's, records so far and that week's projections (`/api/odds-history/{season}`, `web/lib/oddsHistory.ts`). Completed seasons are pre-built JSON in `web/public/data/odds-history/`.
 
 After the regular season, and for past seasons, the **Playoff Bracket** (with placement games), the **Toilet Bowl** and the **Odds Week by Week** chart for the whole season. Tap a game that's been played for both lineups and benches, as in Overview's matchups.
 
@@ -127,7 +127,7 @@ All-time records, head to head and rivalries count regular-season, playoff and t
 │   │   ├── theme.ts
 │   │   └── types.ts
 │   └── public/
-│       ├── data/                 # Pre-built draft data and trade history per season
+│       ├── data/                 # Pre-built draft data, trade history and odds history per season
 │       └── icon-*.png            # Home-screen icons for Android
 ├── scripts/                      # Data maintenance scripts (see scripts/README.md)
 │   └── backtests/                # Model research: backtests, simulators, model export

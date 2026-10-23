@@ -547,7 +547,7 @@ export default function Home() {
             {!regularSeasonInProgress && leagueData && !isLegacySeason && (
               <ErrorBoundary>
                 <section>
-                  <OddsHistoryChart season={selectedSeason || leagueData.league.season} teamStats={teamStats} />
+                  <OddsHistoryChart season={selectedSeason || leagueData.league.season} teamStats={teamStats} complete />
                 </section>
               </ErrorBoundary>
             )}

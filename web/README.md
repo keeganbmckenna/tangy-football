@@ -41,7 +41,7 @@ The ID is in the league's Sleeper URL: `https://sleeper.com/leagues/YOUR_LEAGUE_
 - `lib/analyze/` - all the analytics (standings, play-all, brackets, playoff odds, live, draft, trades, trade and waiver finders, history), tested in `lib/__tests__/`
 - `lib/` - Sleeper fetching, config and cache durations, league settings, shared types
 - `lib/analyze/strengthModel.json` - the fitted odds-model weights, exported by `scripts/backtests/export_model.py`
-- `public/data/` - pre-built draft data and trade history for completed seasons
+- `public/data/` - pre-built draft data, trade history and odds history for completed seasons
 
 ## Stack
 
