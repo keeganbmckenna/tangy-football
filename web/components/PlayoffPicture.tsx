@@ -5,6 +5,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import RetryButton from '@/components/ui/RetryButton';
 import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
 import OddsHistoryChart from '@/components/OddsHistoryChart';
+import GamesAhead from '@/components/GamesAhead';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
@@ -474,6 +475,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           </div>
         </SectionCard>
       )}
+
+      {data.gameOdds && <GamesAhead gameOdds={data.gameOdds} teams={data.teams} teamStats={teamStats} />}
 
       <OddsHistoryChart season={data.season} teamStats={teamStats} liveOdds={data.odds} lastScoredWeek={data.lastScoredWeek} />
 

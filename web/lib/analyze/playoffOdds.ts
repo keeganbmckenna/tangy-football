@@ -897,6 +897,11 @@ export interface PlayoffOddsResponse {
   previousModel: Record<number, { playoffs: number; bye: number; champion: number | null }> | null;
   scenarios: Record<number, TeamScenarios>;
   pointsRaces: Record<number, PointsRace[]>;
+  /**
+   * Each remaining regular-season game's odds under the single-game model (singleGameModel, as
+   * the trade tools' weekly odds): aWins is a's chance. Null without projections.
+   */
+  gameOdds: Array<{ week: number; a: number; b: number; aWins: number }> | null;
   remainingWeeks: number;
   /** Remaining weeks that had projections; empty if season form only */
   projectionWeeks: number[];

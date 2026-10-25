@@ -13,11 +13,12 @@ import {
   simulatePlayoffOdds,
   type PlayoffOddsResponse,
 } from '@/lib/analyze/playoffOdds';
+import { weeklyWinProbability } from '@/lib/analyze/trade';
 
 export const dynamic = 'force-dynamic';
 
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v14';
+const CACHE_VERSION = 'v15';
 
 async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
   const inputs = await loadOddsInputs(league);
@@ -55,6 +56,12 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
         : null,
     scenarios: playoffScenarios(teams, remaining, format),
     pointsRaces: pointsRaces(teams, format),
+    gameOdds: inputs.games
+      ? remaining.map((g) => {
+          const mean = inputs.games!.meanByWeek[g.week] ?? {};
+          return { week: g.week, a: g.a, b: g.b, aWins: weeklyWinProbability(mean[g.a] ?? 0, mean[g.b] ?? 0, inputs.games!.spreadByWeek[g.week] ?? 25) };
+        })
+      : null,
     remainingWeeks: inputs.remainingWeeks.length,
     projectionWeeks: inputs.projectionWeeks,
     generatedAt: new Date().toISOString(),

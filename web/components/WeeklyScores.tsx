@@ -7,6 +7,7 @@ import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
+import { median } from '@/lib/analyze/draft';
 
 interface WeeklyScoresProps {
   teams: TeamStats[];
@@ -31,6 +32,15 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
       lossAvg: team.avgPointsInLosses,
       lossMargin: team.avgLossMargin,
     }[key];
+  });
+
+  // The league's median winning and losing score each week and over the season (ties left out)
+  const scoresBy = (result: 'W' | 'L', week: number) =>
+    teams.filter((t) => t.weeklyResults[week] === result).map((t) => t.weeklyScores[week]);
+  const medianRows = (['W', 'L'] as const).map((result) => {
+    const byWeek = weeks.map((w) => scoresBy(result, w - 1));
+    const all = byWeek.flat();
+    return { result, byWeek: byWeek.map((v) => (v.length ? median(v) : null)), season: all.length ? median(all) : null };
   });
 
   return (
@@ -159,6 +169,32 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
               </tr>
             ))}
           </tbody>
+          <tfoot className="bg-[var(--surface)] divide-y divide-[var(--border)] border-t-2 border-[var(--border)]">
+            {medianRows.map((row) => (
+              <tr key={row.result}>
+                <td
+                  className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface)]`}
+                  title={`The league's median ${row.result === 'W' ? 'winning' : 'losing'} score each week (ties left out)`}
+                >
+                  <TeamName
+                    name={row.result === 'W' ? 'Median win' : 'Median loss'}
+                    sub={row.season !== null ? `Season ${row.season.toFixed(2)}` : undefined}
+                  />
+                </td>
+                {row.byWeek.map((value, i) => (
+                  <td
+                    key={i}
+                    className={`px-4 py-3 whitespace-nowrap text-center text-sm font-semibold ${
+                      row.result === 'W' ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'
+                    }`}
+                  >
+                    {value !== null ? value.toFixed(2) : '—'}
+                  </td>
+                ))}
+                <td colSpan={6} />
+              </tr>
+            ))}
+          </tfoot>
         </table>
       </div>
     </SectionCard>
