@@ -222,6 +222,24 @@ export function allowedPoints(allowed: number, scoring: Record<string, number>):
 }
 
 /**
+ * The next points-allowed bracket that changes a defense's points: how many allowed it starts
+ * at and what it scores (null when no later bracket scores differently)
+ */
+export function nextAllowedBracket(allowed: number, scoring: Record<string, number>): { at: number; points: number } | null {
+  const now = allowedPoints(allowed, scoring);
+  const starts = Object.keys(scoring)
+    .map(bracket)
+    .filter((b): b is [number, number] => !!b && b[0] > allowed)
+    .map((b) => b[0])
+    .sort((x, y) => x - y);
+  for (const at of starts) {
+    const points = allowedPoints(at, scoring);
+    if (points !== now) return { at, points };
+  }
+  return null;
+}
+
+/**
  * A defense's expected final points. Points allowed are scored in brackets (a shutout is
  * worth 10 here, 35+ costs 4), and every defense starts its game in the shutout bracket, so
  * its live points jump at kickoff and fall as the other team scores. Instead of adding its

@@ -10,6 +10,8 @@
  * receptions/targets as "rec").
  */
 
+import { allowedPoints, nextAllowedBracket } from './live';
+
 /** The stats a box score line uses: the routes send only these, to keep responses small */
 export const STAT_KEYS = [
   'pass_cmp', 'pass_att', 'pass_yd', 'pass_td', 'pass_int', 'pass_2pt',
@@ -68,7 +70,7 @@ function kicking(s: StatLine): string {
   return [fg, xp].filter(Boolean).join(' · ');
 }
 
-function defense(s: StatLine): string {
+function defense(s: StatLine, allowedScoring?: Record<string, number>): string {
   const plays = join([
     s.sack && `${s.sack} sk`,
     s.int && `${s.int} INT`,
@@ -79,15 +81,28 @@ function defense(s: StatLine): string {
     s.def_2pt && `${s.def_2pt} 2PT ret`,
     ((s.def_kr_yd ?? 0) + (s.def_pr_yd ?? 0)) > 0 && `${(s.def_kr_yd ?? 0) + (s.def_pr_yd ?? 0)} ret yd`,
   ]);
-  const allowed = s.pts_allow !== undefined ? `${s.pts_allow} PA` : '';
+  const allowed = s.pts_allow !== undefined ? `${s.pts_allow} PA${allowedScoring ? bracketNote(s.pts_allow, allowedScoring) : ''}` : '';
   return [plays, allowed].filter(Boolean).join(' · ');
 }
 
-/** The week's box score line for a player at this position ('' if he has no stats) */
-export function formatStatLine(position: string, s: StatLine | null | undefined): string {
+const signed = (v: number) => (v < 0 ? `\u2212${-v}` : `${v}`);
+
+/** What a defense's points allowed are worth now, and where that drops: ": 1 pt, 0 at 21" */
+function bracketNote(allowed: number, scoring: Record<string, number>): string {
+  const now = allowedPoints(allowed, scoring);
+  const next = nextAllowedBracket(allowed, scoring);
+  return `: ${signed(now)} pt${Math.abs(now) === 1 ? '' : 's'}${next ? `, ${signed(next.points)} at ${next.at}` : ''}`;
+}
+
+/**
+ * The week's box score line for a player at this position ('' if he has no stats). Given the
+ * league's points-allowed scoring (a defense in a game), its points allowed say what they're
+ * worth and where the next bracket starts.
+ */
+export function formatStatLine(position: string, s: StatLine | null | undefined, allowedScoring?: Record<string, number>): string {
   if (!s) return '';
   if (position === 'K') return kicking(s);
-  if (position === 'DEF') return defense(s);
+  if (position === 'DEF') return defense(s, allowedScoring);
   // All three for everyone (each only when he has some), his position's first
   const parts =
     position === 'QB'

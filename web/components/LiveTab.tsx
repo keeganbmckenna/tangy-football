@@ -433,9 +433,10 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             status: p.game ? p.game.label : 'No game',
             game: (p.game && gameMatchup(p.game)) || undefined,
             state: p.game?.state ?? 'none',
-            // Where the ball is in his game, for everyone but defenses
-            drive: p.position !== 'DEF' && p.game?.state === 'in' ? p.game.drive : undefined,
-            stats: formatStatLine(p.position, live.stats?.[p.playerId]) || undefined,
+            // Where the ball is in his game (a defense's from its own side)
+            drive: p.game?.state === 'in' ? p.game.drive : undefined,
+            // A defense in a game: what its points allowed are worth and where the next bracket starts
+            stats: formatStatLine(p.position, live.stats?.[p.playerId], p.game?.state === 'in' ? live.allowedScoring : undefined) || undefined,
           };
         const side = (s: LiveSide, odds: number): MatchupSide | null => {
           const sm = live.matchups.find((x) => x.roster_id === s.rosterId);

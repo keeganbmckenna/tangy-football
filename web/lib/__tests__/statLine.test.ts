@@ -33,6 +33,17 @@ describe('box score lines', () => {
     expect(formatStatLine('DEF', pickStats({ sack: 1, def_td: 1, pts_allow: 0, yds_allow: 188 }))).toBe('1 sk, 1 TD · 0 PA');
   });
 
+  it("says what a defense's points allowed are worth during its game, and where the next bracket starts", () => {
+    const scoring = { pts_allow_0: 10, pts_allow_1_6: 7, pts_allow_7_13: 4, pts_allow_14_20: 1, pts_allow_21_27: 0, pts_allow_28_34: -1, pts_allow_35p: -4 };
+    const line = (pa: number) => formatStatLine('DEF', pickStats({ pts_allow: pa }), scoring);
+    expect(line(0)).toBe('0 PA: 10 pts, 7 at 1');
+    expect(line(14)).toBe('14 PA: 1 pt, 0 at 21');
+    expect(line(27)).toBe('27 PA: 0 pts, \u22121 at 28');
+    expect(line(40)).toBe('40 PA: \u22124 pts');
+    // Brackets that score the same are skipped
+    expect(formatStatLine('DEF', pickStats({ pts_allow: 3 }), { pts_allow_0: 5, pts_allow_1_6: 5, pts_allow_7_13: 2 })).toBe('3 PA: 5 pts, 2 at 7');
+  });
+
   it('nothing for a player without stats', () => {
     expect(pickStats(undefined)).toBeNull();
     expect(pickStats({ gp: 0 })).toBeNull();
