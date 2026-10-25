@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  driveFor,
   gameMatchup,
   liveWeekNumber,
   liveMatchupStatus,
@@ -319,3 +320,28 @@ describe('the NFL game line', () => {
     expect(gameMatchup({ state: 'pre', remaining: 1, label: '' })).toBeNull();
   });
 });
+
+describe('driveFor', () => {
+  // ESPN's yardLine counts from the home team's goal line; possession is the team ID with the ball
+  const bal = { id: '33', code: 'BAL', home: true };
+  const cin = { id: '4', code: 'CIN', home: false };
+
+  it('reads the drive from each side (BAL at home, CIN with the ball at its own 12)', () => {
+    const s = { down: 1, distance: 10, yardLine: 88, possession: '4' };
+    expect(driveFor(s, cin, bal)).toEqual({ offense: true, downDistance: '1st & 10', spot: 'CIN 12', fromOwnGoal: 12 });
+    expect(driveFor(s, bal, cin)).toEqual({ offense: false, downDistance: '1st & 10', spot: 'CIN 12', fromOwnGoal: 88 });
+  });
+
+  it('says Goal when the line to gain is the goal line, and 50 at midfield', () => {
+    expect(driveFor({ down: 3, distance: 4, yardLine: 96, possession: '33' }, bal, cin)?.downDistance).toBe('3rd & Goal');
+    expect(driveFor({ down: 3, distance: 4, yardLine: 96, possession: '33' }, bal, cin)?.spot).toBe('CIN 4');
+    expect(driveFor({ down: 2, distance: 7, yardLine: 50, possession: '4' }, cin, bal)?.spot).toBe('50');
+  });
+
+  it('keeps the spot but drops the down between plays, and is null with no team on offense', () => {
+    expect(driveFor({ down: -1, distance: 0, yardLine: 35, possession: '33' }, bal, cin)).toEqual({ offense: true, downDistance: null, spot: 'BAL 35', fromOwnGoal: 35 });
+    expect(driveFor({ down: -1, distance: 0, yardLine: 85, possession: null }, bal, cin)).toBeNull();
+    expect(driveFor(undefined, bal, cin)).toBeNull();
+  });
+});
+

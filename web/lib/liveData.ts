@@ -3,7 +3,7 @@
  * public scoreboard, and fantasy points computed from Sleeper's live player stats.
  */
 
-import { gameRemaining, withLivePoints, type LiveGame } from './analyze/live';
+import { driveFor, gameRemaining, withLivePoints, type LiveGame } from './analyze/live';
 import { pickStats, type StatLine } from './analyze/statLine';
 import { SLEEPER_CONFIG } from './config';
 import type { SleeperMatchup } from './types';
@@ -21,7 +21,11 @@ const fetchJson = async <T,>(url: string, revalidate: number): Promise<T> => {
 interface EspnEvent {
   date?: string;
   status: { clock?: number; period?: number; displayClock?: string; type: { state: string; shortDetail?: string } };
-  competitions: Array<{ competitors: Array<{ score?: string; homeAway?: string; team: { abbreviation: string } }> }>;
+  competitions: Array<{
+    competitors: Array<{ score?: string; homeAway?: string; team: { id: string; abbreviation: string } }>;
+    /** While the game is on: down, distance, yard line (from the home team's goal line) and the team ID with the ball */
+    situation?: { down?: number; distance?: number; yardLine?: number; possession?: string | null };
+  }>;
 }
 
 /** Kickoff as "Sun 1:00 PM ET" */
@@ -55,7 +59,9 @@ export async function scoreboard(season: string, week: number, revalidate = 5): 
         ? `${period > 4 ? 'OT' : `Q${period}`} ${e.status.displayClock ?? ''}`.trim()
         : state === 'post' ? 'Final' : kickoff(e.date);
       const code = (c: typeof x) => ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation;
+      const situation = state === 'in' ? e.competitions[0]?.situation : undefined;
       for (const [c, o] of [[x, y], [y, x]]) {
+        const drive = driveFor(situation, { id: c.team.id, code: code(c), home: c.homeAway === 'home' }, { id: o.team.id, code: code(o) });
         games[code(c)] = {
           state,
           remaining,
@@ -63,6 +69,7 @@ export async function scoreboard(season: string, week: number, revalidate = 5): 
           opponent: code(o),
           home: c.homeAway === 'home',
           ...(state !== 'pre' && { score: Number(c.score ?? 0), opponentScore: Number(o.score ?? 0) }),
+          ...(drive && { drive }),
         };
       }
     }

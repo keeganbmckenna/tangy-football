@@ -72,6 +72,48 @@ export interface LiveGame {
   /** This team's score and its opponent's (once the game starts) */
   score?: number;
   opponentScore?: number;
+  /** While the game is on and a team has the ball: the drive, from this team's side */
+  drive?: Drive;
+}
+
+/** Where the ball is, from one team's side */
+export interface Drive {
+  /** This team has the ball */
+  offense: boolean;
+  /** Down and distance, e.g. "2nd & 1" or "1st & Goal"; null between plays (kickoffs, timeouts) */
+  downDistance: string | null;
+  /** The spot, e.g. "IND 42" or "50" */
+  spot: string;
+  /** Yards from this team's own goal line to the ball, 0-100 (for a field bar) */
+  fromOwnGoal: number;
+}
+
+const ORDINAL = ['', '1st', '2nd', '3rd', '4th'];
+
+/**
+ * The drive from one team's side, from ESPN's game situation: yardLine counts from the home
+ * team's goal line, possession is the team ID with the ball. Null without a team on offense.
+ */
+export function driveFor(
+  situation: { down?: number; distance?: number; yardLine?: number; possession?: string | null } | undefined,
+  team: { id: string; code: string; home: boolean },
+  opponent: { id: string; code: string }
+): Drive | null {
+  if (!situation?.possession || situation.yardLine === undefined || situation.yardLine < 0 || situation.yardLine > 100) return null;
+  if (situation.possession !== team.id && situation.possession !== opponent.id) return null;
+  const y = situation.yardLine;
+  const [homeCode, awayCode] = team.home ? [team.code, opponent.code] : [opponent.code, team.code];
+  const spot = y === 50 ? '50' : y < 50 ? `${homeCode} ${y}` : `${awayCode} ${100 - y}`;
+  const fromOwnGoal = team.home ? y : 100 - y;
+  const offense = situation.possession === team.id;
+  // Yards the offense has to the goal line: "& Goal" when the line to gain is the goal line
+  const offenseHome = offense ? team.home : !team.home;
+  const toGoal = 100 - (offenseHome ? y : 100 - y);
+  const down = situation.down ?? -1;
+  const downDistance = down >= 1 && down <= 4
+    ? `${ORDINAL[down]} & ${(situation.distance ?? 0) >= toGoal ? 'Goal' : situation.distance ?? 0}`
+    : null;
+  return { offense, downDistance, spot, fromOwnGoal };
 }
 
 /** The game's score and opponent from this team's side, like Sleeper: "10-17" and "vs NO" (no score before kickoff) */

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
+import type { Drive } from '@/lib/analyze/live';
 import LiveScore from '@/components/ui/LiveScore';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 
@@ -21,6 +22,8 @@ export interface MatchupPlayer {
   game?: { score?: string; opponent: string };
   /** Live only: his game is still to come, on, or over ('none' on a bye) */
   state?: 'pre' | 'in' | 'post' | 'none';
+  /** Live only, while his game is on (not for defenses): where the ball is, from his team's side */
+  drive?: Drive;
   injury?: string | null;
   /** His box score line, e.g. "6/8 rec, 143 yds, 2 TD" */
   stats?: string;
@@ -89,6 +92,39 @@ function cellProps(p: MatchupPlayer | null, right: boolean, pad: string) {
   };
 }
 
+/**
+ * Where the ball is in his game, like Sleeper: down and distance (a green dot when his team has
+ * the ball) or "On defense", and a field bar from his own goal line (left) to the opponent's,
+ * with both 20-yard red zones tinted and the ball marked.
+ */
+function DriveInfo({ drive, right }: { drive: Drive; right: boolean }) {
+  const where = `${drive.downDistance ? `${drive.downDistance} at ` : drive.offense ? 'Ball at ' : ''}${drive.spot}`;
+  const ball = Math.min(Math.max(drive.fromOwnGoal, 0), 100);
+  const redZone = 'color-mix(in srgb, var(--danger-text) 30%, transparent)';
+  return (
+    <div className="mt-0.5">
+      <div
+        className={`flex items-center gap-1 text-[10px] sm:text-[11px] ${right ? 'justify-end' : ''}`}
+        style={{ color: drive.offense ? 'var(--foreground)' : 'var(--muted)' }}
+      >
+        {drive.offense && <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: RESULT_DOT_COLORS.W }} />}
+        <span className="truncate">{drive.offense ? where : `On defense · ${where}`}</span>
+      </div>
+      <div
+        className={`relative mt-1 h-1 w-full max-w-[9rem] rounded-full bg-[var(--border)] ${right ? 'ml-auto' : ''}`}
+        title={`Ball at ${drive.spot}: ${Math.round(ball)} yards from his team's own goal line`}
+      >
+        <div className="absolute inset-y-0 left-0 w-1/5 rounded-l-full" style={{ backgroundColor: redZone }} />
+        <div className="absolute inset-y-0 right-0 w-1/5 rounded-r-full" style={{ backgroundColor: redZone }} />
+        <div
+          className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--surface)]"
+          style={{ left: `${ball}%`, backgroundColor: drive.offense ? RESULT_DOT_COLORS.W : 'var(--muted)' }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: 'left' | 'right'; projLabel: string }) {
   const right = align === 'right';
   if (!p) return <td {...cellProps(null, right, `pt-2 text-sm text-[var(--muted)] ${right ? 'text-right' : ''}`)}>Empty</td>;
@@ -128,6 +164,7 @@ function PlayerCell({ p, align, projLabel }: { p: MatchupPlayer | null; align: '
               {game && <>{' '}{game}</>}
             </div>
           )}
+          {p.drive && <DriveInfo drive={p.drive} right={right} />}
         </div>
         {/* Points in the middle, beside the slot, with the projection under them */}
         <div className={`shrink-0 tabular-nums ${right ? 'text-left' : 'text-right'}`}>
