@@ -9,6 +9,7 @@ describe('cleanPlay', () => {
     expect(cleanPlay('(13:32) (No Huddle, Shotgun) 1-J.Hurts pass deep right to 26-S.Barkley for 47 yards (31-D.Williams).')).toBe(
       'J.Hurts pass deep right to S.Barkley for 47 yards (D.Williams).'
     );
+    expect(cleanPlay('(:03) 10-D.Maye pass short right to 38-R.Stevenson for 48 yards, TOUCHDOWN.')).toBe('D.Maye pass short right to R.Stevenson for 48 yards, TOUCHDOWN.');
     expect(cleanPlay('1-J.Hurts pass deep right to 26-S.Barkley for 47 yards, TOUCHDOWN. DEN-98-J.Franklin-Myers was injured during the play.')).toBe(
       'J.Hurts pass deep right to S.Barkley for 47 yards, TOUCHDOWN.'
     );

@@ -68,7 +68,7 @@ export function biggestPlays(events: PlayEvent[], n = BIG_PLAYS_SHOWN): PlayEven
  */
 export function cleanPlay(desc: string): string {
   return desc
-    .replace(/^\(\d{1,2}:\d{2}\)\s*/, '')
+    .replace(/^\(\d{0,2}:\d{2}\)\s*/, '')
     .replace(/\((?:No Huddle|Shotgun|Pistol|Under Center)(?:,\s*(?:No Huddle|Shotgun|Pistol|Under Center))*\)\s*/g, '')
     .replace(/\d{1,2}-[A-Z][A-Za-z'.-]* reported in as eligible\.?\s*/g, '')
     .replace(/(?:^|\s)[A-Z]{2,3}-\d{1,2}-[A-Z][A-Za-z'.-]* was injured during the play\.?/g, '')
