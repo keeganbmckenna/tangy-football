@@ -39,6 +39,18 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
   if (!model || !weeks.length) return null;
 
   const shownWeek = week ?? weeks[0];
+  // Each picked team's wins and losses from the picks
+  const pickedRecord = new Map<number, { wins: number; losses: number }>();
+  for (const [index, winner] of Object.entries(picks)) {
+    const g = model.remaining[Number(index)];
+    if (!g) continue;
+    for (const id of [g.a, g.b]) {
+      const r = pickedRecord.get(id) ?? { wins: 0, losses: 0 };
+      if (id === winner) r.wins++;
+      else r.losses++;
+      pickedRecord.set(id, r);
+    }
+  }
   const pickCount = Object.keys(picks).length;
   const games = model.remaining.map((g, i) => ({ ...g, index: i })).filter((g) => g.week === shownWeek);
   const gameOdds = data.gameOdds ?? [];
@@ -149,9 +161,20 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
                 if (!now || !then) return null;
                 return (
                   <tr key={t.rosterId} className={mineRow(t.rosterId === me.rosterId)}>
-                    <td className="max-w-[7rem] truncate py-2 pr-1.5 text-[var(--foreground)] sm:max-w-none">
-                      {name(t.rosterId)}
-                      <span className="ml-1 hidden text-xs text-[var(--muted)] sm:inline">{formatRecord(t.wins, t.losses, t.ties)}</span>
+                    <td className="max-w-[7rem] py-2 pr-1.5 text-[var(--foreground)] sm:max-w-none">
+                      <div className="truncate" title={name(t.rosterId)}>{name(t.rosterId)}</div>
+                      {/* The real record, and with picks for this team, the record they'd give */}
+                      <div className="whitespace-nowrap text-xs tabular-nums text-[var(--muted)]">
+                        {formatRecord(t.wins, t.losses, t.ties)}
+                        {pickedRecord.has(t.rosterId) && (
+                          <>
+                            {' → '}
+                            <span className="font-semibold text-[var(--foreground)]">
+                              {formatRecord(t.wins + pickedRecord.get(t.rosterId)!.wins, t.losses + pickedRecord.get(t.rosterId)!.losses, t.ties)}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-1.5 py-2 text-right sm:px-2 font-semibold tabular-nums text-[var(--foreground)]">
                       {formatOdds(then.playoffs)}

@@ -42,7 +42,7 @@ While the regular season is in progress:
 - **Games Ahead:** a team's chance of winning each remaining game, with its expected wins (One team), or every team's as a grid, easiest remaining schedule first (All teams).
 - **What Each Team Needs:** each team's odds now, with a win and with a loss. Also clinched and eliminated, win-and-in scenarios in the last weeks, points races, and the team's biggest rooting interest this week.
 - **Odds Week by Week:** a chart of how every team's odds moved from the draft to now. Pick what to follow: making the playoffs, a bye, the division, the title, a toilet bowl bye or losing the toilet bowl. Each point is what the model would have said at the time. Finished seasons show it too.
-- **What If:** pick winners of any remaining games and see everyone's playoff, bye and division odds with those results fixed, against the same simulation without the picks.
+- **What If:** pick winners of any remaining games and see everyone's playoff, bye and division odds with those results fixed, against the same simulation without the picks, and each picked team's record with them ("2-4 → 5-4").
 
 After the regular season, and for past seasons: the **Playoff Bracket** (with placement games) and the **Toilet Bowl** bracket. Tap a game that's been played to see both lineups.
 
