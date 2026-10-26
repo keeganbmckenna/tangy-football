@@ -22,13 +22,16 @@ A Next.js web app for our Sleeper fantasy football league: standings, live scori
 The season picker in the header switches every tab between seasons. Past Sleeper seasons are found by following each league's `previous_league_id`. Seasons before Sleeper (2017-2021) only have their final standings and the History tab. Weekly analytics count completed regular-season weeks only, and ties count as half a win everywhere.
 
 ### Overview
+- 📖 **Season in Review** (finished seasons) - One manager at a time: finish, record and points rank, best and worst week, MVP, best pickup, best trade by net points, lineup efficiency, luck and close games, and a sparkline of their playoff odds.
 - 🏆 **Division Standings** - Each division's photo from Sleeper, and record, points, games back (GB) and points back (PB) per division, ranked by wins, then points for.
 - 🎯 **Wild Card Race** - The non-division leaders ranked for the remaining playoff spots, with the cutoff line.
-- 🏈 **Weekly Matchups** - Results for any completed week. Tap one for both lineups slot by slot and the benches at the time, with photos, each player's final points, his box score line in short labels (passing, rushing and receiving for everyone who has any, plus every other stat the league scores: kickers' field goals by distance, defenses' takeaways, return yards and points allowed) and his Sleeper projection from before the games (`/api/matchup-players`).
+- 🏈 **Weekly Matchups** - Results for any completed week. Tap one for both lineups slot by slot and the benches at the time, with photos, each player's final points, his box score line in short labels (passing, rushing and receiving for everyone who has any, plus every other stat the league scores: kickers' field goals by distance, defenses' takeaways, return yards and points allowed) and his Sleeper projection from before the games (`/api/matchup-players`). While a week is being played it opens on that week (a red-dot button): the Live tab's matchups and lineups, live. Above the results, a strip of the week's awards (high and low score, blowout, closest game, unluckiest loss, luckiest win, most left on the bench, biggest upset, biggest overachiever).
+  - **How it swung** - In every matchup's lineups: its win odds through the week, or both teams' scores (a toggle), replayed from nflverse play-by-play on each NFL game's real clock with the Live tab's model (`web/scripts/build-win-history.ts`, pre-built in `web/public/data/win-history/` for every week since 2022). Lines mark the 8 biggest plays (6+ points to one side's starters or a 10%+ odds swing; close plays share a line); tap one for the play and how the odds moved. The week in progress comes from odds saved live to Redis (`web/lib/liveHistory.ts`), with called-back scores dropped, until the Tuesday replay.
+- 📊 **Power Rankings** (during the regular season) - Teams ranked by the playoff-odds model's expected weekly score, with an 80% range for each rank (`strengthRanks`) and the move since last week.
 
 ### Live (current season, during a game week)
 While an NFL game is being played, scores and game clocks update every 10 seconds (once a minute otherwise), and a score that changes flashes green or red with the change beside it. Scores are computed from Sleeper's live player stats with the league's scoring settings, which Sleeper refreshes every 30 seconds against 60 for its matchup scores (the two agree exactly). Projections and injury statuses refresh every 2 minutes.
-- 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out or doubtful add nothing and questionable ones 90% of their projection until their game starts. Defenses are projected in the league's scoring with points allowed handled by bracket: every defense starts a game in the shutout bracket (10 points here), so instead of adding its projection on top, the tab projects where its points allowed will end up and weighs each bracket by its chance, which can be negative (`scripts/backtests/live_defense.py`). The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`). Tap a matchup for both lineups and benches: each player's points so far, box score line, projected final, injury status and NFL game (clock, score and opponent, like "Q3 8:12 10-17 vs NO"), with players in a game tinted green and those still to play showing a dash. While a player's game is on (everyone but defenses), his row also shows where the ball is, from ESPN's scoreboard: the down and distance with a green dot when his team has it ("2nd & 4 at TEN 26") or "On defense", and a field bar from his own goal line to the opponent's with the ball marked.
+- 🎯 **Matchups** - Each real matchup's live score, projected final and win odds. Each starter still to play adds his Sleeper projection for the share of his NFL game left (game clocks from ESPN's public scoreboard, with a chance of overtime when a game is close late); players ruled out or doubtful add nothing and questionable ones 90% of their projection until their game starts. Defenses are projected in the league's scoring with points allowed handled by bracket: every defense starts a game in the shutout bracket (10 points here), so instead of adding its projection on top, the tab projects where its points allowed will end up and weighs each bracket by its chance, which can be negative (`scripts/backtests/live_defense.py`). The uncertainty shrinks with the time left and grows with how boom-or-bust each starter has been this season. At kickoff these odds were well calibrated on 2022-2025's matchups (`scripts/backtests/live_pregame.py`). Tap a matchup for both lineups and benches: each player's points so far, box score line, projected final, injury status and NFL game (clock, score and opponent, like "Q3 8:12 10-17 vs NO"), with players in a game tinted green and those still to play showing a dash. While a player's game is on, his row also shows where the ball is, from ESPN's scoreboard: the down and distance with a green dot when his team has it ("2nd & 4 at TEN 26") or "On defense", and a field bar from his own goal line to the opponent's with the ball marked. A defense shows the down and distance while it's defending (red inside its own 20) or "On the sideline", and its points allowed say what they're worth and where the next bracket starts ("17 PA: 1 pt, 0 at 21"). The lineups also show the "How it swung" chart so far.
 - 📊 **Live Standings** - The standings if the week ended now, with teams moving into or out of a playoff spot flagged.
 - 🔴 **Live Play-All** - Each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 
@@ -37,7 +40,9 @@ During the regular season:
 - **If the Season Ended Now** - The projected bracket: division winners take the top seeds, then wild cards (ties go to points for); seeds 1-2 get byes.
 - **Playoff Odds** - 20,000 simulations of the real remaining schedule, giving playoff, division, bye, title and toilet bowl odds, and how this week's win or loss changes them. Each team's expected score combines its best projected lineup (each player worth half his Sleeper projection and half his points per game this season) and its points per game so far, with weights fitted for each week of the season on thousands of other 12-team leagues, plus a per-team uncertainty held for the whole simulated season. Players who are out are discounted by their chance of being back. Details and evidence: [docs/odds-models.md](docs/odds-models.md).
 - **Toilet Bowl If the Season Ended Now** - The six non-playoff teams in the toilet bowl, where the lower score advances.
+- 📅 **Games Ahead** - A team's chance of winning each remaining game (the single-game model the trade tools use) with its expected wins, or every team's as a grid, easiest remaining schedule first.
 - **What Each Team Needs** - Each team's odds now, with a win and with a loss; clinched and eliminated; in the last three weeks, win-and-in scenarios; and the team's biggest rooting interest this week.
+- 🔮 **What If** - Pick winners of any remaining games and the playoff simulation re-runs in the browser with those results fixed, against the same draws without them.
 - 📈 **Odds Week by Week** - A line per team showing how its chance to make the playoffs, get a bye, win the division, win the league, get a toilet bowl bye or lose the toilet bowl (picked from a dropdown) moved from the draft through each completed week. Each point re-runs the odds model with only what was known then: the drafted rosters, then each week's, records so far and that week's projections (`/api/odds-history/{season}`, `web/lib/oddsHistory.ts`). Completed seasons are pre-built JSON in `web/public/data/odds-history/`.
 
 After the regular season, and for past seasons, the **Playoff Bracket** (with placement games), the **Toilet Bowl** and the **Odds Week by Week** chart for the whole season. Tap a game that's been played for both lineups and benches, as in Overview's matchups.
@@ -95,7 +100,8 @@ All-time records, head to head and rivalries count regular-season, playoff and t
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── league/           # League, users, rosters, matchups and brackets for a season
-│   │   │   ├── live/             # Current week's matchups (Live tab)
+│   │   │   ├── live/             # Current week's matchups (Live tab); history/ reads the week's saved odds
+│   │   │   ├── season-insights/[season]/ # Lineups, best lineups, projections and waiver moves (Rosters, awards, Season in Review)
 │   │   │   ├── playoff-odds/     # Playoff picture, simulated odds and scenarios
 │   │   │   ├── trade-data/       # Rosters, projections and market values for the trade analyzer
 │   │   │   ├── trades/[season]/  # Graded trade history for a season
@@ -109,13 +115,18 @@ All-time records, head to head and rivalries count regular-season, playoff and t
 │   │   └── icon.tsx              # Favicon from the league avatar
 │   ├── components/               # Tab sections (standings, charts, brackets, Live, playoff picture, draft, trades)
 │   │   └── ui/                   # Shared pieces (cards, sortable headers, pinned team names, definitions, football spinner, chalkboard, home link and easter egg, lazy chart mounting, theme toggle, error boundary)
-│   ├── hooks/                    # Theme, your team, table sorting, chart hover and taps, team colors
+│   ├── hooks/                    # Theme, your team, table sorting, chart hover and taps, team colors, shared fetches (odds, odds history, season insights)
+│   ├── scripts/build-win-history.ts # Replays play-by-play timelines into each matchup's win odds and big plays
 │   ├── lib/
 │   │   ├── analyze/              # Analytics: stats, play-all, brackets, playoff odds, live, draft, trades, trade and waiver finders, history
 │   │   ├── __tests__/            # Vitest tests
 │   │   ├── config.ts             # League ID and cache durations
 │   │   ├── sleeper.ts            # Shared Sleeper fetch helpers
 │   │   ├── oddsData.ts           # Playoff-odds inputs shared by the odds and trade routes
+│   │   ├── seasonInsights.ts     # Builds a season's lineups, projections and waiver moves
+│   │   ├── liveProjections.ts    # Live projections and boom-or-bust spreads (Live tab, win history)
+│   │   ├── liveHistory.ts        # The week in progress's odds and big plays, saved to Redis
+│   │   ├── winHistory.ts         # Win-history types, big plays, play text cleanup
 │   │   ├── tradeHistory.ts       # Builds a season's graded trade history
 │   │   ├── historyData.ts        # Builds the all-seasons history
 │   │   ├── data/legacyHistory.ts # Seasons before Sleeper (final standings, top three, first names)
@@ -126,13 +137,13 @@ All-time records, head to head and rivalries count regular-season, playoff and t
 │   │   ├── theme.ts
 │   │   └── types.ts
 │   └── public/
-│       ├── data/                 # Pre-built draft data, trade history and odds history per season
+│       ├── data/                 # Pre-built draft data, trade history, odds history, season insights and win history
 │       └── icon-*.png            # Home-screen icons for Android
 ├── scripts/                      # Data maintenance scripts (see scripts/README.md)
 │   └── backtests/                # Model research: backtests, simulators, model export
 ├── data/sleeper/                 # Archived Sleeper data for completed seasons
 ├── docs/                         # Odds models, data, league settings, roadmap, API notes
-├── .github/workflows/            # CI, prediction log, season archive
+├── .github/workflows/            # CI, prediction log, season archive, live ping, win history
 ├── FEATURES.md                   # Plain-language tour of every tab
 └── pyproject.toml, uv.lock       # Python project (uv)
 ```
@@ -179,6 +190,10 @@ The web app uses the `NEXT_PUBLIC_LEAGUE_ID` environment variable, falling back 
 NEXT_PUBLIC_LEAGUE_ID=YOUR_LEAGUE_ID
 ```
 
+### Redis (live win history)
+
+The week in progress's win odds and big plays are saved to Upstash Redis over its HTTP API. Vercel's Upstash integration sets `KV_REST_API_URL` and `KV_REST_API_TOKEN` on the project; for local runs put them in `web/.env.local` (git-ignored). Without them the app works the same, minus the live chart (`web/lib/liveHistory.ts`).
+
 ### Caching
 
 Sleeper data is fetched by the app's server routes and cached. Durations are set in `CACHE_CONFIG` in `web/lib/config.ts`:
@@ -196,6 +211,8 @@ Sleeper data is fetched by the app's server routes and cached. Durations are set
 | FantasyCalc values | 6 hours |
 | Trade history for the season in progress | 1 hour, rebuilt as soon as a new week is scored |
 | Odds week by week | 1 hour, rebuilt as soon as a new week is scored |
+| Season insights (Rosters, awards, Season in Review) | 1 hour, rebuilt as soon as a new week is scored; completed seasons pre-built |
+| The week in progress's saved odds (`/api/live/history`) | Shared through the CDN for 60 seconds |
 | League history (all seasons) | 5 minutes, rebuilt as soon as a new week is scored; completed seasons' Sleeper data 1 day |
 | League avatar favicon | 1 hour |
 

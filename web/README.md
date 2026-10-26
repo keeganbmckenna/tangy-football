@@ -23,6 +23,10 @@ Then open [http://localhost:3000](http://localhost:3000).
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
 
+## Redis
+
+The live win-history chart saves odds to Upstash Redis. Put `KV_REST_API_URL` and `KV_REST_API_TOKEN` (from the Vercel project's Upstash integration) in `.env.local` to use it locally; without them everything else works.
+
 ## League
 
 The app reads the `NEXT_PUBLIC_LEAGUE_ID` environment variable, falling back to the ID in `lib/config.ts`. To point it at another league, put this in `.env.local`:

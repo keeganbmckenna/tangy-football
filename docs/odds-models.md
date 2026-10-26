@@ -101,6 +101,22 @@ injury reports from 2022-2025 (`injuries.py`). The uncertainty sums the starters
 spreads, scaled so a whole game matches 0.7 of the league's weekly spread, which was well
 calibrated at kickoff (`live_pregame.py`).
 
+**Win history** (`web/scripts/build-win-history.ts`): the same model replayed through each
+finished week from nflverse play-by-play, every 3 minutes of game time on each game's real
+clock, with each starter's replayed points ending at his official total. Past injury reports
+come from nflverse. During the week, the odds the site computes live are saved instead
+(`web/lib/liveHistory.ts`).
+
+## Views built on these models
+
+- **Power rankings** (`strengthRanks` in `playoffOdds.ts`): teams ranked by the fitted model's
+  expected weekly score. The 80% range on each rank comes from drawing every team's strength
+  as mean + tau × z and re-ranking, so it shows how sure the model is, not a separate model.
+- **What If** (`simulatePlayoffOdds` with `forced`): the playoff simulation with picked results
+  held fixed (the picked team gets the higher of the two drawn scores), run in the browser
+  against the same random draws without the picks.
+- **Games Ahead**: the single-game model's win odds for every remaining game.
+
 ## Tested and not used
 
 Each of these was real or plausible, and each was below the 0.0005 bar for leagues like ours
