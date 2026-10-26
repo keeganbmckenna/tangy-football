@@ -52,6 +52,7 @@ import {
 } from '@/lib/analyze';
 import { getLeagueSettings } from '@/lib/leagueSettings';
 import { getTeamName } from '@/lib/analyze/teamIdentity';
+import { liveWeekNumber } from '@/lib/analyze/live';
 
 /** View Transitions, except in Safari (and so every iPhone browser), where they flicker */
 function canViewTransition() {
@@ -115,6 +116,10 @@ export default function Home() {
   // set and until its regular season ends; past trades are under History
   // The trade and waiver tools (at the top of Rosters): this season, while the regular season is on
   const showTradeTools = regularSeasonInProgress && leagueData?.league.status === 'in_season';
+  // The regular-season week being played now, if any (shown live on the Overview)
+  const liveWeek = leagueData && leagueSettings
+    ? liveWeekNumber(leagueData.league.settings?.leg ?? 0, leagueData.lastScoredWeek, leagueSettings.regularSeasonEnd)
+    : null;
   const regularSeasonWeekCap = leagueData && leagueSettings
     ? Math.min(leagueData.lastScoredWeek, leagueSettings.regularSeasonEnd)
     : undefined;
@@ -497,6 +502,20 @@ export default function Home() {
                 />
               </section>
             </ErrorBoundary>
+            <ErrorBoundary>
+              <section>
+                <WeeklyMatchups
+                  matchups={matchups}
+                  lastScoredWeek={leagueData?.lastScoredWeek}
+                  leagueData={leagueData}
+                  live={
+                    isCurrentSeason && leagueData && leagueSettings && liveWeek !== null
+                      ? { week: liveWeek, regularSeasonEnd: leagueSettings.regularSeasonEnd, playoffTeams: leagueSettings.playoffTeams, hasDivisions: leagueSettings.divisions > 0 }
+                      : null
+                  }
+                />
+              </section>
+            </ErrorBoundary>
             {regularSeasonInProgress && leagueData && (
               <ErrorBoundary>
                 <section>
@@ -504,11 +523,6 @@ export default function Home() {
                 </section>
               </ErrorBoundary>
             )}
-            <ErrorBoundary>
-              <section>
-                <WeeklyMatchups matchups={matchups} lastScoredWeek={leagueData?.lastScoredWeek} leagueData={leagueData} />
-              </section>
-            </ErrorBoundary>
           </>
         )}
 

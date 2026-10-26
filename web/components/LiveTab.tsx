@@ -49,6 +49,8 @@ interface LiveTabProps {
   regularSeasonEnd: number;
   playoffTeams: number;
   hasDivisions: boolean;
+  /** Just the week's matchups (and their lineups), for the Overview */
+  compact?: boolean;
 }
 
 function isIn(status: PlayoffStatus) {
@@ -131,7 +133,7 @@ function secondsAgo(iso: string, now: number) {
   return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`;
 }
 
-export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, hasDivisions }: LiveTabProps) {
+export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, hasDivisions, compact = false }: LiveTabProps) {
   const [live, setLive] = useState<LiveWeekData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -255,6 +257,10 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     </div>
   );
 
+  if (compact && (!live || !isCurrentSeason || !view || week === null)) {
+    return <p className="px-6 py-8 text-sm text-[var(--muted)]">{error ? 'Couldn’t load the live scores.' : 'Loading live scores…'}</p>;
+  }
+
   if (!live) {
     return (
       <SectionCard title="Live" subtitle="This week as it happens" gradientType="info">
@@ -296,6 +302,93 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     const st = view.statuses.get(row.team.rosterId);
     return st && st.opponentScore !== null ? st.score - st.opponentScore : null;
   });
+
+  // A matchup's lineups, live, in a dialog
+  const dialog =
+    openMatchup !== null && view.odds && live.projections && live.games && (() => {
+      const m = view.odds.find((o) => o.matchupId === openMatchup);
+      const { projections, games } = live;
+      const defense = { allowed: live.allowed, allowedScoring: live.allowedScoring };
+      // A finished game, or one he's been ruled out of: his projection from before it, to
+      // compare with what he scored (his projected final is just his points by then). One
+      // ruled out who never got on the field was projected for nothing.
+      const shownProjection = (p: NonNullable<ReturnType<typeof liveLineup>[number]>) => {
+        const over = p.game?.state === 'post' || (p.game?.state === 'in' && isRuledOut(p.injury));
+        if (!over) return p.projected;
+        const played = p.points !== 0 || !!live.stats?.[p.playerId];
+        return isRuledOut(p.injury) && !played ? 0 : p.original;
+      };
+      const toPlayer = (p: ReturnType<typeof liveLineup>[number]): MatchupPlayer | null =>
+        p && {
+          ...p,
+          projected: shownProjection(p),
+          status: p.game ? p.game.label : 'No game',
+          game: (p.game && gameMatchup(p.game)) || undefined,
+          state: p.game?.state ?? 'none',
+          // Where the ball is in his game (a defense's from its own side)
+          drive: p.game?.state === 'in' ? p.game.drive : undefined,
+          // A defense in a game: what its points allowed are worth and where the next bracket starts
+          stats: formatStatLine(p.position, live.stats?.[p.playerId], p.game?.state === 'in' ? live.allowedScoring : undefined) || undefined,
+        };
+      const side = (s: LiveSide, odds: number): MatchupSide | null => {
+        const sm = live.matchups.find((x) => x.roster_id === s.rosterId);
+        if (!sm) return null;
+        return {
+          name: view.names.get(s.rosterId) ?? `Team ${s.rosterId}`,
+          username: getTeamName(s.rosterId, leagueData).username,
+          avatarUrl: teamAvatarUrl(leagueData, s.rosterId),
+          score: s.score,
+          sub: (
+            <>
+              proj {s.projected.toFixed(1)} ·{' '}
+              <span className="font-semibold" style={{ color: odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(odds)}</span>
+            </>
+          ),
+          starters: liveLineup(sm, projections, games, false, defense).map(toPlayer),
+          bench: liveLineup(sm, projections, games, true, defense)
+            .filter((p): p is NonNullable<typeof p> => !!p)
+            .map((p) => toPlayer(p)!)
+            .sort((x, y) => (y.projected ?? y.points) - (x.projected ?? x.points)),
+        };
+      };
+      const a = m && side(m.a, m.aWinOdds);
+      const b = m && side(m.b, 1 - m.aWinOdds);
+      return a && b ? (
+        <MatchupDetail
+          title={`${a.name} vs ${b.name}`}
+          a={a}
+          b={b}
+          slots={(leagueData.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
+          footnote="Projected finals are points so far plus each player's projection for the share of his game left; for a finished game, his projection from before it. Bench players don't count toward the score. Injury statuses from Sleeper."
+          chart={
+            <WinSwing
+              live
+              season={live.season}
+              week={live.week}
+              a={{ rosterId: m.a.rosterId, name: a.name }}
+              b={{ rosterId: m.b.rosterId, name: b.name }}
+              refreshKey={live.fetchedAt}
+            />
+          }
+          onClose={closeMatchup}
+        />
+      ) : null;
+    })();
+
+  // Compact (the Overview's current week): just the matchups, opening the same lineups
+  if (compact) {
+    return (
+      <div>
+        <div className="px-4 pt-4 sm:px-6">{statusBar}</div>
+        {view.odds ? (
+          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
+        ) : (
+          <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
+        )}
+        {dialog}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -414,75 +507,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           </table>
         </div>
       </SectionCard>
-      {openMatchup !== null && view.odds && live.projections && live.games && (() => {
-        const m = view.odds.find((o) => o.matchupId === openMatchup);
-        const { projections, games } = live;
-        const defense = { allowed: live.allowed, allowedScoring: live.allowedScoring };
-        // A finished game, or one he's been ruled out of: his projection from before it, to
-        // compare with what he scored (his projected final is just his points by then). One
-        // ruled out who never got on the field was projected for nothing.
-        const shownProjection = (p: NonNullable<ReturnType<typeof liveLineup>[number]>) => {
-          const over = p.game?.state === 'post' || (p.game?.state === 'in' && isRuledOut(p.injury));
-          if (!over) return p.projected;
-          const played = p.points !== 0 || !!live.stats?.[p.playerId];
-          return isRuledOut(p.injury) && !played ? 0 : p.original;
-        };
-        const toPlayer = (p: ReturnType<typeof liveLineup>[number]): MatchupPlayer | null =>
-          p && {
-            ...p,
-            projected: shownProjection(p),
-            status: p.game ? p.game.label : 'No game',
-            game: (p.game && gameMatchup(p.game)) || undefined,
-            state: p.game?.state ?? 'none',
-            // Where the ball is in his game (a defense's from its own side)
-            drive: p.game?.state === 'in' ? p.game.drive : undefined,
-            // A defense in a game: what its points allowed are worth and where the next bracket starts
-            stats: formatStatLine(p.position, live.stats?.[p.playerId], p.game?.state === 'in' ? live.allowedScoring : undefined) || undefined,
-          };
-        const side = (s: LiveSide, odds: number): MatchupSide | null => {
-          const sm = live.matchups.find((x) => x.roster_id === s.rosterId);
-          if (!sm) return null;
-          return {
-            name: view.names.get(s.rosterId) ?? `Team ${s.rosterId}`,
-            username: getTeamName(s.rosterId, leagueData).username,
-            avatarUrl: teamAvatarUrl(leagueData, s.rosterId),
-            score: s.score,
-            sub: (
-              <>
-                proj {s.projected.toFixed(1)} ·{' '}
-                <span className="font-semibold" style={{ color: odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(odds)}</span>
-              </>
-            ),
-            starters: liveLineup(sm, projections, games, false, defense).map(toPlayer),
-            bench: liveLineup(sm, projections, games, true, defense)
-              .filter((p): p is NonNullable<typeof p> => !!p)
-              .map((p) => toPlayer(p)!)
-              .sort((x, y) => (y.projected ?? y.points) - (x.projected ?? x.points)),
-          };
-        };
-        const a = m && side(m.a, m.aWinOdds);
-        const b = m && side(m.b, 1 - m.aWinOdds);
-        return a && b ? (
-          <MatchupDetail
-            title={`${a.name} vs ${b.name}`}
-            a={a}
-            b={b}
-            slots={(leagueData.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
-            footnote="Projected finals are points so far plus each player's projection for the share of his game left; for a finished game, his projection from before it. Bench players don't count toward the score. Injury statuses from Sleeper."
-            chart={
-              <WinSwing
-                live
-                season={live.season}
-                week={live.week}
-                a={{ rosterId: m.a.rosterId, name: a.name }}
-                b={{ rosterId: m.b.rosterId, name: b.name }}
-                refreshKey={live.fetchedAt}
-              />
-            }
-            onClose={closeMatchup}
-          />
-        ) : null;
-      })()}
+      {dialog}
     </div>
   );
 }

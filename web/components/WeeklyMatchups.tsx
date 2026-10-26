@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import LiveTab from '@/components/LiveTab';
 import { useMatchupLineups } from '@/components/useMatchupLineups';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
@@ -15,15 +16,19 @@ interface WeeklyMatchupsProps {
   lastScoredWeek?: number;
   /** For each matchup's lineups (tap a matchup) */
   leagueData?: LeagueData | null;
+  /** The week being played, shown live (the Live tab's matchups and lineups) and picked first */
+  live?: { week: number; regularSeasonEnd: number; playoffTeams: number; hasDivisions: boolean } | null;
 }
 
-export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }: WeeklyMatchupsProps) {
+export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, live }: WeeklyMatchupsProps) {
   const weeks = Object.keys(matchups)
     .map(Number)
     // Only show completed weeks: the current unscored week's matchups are 0-0 "ties"
     .filter((week) => lastScoredWeek === undefined || week <= lastScoredWeek)
     .sort((a, b) => a - b); // Sort ascending (1, 2, 3, ...)
-  const [selectedWeek, setSelectedWeek] = useState(weeks[weeks.length - 1] || 1); // Default to most recent completed week
+  // The week being played first, otherwise the most recent completed week
+  const [selectedWeek, setSelectedWeek] = useState(live?.week ?? (weeks[weeks.length - 1] || 1));
+  const showLive = !!live && selectedWeek === live.week && !!leagueData;
 
   // My matchup first, with me on the left
   const me = useMyTeam();
@@ -64,9 +69,26 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
               W{week}
             </button>
           ))}
+          {live && (
+            <button
+              onClick={() => setSelectedWeek(live.week)}
+              aria-label={`Week ${live.week}, live`}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                selectedWeek === live.week
+                  ? 'bg-[var(--surface-elevated)] text-[var(--foreground)]'
+                  : 'bg-white/15 text-white hover:bg-white/25'
+              }`}
+            >
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              W{live.week}
+            </button>
+          )}
         </div>
       </div>
-      {awards.length > 0 && (
+      {showLive && leagueData && live && (
+        <LiveTab compact leagueData={leagueData} regularSeasonEnd={live.regularSeasonEnd} playoffTeams={live.playoffTeams} hasDivisions={live.hasDivisions} />
+      )}
+      {!showLive && awards.length > 0 && (
         <div className="border-b border-[var(--border)] py-3">
           {/* One row that scrolls sideways on phones, wrapping on wider screens */}
           <ul className="flex gap-2 overflow-x-auto px-4 sm:flex-wrap sm:px-6" aria-label={`Week ${selectedWeek} awards`}>
@@ -83,7 +105,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
           </ul>
         </div>
       )}
-      <div className="grid gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
+      {!showLive && <div className="grid gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
         {currentMatchups.length === 0 ? (
           <p className="col-span-full text-center text-[var(--muted)] py-8">
             No matchups available for this week
@@ -173,7 +195,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
             </button>
           ))
         )}
-      </div>
+      </div>}
       {lineups.dialog}
     </div>
   );

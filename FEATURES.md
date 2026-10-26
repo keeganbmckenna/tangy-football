@@ -15,6 +15,7 @@ The **You** picker highlights your team everywhere and puts your matchup first, 
 - **Data through:** a line saying which weeks the stats cover ("Stats through week 5 of 14").
 - **Division standings:** one card per division with record, points, games back (GB) and points back (PB); the leader gets a 🥇.
 - **Wild Card Race:** the non-division leaders ranked for the remaining playoff spots, with the playoff cutoff line and each team's division.
+- **Weekly Matchups** comes before Power Rankings. During a week that's being played, it opens on that week (marked with a red dot): the Live tab's matchups with live scores and win odds, each opening the same live lineups.
 - **Power Rankings** (during the regular season): teams ranked by the playoff-odds model's expected weekly score, each with the range its rank lands in 80% of the time and its move since last week.
 - **Weekly Matchups:** every result for any completed week. Tap one to see both lineups and benches, with each player's points, box score line (like 26/34, 374 yd, 4 TD) and his projection from before the game.
   - **Awards:** a strip of the week's awards above the results: high and low score, biggest blowout, closest game, unluckiest loss, luckiest win, most left on the bench, biggest upset (by projections) and who beat their projections most.
