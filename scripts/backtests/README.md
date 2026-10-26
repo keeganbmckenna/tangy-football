@@ -88,14 +88,16 @@ python export_model.py --fixture            # fit on every league and write web/
 | `single_games.py` | Single-game win odds: a model fitted for one week's score |
 | `trades.py` | The weight on a trade's projected lineup change (0.43, not 0.75) |
 | `injuries.py` | Official NFL injury reports: Doubtful players count 0, Questionable 0.9 |
-| `live_pregame.py`, `live_defense.py` | The Live tab's kickoff spread and defense projections |
-| `live_diagnostics.py` | The Live tab's odds through each week: calibration, spread, and when points arrive in a game (exploratory) |
+| `live_components.py`, `live_replay.py`, `live_model.py`, `live_eval.py` | The Live tab's odds replayed through every week of the crawled leagues on the GPU (the site's model ported to PyTorch, checked against `live_odds_fixture.json` from `web/scripts/export-live-fixture.ts`): the spread scale, and the tested alternatives |
+| `live_defense.py` | The Live tab's defense projections |
+| `live_diagnostics.py` | The Live tab's odds through each week on our league: calibration, spread, and when points arrive in a game (exploratory) |
 | `own_league.py`, `league_activity.py` | The fitted models on our own 2022-2025 seasons |
 
 **Tested and not adopted**
 
 | Script | Question |
 |---|---|
+| `live_pregame.py` | The Live tab's kickoff spread on our league (0.7; too few matchups, replaced by `live_eval.py`) |
 | `drift.py` | Strength that drifts through the season (real, but worth 0.00005) |
 | `schedule_luck.py` | How much the schedule decides; random vs real remaining schedules |
 | `improvements.py` | Recency-weighted and median form, score vs projections, nonlinear terms, per-team uncertainty, noise shape |

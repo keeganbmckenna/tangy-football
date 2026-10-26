@@ -41,7 +41,8 @@ the crawled leagues (2,025, then 7,385 league-seasons, 2018-2025).
 - **Live matchup odds at kickoff** (`live_pregame.py`): on 288 matchups (weeks 3+), odds
   from the starters' Sleeper projections beat a coin flip (log loss 0.590 vs 0.693) and were
   well calibrated (favorites given 70-80% won 75%, 90%+ won 96%). The best whole-game spread
-  per team was 0.7x the league's week-to-week spread, which the Live tab uses. Per-player
+  per team was 0.7x the league's week-to-week spread, which the Live tab used until 2026-10-26
+  (on so few matchups log loss is nearly flat in the scale; see the crawled replay below). Per-player
   boom-or-bust spreads did no better than one spread at kickoff (0.5904 vs 0.5907); they're
   kept for late in a week, when a few volatile players are all that's left. The archive's
   injury statuses are from after the season, so the injury adjustment can't be tested here.
@@ -275,3 +276,37 @@ were made just before those games, which would leak information.
   so each league's scoring applies) and test, in order, a spread recalibrated by time left,
   the projections' skew, a game-clock production curve, game state, correlated players, and
   player-level simulation.
+
+- **Live odds on the crawled leagues** (`live_components.py`, `live_replay.py`, `live_model.py`,
+  `live_eval.py`, 2026-10-26, under the preregistered live addendum). Every stat of 2018-2025
+  play by play (half-PPR totals match Sleeper's within 0.1 for 99% of 2022-2025 player-weeks);
+  the site's model in PyTorch (identical to the site's code to 1e-14 on 1,020 fixture cases);
+  4,418 crawled 12-team league-seasons (IDP leagues and ours left out), 364,672 decided
+  matchups replayed every 3 minutes on the GPU in 35 seconds, each starter ending at his
+  official points. Each season is predicted by a fit on the other seven.
+  - **The current model is overconfident**: calibration slope 0.62-0.73 in 2020-2025 (1 is
+    calibrated); log loss 0.37-0.41 (0.48-0.69 in 2018-2019, when Sleeper's projections were
+    weaker: points rose 0.64 per projected point then, 0.84-0.90 since 2022, and 2018's archive
+    is missing retired players' projections).
+  - **Rung 1, one spread multiplier: adopted.** x1.53-1.65 by fold; -0.004 to -0.146 log loss
+    in all 8 seasons (2023 smallest, -0.0042 [-0.0057, -0.0027]). A multiplier by the share of
+    variance left adds at most 0.0004. Fitted on 2022-2025 alone it is x1.43, which scored
+    better on 3 of those 4 seasons than the all-season fit: the site ships 0.7 x 1.43 = 1.0.
+  - **Why**: the realized error of the projected margin is 1.39-1.50x the model's spread at
+    every stage of the week, unbiased, so the model's time structure is right and its level
+    was wrong. A team's miss on its starters' projections is about its league's whole
+    week-to-week spread (projections explain little of a week's score). Tails are heavy only
+    in the last 1% of a week.
+  - **Not adopted** (each fitted with the multiplier, against rung 1): skewed scoring by an
+    Edgeworth term (-0.0001); a weight on the projected rest-of-week margin (0.93; 2 of 8
+    seasons, +0.0026 in 2024); points following the game clock as r^alpha (alpha = 1.0 chosen
+    in every fold, so our league's late-game bump doesn't generalize); and, added after those
+    (deviations from the preregistered order, logged before running): each player's variance
+    a + b x projection instead of (ratio x projection)^2 (-0.0002 to -0.0027 in all 8 seasons,
+    real but 1 of 8 reach 0.002; residual sd is nearly flat in the projection, 5-9 points) and
+    a Student-t link (nu about 5.4; 2 of 8).
+  - **Our league** (exploratory, 428 matchups): x1.3 is its best (0.3630 vs 0.3692 at the old
+    scale); the shipped x1.43 scores 0.3645.
+  - Still to test: game state (possession, field position), correlated players through the
+    week, and player-level simulation. With the error's shape right at every stage and skew,
+    variance allocation and tails each worth under 0.003, they have little room.
