@@ -17,6 +17,9 @@ interface WinSwingProps {
   refreshKey?: string;
 }
 
+/** Plays closer than this share of the chart's width share one marker */
+const GROUP_SHARE = 0.03;
+
 /** Each team's line in the score view */
 const A_COLOR = '#3b82f6';
 const B_COLOR = '#f59e0b';
@@ -103,7 +106,20 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
     const net = players.reduce((s, pl) => s + (pl.left ? pl.pts : -pl.pts), 0);
     return { t: e.t, desc: e.desc, before, after, players, x, helpsLeft: after !== before ? after > before : net >= 0 };
   });
-  const shown = picked !== null ? plays[picked] : null;
+  // Plays within GROUP_SHARE of the chart's width of each other share one marker
+  const groups: number[][] = [];
+  plays.forEach((pl, i) => {
+    const last = groups[groups.length - 1];
+    if (last && (pl.x - plays[last[0]].x) / Math.max(points.length - 1, 1) < GROUP_SHARE) last.push(i);
+    else groups.push([i]);
+  });
+  const shown = picked !== null && groups[picked] ? groups[picked].map((i) => plays[i]) : null;
+  // A group helps whichever side its plays moved the odds toward
+  const groupHelpsLeft = (g: number[]) => {
+    const first = plays[g[0]];
+    const last = plays[g[g.length - 1]];
+    return last.after !== first.before ? last.after > first.before : first.helpsLeft;
+  };
   const markerColor = (helpsLeft: boolean) =>
     view === 'score' ? (helpsLeft ? A_COLOR : B_COLOR) : helpsLeft ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L;
   // Above 50% in the left team's color, below in the right's: the gradient splits at the 50% line
@@ -170,23 +186,39 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
             </AreaChart>
           )}
         </ResponsiveContainer>
-        {/* Big plays: a thin line each, with a wider area to tap */}
-        {plays.map((pl, i) => (
-          <button
-            key={`${pl.t}-${i}`}
-            type="button"
-            aria-label={`Big play at ${TIME.format(pl.t * 1000)}`}
-            onClick={() => setPicked(picked === i ? null : i)}
-            onMouseEnter={() => setPicked(i)}
-            className="absolute inset-y-0 w-4 -translate-x-1/2"
-            style={{ left: `${(pl.x / Math.max(points.length - 1, 1)) * 100}%` }}
-          >
-            <span
-              className="absolute inset-y-0 left-1/2 -translate-x-1/2"
-              style={{ width: picked === i ? 2 : 1, backgroundColor: markerColor(pl.helpsLeft), opacity: picked === null || picked === i ? 0.9 : 0.35 }}
-            />
-          </button>
-        ))}
+        {/* Big plays: a thin line each (close ones share a line, with a count), with a wider area to tap */}
+        {groups.map((g, gi) => {
+          const x = g.reduce((sum, i) => sum + plays[i].x, 0) / g.length;
+          const on = picked === gi;
+          return (
+            <button
+              key={`${plays[g[0]].t}-${gi}`}
+              type="button"
+              aria-label={`${g.length > 1 ? `${g.length} big plays` : 'Big play'} at ${TIME.format(plays[g[0]].t * 1000)}`}
+              onClick={() => setPicked(on ? null : gi)}
+              onMouseEnter={() => setPicked(gi)}
+              className="absolute inset-y-0 w-4 -translate-x-1/2"
+              style={{ left: `${(x / Math.max(points.length - 1, 1)) * 100}%` }}
+            >
+              <span
+                className="absolute inset-y-0 left-1/2 -translate-x-1/2"
+                style={{
+                  width: on || g.length > 1 ? 2 : 1,
+                  backgroundColor: markerColor(groupHelpsLeft(g)),
+                  opacity: picked === null || on ? 0.9 : 0.35,
+                }}
+              />
+              {g.length > 1 && (
+                <span
+                  className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full px-1 text-[8px] font-bold leading-3 text-white"
+                  style={{ backgroundColor: markerColor(groupHelpsLeft(g)) }}
+                >
+                  {g.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
       <div className="flex justify-between gap-2 text-[10px] text-[var(--muted)]">
         {view === 'score' ? (
@@ -207,23 +239,55 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           </>
         )}
       </div>
-      {shown && (
+      {shown && picked !== null && (
         <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-xs">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="shrink-0 text-[var(--muted)]">{TIME.format(shown.t * 1000)} ET</span>
-            <span className="truncate font-semibold tabular-nums" style={{ color: markerColor(shown.helpsLeft) }}>
-              {/* From the side of the team the play helped */}
-              {shown.helpsLeft ? a.name : b.name} {Math.round((shown.helpsLeft ? shown.before : 1 - shown.before) * 100)}% →{' '}
-              {Math.round((shown.helpsLeft ? shown.after : 1 - shown.after) * 100)}%
+          {/* Step through the matchup's big plays in time order */}
+          <div className="mb-1 flex items-center justify-between gap-2 text-[var(--muted)]">
+            <button
+              type="button"
+              onClick={() => setPicked(Math.max(0, picked - 1))}
+              disabled={picked === 0}
+              aria-label="Previous big play"
+              className="rounded px-2 py-0.5 text-sm leading-none hover:text-[var(--foreground)] disabled:opacity-30"
+            >
+              ‹
+            </button>
+            <span>
+              {groups[picked].length > 1
+                ? `Plays ${groups[picked][0] + 1}–${groups[picked][groups[picked].length - 1] + 1} of ${plays.length}`
+                : `Play ${groups[picked][0] + 1} of ${plays.length}`}
             </span>
+            <button
+              type="button"
+              onClick={() => setPicked(Math.min(groups.length - 1, picked + 1))}
+              disabled={picked === groups.length - 1}
+              aria-label="Next big play"
+              className="rounded px-2 py-0.5 text-sm leading-none hover:text-[var(--foreground)] disabled:opacity-30"
+            >
+              ›
+            </button>
           </div>
-          <div className="mt-0.5 text-[var(--foreground)]">{shown.desc ? cleanPlay(shown.desc) : 'Points changed (saved live, before the play-by-play)'}</div>
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[var(--muted)]">
-            {shown.players.map((pl) => (
-              <span key={`${pl.side}-${pl.name}`}>
-                <span style={{ color: pl.left ? A_COLOR : B_COLOR }}>●</span> {pl.name} {pl.pts > 0 ? '+' : '−'}
-                {Math.abs(pl.pts).toFixed(1)}
-              </span>
+          <div className="divide-y divide-[var(--border)]">
+            {shown.map((pl) => (
+              <div key={pl.t} className="py-1.5 first:pt-0 last:pb-0">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="shrink-0 text-[var(--muted)]">{TIME.format(pl.t * 1000)} ET</span>
+                  <span className="truncate font-semibold tabular-nums" style={{ color: markerColor(pl.helpsLeft) }}>
+                    {/* From the side of the team the play helped */}
+                    {pl.helpsLeft ? a.name : b.name} {Math.round((pl.helpsLeft ? pl.before : 1 - pl.before) * 100)}% →{' '}
+                    {Math.round((pl.helpsLeft ? pl.after : 1 - pl.after) * 100)}%
+                  </span>
+                </div>
+                <div className="mt-0.5 text-[var(--foreground)]">{pl.desc ? cleanPlay(pl.desc) : 'Points changed (saved live, before the play-by-play)'}</div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[var(--muted)]">
+                  {pl.players.map((p) => (
+                    <span key={`${p.side}-${p.name}`}>
+                      <span style={{ color: p.left ? A_COLOR : B_COLOR }}>●</span> {p.name} {p.pts > 0 ? '+' : '−'}
+                      {Math.abs(p.pts).toFixed(1)}
+                    </span>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
