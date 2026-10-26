@@ -203,3 +203,24 @@ seasons) unless stated, each logged in LOG.md before it runs:
    leaving each 2025 week out, on the weeks the props cover. The confirmatory test is one-shot
    on 2026 weeks 8 through 18 of crawled leagues, after the season, with the blend frozen before
    week 8's data is examined.
+
+## Addendum (2026-10-26, later): test 6, end-game drives, set before it runs
+
+The averaged scores hide the moments where a fantasy matchup hinges on one last NFL drive.
+- **Target.** High-leverage end-game moments: samples where the shipped model's odds are between
+  10% and 90% and at least one modelled starter of the matchup is in an NFL game in its last 5
+  minutes (4th quarter 5:00 or less, or overtime). Log loss over those samples, each matchup's
+  averaged, over the matchups that reach one. Crawled 12-team leagues 2018-2025, as before.
+- **Variant 6a.** For each team in such a game: nflfastR's next-score probabilities at the latest
+  play (td_prob and fg_prob for the team with the ball; opp_td_prob and opp_fg_prob for the
+  other) as one discrete outcome: no score, a field goal (its kicker: 3 points in the league's
+  scoring, approximately; not a field goal of a given length), or a touchdown, given to its
+  players by their share of the team's projected rushing and receiving touchdowns (a receiving
+  touchdown also gives the team's QB a passing touchdown; the kicker an extra point). Those
+  players' smooth remaining expectation keeps only its non-touchdown part. Defenses keep the
+  current model. Nothing is fitted (the multiplier is L1a's, fitted leaving the season out).
+- **Variant 6b.** 6a, but a team trailing by 4 to 8 with 2:00 or less left gets no field-goal
+  chance (it needs a touchdown).
+- **Adoption** (set now): the high-leverage score improves by >= 0.01 with a 95% interval
+  resampling leagues excluding 0, in >= 6 of 8 seasons, and the primary score doesn't get worse
+  by more than 0.0005 in any season.
