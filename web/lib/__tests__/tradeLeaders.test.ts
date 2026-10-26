@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tradeLeaders, type SeasonTrade } from '../analyze/tradeLeaders';
+import { netHindsight, tradeLeaders, type SeasonTrade } from '../analyze/tradeLeaders';
 import type { TradeHistorySide } from '../analyze/trade';
 
 const side = (rosterId: number, before: number, after: number, points: number): TradeHistorySide => ({
@@ -32,7 +32,19 @@ describe('tradeLeaders', () => {
     expect(r.bestAtTheTime[0]).toMatchObject({ userId: 'u3', season: '2025' });
     expect(r.playoffDelta(r.bestAtTheTime[0])).toBeCloseTo(0.2);
     expect(r.worstAtTheTime[0].userId).toBe('u1');
+    // Net of what was sent: u3 got 120 for 10 in trade b
     expect(r.bestHauls[0]).toMatchObject({ userId: 'u3' });
-    expect(r.bestHauls[0].side.hindsight.points).toBe(120);
+    expect(netHindsight(r.bestHauls[0].trade, r.bestHauls[0].side)).toBe(110);
+  });
+
+  it('nets each sent player\'s points for whoever got him, in a three-team trade', () => {
+    const s = (rosterId: number, receives: string[], sends: string[], byPlayer: Record<string, number>): TradeHistorySide => ({
+      rosterId, receives, sends, picks: [], faab: 0, atTime: null, finalSeed: null,
+      hindsight: { points: Object.values(byPlayer).reduce((a, b) => a + b, 0), starts: 1, byPlayer },
+    });
+    // 1 sends A to 2 and B to 3, and gets C from 3; 2 sends nothing back but D to 3
+    const trade = { id: 't', week: 4, effectiveWeek: 4, sides: [s(1, ['C'], ['A', 'B'], { C: 30 }), s(2, ['A'], ['D'], { A: 50 }), s(3, ['B', 'D'], ['C'], { B: 20, D: 15 })] };
+    expect(netHindsight(trade, trade.sides[0])).toBe(30 - 50 - 20);
+    expect(netHindsight(trade, trade.sides[2])).toBe(35 - 30);
   });
 });

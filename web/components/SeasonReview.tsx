@@ -13,6 +13,7 @@ import { lineupEfficiency, playerLeaders, teamMvps } from '@/lib/analyze/rosters
 import type { TradeHistoryResponse } from '@/lib/analyze/trade';
 import type { LeagueData, PlayEveryoneStats, TeamStats, WeekMatchup } from '@/lib/types';
 import { signed } from '@/lib/format';
+import { netHindsight } from '@/lib/analyze/tradeLeaders';
 
 interface SeasonReviewProps {
   season: string;
@@ -86,7 +87,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
     .flatMap((t) =>
       t.sides
         .filter((s) => s.rosterId === rosterId)
-        .map((s) => ({ t, s, net: s.hindsight.points - t.sides.filter((o) => o.rosterId !== rosterId).reduce((sum, o) => sum + o.hindsight.points, 0) }))
+        .map((s) => ({ t, s, net: netHindsight(t, s) }))
     )
     .sort((a, b) => b.net - a.net)[0];
   const odds = (history?.checkpoints ?? []).map((c) => ({ week: c.week, p: c.odds[rosterId]?.playoffs ?? 0 }));

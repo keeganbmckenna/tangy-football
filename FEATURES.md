@@ -91,7 +91,7 @@ Then, for any season:
 A switch counts the three sections above either with playoff and toilet bowl games or as the regular season only. Placement games (3rd, 5th place and the like) never count.
 - **Trades:** every trade since the league moved to Sleeper, filterable by season.
   - **Graded two ways:** what it did to each team's odds at the time, and how the players it brought in actually scored.
-  - **Trade stats:** per-manager stats, biggest swings and best hauls.
+  - **Trade stats:** per-manager stats, biggest swings, and the best trades in hindsight (what the players received scored in the starting lineup, minus what the players sent scored for their new teams).
   - **Trade partners:** how many times each pair of managers traded; tap a cell for their trades.
   - **List:** the latest 5 trades, then **Show all**.
 - **Record Book:** highest and lowest scores, blowouts, closest games, best and worst seasons, and more.

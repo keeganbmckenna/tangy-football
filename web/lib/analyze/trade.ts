@@ -321,9 +321,10 @@ export function starterPoints(
   matchupsByWeek: Record<number, SleeperMatchup[]>,
   fromWeek: number,
   toWeek: number
-): { points: number; starts: number } {
+): { points: number; starts: number; byPlayer: Record<string, number> } {
   let points = 0;
   let starts = 0;
+  const byPlayer: Record<string, number> = {};
   const wanted = new Set(players);
   for (let w = fromWeek; w <= toWeek; w++) {
     const m = matchupsByWeek[w]?.find((x) => x.roster_id === rosterId);
@@ -332,9 +333,11 @@ export function starterPoints(
       if (!wanted.has(p)) continue;
       starts++;
       points += m.players_points?.[p] ?? 0;
+      byPlayer[p] = (byPlayer[p] ?? 0) + (m.players_points?.[p] ?? 0);
     }
   }
-  return { points: Math.round(points * 100) / 100, starts };
+  for (const p of Object.keys(byPlayer)) byPlayer[p] = Math.round(byPlayer[p] * 100) / 100;
+  return { points: Math.round(points * 100) / 100, starts, byPlayer };
 }
 
 // ---------------------------------------------------------------------------
@@ -391,7 +394,8 @@ export interface TradeHistorySide extends TradeSideRecord {
     lineupPerWeek: number;
   } | null;
   /** Points the received players scored in this team's starting lineup afterward */
-  hindsight: { points: number; starts: number };
+  /** Points the players it received scored in its starting lineup (byPlayer: each one's; absent in older files) */
+  hindsight: { points: number; starts: number; byPlayer?: Record<string, number> };
   /** Final regular-season seed (null while the season is in progress) */
   finalSeed: number | null;
 }

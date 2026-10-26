@@ -11,7 +11,7 @@ import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { getHeatmapColorByRatio } from '@/lib/constants';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
-import { tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
+import { netHindsight, tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
 import type { TradeHistoryResponse, TradeHistorySide } from '@/lib/analyze/trade';
 import { signed } from '@/lib/format';
@@ -351,7 +351,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {sideList('Biggest playoff odds gains at the time', stats.bestAtTheTime.filter((s) => stats.playoffDelta(s) > 0), (s) => `${pp(stats.playoffDelta(s))} pp`)}
               {sideList('Biggest playoff odds losses at the time', stats.worstAtTheTime.filter((s) => stats.playoffDelta(s) < 0), (s) => `${pp(stats.playoffDelta(s))} pp`)}
-              {sideList('Best hauls in hindsight', stats.bestHauls, (s) => `${s.side.hindsight.points.toFixed(1)} pts`)}
+              {sideList('Best trades in hindsight', stats.bestHauls, (s) => `${signed(netHindsight(s.trade, s.side), 1)} pts net`)}
             </div>
 
             {partners.size > 0 && (() => {

@@ -30,6 +30,20 @@ export interface TradeSideRef {
   userId: string;
 }
 
+/**
+ * A side's net in hindsight: what the players it received scored in its starting lineup, minus
+ * what the players it sent scored in their new teams' lineups. Each received player's points
+ * (byPlayer) make it exact; files built before those were kept fall back to the other sides'
+ * totals, which is exact for a two-team trade.
+ */
+export function netHindsight(trade: TradeHistoryEntry, side: TradeHistorySide): number {
+  const others = trade.sides.filter((o) => o.rosterId !== side.rosterId);
+  const given = others.every((o) => o.hindsight.byPlayer)
+    ? side.sends.reduce((sum, p) => sum + others.reduce((s, o) => s + (o.hindsight.byPlayer?.[p] ?? 0), 0), 0)
+    : others.reduce((sum, o) => sum + o.hindsight.points, 0);
+  return Math.round((side.hindsight.points - given) * 100) / 100;
+}
+
 export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, rosterId: number) => string | null) {
   const rows = new Map<string, TradeLeader & { partners: Map<string, number> }>();
   const sides: TradeSideRef[] = [];
@@ -69,8 +83,8 @@ export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, ros
     /** Biggest playoff-odds gains and losses at the time of a trade */
     bestAtTheTime: [...graded].sort((a, b) => playoffDelta(b) - playoffDelta(a)).slice(0, 5),
     worstAtTheTime: [...graded].sort((a, b) => playoffDelta(a) - playoffDelta(b)).slice(0, 5),
-    /** Most starting-lineup points from a trade's incoming players */
-    bestHauls: [...sides].sort((a, b) => b.side.hindsight.points - a.side.hindsight.points).slice(0, 5),
+    /** Best trades in hindsight: incoming players' starting-lineup points minus the outgoing players' for their new teams */
+    bestHauls: [...sides].sort((a, b) => netHindsight(b.trade, b.side) - netHindsight(a.trade, a.side)).slice(0, 5),
     playoffDelta,
   };
 }

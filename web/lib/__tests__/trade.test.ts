@@ -243,7 +243,7 @@ describe('past trades', () => {
       4: week(['x'], { p2: 30, x: 5 }), // p2 on the bench
       5: week(['p2'], { p2: 7 }),
     };
-    expect(starterPoints(['p2'], 1, matchups, 3, 5)).toEqual({ points: 19.5, starts: 2 });
-    expect(starterPoints(['p2'], 1, matchups, 4, 4)).toEqual({ points: 0, starts: 0 });
+    expect(starterPoints(['p2'], 1, matchups, 3, 5)).toEqual({ points: 19.5, starts: 2, byPlayer: { p2: 19.5 } });
+    expect(starterPoints(['p2'], 1, matchups, 4, 4)).toEqual({ points: 0, starts: 0, byPlayer: {} });
   });
 });
