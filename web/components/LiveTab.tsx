@@ -79,6 +79,9 @@ function SideSummary({ side, name, username, avatarUrl, align }: { side: LiveSid
   );
 }
 
+/** The least of the odds bar either side gets, so a lopsided matchup still shows who's ahead */
+const MIN_BAR_SHARE = 0.03;
+
 /** Each real matchup with its live win odds */
 function LiveMatchups({
   odds,
@@ -100,6 +103,8 @@ function LiveMatchups({
       {odds.map((m) => {
         const mine = m.a.rosterId === myRosterId || m.b.rosterId === myRosterId;
         const a = m.aWinOdds;
+        // The bar keeps a sliver of each side (the numbers stay exact), so the favorite shows at >99%
+        const bar = Math.min(Math.max(a, MIN_BAR_SHARE), 1 - MIN_BAR_SHARE);
         return (
           <button
             type="button"
@@ -115,8 +120,8 @@ function LiveMatchups({
             <div className="mt-2 flex items-center gap-2 text-xs font-semibold tabular-nums">
               <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>
               <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--neutral-bg)]" role="img" aria-label={`Win odds ${oddsText(a)} to ${oddsText(1 - a)}`}>
-                <div style={{ width: `${a * 100}%`, backgroundColor: a >= 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
-                <div style={{ width: `${(1 - a) * 100}%`, backgroundColor: a < 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
+                <div style={{ width: `${bar * 100}%`, backgroundColor: a >= 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
+                <div style={{ width: `${(1 - bar) * 100}%`, backgroundColor: a < 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
               </div>
               <span className="w-9 text-right" style={{ color: a <= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(1 - a)}</span>
             </div>
