@@ -27,8 +27,8 @@ describe('my matchup first', () => {
   it('flips live win odds with the sides', () => {
     const side = (rosterId: number) => ({ rosterId }) as LiveSide;
     const live: LiveMatchupOdds[] = [
-      { matchupId: 1, a: side(1), b: side(2), aWinOdds: 0.7 },
-      { matchupId: 2, a: side(3), b: side(4), aWinOdds: 0.25 },
+      { matchupId: 1, a: side(1), b: side(2), aWinOdds: 0.7, sd: 20 },
+      { matchupId: 2, a: side(3), b: side(4), aWinOdds: 0.25, sd: 20 },
     ];
     const [mine] = myLiveMatchupFirst(live, 4);
     expect([mine.a.rosterId, mine.b.rosterId, mine.aWinOdds]).toEqual([4, 3, 0.75]);

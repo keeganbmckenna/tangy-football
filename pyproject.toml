@@ -14,6 +14,11 @@ dependencies = [
 [project.optional-dependencies]
 # GPU simulators and model research (scripts/backtests/gpu_sim.py and friends)
 gpu = ["torch>=2.8"]
+# Statistics for the research scripts (calibration fits, distributions)
+research = [
+    "scipy>=1.18.1",
+    "statsmodels>=0.15.0",
+]
 
 [tool.uv]
 package = false

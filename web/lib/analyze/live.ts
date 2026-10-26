@@ -312,6 +312,8 @@ export interface LiveMatchupOdds {
   b: LiveSide;
   /** Chance a wins (ties split evenly) */
   aWinOdds: number;
+  /** Spread (sd) of the final margin the odds come from */
+  sd: number;
 }
 
 export interface LiveStarter {
@@ -455,7 +457,7 @@ export function liveWinOdds(
     const diff = a.s.projected - b.s.projected;
     const sd = Math.sqrt(a.variance + b.variance);
     const aWinOdds = sd > 0.01 ? normalCdf(diff / sd) : diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
-    out.push({ matchupId, a: a.s, b: b.s, aWinOdds });
+    out.push({ matchupId, a: a.s, b: b.s, aWinOdds, sd });
   }
   return out.sort((x, y) => x.matchupId - y.matchupId);
 }

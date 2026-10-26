@@ -255,3 +255,23 @@ were made just before those games, which would leak information.
   (roster churn 1.75-2.46 players added per team per week, 66th-93rd percentile), and the
   fitted model's edge over the site is the same in every fifth of activity (-0.0058 to
   -0.0068, most active fifth -0.0064 [-0.0075, -0.0053]).
+
+- **Live odds through the week, diagnostics** (`live_diagnostics.py`, 2026-10-26; exploratory
+  under the preregistered addendum of that date): this league's 2022-2026 replays, 428 decided
+  matchups scored every 3 minutes of game time. The odds are **overconfident**: calibration
+  slope 0.84 (0.62-1.06) in the first quarter of a week's game time, 0.97 (0.50-1.44), 0.75
+  (0.63-0.87) and 0.72 (0.55-0.90) after (intervals clustered by matchup). Final margins land
+  1.4-1.5x the model's spread from the projection at every stage (16% beyond two spreads
+  against 4.6% for a normal), with no bias (mean z about 0), mild skew, and heavy tails late
+  in a week (excess kurtosis 3.5 in the last quarter, when a few players are left). At
+  kickoff on the earlier study's 288 matchups the model's margin sd is 20.6 points against an
+  actual RMS error of 30.7; `live_pregame.py` still picks the 0.7 scale by log loss on its own
+  inputs, so the two are being reconciled on the crawled leagues rather than here. Widening
+  the spread by 1.25-1.3x sizes at -0.006 log loss averaged over the week, but improves only
+  3 of 5 seasons out of sample: too few matchups to decide. Players don't score quite evenly
+  through a game: by 90% of the game played they have 84.7-85.9% of their points at every
+  position, so the last 10% holds about 15% (two-minute drills, catch-up passing), with a
+  small bump before halftime. Next: replay the crawled leagues (raw stats in the timelines,
+  so each league's scoring applies) and test, in order, a spread recalibrated by time left,
+  the projections' skew, a game-clock production curve, game state, correlated players, and
+  player-level simulation.

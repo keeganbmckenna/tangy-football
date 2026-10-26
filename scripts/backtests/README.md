@@ -89,6 +89,7 @@ python export_model.py --fixture            # fit on every league and write web/
 | `trades.py` | The weight on a trade's projected lineup change (0.43, not 0.75) |
 | `injuries.py` | Official NFL injury reports: Doubtful players count 0, Questionable 0.9 |
 | `live_pregame.py`, `live_defense.py` | The Live tab's kickoff spread and defense projections |
+| `live_diagnostics.py` | The Live tab's odds through each week: calibration, spread, and when points arrive in a game (exploratory) |
 | `own_league.py`, `league_activity.py` | The fitted models on our own 2022-2025 seasons |
 
 **Tested and not adopted**

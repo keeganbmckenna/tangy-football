@@ -22,7 +22,7 @@ const fakeRedis = vi.fn(async (_url: string, init: { body: string }) => {
 });
 
 const odds = (p: number, sa: number, sb: number): LiveMatchupOdds[] => [
-  { matchupId: 1, aWinOdds: p, a: { rosterId: 3, score: sa, projected: 0, toPlay: 0, playing: 0 }, b: { rosterId: 5, score: sb, projected: 0, toPlay: 0, playing: 0 } },
+  { matchupId: 1, aWinOdds: p, sd: 20, a: { rosterId: 3, score: sa, projected: 0, toPlay: 0, playing: 0 }, b: { rosterId: 5, score: sb, projected: 0, toPlay: 0, playing: 0 } },
 ];
 
 describe('live win history', () => {

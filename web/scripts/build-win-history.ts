@@ -30,6 +30,9 @@ import { biggestPlays, cleanPlay, type PlayEvent, type WinHistory } from '../lib
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TIMELINES = join(HERE, '..', '..', 'scripts', 'cache', 'timelines');
 const OUT = join(HERE, '..', 'public', 'data', 'win-history');
+/** --diagnostics: also write each sample's projected finals and spread here, for research */
+const DIAG = join(HERE, '..', '..', 'scripts', 'cache', 'live_diag');
+const DIAGNOSTICS = process.argv.includes('--diagnostics');
 /** Seconds between samples while games are on */
 const STEP = 180;
 
@@ -180,8 +183,11 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
   };
 
   const series = new Map<number, { a: number; b: number; odds: number[]; scores: Array<[number, number]>; events: PlayEvent[] }>();
+  // For research (--diagnostics): each sample's projected finals and spread, per matchup
+  const diag = new Map<number, Array<[number, number, number, number, number, number]>>();
   for (const t of sampled) {
     for (const o of evaluate(t).odds) {
+      diag.set(o.matchupId, [...(diag.get(o.matchupId) ?? []), [t, o.a.score, o.b.score, o.a.projected, o.b.projected, o.sd]]);
       const s = series.get(o.matchupId) ?? { a: o.a.rosterId, b: o.b.rosterId, odds: [], scores: [], events: [] };
       s.odds.push(Math.round(o.aWinOdds * 1000) / 1000);
       s.scores.push([Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]);
@@ -224,6 +230,13 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
   }
   for (const s of series.values()) s.events = biggestPlays(s.events);
 
+  if (DIAGNOSTICS) {
+    mkdirSync(join(DIAG, league.season), { recursive: true });
+    writeFileSync(
+      join(DIAG, league.season, `${week}.json`),
+      JSON.stringify({ matchups: [...series.entries()].map(([id, s]) => ({ id, a: s.a, b: s.b, rows: diag.get(id) ?? [] })) })
+    );
+  }
   return {
     season: league.season,
     week,
