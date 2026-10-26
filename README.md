@@ -47,7 +47,7 @@ After the regular season, and for past seasons, the **Playoff Bracket** (with pl
 - 🔥 **Weekly Ranks** - Each team's scoring rank each week, with that week's play-all record and real result, average and median rank, and its season play-all record.
 - 📊 **Score Distribution** - Every team's weekly scores on one line, with spread, floor, ceiling, and boom and bust weeks.
 - 📉 **Rank and points over time** - Standings or power rankings week by week, and cumulative points or points against the weekly median (each a toggle).
-- 🍀 **Luck** - Real and play-all records against the wins each team's scoring deserved, split into who you played (opponent strength) and how they played (their off or big weeks against you), with close-game records.
+- 🍀 **Luck** - Real and play-all records against the wins each team's scoring deserved, and close-game records.
 - 🎯 **Schedule Luck Distribution** - 20,000 random schedules per team, showing the range of records it could have had.
 
 ### Rosters (2022 onward)

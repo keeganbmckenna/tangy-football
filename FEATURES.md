@@ -52,7 +52,7 @@ Weekly scores and ranks, how the season moved, and luck. Charts: hover (or tap) 
 - **Score Distribution:** every team's weekly scores as dots on one line, with its middle half shaded and its median marked, then spread, floor, ceiling, and boom and bust weeks.
 - **Rank over time:** the standings week by week, or (toggle) the power rankings by the playoff-odds model from the draft on.
 - **Points over time:** cumulative scores, or (toggle) points above or below the weekly median, added up.
-- **Luck:** real record, play-all record and the wins each team's scoring deserved, with the difference split into who you played (drawing weak or strong opponents) and how they played (their off or big weeks against you), and its record in close games.
+- **Luck:** real record, play-all record and the wins each team's scoring deserved; luck is the difference. Plus its record in close games.
 - **Schedule Luck Distribution:** 20,000 random schedules per team, showing the range of records it could have had.
 
 ## 🧩 Rosters (2022 onward)

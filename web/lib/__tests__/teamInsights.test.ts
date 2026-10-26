@@ -39,11 +39,8 @@ describe('luckBreakdown', () => {
   const { teams, matchups } = league();
   const rows = luckBreakdown(teams, calculatePlayEveryoneStats(teams, 3), matchups, 3);
 
-  it('splits luck into schedule and opponents’ days that add up to real minus expected wins', () => {
-    for (const r of rows) {
-      expect(r.schedule + r.opponentsDays).toBeCloseTo(r.total);
-      expect(r.total).toBeCloseTo(r.wins - r.expectedWins);
-    }
+  it('measures luck as real minus expected wins', () => {
+    for (const r of rows) expect(r.total).toBeCloseTo(r.wins - r.expectedWins);
     // Luck sums to zero across the league: every win is someone's loss
     expect(rows.reduce((s, r) => s + r.total, 0)).toBeCloseTo(0);
   });
