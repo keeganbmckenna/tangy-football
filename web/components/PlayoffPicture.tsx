@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { usePlayoffOdds } from '@/hooks/useOddsData';
 import SectionCard from '@/components/ui/SectionCard';
 import RetryButton from '@/components/ui/RetryButton';
 import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
@@ -15,7 +16,7 @@ import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
-import { formatOdds, type OutcomeOdds, type OddsTeam, type PlayoffOddsResponse, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
+import { formatOdds, type OutcomeOdds, type OddsTeam, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
 import type { TeamStats } from '@/lib/types';
 
 interface PlayoffPictureProps {
@@ -50,40 +51,19 @@ function OddsCell({ p, muted = false }: { p: number; muted?: boolean }) {
 }
 
 export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
-  const [data, setData] = useState<PlayoffOddsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // Bumped by "Try again" to re-run the fetch
-  const [attempt, setAttempt] = useState(0);
   // Which outcome the "this week: win / loss" column shows
   const [swingOutcome, setSwingOutcome] = useState<keyof OutcomeOdds>('playoffs');
   const sort = useTableSort('playoffOdds');
   const me = useMyTeam();
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/playoff-odds')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load playoff odds');
-        return res.json() as Promise<PlayoffOddsResponse>;
-      })
-      .then((json) => !cancelled && setData(json))
-      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : 'Failed to load playoff odds'));
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt]);
+  const { data, error, retry } = usePlayoffOdds();
 
   if (error) {
     return (
       <SectionCard title="Playoff Picture" gradientType="primary">
         <div className="px-6 py-8">
           <p className="text-[var(--muted)]">Couldn&apos;t load the playoff picture: {error}</p>
-          <RetryButton
-            onClick={() => {
-              setError(null);
-              setAttempt((a) => a + 1);
-            }}
-          />
+          <RetryButton onClick={retry} />
         </div>
       </SectionCard>
     );

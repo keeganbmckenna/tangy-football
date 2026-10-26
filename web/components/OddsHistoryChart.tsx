@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import LazyMount from '@/components/ui/LazyMount';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -9,10 +9,11 @@ import SectionCard from '@/components/ui/SectionCard';
 import { CHART_CONFIG, CHART_THEME } from '@/lib/constants';
 import { useChartHover } from '@/hooks/useChartHover';
 import { useMyTeam } from '@/hooks/useMyTeam';
+import { useOddsHistory } from '@/hooks/useOddsData';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { useTeamColors } from '@/hooks/useTeamColors';
 import type { OddsResult } from '@/lib/analyze/playoffOdds';
-import type { OddsHistoryResponse, OddsSnapshot } from '@/lib/oddsHistory';
+import type { OddsSnapshot } from '@/lib/oddsHistory';
 import type { TeamStats } from '@/lib/types';
 import CustomTooltip from './CustomTooltip';
 
@@ -28,17 +29,6 @@ interface OddsHistoryChartProps {
   complete?: boolean;
 }
 
-/** Finished seasons are pre-built (scripts/build_odds_history.py); the season in progress is built live */
-async function loadHistory(season: string, complete: boolean) {
-  if (complete) {
-    const res = await fetch(`/data/odds-history/${season}.json`).catch(() => null);
-    if (res?.ok) return (await res.json()) as OddsHistoryResponse;
-  }
-  const res = await fetch(`/api/odds-history/${season}`);
-  if (!res.ok) throw new Error('Failed to load the odds history');
-  return (await res.json()) as OddsHistoryResponse;
-}
-
 type Outcome = keyof OddsSnapshot;
 
 /**
@@ -47,24 +37,12 @@ type Outcome = keyof OddsSnapshot;
  * (/api/odds-history/{season}, lib/oddsHistory.ts).
  */
 export default function OddsHistoryChart({ season, teamStats, liveOdds, lastScoredWeek, complete = false }: OddsHistoryChartProps) {
-  const [data, setData] = useState<OddsHistoryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
   const [outcome, setOutcome] = useState<Outcome>('playoffs');
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();
   const me = useMyTeam();
   const tap = useTapTooltip()();
 
-  useEffect(() => {
-    let cancelled = false;
-    setData(null);
-    loadHistory(season, complete)
-      .then((json) => !cancelled && setData(json))
-      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : 'Failed to load the odds history'));
-    return () => {
-      cancelled = true;
-    };
-  }, [season, complete, attempt]);
+  const { data, error, retry } = useOddsHistory(season, complete);
 
   const usernames = useMemo(() => teamStats.map((t) => t.username), [teamStats]);
   const teamColors = useTeamColors(teamStats, usernames);
@@ -105,12 +83,7 @@ export default function OddsHistoryChart({ season, teamStats, liveOdds, lastScor
       <SectionCard title={title} gradientType="info">
         <div className="px-6 py-8">
           <p className="text-[var(--muted)]">Couldn&apos;t load the odds history: {error}</p>
-          <RetryButton
-            onClick={() => {
-              setError(null);
-              setAttempt((a) => a + 1);
-            }}
-          />
+          <RetryButton onClick={retry} />
         </div>
       </SectionCard>
     );

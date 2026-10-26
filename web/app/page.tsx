@@ -11,6 +11,7 @@ import WeeklyMatchups from '@/components/WeeklyMatchups';
 import PlayoffBracket from '@/components/PlayoffBracket';
 import ToiletBowlBracket from '@/components/ToiletBowlBracket';
 import StandingsOverTime from '@/components/StandingsOverTime';
+import PowerRankBump from '@/components/PowerRankBump';
 import CumulativeScores from '@/components/CumulativeScores';
 import PointsVsMedian from '@/components/PointsVsMedian';
 import WeeklyRankingsHeatmap from '@/components/WeeklyRankingsHeatmap';
@@ -28,6 +29,7 @@ import { readUrlState, urlSearchFor } from '@/lib/urlState';
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import PlayoffPicture from '@/components/PlayoffPicture';
+import PowerRankings from '@/components/PowerRankings';
 import OddsHistoryChart from '@/components/OddsHistoryChart';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -489,6 +491,13 @@ export default function Home() {
                 />
               </section>
             </ErrorBoundary>
+            {regularSeasonInProgress && leagueData && (
+              <ErrorBoundary>
+                <section>
+                  <PowerRankings season={leagueData.league.season} teamStats={teamStats} />
+                </section>
+              </ErrorBoundary>
+            )}
             <ErrorBoundary>
               <section>
                 <WeeklyMatchups matchups={matchups} lastScoredWeek={leagueData?.lastScoredWeek} leagueData={leagueData} />
@@ -587,6 +596,13 @@ export default function Home() {
                 <StandingsOverTime standingsData={standingsOverTime} teams={teamStats} maxWeek={regularSeasonWeekCap} />
               </section>
             </ErrorBoundary>
+            {leagueData && !isLegacySeason && (
+              <ErrorBoundary>
+                <section>
+                  <PowerRankBump season={selectedSeason || leagueData.league.season} teamStats={teamStats} complete={!regularSeasonInProgress} />
+                </section>
+              </ErrorBoundary>
+            )}
             <ErrorBoundary>
               <section>
                 <CumulativeScores

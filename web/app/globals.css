@@ -237,6 +237,8 @@ body {
 /* Your team (picked in the header): a faint tint across the row and an accent
    bar on its first cell; colored cells (heatmaps, wins and losses) keep their color */
 tr.mine { background-color: color-mix(in srgb, var(--accent) 10%, transparent); }
+/* The same for list rows (Power Rankings) */
+li.mine { background-color: color-mix(in srgb, var(--accent) 10%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
 tr.mine > td:first-child, tr.mine > th:first-child {
   box-shadow: inset 3px 0 0 var(--accent), 1px 0 0 var(--border);
   /* Opaque, for first columns that stay put while the table scrolls sideways */
