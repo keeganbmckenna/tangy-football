@@ -105,6 +105,29 @@ deployed model as of each Wednesday snapshot, and `eval_2026.py` scores old agai
 - Drafted the same day without divisions; corrected on finding that our league has used 3
   divisions since 2024 (2026 too). Both versions are run and reported; they agree.
 
+## Addendum (2026-10-26): rules for improving the live win odds, set before any results
+
+The Live tab's win odds (`liveWinOdds`, web/lib/analyze/live.ts) are replayed through every
+finished week from nflverse play-by-play (scripts/build_play_timelines.py,
+web/scripts/build-win-history.ts). These rules are fixed before any variant is fitted.
+
+- **Data.** Exploratory diagnostics on this league's 2022-2026 replays (about 440 matchups):
+  used to choose what to test, never to fit or to decide. Fitting and evaluation on crawled
+  12-team leagues 2018-2025, replayed the same way, this league excluded. Crawled 2026
+  leagues are a one-shot confirmation after the season.
+- **Primary score.** Log loss of the live odds, averaged over each matchup's game time (a
+  sample every 3 minutes while games are on), each matchup weighted equally; decided
+  matchups only. Secondary: the same by stage of the week (kickoff, then quarters of the
+  week's game time), Brier, and the calibration slope (logistic regression of the outcome on
+  the odds' log-odds).
+- **Adoption.** A variant replaces the current model only if, predicting each season from a
+  fit on the other seasons, it lowers the primary score by at least 0.002, with a 95%
+  interval resampling leagues that excludes zero, in at least 6 of 8 seasons. Ties go to the
+  simpler model. Variants are tried in order of complexity: recalibrating the spread by time
+  left, correcting the projections' skew, a game-clock production curve, game state
+  (score, possession, field position), correlated players, and player-level simulation.
+- **No tuning on 2026 data** before the season's confirmation.
+
 ## Log of changes after the first snapshot
 
 - 2026-10-20: snapshots before kickoffs also save Sleeper's full projection file (every player's
