@@ -24,13 +24,18 @@ interface SeasonReviewProps {
 
 const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10] ?? 'th'}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+/** "Z. Charbonnet", so a trade's players fit in a tile */
+const shortName = (name: string) => name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ');
 
-function Tile({ label, children, sub }: { label: string; children: ReactNode; sub?: ReactNode }) {
+/** One stat; a wide tile spans the row and wraps freely (a trade can name several players) */
+function Tile({ label, children, sub, wide = false }: { label: string; children: ReactNode; sub?: ReactNode; wide?: boolean }) {
+  const clamp = wide ? '' : 'line-clamp-2';
   return (
-    <div className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+    <div className={`min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 ${wide ? 'col-span-2' : ''}`}>
       <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">{label}</div>
-      <div className="truncate text-base font-semibold text-[var(--foreground)] sm:text-lg">{children}</div>
-      {sub && <div className="truncate text-xs text-[var(--muted)]">{sub}</div>}
+      <div className={`${clamp} text-base font-semibold leading-snug text-[var(--foreground)] sm:text-lg`}>{children}</div>
+      {/* Up to two lines, so longer notes (a trade partner, an odds range) aren't cut off */}
+      {sub && <div className={`${clamp} text-xs text-[var(--muted)]`}>{sub}</div>}
     </div>
   );
 }
@@ -86,7 +91,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
   const odds = (history?.checkpoints ?? []).map((c) => ({ week: c.week, p: c.odds[rosterId]?.playoffs ?? 0 }));
   const low = odds.length ? odds.reduce((m, o) => (o.p < m.p ? o : m)) : null;
   const high = odds.length ? odds.reduce((m, o) => (o.p > m.p ? o : m)) : null;
-  const weekLabel = (w: number) => (w === 0 ? 'the draft' : `week ${w}`);
+  const weekLabel = (w: number) => (w === 0 ? 'draft' : `wk ${w}`);
 
   return (
     <SectionCard title={`${season} in Review`} subtitle="Each manager's season in a page" gradientType="primary">
@@ -124,10 +129,13 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
           )}
           {trade && (
             <Tile
+              wide
               label="Best trade"
               sub={`Week ${trade.t.week} with ${trade.t.sides.filter((s) => s.rosterId !== rosterId).map((s) => name(s.rosterId)).join(', ')} · ${trade.net >= 0 ? '+' : '−'}${Math.abs(trade.net).toFixed(1)} net pts`}
             >
-              {trade.s.receives.map(player).join(', ') || trade.s.picks.join(', ') || 'Picks and FAAB'}
+              <span title={trade.s.receives.map(player).join(', ')}>
+                {trade.s.receives.map((id) => shortName(player(id))).join(', ') || trade.s.picks.join(', ') || 'Picks and FAAB'}
+              </span>
             </Tile>
           )}
           {myLineups && (
@@ -142,7 +150,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
             </Tile>
           )}
           {low && high && (
-            <Tile label="Playoff odds" sub={`Low ${pct(low.p)} after ${weekLabel(low.week)}, high ${pct(high.p)} after ${weekLabel(high.week)}`}>
+            <Tile label="Playoff odds" sub={`Low ${pct(low.p)} (${weekLabel(low.week)}) · high ${pct(high.p)} (${weekLabel(high.week)})`}>
               <svg viewBox={`0 0 ${Math.max(odds.length - 1, 1)} 1`} preserveAspectRatio="none" className="mt-1 h-7 w-full" aria-hidden>
                 <polyline
                   fill="none"
