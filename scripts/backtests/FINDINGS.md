@@ -283,6 +283,27 @@ were made just before those games, which would leak information.
   the projections' skew, a game-clock production curve, game state, correlated players, and
   player-level simulation.
 
+- **More live-odds ideas, tested** (2026-10-26, preregistered tests 1-6; `live_injury.py`,
+  `live_eval.py`, `kalshi_live.py`, `kalshi_props.py`, `kalshi_props_model.py`). Each fitted
+  leaving the season (or week) out and scored on the crawled leagues' replays:
+  - **In-game injuries** (play text "was injured during the play"): flagged fantasy players record
+    another stat that game 40% of the time, but even an oracle that knows who won't is worth
+    -0.0001 to -0.0007 (rules out more than ~0.001); the model -0.0001 to -0.0006.
+  - **Vegas lines**: a QB's miss on his projection tracks his team's implied points (+0.28 a
+    point), other positions barely; in the odds -0.0013 to +0.0006, mixed.
+  - **State-space team strength**: answered by earlier tests of its parts (each 0.0004 or less).
+  - **Late-game tails**: the model is already accurate late (log loss 0.08-0.09 under 5% of the
+    variance left); heavier tails gain 0.001-0.002 there.
+  - **End-game drives** (nflfastR's next-score chances as discrete touchdowns and field goals in
+    a game's last 5 minutes): on all high-leverage moments only -0.0005 to -0.0007, but on the
+    pivotal ones (the drive model moving the odds 5+ points, ~10% of matchups) -0.055 to -0.066
+    in 2022-2025 and -0.009 to -0.052 in 2018-2021 (better in all 8 seasons; the preregistered
+    confirmation passed 2 of 4). **The one candidate**: rechecked on 2026 after the season.
+  - **Kalshi player props**: in-game prices lag plays a median 47 s with 23-cent spreads; 2026
+    fantasy-points markets alone are worse than our player model (+0.025 log loss), and 2025's
+    per-stat props blended into the odds gain 0.0003 at best, and lose where they disagree most.
+    Real-time use is feasible (public API, about 2 requests a minute) but not worth it.
+
 - **Which team stats measure something** (`stats_audit.py`, 2026-10-26): each stat on weeks
   1-7 and again on weeks 8-14 of the same team-season, 45,753 crawled team-seasons
   (2022-2025); the correlation says how much is the team and how much chance.
