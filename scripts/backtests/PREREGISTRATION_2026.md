@@ -168,3 +168,11 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
   (logged as deviations before their runs) failed. No 2026 data used. The win history is
   rebuilt with the new scale. **P3** (the archive replay at kickoff) is scored on both scales.
   The one-shot crawled-2026 confirmation covers this model.
+- 2026-10-26: **the playoff and trade tools' injury return rates change** (RETURN_RATE, web/lib/
+  analyze/availability.ts: 0.76, 0.40, 0.38, 0.48 -> 0.66, 0.44, 0.43, 0.43), rebuilt reproducibly
+  by scripts/backtests/returns.py and better leaving each season out (5 of 8 seasons on absences
+  that ended, 8 of 8 on all; the earlier rates came from an unkept scratch run). They only scale
+  injured players' later weeks, so the fitted strength model under test is otherwise unchanged;
+  `previousModel` keeps logging for P1. No 2026 data used. The Power Rankings' rank ranges now use
+  a strength uncertainty measured including the playoff weeks (descriptive; the odds' tau is
+  unchanged, tau_playoffs.py fell under the bar).

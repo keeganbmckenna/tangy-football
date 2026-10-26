@@ -63,15 +63,19 @@ the crawled leagues (2,025, then 7,385 league-seasons, 2018-2025).
   with a missing starter replaced by a free agent (2.779, 0.1431). Managers cover injuries
   from waivers, and Sleeper's projections run a little low, so the trade tools keep valuing
   the best lineup. Kept for reference.
-- **Injured players' returns**: of players who'd been playing, missed a game and came back
-  later that season, 76% played their team's next game; of those out two in a row, 40% the
-  next; then 38% and about half. Counting season-ending injuries too it's 68%, 29%, 25%, 21%,
-  but the discount only applies to players Sleeper projects to be back next week, which
-  leaves those out, so the model uses the first set (for players who'd scored 15+ it's in
-  between: 69%, 33%, 32%, 32%). Sleeper projects an out player for every later week as if
-  he's back next week, so the odds model scales those weeks by these chances (no return from
-  IR before 4 games), unless Sleeper already has him out past next week. The archive's injury
-  statuses are from after the season, so this can't be backtested on past trades.
+- **Injured players' returns** (`returns.py`, rebuilt 2026-10-26; the first rates came from a
+  scratch run that wasn't kept): QB/RB/WR/TE who'd been playing and were projected 5+ points the
+  week before, 2018-2025, censored at season end. Of absences that ended that season, 66% played
+  their team's next game (95% 63-69%); after two in a row 44% (38-49%); after three or more 43%
+  (flat from there, so pooled). All absences, season-ending included: 55%, 30%, 23%, 16%. The
+  discount only applies to players Sleeper projects to be back next week, which leaves out
+  season-ending injuries, so the model uses the first set; the archive can't recreate that gate
+  (its projections are the final pre-game ones), so the truth is somewhere between. Leaving each
+  season out, the rebuilt rates beat the earlier ones (76%, 40%, 38%, 48%) in 5 of 8 seasons on
+  absences that ended and 8 of 8 on all. Sleeper projects an out player for every later week as
+  if he's back next week, so the odds model scales those weeks by these chances (no return from
+  IR before 4 games), unless Sleeper already has him out past next week. The prediction log's
+  pre-kickoff projection files (from 2026-10-20) will let the gated rate be measured directly.
 
 Projections are always the ones known at the time: the week after the cutoff, carried
 forward with each NFL team's bye weeks. Sleeper's archived projections for later weeks

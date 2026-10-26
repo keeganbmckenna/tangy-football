@@ -8,7 +8,7 @@ import { earlierTradeModel, type TradeDataResponse, type TradeInputs, type Trade
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current';
 /** Free agents per position offered as pickups for roster spots a trade opens */
 const FREE_AGENTS_PER_POSITION = 15;

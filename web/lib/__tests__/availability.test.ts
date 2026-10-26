@@ -4,21 +4,21 @@ import { discountInjured, type ProjectedPlayer, type SeasonProduction } from '..
 
 describe('injured players coming back', () => {
   it('uses the measured return rates, and no return from IR before 4 games', () => {
-    expect(returnRate(1, false)).toBe(0.76);
-    expect(returnRate(2, false)).toBe(0.4);
-    expect(returnRate(6, false)).toBe(0.48);
+    expect(returnRate(1, false)).toBe(0.66);
+    expect(returnRate(2, false)).toBe(0.44);
+    expect(returnRate(6, false)).toBe(0.43);
     expect(returnRate(2, true)).toBe(0);
-    expect(returnRate(4, true)).toBe(0.48);
+    expect(returnRate(4, true)).toBe(0.43);
   });
 
   it('adds up the chance of being back by a later game', () => {
-    // Out two games: 40% for the next one, then 38%, then 48%...
-    expect(backBy(2, 1, false)).toBeCloseTo(0.4);
-    expect(backBy(2, 2, false)).toBeCloseTo(1 - 0.6 * 0.62);
+    // Out two games: 44% for the next one, then 43% each after
+    expect(backBy(2, 1, false)).toBeCloseTo(0.44);
+    expect(backBy(2, 2, false)).toBeCloseTo(1 - 0.56 * 0.57);
     expect(backBy(2, 3, false)).toBeGreaterThan(backBy(2, 2, false));
     // On IR after one game: three more to sit, so back four games out at the earliest
     expect(backBy(1, 3, true)).toBe(0);
-    expect(backBy(1, 4, true)).toBeCloseTo(0.48);
+    expect(backBy(1, 4, true)).toBeCloseTo(0.43);
   });
 
   it('counts games missed in a row, back to the last one he played', () => {
@@ -41,8 +41,8 @@ describe('injured players coming back', () => {
     const production: SeasonProduction = { points: {}, games: {}, playedWeeks: { lamar: [1, 2, 3, 4], healthy: [1, 2, 3, 4, 5] } };
     discountInjured(values, players, production, schedule, 5, [6, 7, 8, 9]);
     expect(values[6].lamar.points).toBe(0);
-    expect(values[7].lamar.points).toBeCloseTo(22 * 0.4);
-    expect(values[8].lamar.points).toBeCloseTo(22 * (1 - 0.6 * 0.62));
+    expect(values[7].lamar.points).toBeCloseTo(22 * 0.44);
+    expect(values[8].lamar.points).toBeCloseTo(22 * (1 - 0.56 * 0.57));
     expect(values[9].healthy.points).toBe(20);
   });
 
@@ -56,8 +56,8 @@ describe('injured players coming back', () => {
     }
     const production: SeasonProduction = { points: {}, games: {}, playedWeeks: { evans: [1, 2, 3, 4, 5], maybe: [1, 2, 3, 4, 5] } };
     discountInjured(values, players, production, schedule, 5, [6, 7, 8]);
-    expect(values[6].evans.points).toBeCloseTo(15 * 0.76);
-    expect(values[7].evans.points).toBeCloseTo(15 * (1 - 0.24 * 0.6));
+    expect(values[6].evans.points).toBeCloseTo(15 * 0.66);
+    expect(values[7].evans.points).toBeCloseTo(15 * (1 - 0.34 * 0.56));
     expect(values[6].maybe.points).toBe(10);
   });
 
@@ -71,8 +71,8 @@ describe('injured players coming back', () => {
     }
     const production: SeasonProduction = { points: {}, games: {}, playedWeeks: { lamar: [1, 2, 3, 4] } };
     discountInjured(values, players, production, schedule, 5, [6, 7]);
-    expect(values[6].lamar.points).toBeCloseTo(22 * 0.76);
-    expect(values[7].lamar.points).toBeCloseTo(22 * (1 - 0.24 * 0.6));
+    expect(values[6].lamar.points).toBeCloseTo(22 * 0.66);
+    expect(values[7].lamar.points).toBeCloseTo(22 * (1 - 0.34 * 0.56));
   });
 
   it('leaves a known timeline alone: Sleeper already has him out past next week', () => {
