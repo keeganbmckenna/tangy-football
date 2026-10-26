@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import LazyMount from '@/components/ui/LazyMount';
 import { TeamStats } from '@/lib/types';
@@ -16,11 +16,13 @@ interface PointsVsMedianProps {
   differenceData: Record<string, number[]>;
   teams: TeamStats[];
   maxWeek?: number;
+  /** Shown above the chart (a view toggle) */
+  controls?: ReactNode;
 }
 
 const MEDIAN_COLOR = CHART_THEME.median;
 
-export default function PointsVsMedian({ differenceData, teams, maxWeek }: PointsVsMedianProps) {
+export default function PointsVsMedian({ differenceData, teams, maxWeek, controls }: PointsVsMedianProps) {
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();
   // Your team's line is drawn thicker
   const me = useMyTeam();
@@ -61,6 +63,7 @@ export default function PointsVsMedian({ differenceData, teams, maxWeek }: Point
       gradientType="success"
     >
       <div className="p-6">
+        {controls && <div className="mb-4">{controls}</div>}
         <LazyMount height={CHART_CONFIG.defaultHeight}>
           <ResponsiveContainer width="100%" height={CHART_CONFIG.defaultHeight}>
             <LineChart data={chartData} {...tap.chartProps}>

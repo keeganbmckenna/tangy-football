@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
@@ -18,13 +18,15 @@ interface PowerRankBumpProps {
   teamStats: TeamStats[];
   /** A finished season: its odds history is pre-built */
   complete: boolean;
+  /** Shown above the chart (a view toggle) */
+  controls?: ReactNode;
 }
 
 /**
  * Power rankings week by week: each team's rank by the playoff-odds model's expected weekly
  * score as of the draft and after every week (the odds history's checkpoints)
  */
-export default function PowerRankBump({ season, teamStats, complete }: PowerRankBumpProps) {
+export default function PowerRankBump({ season, teamStats, complete, controls }: PowerRankBumpProps) {
   const { data } = useOddsHistory(season, complete);
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();
   const me = useMyTeam();
@@ -63,6 +65,7 @@ export default function PowerRankBump({ season, teamStats, complete }: PowerRank
       }
     >
       <div className="p-4 sm:p-6">
+        {controls && <div className="mb-4">{controls}</div>}
         <LazyMount height={CHART_CONFIG.defaultHeight}>
           <ResponsiveContainer width="100%" height={CHART_CONFIG.defaultHeight}>
             <LineChart data={chartData} {...tap.chartProps}>

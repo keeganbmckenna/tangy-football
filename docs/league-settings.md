@@ -23,8 +23,8 @@ The current league has 12 teams in 3 divisions, a 14-week regular season, a 6-te
 `web/app/page.tsx` computes it for the selected season and uses:
 
 - **`regularSeasonEnd`**
-  - caps the weekly analytics (Weekly Performance, Season Trends, Advanced Stats) at completed regular-season weeks;
-  - decides whether the regular season is in progress, which switches the Playoffs tab between the playoff picture and the brackets and shows or hides Trades & Waivers;
+  - caps the weekly analytics (the Stats tab) at completed regular-season weeks;
+  - decides whether the regular season is in progress, which switches the Playoffs tab between the playoff picture and the brackets and shows or hides the trade and waiver tools at the top of Rosters;
   - sets the Live tab's last week;
   - drives Overview's "Stats through week X of 14" line.
 - **`playoffTeams`** and **`divisions`**: division standings, the wild card race and its cutoff line, and the overall standings when there are no divisions.

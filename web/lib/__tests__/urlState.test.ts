@@ -9,6 +9,13 @@ describe('url state', () => {
     expect(readUrlState('?tab=draft&season=2023')).toEqual({ tab: 'draft', season: '2023' });
   });
 
+  it('sends links to merged tabs to where their cards went', () => {
+    expect(readUrlState('?tab=weekly').tab).toBe('stats');
+    expect(readUrlState('?tab=trends&season=2024')).toEqual({ tab: 'stats', season: '2024' });
+    expect(readUrlState('?tab=advanced').tab).toBe('stats');
+    expect(readUrlState('?tab=trades').tab).toBe('rosters');
+  });
+
   it('ignores unknown tabs and malformed seasons', () => {
     expect(readUrlState('?tab=nope&season=abc')).toEqual({ tab: null, season: null });
     expect(readUrlState('')).toEqual({ tab: null, season: null });

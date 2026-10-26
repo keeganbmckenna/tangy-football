@@ -4,11 +4,20 @@
  * (Overview, the current season) are left out to keep links short.
  */
 
-export const TAB_IDS = ['overview', 'live', 'postseason', 'weekly', 'trends', 'advanced', 'rosters', 'draft', 'trades', 'history'] as const;
+export const TAB_IDS = ['overview', 'live', 'postseason', 'stats', 'rosters', 'draft', 'history'] as const;
+
+/** Tabs that were merged into others, so old links still land in the right place */
+const MOVED_TABS: Record<string, (typeof TAB_IDS)[number]> = {
+  weekly: 'stats',
+  trends: 'stats',
+  advanced: 'stats',
+  trades: 'rosters',
+};
 
 export function readUrlState(search: string): { tab: string | null; season: string | null } {
   const params = new URLSearchParams(search);
-  const tab = params.get('tab');
+  const raw = params.get('tab');
+  const tab = raw && (MOVED_TABS[raw] ?? raw);
   const season = params.get('season');
   return {
     tab: tab && (TAB_IDS as readonly string[]).includes(tab) ? tab : null,

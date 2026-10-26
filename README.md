@@ -42,22 +42,21 @@ During the regular season:
 
 After the regular season, and for past seasons, the **Playoff Bracket** (with placement games), the **Toilet Bowl** and the **Odds Week by Week** chart for the whole season. Tap a game that's been played for both lineups and benches, as in Overview's matchups.
 
-### Weekly Performance
+### Stats
 - 📈 **Weekly Scores** - Every score, colored by win or loss, with season average, average score and margin in wins and losses, and the league's median winning and losing score each week.
+- 🔥 **Weekly Ranks** - Each team's scoring rank each week, with that week's play-all record and real result, average and median rank, and its season play-all record.
 - 📊 **Score Distribution** - Every team's weekly scores on one line, with spread, floor, ceiling, and boom and bust weeks.
-- 🔥 **Weekly Rankings Heatmap** - Each team's scoring rank each week, with average and median rank.
-
-### Season Trends
-Line charts of standings over time, cumulative scores, and points above or below the weekly median (added up). Hover or tap a week for every team's value, or a team in the legend to highlight its line.
-
-### Advanced Stats
-- 🎲 **Play Everyone** - Each team's record if it played every team every week, against its real record, with a luck factor.
-- 🍀 **Luck Breakdown** - Real wins against what each team's scoring deserved, split into schedule luck and opponents' off or career days, with close-game records.
+- 📉 **Rank and points over time** - Standings or power rankings week by week, and cumulative points or points against the weekly median (each a toggle).
+- 🍀 **Luck** - Real and play-all records against the wins each team's scoring deserved, split into schedule luck and opponents' off or career days, with close-game records.
 - 🎯 **Schedule Luck Distribution** - 20,000 random schedules per team, showing the range of records it could have had.
-- 📋 **Weekly Play-All** - Week-by-week play-all records as a heatmap.
 
 ### Rosters (2022 onward)
-Lineup efficiency (points against the best possible lineup, losses the best lineup would have won), starters against Sleeper's projections, points by position, player leaders and team MVPs, and waiver pickups with FAAB spending in FAAB seasons. All from `/api/season-insights/{season}` (`web/lib/seasonInsights.ts`); completed seasons are pre-built JSON in `web/public/data/season-insights/`.
+During the current regular season, the trade and waiver tools come first:
+- 🔄 **Trade Analyzer** (until the trade deadline) - Pick two managers and the players moving. Shows each team's win odds for every remaining week with and without the trade, season odds before → after (20,000 simulations each), lineup changes and forced roster moves, each player's [FantasyCalc](https://fantasycalc.com) market value, and which other teams' odds move. Each side is marked "Overpays by market value" when it gets back less than 85% of the market value it gives (with a premium for the best player in a deal). A trade moves each team's odds by the model's weight on its lineup change, measured on thousands of real trades in other leagues ([docs/odds-models.md](docs/odds-models.md#trades)); weekly win odds come from a model fitted for single games.
+- 🔎 **Trade Finder** (until the trade deadline) - Pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager, keeping those that raise your playoff and title odds without hurting the other side. A market filter (on by default) hides trades where the other manager gets back much less FantasyCalc value, and a trade where you do is marked "You overpay by market value". Each result opens in the analyzer.
+- 🧲 **Waiver Finder** - The free agents who'd help you most, for the rest of the season or one specific week (to cover a bye), each with the player it would drop, ranked by how much they raise your odds.
+
+Then, for every season: lineup efficiency (points against the best possible lineup, losses the best lineup would have won), starters against Sleeper's projections, points by position, player leaders and team MVPs, and waiver pickups with FAAB spending in FAAB seasons. All from `/api/season-insights/{season}` (`web/lib/seasonInsights.ts`); completed seasons are pre-built JSON in `web/public/data/season-insights/`.
 
 ### Draft
 - 📋 **Draft Board** - By round for snake drafts, by team and price for auctions. Each pick shows points per available week (`/wk`: half-PPR points divided by the weeks the player could have played, so missed games count as zeros).
@@ -65,11 +64,6 @@ Lineup efficiency (points against the best possible lineup, losses the best line
 - 📊 **Draft Results** - Core/wk, all picks/wk, auction spend, $ per point and best pick.
 
 Completed seasons' drafts are pre-built JSON in `web/public/data/drafts/`; the season in progress is built live.
-
-### Trades & Waivers (current season, during the regular season)
-- 🔄 **Trade Analyzer** (until the trade deadline) - Pick two managers and the players moving. Shows each team's win odds for every remaining week with and without the trade, season odds before → after (20,000 simulations each), lineup changes and forced roster moves, each player's [FantasyCalc](https://fantasycalc.com) market value, and which other teams' odds move. Each side is marked "Overpays by market value" when it gets back less than 85% of the market value it gives (with a premium for the best player in a deal). A trade moves each team's odds by the model's weight on its lineup change, measured on thousands of real trades in other leagues ([docs/odds-models.md](docs/odds-models.md#trades)); weekly win odds come from a model fitted for single games.
-- 🔎 **Trade Finder** (until the trade deadline) - Pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager, keeping those that raise your playoff and title odds without hurting the other side. A market filter (on by default) hides trades where the other manager gets back much less FantasyCalc value, and a trade where you do is marked "You overpay by market value". Each result opens in the analyzer.
-- 🧲 **Waiver Finder** - The free agents who'd help you most, for the rest of the season or one specific week (to cover a bye), each with the player it would drop, ranked by how much they raise your odds.
 
 ### History
 Every season the league has played. Managers are tracked by their Sleeper account and shown by first name. Seasons before Sleeper come from the old platform's final standings (`web/lib/data/legacyHistory.ts`) and count toward records, titles and finishes; points, head to head and game records start in 2022.

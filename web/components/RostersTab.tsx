@@ -5,6 +5,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import RetryButton from '@/components/ui/RetryButton';
 import SectionCard from '@/components/ui/SectionCard';
 import { useSeasonInsights } from '@/hooks/useSeasonInsights';
+import type { ReactNode } from 'react';
 import type { TeamStats } from '@/lib/types';
 import LineupEfficiency from './rosters/LineupEfficiency';
 import PlayerLeaders from './rosters/PlayerLeaders';
@@ -16,10 +17,24 @@ interface RostersTabProps {
   season: string;
   teamStats: TeamStats[];
   rosterPositions: string[];
+  /** The trade and waiver tools, shown first while the regular season is on */
+  tools?: ReactNode;
 }
 
-/** Everything about who teams start, pick up and score with, from the season's insights */
-export default function RostersTab({ season, teamStats, rosterPositions }: RostersTabProps) {
+/**
+ * Everything about who's on each roster: during the regular season the trade and waiver tools
+ * first, then who teams start, pick up and score with, from the season's insights
+ */
+export default function RostersTab({ season, teamStats, rosterPositions, tools }: RostersTabProps) {
+  return (
+    <>
+      {tools}
+      <SeasonRosters season={season} teamStats={teamStats} rosterPositions={rosterPositions} />
+    </>
+  );
+}
+
+function SeasonRosters({ season, teamStats, rosterPositions }: Omit<RostersTabProps, 'tools'>) {
   const { data, error, retry } = useSeasonInsights(season);
   if (error) {
     return (

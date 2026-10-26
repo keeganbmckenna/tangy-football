@@ -10,14 +10,9 @@ import ScoreDistribution from '@/components/ScoreDistribution';
 import WeeklyMatchups from '@/components/WeeklyMatchups';
 import PlayoffBracket from '@/components/PlayoffBracket';
 import ToiletBowlBracket from '@/components/ToiletBowlBracket';
-import StandingsOverTime from '@/components/StandingsOverTime';
-import PowerRankBump from '@/components/PowerRankBump';
-import CumulativeScores from '@/components/CumulativeScores';
-import PointsVsMedian from '@/components/PointsVsMedian';
+import { PointsOverTime, RankOverTime } from '@/components/StatsCharts';
 import WeeklyRankingsHeatmap from '@/components/WeeklyRankingsHeatmap';
-import PlayEveryoneAnalysis from '@/components/PlayEveryoneAnalysis';
 import ScheduleLuckDistribution from '@/components/ScheduleLuckDistribution';
-import WeeklyPlayAll from '@/components/WeeklyPlayAll';
 import LuckBreakdown from '@/components/LuckBreakdown';
 import DraftBoard from '@/components/DraftBoard';
 import LiveTab from '@/components/LiveTab';
@@ -40,7 +35,7 @@ import Chalkboard from '@/components/ui/Chalkboard';
 import HomeLink from '@/components/ui/HomeLink';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import ThemeToggle from '@/components/ui/ThemeToggle';
-import { LeagueData, TeamStats, WeekMatchup, PlayEveryoneStats, WeeklyPlayAllStats, DivisionStanding, WildCardStanding, ScheduleLuckSimulation } from '@/lib/types';
+import { LeagueData, TeamStats, WeekMatchup, PlayEveryoneStats, DivisionStanding, WildCardStanding, ScheduleLuckSimulation } from '@/lib/types';
 import type { PostseasonBrackets } from '@/lib/analyze/brackets';
 import {
   calculateTeamStats,
@@ -50,7 +45,6 @@ import {
   calculateDifferenceFromMedian,
   calculateWeeklyRankings,
   calculatePlayEveryoneStats,
-  calculateWeeklyPlayAll,
   calculateDivisionStandings,
   calculateWildCardStandings,
   simulateScheduleLuck,
@@ -99,7 +93,6 @@ export default function Home() {
   const [differenceFromMedian, setDifferenceFromMedian] = useState<Record<string, number[]>>({});
   const [weeklyRankings, setWeeklyRankings] = useState<Record<string, number[]>>({});
   const [playEveryoneData, setPlayEveryoneData] = useState<PlayEveryoneStats[]>([]);
-  const [weeklyPlayAllData, setWeeklyPlayAllData] = useState<WeeklyPlayAllStats[]>([]);
   const [scheduleLuckSimulation, setScheduleLuckSimulation] = useState<ScheduleLuckSimulation | null>(null);
   const [divisions, setDivisions] = useState<DivisionStanding[]>([]);
   const [wildCard, setWildCard] = useState<WildCardStanding[]>([]);
@@ -120,7 +113,8 @@ export default function Home() {
     && leagueData.lastScoredWeek < leagueSettings.regularSeasonEnd;
   // Trade and waiver tools only apply once the current season's rosters are
   // set and until its regular season ends; past trades are under History
-  const showTradesTab = regularSeasonInProgress && leagueData?.league.status === 'in_season';
+  // The trade and waiver tools (at the top of Rosters): this season, while the regular season is on
+  const showTradeTools = regularSeasonInProgress && leagueData?.league.status === 'in_season';
   const regularSeasonWeekCap = leagueData && leagueSettings
     ? Math.min(leagueData.lastScoredWeek, leagueSettings.regularSeasonEnd)
     : undefined;
@@ -164,7 +158,6 @@ export default function Home() {
       setDifferenceFromMedian(calculateDifferenceFromMedian(stats, regularSeasonWeekCap));
       setWeeklyRankings(calculateWeeklyRankings(stats, regularSeasonWeekCap));
       setPlayEveryoneData(calculatePlayEveryoneStats(stats, regularSeasonWeekCap));
-      setWeeklyPlayAllData(calculateWeeklyPlayAll(stats, regularSeasonWeekCap));
       setScheduleLuckSimulation(simulateScheduleLuck(stats, 20000, regularSeasonWeekCap));
 
       // Calculate division standings and wild card race
@@ -276,16 +269,12 @@ export default function Home() {
     { id: 'overview', name: 'Overview', icon: '📊' },
     { id: 'live', name: 'Live', icon: '🔴' },
     { id: 'postseason', name: 'Playoffs', icon: '🏆' },
-    { id: 'weekly', name: 'Weekly Performance', icon: '📈' },
-    { id: 'trends', name: 'Season Trends', icon: '📉' },
-    { id: 'advanced', name: 'Advanced Stats', icon: '🔬' },
+    { id: 'stats', name: 'Stats', icon: '📈' },
     { id: 'rosters', name: 'Rosters', icon: '🧩' },
     { id: 'draft', name: 'Draft', icon: '📋' },
-    { id: 'trades', name: 'Trades & Waivers', icon: '🔄' },
     { id: 'history', name: 'History', icon: '🏛️' },
   ]
     .filter((tab) => tab.id !== 'live' || isCurrentSeason)
-    .filter((tab) => tab.id !== 'trades' || showTradesTab)
     .filter((tab) => !isLegacySeason || tab.id === 'overview' || tab.id === 'history');
   const tabIds = tabs.map((t) => t.id).join();
 
@@ -582,12 +571,17 @@ export default function Home() {
           </>
         )}
 
-        {/* Weekly Performance Tab */}
-        {activeTab === 'weekly' && (
+        {/* Stats Tab: weekly scores and ranks, trends through the season, and luck */}
+        {activeTab === 'stats' && (
           <>
             <ErrorBoundary>
               <section>
                 <WeeklyScores teams={teamStats} maxWeek={regularSeasonWeekCap} />
+              </section>
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <section>
+                <WeeklyRankingsHeatmap rankingsData={weeklyRankings} teams={teamStats} maxWeek={regularSeasonWeekCap} />
               </section>
             </ErrorBoundary>
             {regularSeasonWeekCap !== undefined && (
@@ -599,54 +593,18 @@ export default function Home() {
             )}
             <ErrorBoundary>
               <section>
-                <WeeklyRankingsHeatmap rankingsData={weeklyRankings} teams={teamStats} maxWeek={regularSeasonWeekCap} />
-              </section>
-            </ErrorBoundary>
-          </>
-        )}
-
-        {/* Season Trends Tab */}
-        {activeTab === 'trends' && (
-          <>
-            <ErrorBoundary>
-              <section>
-                <StandingsOverTime standingsData={standingsOverTime} teams={teamStats} maxWeek={regularSeasonWeekCap} />
-              </section>
-            </ErrorBoundary>
-            {leagueData && !isLegacySeason && (
-              <ErrorBoundary>
-                <section>
-                  <PowerRankBump season={selectedSeason || leagueData.league.season} teamStats={teamStats} complete={!regularSeasonInProgress} />
-                </section>
-              </ErrorBoundary>
-            )}
-            <ErrorBoundary>
-              <section>
-                <CumulativeScores
-                  cumulativeData={cumulativeScores}
+                <RankOverTime
+                  standingsData={standingsOverTime}
                   teams={teamStats}
                   maxWeek={regularSeasonWeekCap}
+                  season={leagueData && !isLegacySeason ? selectedSeason || leagueData.league.season : undefined}
+                  complete={!regularSeasonInProgress}
                 />
               </section>
             </ErrorBoundary>
             <ErrorBoundary>
               <section>
-                <PointsVsMedian
-                  differenceData={differenceFromMedian}
-                  teams={teamStats}
-                  maxWeek={regularSeasonWeekCap}
-                />
-              </section>
-            </ErrorBoundary>
-          </>
-        )}
-
-        {/* Advanced Stats Tab */}
-        {activeTab === 'advanced' && (
-          <>
-            <ErrorBoundary>
-              <section>
-                <PlayEveryoneAnalysis data={playEveryoneData} />
+                <PointsOverTime cumulativeData={cumulativeScores} differenceData={differenceFromMedian} teams={teamStats} maxWeek={regularSeasonWeekCap} />
               </section>
             </ErrorBoundary>
             {regularSeasonWeekCap !== undefined && (
@@ -661,11 +619,6 @@ export default function Home() {
                 <ScheduleLuckDistribution data={scheduleLuckSimulation} />
               </section>
             </ErrorBoundary>
-            <ErrorBoundary>
-              <section>
-                <WeeklyPlayAll data={weeklyPlayAllData} />
-              </section>
-            </ErrorBoundary>
           </>
         )}
 
@@ -675,6 +628,7 @@ export default function Home() {
             season={selectedSeason || leagueData.league.season}
             teamStats={teamStats}
             rosterPositions={leagueData.league.roster_positions ?? []}
+            tools={showTradeTools ? <TradesTab teamStats={teamStats} /> : null}
           />
         )}
 
@@ -687,8 +641,6 @@ export default function Home() {
           </ErrorBoundary>
         )}
 
-        {/* Trades Tab */}
-        {activeTab === 'trades' && showTradesTab && <TradesTab teamStats={teamStats} />}
         </div>
         )}
       </main>

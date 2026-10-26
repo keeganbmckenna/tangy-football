@@ -45,25 +45,28 @@ While the regular season is in progress:
 
 After the regular season, and for past seasons: the **Playoff Bracket** (with placement games) and the **Toilet Bowl** bracket. Tap a game that's been played to see both lineups.
 
-## 📈 Weekly Performance
+## 📈 Stats
+Weekly scores and ranks, how the season moved, and luck. Charts: hover (or tap) a week for every team's value, or a team in the legend to highlight its line; your team's line is drawn thicker.
 - **Weekly Scores:** every score, colored by win or loss, with the margin, season average, and average score and margin in wins and in losses. The last two rows are the league's median winning and losing score each week and for the season.
+- **Weekly Ranks:** each team's scoring rank each week, with that week's play-all record (its record had it played every other team) and a dot for its real result; average and median rank, and its season play-all record.
 - **Score Distribution:** every team's weekly scores as dots on one line, with its middle half shaded and its median marked, then spread, floor, ceiling, and boom and bust weeks.
-- **Weekly Rankings Heatmap:** each team's scoring rank each week, with average and median rank.
-
-## 📉 Season Trends
-Line charts. Hover (or tap) a week for every team's value, or a team in the legend to highlight its line; your team's line is drawn thicker.
-- Standings Over Time.
-- Power Rankings Over Time: each team's rank by the playoff-odds model from the draft on.
-- Cumulative Scores.
-- Difference from Median: points above or below the weekly median, added up.
-
-## 🔬 Advanced Stats
-- **Play Everyone Analysis:** each team's record if it had played every team every week, against its real record, with a luck factor.
-- **Luck Breakdown:** real wins against what each team's scoring deserved, split into schedule luck (who it drew) and opponents' off or career days, with its record in close games.
+- **Rank over time:** the standings week by week, or (toggle) the power rankings by the playoff-odds model from the draft on.
+- **Points over time:** cumulative scores, or (toggle) points above or below the weekly median, added up.
+- **Luck:** real record, play-all record and the wins each team's scoring deserved, with the difference split into schedule luck (who it drew) and opponents' off or career days, and its record in close games.
 - **Schedule Luck Distribution:** 20,000 random schedules per team, showing the range of records it could have had.
-- **Weekly Play-All:** week-by-week play-all records as a heatmap, with each week's real result.
 
 ## 🧩 Rosters (2022 onward)
+During the current regular season, the trade and waiver tools come first:
+- **Trade Analyzer:** pick two managers and the players moving. Shows:
+  - each team's win odds for every remaining week, with and without the trade;
+  - season odds before → after;
+  - lineup changes and forced roster moves;
+  - each player's FantasyCalc market value;
+  - which other teams' odds move.
+- **Trade Finder:** pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager. It keeps the ones that help you without hurting the other manager, optionally only market-fair ones, each with an "Open in analyzer" button.
+- **Waiver Finder:** the free agents who would help you most, for the rest of the season or for one specific week (to cover a bye), each with the player it would drop.
+
+Then, for any season:
 - **Lineup Efficiency:** points scored against the best lineup each team could have started, points left on the bench, perfect weeks, and losses the best lineup would have won. Tap a team for its costliest week and the start/sit calls behind it.
 - **Versus Projections:** each team's starters against Sleeper's pregame projections as a running total, and its players who beat or missed them most.
 - **Points by Position:** where each team's starting-lineup points come from, against the league average, and how much it leans on its top scorer.
@@ -74,16 +77,6 @@ Line charts. Hover (or tap) a week for every team's value, or a team in the lege
 - **Draft Board:** by round for snake drafts, by team and price for auctions.
 - **Draft Core:** each team's intended starters.
 - **Draft Results:** grades by points per available week, spending, $ per point and best pick.
-
-## 🔄 Trades & Waivers (current season, while the regular season is in progress)
-- **Trade Analyzer:** pick two managers and the players moving. Shows:
-  - each team's win odds for every remaining week, with and without the trade;
-  - season odds before → after;
-  - lineup changes and forced roster moves;
-  - each player's FantasyCalc market value;
-  - which other teams' odds move.
-- **Trade Finder:** pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager. It keeps the ones that help you without hurting the other manager, optionally only market-fair ones, each with an "Open in analyzer" button.
-- **Waiver Finder:** the free agents who would help you most, for the rest of the season or for one specific week (to cover a bye), each with the player it would drop.
 
 ## 🏛️ History (every season, whichever one is selected)
 - **Champions:** every season's champion, runner-up and toilet bowl loser (top three before Sleeper).

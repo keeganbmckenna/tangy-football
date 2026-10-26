@@ -16,9 +16,9 @@ interface TradesTabProps {
 }
 
 /**
- * Trades & Waivers tab, shown while the current regular season is in
- * progress: the analyzer and trade finder until the trade deadline, and the
- * waiver finder. Past trades are in the History tab.
+ * The trade and waiver tools, at the top of the Rosters tab while the current
+ * regular season is in progress: the analyzer and trade finder until the trade
+ * deadline, and the waiver finder. Past trades are in the History tab.
  */
 export default function TradesTab({ teamStats }: TradesTabProps) {
   const [data, setData] = useState<TradeDataResponse | null>(null);

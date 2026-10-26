@@ -23,7 +23,9 @@ export interface LuckBreakdown {
   wins: number;
   losses: number;
   ties: number;
-  /** Play-all expected wins */
+  /** Its record had it played every other team every week */
+  playAll: { wins: number; losses: number; ties: number };
+  /** Play-all expected wins: the play-all win rate times games played */
   expectedWins: number;
   /** Wins had every opponent scored its season average */
   averageOpponentWins: number;
@@ -49,7 +51,7 @@ export function luckBreakdown(
       return [t.rosterId, scores.length ? scores.reduce((s, v) => s + v, 0) / scores.length : 0];
     })
   );
-  const expected = new Map(playEveryone.map((p) => [p.username, p.expectedWins]));
+  const byUser = new Map(playEveryone.map((p) => [p.username, p]));
 
   return teams.map((t) => {
     let averageOpponentWins = 0;
@@ -71,7 +73,8 @@ export function luckBreakdown(
         else close.ties++;
       }
     }
-    const xw = expected.get(t.username) ?? 0;
+    const pe = byUser.get(t.username);
+    const xw = pe?.expectedWins ?? 0;
     const real = t.wins + t.ties / 2;
     return {
       rosterId: t.rosterId,
@@ -80,6 +83,7 @@ export function luckBreakdown(
       wins: t.wins,
       losses: t.losses,
       ties: t.ties,
+      playAll: { wins: pe?.playAllWins ?? 0, losses: pe?.playAllLosses ?? 0, ties: pe?.playAllTies ?? 0 },
       expectedWins: xw,
       averageOpponentWins,
       schedule: averageOpponentWins - xw,

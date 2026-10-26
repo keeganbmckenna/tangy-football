@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react';
 import { TeamStats } from '@/lib/types';
-import { getRankingColor, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
+import { getRankingColor, RESULT_DOT_COLORS, VIRIDIS_HEATMAP_COLORS } from '@/lib/constants';
+import { formatRecord } from '@/lib/analyze/playEveryone';
 import SectionCard from './ui/SectionCard';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import SortableTh, { SortStatus } from './ui/SortableTh';
@@ -16,6 +17,10 @@ interface WeeklyRankingsHeatmapProps {
   maxWeek?: number;
 }
 
+/**
+ * Each team's scoring rank every week, and with it its play-all record that week (its record
+ * had it played every other team) and its real result, plus season averages and play-all totals
+ */
 export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: WeeklyRankingsHeatmapProps) {
   const totalWeeks = teams[0]?.weeklyScores.length || 0;
   const numWeeks = maxWeek !== undefined ? Math.min(maxWeek, totalWeeks) : totalWeeks;
@@ -31,10 +36,19 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
       const sortedRankings = [...rankings].sort((a, b) => a - b);
       const medRanking = sortedRankings[Math.floor(sortedRankings.length / 2)];
 
+      // Play-all each week: wins, losses and ties against every other team's score
+      const playAll = team.weeklyScores.slice(0, numWeeks).map((score, w) => {
+        const others = teams.filter((t) => t.rosterId !== team.rosterId).map((t) => t.weeklyScores[w] ?? 0);
+        return { wins: others.filter((o) => score > o).length, losses: others.filter((o) => score < o).length, ties: others.filter((o) => score === o).length };
+      });
+      const total = playAll.reduce((a, r) => ({ wins: a.wins + r.wins, losses: a.losses + r.losses, ties: a.ties + r.ties }), { wins: 0, losses: 0, ties: 0 });
       return {
         ...team,
         avgRanking: avgRanking.toFixed(2),
         medRanking,
+        playAll,
+        playAllTotal: total,
+        playAllPct: total.wins + total.losses + total.ties ? (total.wins + total.ties / 2) / (total.wins + total.losses + total.ties) : 0,
       };
     });
   }, [teams, rankingsData, numWeeks]);
@@ -42,7 +56,7 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
   const sort = useTableSort('weeklyRankings');
   const me = useMyTeam();
   const rows = sortRows(stats, sort.state, (team, key) =>
-    key === 'avg' ? Number(team.avgRanking) : key === 'med' ? team.medRanking : (rankingsData[team.username] || [])[Number(key.slice(1)) - 1]
+    key === 'avg' ? Number(team.avgRanking) : key === 'med' ? team.medRanking : key === 'playAll' ? team.playAllPct : (rankingsData[team.username] || [])[Number(key.slice(1)) - 1]
   );
 
   const legend = (
@@ -54,13 +68,14 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
         style={{ backgroundImage: `linear-gradient(90deg, ${VIRIDIS_HEATMAP_COLORS.join(', ')})` }}
       ></div>
       <span>Best</span>
+      <span className="ml-2">Under each rank: that week&apos;s play-all record, and a dot for the real result</span>
     </div>
   );
 
   return (
     <SectionCard
-      title="Weekly Rankings Heatmap"
-      subtitle={`Performance ranking each week (1=best, ${teams.length}=worst)`}
+      title="Weekly Ranks"
+      subtitle={`Each week's scoring rank (1 = best, ${teams.length} = worst) and what it would have been against everyone`}
       gradientType="warning"
       footer={legend}
     >
@@ -90,6 +105,9 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
               <SortableTh sort={sort} col="med" best="asc" label="Median rank" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
                 Med
               </SortableTh>
+              <SortableTh sort={sort} col="playAll" label="Play-all record" tip="The team's record had it played every other team every week" tipAlign="right" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]">
+                Play-all
+              </SortableTh>
             </tr>
           </thead>
           <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
@@ -102,13 +120,20 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
                   </td>
                   {rankings.slice(0, numWeeks).map((ranking, index) => {
                     const { backgroundColor, textColor } = getRankingColor(ranking, teams.length);
+                    const pa = team.playAll[index];
+                    const result = team.weeklyResults[index];
                     return (
                       <td
                         key={index}
-                        className="heat-cell px-3 py-3 whitespace-nowrap text-center text-sm font-semibold"
+                        className="heat-cell px-3 py-2 whitespace-nowrap text-center"
                         style={{ backgroundColor, color: textColor }}
+                        title={`Week ${index + 1}: ranked ${ranking}, play-all ${formatRecord(pa.wins, pa.losses, pa.ties)}, ${result === 'W' ? 'won' : result === 'L' ? 'lost' : 'tied'}`}
                       >
-                        {ranking}
+                        <div className="text-sm font-semibold">{ranking}</div>
+                        <div className="flex items-center justify-center gap-1 text-[10px] opacity-85">
+                          {result && <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full ring-1 ring-black/20" style={{ backgroundColor: RESULT_DOT_COLORS[result] }} />}
+                          {formatRecord(pa.wins, pa.losses, pa.ties)}
+                        </div>
                       </td>
                     );
                   })}
@@ -117,6 +142,10 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-bold bg-[var(--surface)] text-[var(--foreground)]">
                     {team.medRanking}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center text-sm bg-[var(--surface)] text-[var(--foreground)]">
+                    <div className="font-bold">{formatRecord(team.playAllTotal.wins, team.playAllTotal.losses, team.playAllTotal.ties)}</div>
+                    <div className="text-xs text-[var(--muted)]">{(team.playAllPct * 100).toFixed(1)}%</div>
                   </td>
                 </tr>
               );

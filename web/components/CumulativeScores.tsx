@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import LazyMount from '@/components/ui/LazyMount';
 import { TeamStats } from '@/lib/types';
@@ -16,9 +16,11 @@ interface CumulativeScoresProps {
   cumulativeData: Record<string, number[]>;
   teams: TeamStats[];
   maxWeek?: number;
+  /** Shown above the chart (a view toggle) */
+  controls?: ReactNode;
 }
 
-export default function CumulativeScores({ cumulativeData, teams, maxWeek }: CumulativeScoresProps) {
+export default function CumulativeScores({ cumulativeData, teams, maxWeek, controls }: CumulativeScoresProps) {
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();
   // Your team's line is drawn thicker
   const me = useMyTeam();
@@ -47,6 +49,7 @@ export default function CumulativeScores({ cumulativeData, teams, maxWeek }: Cum
       gradientType="secondary"
     >
       <div className="p-6">
+        {controls && <div className="mb-4">{controls}</div>}
         <LazyMount height={CHART_CONFIG.defaultHeight}>
           <ResponsiveContainer width="100%" height={CHART_CONFIG.defaultHeight}>
             <LineChart data={chartData} {...tap.chartProps}>

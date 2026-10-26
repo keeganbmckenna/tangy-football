@@ -54,6 +54,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
   const rows = sortRows(byTotal, sort.state, (t, key) =>
     ({
       record: recordValue(t.wins, t.losses, t.ties),
+      playAll: recordValue(t.playAll.wins, t.playAll.losses, t.playAll.ties),
       expected: t.expectedWins,
       schedule: t.schedule,
       opponents: t.opponentsDays,
@@ -73,12 +74,13 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
 
   return (
     <SectionCard
-      title="Luck Breakdown"
+      title="Luck"
       subtitle="Real wins against the wins each team's scoring deserved, and where the difference came from"
       gradientType="warning"
       footer={
         <span>
-          Expected wins are the play-all expectation above. <strong>Schedule</strong> is the wins a team would have had if
+          <strong>Play-all</strong> is each team&apos;s record had it played every other team every week, and{' '}
+          <strong>Expected</strong> the wins that rate gives over its real games: what its scoring deserved. <strong>Schedule</strong> is the wins a team would have had if
           every opponent had scored its own season average, minus that expectation: drawing weak or strong opponents.{' '}
           <strong>Opponents&apos; days</strong> is real wins minus those: opponents having off days (or career days) against
           you. The two add up to the luck factor. Close games were decided by under {CLOSE_GAME_MARGIN} points.
@@ -117,6 +119,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
             <tr>
               <th className={`${PIN_TH} py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] bg-[var(--surface)]`}>Team</th>
               <SortableTh sort={sort} col="record" className={th}>Record</SortableTh>
+              <SortableTh sort={sort} col="playAll" tip="Its record had it played every other team every week" className={th}>Play-all</SortableTh>
               <SortableTh sort={sort} col="expected" tip="Wins the team's scoring deserved: its play-all win rate times games played" className={th}>Expected</SortableTh>
               <SortableTh sort={sort} col="schedule" tip="Wins from who it drew: with every opponent at its season average, minus expected" className={th}>Schedule</SortableTh>
               <SortableTh sort={sort} col="opponents" tip="Wins from opponents' off or career days against it" className={th}>Opp. days</SortableTh>
@@ -131,6 +134,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
                   <TeamName name={t.teamName} sub={`@${t.username}`} />
                 </td>
                 <td className={`${td} text-[var(--foreground)]`}>{formatRecord(t.wins, t.losses, t.ties)}</td>
+                <td className={`${td} text-[var(--muted)]`}>{formatRecord(t.playAll.wins, t.playAll.losses, t.playAll.ties)}</td>
                 <td className={`${td} text-[var(--muted)]`}>{t.expectedWins.toFixed(1)}</td>
                 <td className={`${td} ${tone(t.schedule)}`}>{signed(t.schedule)}</td>
                 <td className={`${td} ${tone(t.opponentsDays)}`}>{signed(t.opponentsDays)}</td>
