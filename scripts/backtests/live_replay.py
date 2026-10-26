@@ -125,10 +125,13 @@ def game_states(games, times):
             own = np.where(state == LM.PRE, 0, snap[:, mine]); opp = np.where(state == LM.PRE, 0, snap[:, theirs])
             ball = sit[:, 0] * sign
             ep = np.where(state == LM.IN, np.where(ball > 0, sit[:, 2], np.where(ball < 0, -sit[:, 2], 0.0)), 0.0)
+            # This team's chance the half's next score is its touchdown / field goal (nflfastR)
+            td = np.where(state == LM.IN, np.where(ball > 0, sit[:, 3], np.where(ball < 0, sit[:, 5], 0.0)), 0.0)
+            fg = np.where(state == LM.IN, np.where(ball > 0, sit[:, 4], np.where(ball < 0, sit[:, 6], 0.0)), 0.0)
             t = lambda a, dt=DT: torch.tensor(a, dtype=dt, device=DEV)
             rem = LM.game_remaining(t(state, torch.long), t(snap[:, 1]), t(snap[:, 2]), t(own - opp))
             rem = torch.where(t(state, torch.long) == LM.PRE, torch.ones(T, dtype=DT, device=DEV), rem)
-            out[canon(team)] = (t(state, torch.long), rem, t(own), t(opp), t(ep), gid)
+            out[canon(team)] = (t(state, torch.long), rem, t(own), t(opp), t(ep), gid, t(snap[:, 1]), t(snap[:, 2]), t(td), t(fg))
     return out
 
 
@@ -201,7 +204,8 @@ def replay_week(season, w, week, lgs, proj, history, inj, keys):
             E_[key] += v * games[team][1]
             if p in rows: A_[key] += (cum[rows[p], -1] - cum[rows[p]]).to(DT)
         oracle = {k: torch.where(E_[k] > 0.5, A_[k] / E_[k].clamp(min=0.5), torch.ones_like(E_[k])) for k in E_}
-    extra = {'half': half, 'team_half': team_half, 'oracle': oracle, 'inj': injury_scale(week, times, rows, P), 'implied': IMPLIED.get((int(season), w), {})}
+    extra = {'half': half, 'team_half': team_half, 'oracle': oracle, 'inj': injury_scale(week, times, rows, P), 'implied': IMPLIED.get((int(season), w), {}),
+             'props': props_remaining(season, w, week, times, C, rows)}
     out = []
     for c0 in range(0, len(lgs), CHUNK):
         chunk = [lg for lg in lgs[c0:c0 + CHUNK] if w in lg['weeks']]
@@ -248,6 +252,38 @@ def implied_points():
 
 
 IMPLIED = implied_points()
+# LIVE_USE=props (addendum test 5): blend weight on the Kalshi props' expected remaining stats
+PROPS_W = float(os.environ.get('LIVE_PROPS_W', 0.5))
+PROP_STATS = ('pass_yd', 'rush_yd', 'rec_yd', 'rec', 'pass_td', 'td')
+PROPS = None
+
+
+def props_remaining(season, w, week, times, C, rows):
+    """[E, T, 6] each player's expected remaining stats by the props (expected final minus so far),
+    nan where the stat has no price then (addendum test 5)"""
+    global PROPS
+    if 'props' not in USE or season != '2025': return None
+    if PROPS is None:
+        import kalshi_props_model as KP
+        PROPS = KP.load()
+    E, T = len(week['ids']), len(times)
+    out = torch.full((E, T, len(PROP_STATS)), float('nan'), dtype=DT, device=DEV)
+    K = LC.K
+    for pid, e in rows.items():
+        row = PROPS.get((w, pid))
+        if row is None: continue
+        i = np.searchsorted(row['times'], times, side='right') - 1
+        ok = i >= 0
+        for j, stat in enumerate(PROP_STATS):
+            if stat not in row: continue
+            v = np.full(T, np.nan); v[ok] = row[stat][i[ok]]
+            so_far = (C[e, :, K['rush_td']] + C[e, :, K['rec_td']]) if stat == 'td' else C[e, :, K[stat]]
+            rem_ = (torch.tensor(v, dtype=DT, device=DEV) - so_far.to(DT)).clamp(min=0)
+            if stat == 'td':
+                # Anytime TD only prices the first one: once he has scored it says nothing more
+                rem_ = torch.where(so_far >= 1, torch.full_like(rem_, float('nan')), rem_)
+            out[e, :, j] = rem_
+    return out
 
 
 def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, reports, extra):
@@ -392,6 +428,26 @@ def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, r
         f = torch.where(ok, F[pi.clamp(min=0).unsqueeze(1), rb, mb], torch.ones_like(rem))
         beta = t([FIT['beta'].get(p, 0.0) for p in slot['pos']]).unsqueeze(1)
         add = torch.where(inplay & ok, proj_t * rem * f + beta * t(slot['share']).unsqueeze(1) * G_ep[gi], add)
+    if extra.get('props') is not None:
+        # Addendum test 5: for each priced stat, the props' expected remaining amount replaces the
+        # model's (projected stat x share left) at the blend weight, in the league's scoring
+        kix = {k: i for i, k in enumerate(keys)}
+        col = lambda k: PM[prow_, kix[k]] if k in kix else np.zeros(S)
+        wcol = lambda k: WP[lg_np, kix[k]] if k in kix else np.zeros(S)
+        proj_stats = {'pass_yd': col('pass_yd'), 'rush_yd': col('rush_yd'), 'rec_yd': col('rec_yd'), 'rec': col('rec'),
+                      'pass_td': col('pass_td'), 'td': col('rush_td') + col('rec_td')}
+        weights = {'pass_yd': wcol('pass_yd'), 'rush_yd': wcol('rush_yd'), 'rec_yd': wcol('rec_yd'), 'rec': wcol('rec'),
+                   'pass_td': wcol('pass_td'), 'td': (wcol('rush_td') + wcol('rec_td')) / 2}
+        known = (ent >= 0) & ~is_def & t(has_proj, torch.bool)
+        mk = extra['props'][ent.clamp(min=0)]  # [S, T, 6]
+        delta = torch.zeros(S, T, dtype=DT, device=DEV)
+        for j, stat in enumerate(PROP_STATS):
+            m_rem = mk[:, :, j]
+            model_rem = t(proj_stats[stat]).unsqueeze(1) * rem
+            d = torch.where(torch.isfinite(m_rem), m_rem - model_rem, torch.zeros_like(rem))
+            delta = delta + t(weights[stat]).unsqueeze(1) * d
+        delta = torch.where(known.unsqueeze(1) & (state == LM.IN) | known.unsqueeze(1) & (state == LM.PRE), delta, torch.zeros_like(delta))
+        add = add + PROPS_W * delta
     if extra['oracle']:
         # Ceilings: each player's remaining mean scaled by his team's (or team-position's) actual / expected
         key = lambda i: (slot['team'][i], 'ALL' if 'oracle_team' in USE else slot['pos'][i])
@@ -413,6 +469,10 @@ def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, r
         pvar = ((t(ab[:, 0]).unsqueeze(1) + t(ab[:, 1]).unsqueeze(1) * proj_t) * (proj_t > 0))[m]
     odds, sd, fa, fb, scale = LM.win_odds(side[m], n_sides, t(groups, torch.long), t(spreads), proj_t[m], t(slot['ratio'])[m],
                                           rem[m], add[m], score, pa_, pb_, extras=True, pvar=pvar)
+    eg_out = None
+    if USE & {'endgame', 'endgame6b'}:
+        eg_out = endgame_odds(slot, S, T, m, side, n_sides, pairs, games, teams, gi, state, rem, add, proj_t, scale, fa, fb, sd, pvar,
+                              P, prow_, PM, keys, WP, lg_np, full, is_def)
     if 'corr' in USE:
         # Rung 5: same-game pairs of modelled starters add 2 rho sd_i sd_j to the margin's variance
         # (+ on the same fantasy side, - on opposite sides)
@@ -452,7 +512,129 @@ def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, r
     return {'league': np.array([p[2] for p in pairs], dtype=np.int64), 'outcome': np.array(outcome),
             'diff': (fa - fb).float().cpu().numpy(), 'sd': sd.float().cpu().numpy(), 'left': left.float().cpu().numpy(),
             'odds': odds.float().cpu().numpy(), 'final_diff': (score[pa_, -1] - score[pb_, -1]).cpu().numpy(),
-            'cur': (score[pa_] - score[pb_]).float().cpu().numpy(), 'k3': (k3[pa_] - k3[pb_]).float().cpu().numpy()}
+            'cur': (score[pa_] - score[pb_]).float().cpu().numpy(), 'k3': (k3[pa_] - k3[pb_]).float().cpu().numpy(),
+            **(eg_out or {})}
+
+
+MULT = float(os.environ.get('LIVE_MULT', 1.0))
+EG_STEP, EG_BINS = 0.25, 1024
+
+
+def endgame_odds(slot, S, T, m, side, n_sides, pairs, games, teams, gi, state, rem, add, proj_t, scale, fa, fb, sd, pvar,
+                 P, prow_, PM, keys, WP, lg_np, full, is_def):
+    """Addendum test 6: in a game's last 5 minutes, each team's touchdown / field goal as a discrete
+    outcome (nflfastR's next-score chances), its touchdowns given to players by their share of the
+    team's projected TDs. Returns a's odds with and without it at LIVE_MULT, and where it applied."""
+    dev = rem.device
+    t_ = lambda a, dt=DT: torch.tensor(a, dtype=dt, device=dev)
+    NT = len(teams)
+    st = lambda i: torch.stack([games[tm][i] for tm in teams] + [torch.zeros(T, dtype=DT, device=dev)])
+    Q, CLK, TD, FG = st(6), st(7), st(8), st(9)
+    OWN, OPP = st(2), st(3)
+    St = torch.stack([games[tm][0] for tm in teams] + [torch.full((T,), -1, dtype=torch.long, device=dev)])
+    eg_team = (St == LM.IN) & (((Q == 4) & (CLK <= 300)) | (Q >= 5))
+    if 'endgame6b' in USE:
+        trail = OPP - OWN
+        FG = torch.where((Q == 4) & (CLK <= 120) & (trail >= 4) & (trail <= 8), torch.zeros_like(FG), FG)
+    # League scoring per slot
+    kix = {k: i for i, k in enumerate(keys)}
+    col = lambda k: PM[prow_, kix[k]] if k in kix else np.zeros(S)
+    wcol = lambda k: WP[lg_np, kix[k]] if k in kix else np.zeros(S)
+    rush_td, rec_td, pass_td = col('rush_td'), col('rec_td'), col('pass_td')
+    w_rush, w_rec, w_pass, w_xp = wcol('rush_td'), wcol('rec_td'), wcol('pass_td'), wcol('xpm')
+    w_fg = np.where(wcol('fgm_30_39') > 0, wcol('fgm_30_39'), 3.0)
+    pos = np.array(slot['pos'])
+    is_k, is_qb = pos == 'K', pos == 'QB'
+    td_pts = w_rush * rush_td + w_rec * rec_td + w_pass * pass_td
+    frac = np.where(is_k, 1.0, np.clip(np.where(full > 0, td_pts / np.maximum(full, 1e-9), 0.0), 0, 1))
+    # Each NFL team's projected rushing + receiving TDs (all its projected players), for the shares
+    team_td, team_rush = defaultdict(float), defaultdict(float)
+    for pid, (p_pos, tm, stt) in P.items():
+        if p_pos in ('QB', 'RB', 'WR', 'TE'):
+            team_td[tm] += (stt.get('rush_td') or 0) + (stt.get('rec_td') or 0); team_rush[tm] += stt.get('rush_td') or 0
+    rush_share_team = torch.tensor([team_rush[tm] / team_td[tm] if team_td.get(tm) else 0.45 for tm in teams] + [0.45], dtype=DT, device=dev)
+    tot = np.array([max(team_td.get(tm, 0.0), 1e-6) if tm else 1e-6 for tm in slot['team']])
+    sh_rush, sh_rec = np.where(is_k, 0, rush_td / tot), np.where(is_k, 0, rec_td / tot)
+    # Sides -> matchup and sign
+    M_ = len(pairs)
+    mk = np.full(n_sides, -1); sg = np.zeros(n_sides)
+    for k, (sa, sb, _) in enumerate(pairs): mk[sa], sg[sa], mk[sb], sg[sb] = k, 1.0, k, -1.0
+    sl_side = np.array(slot['side'])
+    s_k, s_sign = mk[sl_side], sg[sl_side]
+    # Per-slot variance as win_odds has it (unscaled by the multiplier)
+    ratio = t_(slot['ratio']).unsqueeze(1)
+    pv = (ratio * proj_t) ** 2 if pvar is None else None
+    var_i = torch.zeros(S, T, dtype=DT, device=dev)
+    msk = t_(np.array(slot['proj_row']) >= 0, torch.bool)
+    if pv is not None: var_i[msk] = pv[msk] * rem[msk] * scale[side[msk]]
+    usable = msk & ~is_def & t_(s_k >= 0, torch.bool)
+    eg_slot = eg_team[gi] & usable.unsqueeze(1)                       # [S, T]
+    sign_t, f_t = t_(s_sign), t_(frac)
+    k_t = t_(np.maximum(s_k, 0), torch.long)
+    # The smooth part keeps only its non-TD share
+    mu_adj = torch.zeros(M_, T, dtype=DT, device=dev).index_add_(0, k_t, torch.where(eg_slot, sign_t.unsqueeze(1) * add * f_t.unsqueeze(1), torch.zeros_like(add)))
+    dvar = torch.zeros(M_, T, dtype=DT, device=dev).index_add_(0, k_t, torch.where(eg_slot, var_i * (1 - (1 - f_t.unsqueeze(1)) ** 2), torch.zeros_like(var_i)))
+    diff = fa - fb
+    mu = diff - mu_adj
+    s2 = (MULT * sd) ** 2 - MULT ** 2 * dvar
+    s_new = s2.clamp(min=1e-4).sqrt()
+    base = torch.where(sd > 0.01, LM.normal_cdf(diff / (MULT * sd).clamp(min=0.01)), torch.where(diff > 0, 1.0, torch.where(diff < 0, 0.0, 0.5)).to(DT))
+    odds = base.clone()
+    flag = torch.zeros(M_, T, dtype=DT, device=dev).index_add_(0, k_t, eg_slot.to(DT)) > 0
+    grid = torch.arange(EG_BINS, device=dev, dtype=DT)
+    grid = torch.where(grid < EG_BINS // 2, grid, grid - EG_BINS) * EG_STEP
+    bin_of = lambda v: torch.round(v / EG_STEP).long() % EG_BINS
+    sl_team = gi
+    for ti in torch.nonzero(flag.any(0)).squeeze(1).tolist():
+        idx = torch.nonzero(eg_slot[:, ti]).squeeze(1)
+        if not len(idx): continue
+        kk, tt = k_t[idx], sl_team[idx]
+        key = kk * (NT + 1) + tt
+        ukey, grp = torch.unique(key, return_inverse=True)
+        G = len(ukey)
+        g_k, g_team = ukey // (NT + 1), ukey % (NT + 1)
+        sgn = sign_t[idx]
+        # Per group: XP, FG and QB-pass jumps, and the shares its matchup players hold
+        z = lambda: torch.zeros(G, dtype=DT, device=dev)
+        xp = z().index_add_(0, grp, torch.where(t_(is_k, torch.bool)[idx], sgn * t_(w_xp)[idx], torch.zeros_like(sgn)))
+        fgj = z().index_add_(0, grp, torch.where(t_(is_k, torch.bool)[idx], sgn * t_(w_fg)[idx], torch.zeros_like(sgn)))
+        qbj = z().index_add_(0, grp, torch.where(t_(is_qb, torch.bool)[idx], sgn * t_(w_pass)[idx], torch.zeros_like(sgn)))
+        srush = z().index_add_(0, grp, t_(sh_rush)[idx]); srec = z().index_add_(0, grp, t_(sh_rec)[idx])
+        p_td, p_fg = TD[g_team, ti].clamp(0, 1), FG[g_team, ti].clamp(0, 1)
+        p_none = (1 - p_td - p_fg).clamp(min=0)
+        # The team's own split of its other TDs: rushing vs receiving, from its whole roster's projection
+        other = (1 - srush - srec).clamp(min=0)
+        pmf = torch.zeros(G * EG_BINS, dtype=DT, device=dev)
+        def put(gidx, jump, prob):
+            pmf.index_add_(0, gidx * EG_BINS + bin_of(jump), prob)
+        gid = torch.arange(G, device=dev)
+        put(gid, torch.zeros(G, dtype=DT, device=dev), p_none)
+        put(gid, fgj, p_fg)
+        rs = rush_share_team[g_team]
+        put(gid, xp, p_td * other * rs)              # another player's rushing TD
+        put(gid, xp + qbj, p_td * other * (1 - rs))  # another player's receiving TD (the QB's pass)
+        # Each matchup player's own TD
+        put(grp, xp[grp] + sgn * t_(w_rush)[idx], p_td[grp] * t_(sh_rush)[idx])
+        put(grp, xp[grp] + qbj[grp] + sgn * t_(w_rec)[idx], p_td[grp] * t_(sh_rec)[idx])
+        pmf = pmf.view(G, EG_BINS)
+        pmf = pmf / pmf.sum(1, keepdim=True).clamp(min=1e-12)
+        F = torch.fft.fft(pmf.to(torch.complex128), dim=1)
+        prod = torch.ones(M_, EG_BINS, dtype=torch.complex128, device=dev)
+        order = torch.argsort(g_k)
+        ranks = torch.zeros(G, dtype=torch.long, device=dev)
+        sk = g_k[order]
+        first = torch.ones_like(sk, dtype=torch.bool); first[1:] = sk[1:] != sk[:-1]
+        start = torch.cummax(torch.where(first, torch.arange(G, device=dev), torch.zeros_like(sk)), 0).values
+        ranks[order] = torch.arange(G, device=dev) - start
+        for r in range(int(ranks.max().item()) + 1):
+            sel = ranks == r
+            prod[g_k[sel]] = prod[g_k[sel]] * F[sel]
+        ks = torch.unique(g_k)
+        dist = torch.fft.ifft(prod[ks], dim=1).real.clamp(min=0)
+        dist = dist / dist.sum(1, keepdim=True).clamp(min=1e-12)
+        z_ = (mu[ks, ti].unsqueeze(1) + grid.unsqueeze(0)) / s_new[ks, ti].unsqueeze(1)
+        odds[ks, ti] = (dist * LM.normal_cdf(z_)).sum(1)
+    return {'odds_m': base.float().cpu().numpy(), 'odds_eg': odds.float().cpu().numpy(), 'eg': flag.cpu().numpy()}
 
 
 def replay_season(season):
@@ -482,7 +664,8 @@ def replay_season(season):
 
 def load(season, out=None):
     z = np.load(os.path.join(out or OUT, f'{season}.npz'))
-    return [{k: z[f'{k}_{i}'] for k in ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3')} for i in range(int(z['n']))]
+    keys = ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3', 'odds_m', 'odds_eg', 'eg')
+    return [{k: z[f'{k}_{i}'] for k in keys if f'{k}_{i}' in z.files} for i in range(int(z['n']))]
 
 
 if __name__ == '__main__':

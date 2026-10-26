@@ -232,3 +232,6 @@ The averaged scores hide the moments where a fantasy matchup hinges on one last 
   the untouched 2018-2021: 6b's log loss on those pivotal moments improves by >= 0.01 with a 95%
   interval resampling leagues excluding 0, in >= 3 of the 4 seasons. If it confirms, 6b ships for
   the Live tab's last minutes only, and the win-history charts are rebuilt.
+  Result: 2 of 4 seasons (all four better: -0.009 to -0.052); not confirmed, not shipped. 6b is
+  carried into the season-end 2026 confirmation as a named candidate, on the same pivotal-moment
+  target and bar (>= 0.01, interval excluding 0).

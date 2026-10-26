@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, 'cache', 'kalshi_props')
 KALSHI = 'https://api.elections.kalshi.com/trade-api/v2'
 SERIES = ('KXNFLANYTD', 'KXNFLPASSYDS', 'KXNFLRSHYDS', 'KXNFLRECYDS', 'KXNFLREC', 'KXNFLPASSTDS')
-START, END = datetime(2025, 9, 1), datetime(2026, 1, 6)  # the 2025 regular season
+START, END = datetime(2025, 9, 1), datetime(2025, 12, 9)  # 2025 weeks 1-14: the crawled leagues' regular seasons
 
 
 def get(url):
@@ -54,7 +54,9 @@ def candles(ticker, start, end):
     d = get(f'{KALSHI}/historical/markets/{ticker}/candlesticks?start_ts={int(start)}&end_ts={int(end)}&period_interval=1') or {}
     out = []
     for c in d.get('candlesticks') or []:
-        bid = float((c.get('yes_bid') or {}).get('close_dollars') or 0); ask = float((c.get('yes_ask') or {}).get('close_dollars') or 0)
+        # The historical store names the price 'close'; the live API 'close_dollars'
+        b, a = c.get('yes_bid') or {}, c.get('yes_ask') or {}
+        bid = float(b.get('close_dollars') or b.get('close') or 0); ask = float(a.get('close_dollars') or a.get('close') or 0)
         out.append([c['end_period_ts'], bid, ask])
     return out
 
@@ -67,13 +69,14 @@ def fetch_event(event):
         d = get(f'{KALSHI}/historical/markets?event_ticker={event}&limit=1000' + (f'&cursor={cur}' if cur else '')) or {}
         markets += d.get('markets', []); cur = d.get('cursor')
         if not cur or not d.get('markets'): break
-    out = []
-    for m in markets:
+    def one(m):
         close = datetime.fromisoformat(m['close_time'].replace('Z', '+00:00')).timestamp()
         # A game's markets close soon after it ends; its candles: the 8 hours before the close
-        out.append({'ticker': m['ticker'], 'title': m.get('title'), 'subtitle': m.get('yes_sub_title'),
-                    'strike': m.get('floor_strike'), 'result': m.get('result'), 'close': close,
-                    'candles': candles(m['ticker'], close - 8 * 3600, close)})
+        return {'ticker': m['ticker'], 'title': m.get('title'), 'subtitle': m.get('yes_sub_title'),
+                'strike': m.get('floor_strike'), 'result': m.get('result'), 'close': close,
+                'candles': candles(m['ticker'], close - 8 * 3600, close)}
+    # Candles in parallel within the event (Kalshi allows about 20 requests a second; this stays under)
+    with ThreadPoolExecutor(5) as inner: out = list(inner.map(one, markets))
     os.makedirs(CACHE, exist_ok=True)
     json.dump({'event': event, 'markets': out}, open(path + '.tmp', 'w'))
     os.replace(path + '.tmp', path)
@@ -91,7 +94,7 @@ if __name__ == '__main__':
         print(f'{s}: {len(evs)} 2025 regular-season games', flush=True)
         todo += evs
     done = 0
-    with ThreadPoolExecutor(4) as pool:
+    with ThreadPoolExecutor(3) as pool:
         for n in pool.map(fetch_event, todo):
             done += 1
             if done % 25 == 0: print(f'{done} of {len(todo)} events', flush=True)

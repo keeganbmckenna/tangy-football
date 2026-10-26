@@ -385,6 +385,67 @@ def late_look():
         print(f'{s}     ' + '   '.join(f'{v:32.4f}' for v in vals), flush=True)
 
 
+PROPS_GRID = (0.25, 0.5, 0.75, 1.0)
+
+
+def props_eval():
+    """Addendum test 5 on 2025: the blend weight chosen on the other 2025 weeks, each week scored
+    against the shipped model (L1a's multiplier fitted on 2018-2024)"""
+    base_tr = [thin(to_dev(flat(o))) for o in SEASONS if o != '2025']
+    th = fit(base_tr, *L1A); del base_tr
+    base = to_dev(flat('2025'))
+    a = per_matchup(base, odds_l1(base, th)).cpu().numpy()
+    week = np.asarray(flat('2025')['week'])
+    league = base['league']
+    losses = {}
+    for w in PROPS_GRID:
+        D = to_dev(flat('2025', os.path.join(LR.HERE, 'cache', f'live_replay_props{w:g}')))
+        losses[w] = per_matchup(D, odds_l1(D, th)).cpu().numpy(); del D
+    print('\nProps blend on 2025 (weight chosen on the other weeks), vs the shipped model:')
+    print('week  matchups  shipped   props   change   weight')
+    chosen = np.zeros_like(a)
+    for k in np.unique(week):
+        other = week != k
+        best = min(PROPS_GRID, key=lambda w: (losses[w][other] - a[other]).mean())
+        sel = week == k
+        chosen[sel] = losses[best][sel]
+        print(f'{k:4d}  {sel.sum():8,}  {a[sel].mean():.4f}  {chosen[sel].mean():.4f}  {chosen[sel].mean() - a[sel].mean():+.4f}  {best}')
+    d = chosen - a
+    lo, hi = league_interval(league, d)
+    better = sum(d[week == k].mean() < 0 for k in np.unique(week))
+    print(f'all weeks: {a.mean():.4f} -> {chosen.mean():.4f}  {d.mean():+.4f} (95% {lo:+.4f} to {hi:+.4f}, resampling leagues); better in {better} of {len(np.unique(week))} weeks')
+    for w in PROPS_GRID: print(f'  fixed weight {w}: {(losses[w] - a).mean():+.4f}')
+
+
+def endgame_eval():
+    """Addendum test 6: the high-leverage end-game score and the primary score, both variants"""
+    for tag, name in (('eg', '6a end-game drives'), ('eg6b', '6b ... no field goal when trailing by 4-8 late')):
+        print(f'\n{name}: high-leverage end-game moments (odds 10-90%, a starter in a game\'s last 5 min)')
+        print('season  matchups   shipped  variant   change     95% (leagues)      | primary change')
+        wins = 0; worst_primary = -1
+        for s in SEASONS:
+            rs = LR.load(s, os.path.join(LR.HERE, 'cache', f'live_replay_{tag}'))
+            per_a, per_b, prim_a, prim_b, lg = [], [], [], [], []
+            for r in rs:
+                keep = r['outcome'] != 0.5
+                y = r['outcome'][keep][:, None]
+                a = np.clip(r['odds_m'][keep], EPS, 1 - EPS); b = np.clip(r['odds_eg'][keep], EPS, 1 - EPS)
+                la = -(y * np.log(a) + (1 - y) * np.log(1 - a)); lb = -(y * np.log(b) + (1 - y) * np.log(1 - b))
+                prim_a.append(la.mean(1)); prim_b.append(lb.mean(1))
+                hl = r['eg'][keep] & (a > 0.1) & (a < 0.9)
+                has = hl.any(1)
+                per_a.append((la * hl).sum(1)[has] / hl.sum(1)[has]); per_b.append((lb * hl).sum(1)[has] / hl.sum(1)[has])
+                lg.append(r['league'][keep][has])
+            A, B, L = np.concatenate(per_a), np.concatenate(per_b), np.concatenate(lg)
+            d = B - A; lo, hi = league_interval(L, d)
+            pd_ = np.concatenate(prim_b).mean() - np.concatenate(prim_a).mean()
+            ok = d.mean() <= -0.01 and hi < 0
+            wins += ok; worst_primary = max(worst_primary, pd_)
+            print(f'{s}    {len(A):8,}   {A.mean():.4f}   {B.mean():.4f}   {d.mean():+.4f}  ({lo:+.4f}, {hi:+.4f})  {"meets" if ok else "     "} | {pd_:+.5f}', flush=True)
+        adopt = wins >= 6 and worst_primary <= 0.0005
+        print(f'{name}: meets the high-leverage bar in {wins} of 8; worst primary change {worst_primary:+.5f} -> {"ADOPT" if adopt else "not adopted"}')
+
+
 def injuries_vegas():
     d = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}'))
     f = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}{s}'))
@@ -396,6 +457,8 @@ def injuries_vegas():
 def main():
     if '--injuries' in sys.argv: return injuries_vegas()
     if '--late' in sys.argv: return late_look()
+    if '--props' in sys.argv: return props_eval()
+    if '--endgame' in sys.argv: return endgame_eval()
     if '--l4' in sys.argv: return rung45()
     if '--l3' in sys.argv: return rung3()
     if '--l3b-fit' in sys.argv: return fit_variances()

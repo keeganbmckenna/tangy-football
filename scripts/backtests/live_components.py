@@ -269,7 +269,8 @@ def season_components(season):
                 t_last = t
                 snaps.append((t, int(num(p.qtr) or 1), int(num(p.quarter_seconds_remaining)), int(num(p.total_home_score)), int(num(p.total_away_score))))
                 pt = team(p.posteam)
-                situ.append((1.0 if pt == home else -1.0 if pt == away else 0.0, num(p.yardline_100), num(p.ep)))
+                situ.append((1.0 if pt == home else -1.0 if pt == away else 0.0, num(p.yardline_100), num(p.ep),
+                             num(p.td_prob), num(p.fg_prob), num(p.opp_td_prob), num(p.opp_fg_prob)))
                 for who, k, v in play_stats(p, sid, pos):
                     i = who_ix.setdefault(who, len(who_ix))
                     ev.append((t, i, K[k], v))
@@ -282,9 +283,11 @@ def season_components(season):
                             was, now = before.get(base, 0.0) >= line, y[base] >= line
                             if was != now: ev.append((t, i, K[bk], 1.0 if now else -1.0))
             if snaps:
-                # The situation going forward after each play: who has the ball, how far from the
-                # goal line, and that possession's expected points (nflverse's ep), from the next play
-                nxt = np.array(situ[1:] + [(0.0, 0.0, 0.0)], dtype=np.float32)
+                # The situation going forward after each play, from the next play: who has the ball,
+                # how far from the goal line, that possession's expected points (nflverse's ep), and
+                # nflfastR's chances the half's next score is a touchdown or field goal for the team
+                # with the ball (td_prob, fg_prob) or the other (opp_td_prob, opp_fg_prob)
+                nxt = np.array(situ[1:] + [(0.0,) * 7], dtype=np.float32)
                 games.append((home, away, np.array(snaps, dtype=np.int64), nxt))
         ev = np.array(ev, dtype=[('t', 'i8'), ('who', 'i4'), ('k', 'i2'), ('v', 'f4')])
         weeks[int(week)] = {'games': games, 'ids': list(who_ix), 'ev': ev, 'injured': injured.get(int(week), [])}
