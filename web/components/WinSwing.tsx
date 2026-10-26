@@ -17,7 +17,7 @@ interface WinSwingProps {
   refreshKey?: string;
 }
 
-/** Plays closer than this share of the chart's width share one marker */
+/** Plays closer than this share of the chart's width share one tap area (each keeps its line) */
 const GROUP_SHARE = 0.03;
 
 /** Each team's line in the score view */
@@ -106,7 +106,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
     const net = players.reduce((s, pl) => s + (pl.left ? pl.pts : -pl.pts), 0);
     return { t: e.t, desc: e.desc, before, after, players, x, helpsLeft: after !== before ? after > before : net >= 0 };
   });
-  // Plays within GROUP_SHARE of the chart's width of each other share one marker
+  // Plays within GROUP_SHARE of the chart's width of each other share one tap area and card
   const groups: number[][] = [];
   plays.forEach((pl, i) => {
     const last = groups[groups.length - 1];
@@ -186,10 +186,14 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
             </AreaChart>
           )}
         </ResponsiveContainer>
-        {/* Big plays: a thin line each (close ones share a line, with a count), with a wider area to tap */}
+        {/* Big plays: a thin line each; close ones share one tap area, with their count centered above */}
         {groups.map((g, gi) => {
-          const x = g.reduce((sum, i) => sum + plays[i].x, 0) / g.length;
+          const span = Math.max(points.length - 1, 1);
+          const xs = g.map((i) => (plays[i].x / span) * 100);
+          const from = Math.min(...xs);
+          const to = Math.max(...xs);
           const on = picked === gi;
+          const color = markerColor(groupHelpsLeft(g));
           return (
             <button
               key={`${plays[g[0]].t}-${gi}`}
@@ -197,21 +201,26 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
               aria-label={`${g.length > 1 ? `${g.length} big plays` : 'Big play'} at ${TIME.format(plays[g[0]].t * 1000)}`}
               onClick={() => setPicked(on ? null : gi)}
               onMouseEnter={() => setPicked(gi)}
-              className="absolute inset-y-0 w-4 -translate-x-1/2"
-              style={{ left: `${(x / Math.max(points.length - 1, 1)) * 100}%` }}
+              // From the first line to the last, with 8px either side to tap
+              className="absolute inset-y-0"
+              style={{ left: `calc(${from}% - 8px)`, width: `calc(${to - from}% + 16px)` }}
             >
-              <span
-                className="absolute inset-y-0 left-1/2 -translate-x-1/2"
-                style={{
-                  width: on || g.length > 1 ? 2 : 1,
-                  backgroundColor: markerColor(groupHelpsLeft(g)),
-                  opacity: picked === null || on ? 0.9 : 0.35,
-                }}
-              />
+              {g.map((i, k) => (
+                <span
+                  key={i}
+                  className="absolute inset-y-0 -translate-x-1/2"
+                  style={{
+                    left: to > from ? `calc(8px + (100% - 16px) * ${(xs[k] - from) / (to - from)})` : '50%',
+                    width: on ? 2 : 1,
+                    backgroundColor: markerColor(plays[i].helpsLeft),
+                    opacity: picked === null || on ? 0.9 : 0.35,
+                  }}
+                />
+              ))}
               {g.length > 1 && (
                 <span
                   className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full px-1 text-[8px] font-bold leading-3 text-white"
-                  style={{ backgroundColor: markerColor(groupHelpsLeft(g)) }}
+                  style={{ backgroundColor: color }}
                 >
                   {g.length}
                 </span>
