@@ -8,6 +8,7 @@ import LiveScore from '@/components/ui/LiveScore';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
+import WinSwing from '@/components/WinSwing';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
@@ -468,6 +469,16 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
             b={b}
             slots={(leagueData.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
             footnote="Projected finals are points so far plus each player's projection for the share of his game left; for a finished game, his projection from before it. Bench players don't count toward the score. Injury statuses from Sleeper."
+            chart={
+              <WinSwing
+                live
+                season={live.season}
+                week={live.week}
+                a={{ rosterId: m.a.rosterId, name: a.name }}
+                b={{ rosterId: m.b.rosterId, name: b.name }}
+                refreshKey={live.fetchedAt}
+              />
+            }
             onClose={closeMatchup}
           />
         ) : null;

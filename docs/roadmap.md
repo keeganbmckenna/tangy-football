@@ -16,6 +16,5 @@ Ideas not built yet, grouped by theme. What's already built is described in [FEA
 
 ## Bigger projects
 
-- **Live win-probability chart** - The "How it swung" curve while games are on, not just after the week. Needs a small store (Upstash Redis on Vercel) that the server writes each matchup's odds to every few minutes during games.
 - **Team pages** - One page per team with its season, roster, schedule, trades and history.
 - **Team comparison** - Two teams side by side, and their head-to-head history.

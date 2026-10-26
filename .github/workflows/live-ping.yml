@@ -1,0 +1,26 @@
+# While NFL games are on, loads the site's Live data every 5 minutes so each matchup's win odds
+# are saved for the week's win-probability chart (web/lib/liveHistory.ts) even when nobody has
+# the Live tab open. /api/live saves at most one snapshot every 2 minutes, and only while a game
+# is in progress, so a ping outside the games does nothing. Times are UTC and cover both
+# daylight and standard time; GitHub can run scheduled jobs late or skip them when busy.
+name: Live ping
+
+on:
+  schedule:
+    - cron: '*/5 13-23 * 9-12,1 0'   # Sunday: London, 1 PM, 4 PM and Sunday night kickoffs
+    - cron: '*/5 0-5 * 9-12,1 1'     # Sunday night games, into Monday UTC
+    - cron: '*/5 0-5 * 9-12,1 2'     # Monday night
+    - cron: '*/5 0-5 * 9-12,1 5'     # Thursday night
+    - cron: '*/5 17-23 * 12,1 6'     # Saturday games late in the season
+    - cron: '*/5 0-5 * 12,1 0'       # Saturday night games, into Sunday UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Load the Live data
+        run: curl -fsS -o /dev/null --max-time 60 https://tangy-football.vercel.app/api/live

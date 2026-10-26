@@ -11,6 +11,9 @@ interface WinSwingProps {
   /** The dialog's left team (odds are shown from its side) and right team */
   a: { rosterId: number; name: string };
   b: { rosterId: number; name: string };
+  /** The week in progress: the odds saved so far (/api/live/history), reloaded when refreshKey changes */
+  live?: boolean;
+  refreshKey?: string;
 }
 
 const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' });
@@ -21,12 +24,14 @@ const TIME = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric
  * the play-by-play with the Live tab's model (lib/winHistory.ts). Only game time is drawn, so
  * the gaps between Thursday, Sunday and Monday are closed up and marked by day.
  */
-export default function WinSwing({ season, week, a, b }: WinSwingProps) {
-  const { data } = useSharedFetch<WinHistory>(`win-history:${season}:${week}`, () =>
-    fetchFirst([`/data/win-history/${season}/${week}.json`], 'the win history')
+export default function WinSwing({ season, week, a, b, live = false, refreshKey = '' }: WinSwingProps) {
+  // A finished week: the play-by-play replay, or the odds saved live until it's built
+  const saved = `/api/live/history?season=${season}&week=${week}`;
+  const { data } = useSharedFetch<WinHistory>(`win-history:${season}:${week}:${live ? refreshKey : ''}`, () =>
+    fetchFirst(live ? [saved] : [`/data/win-history/${season}/${week}.json`, saved], 'the win history')
   );
   const m = data?.matchups.find((x) => (x.a === a.rosterId && x.b === b.rosterId) || (x.a === b.rosterId && x.b === a.rosterId));
-  if (!data || !m) return null;
+  if (!data || !m || data.times.length < 2) return null;
 
   const flip = m.a !== a.rosterId;
   const points = data.times.map((t, i) => {
@@ -55,7 +60,11 @@ export default function WinSwing({ season, week, a, b }: WinSwingProps) {
       <div className="mb-1 flex items-baseline justify-between gap-2 text-[10px] text-[var(--muted)] sm:text-xs">
         <span className="shrink-0 font-semibold uppercase tracking-wider">How it swung</span>
         <span className="truncate">
-          {won ? `${a.name} won from ${low.toFixed(0)}%` : `${a.name} peaked at ${high.toFixed(0)}%`}
+          {live
+            ? `${a.name} ${points[points.length - 1].p.toFixed(0)}% now, range ${low.toFixed(0)}–${high.toFixed(0)}%`
+            : won
+              ? `${a.name} won from ${low.toFixed(0)}%`
+              : `${a.name} peaked at ${high.toFixed(0)}%`}
           {swings > 0 && ` · ${swings} lead change${swings === 1 ? '' : 's'}`}
         </span>
       </div>

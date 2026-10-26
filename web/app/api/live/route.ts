@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
 import { SLEEPER_CONFIG } from '@/lib/config';
-import type { SleeperLeague } from '@/lib/types';
-import type { LiveWeekData } from '@/lib/analyze/live';
+import type { SleeperLeague, SleeperMatchup, TeamStats } from '@/lib/types';
+import { liveWinOdds, scoreSpread, type LiveWeekData } from '@/lib/analyze/live';
+import { CACHE_CONFIG } from '@/lib/config';
+import { saveSnapshot } from '@/lib/liveHistory';
 import { liveMatchups, scoreboard } from '@/lib/liveData';
 import { allowedScoring, fetchJson, starterProjections } from '@/lib/liveProjections';
 
 // Always run on request; freshness comes from the short fetch cache below
 export const dynamic = 'force-dynamic';
+
+/** The spread the Live tab's odds use: the season's week-to-week spread through the last scored week */
+async function seasonSpread(baseUrl: string, leagueId: string, lastScoredWeek: number): Promise<number> {
+  const weeks = await Promise.all(
+    Array.from({ length: lastScoredWeek }, (_, i) => fetchJson<SleeperMatchup[]>(`${baseUrl}/league/${leagueId}/matchups/${i + 1}`, CACHE_CONFIG.completedWeek))
+  );
+  const scores = new Map<number, number[]>();
+  for (const week of weeks) for (const m of week) scores.set(m.roster_id, [...(scores.get(m.roster_id) ?? []), m.points ?? 0]);
+  return scoreSpread([...scores.values()].map((weeklyScores) => ({ weeklyScores }) as TeamStats), lastScoredWeek);
+}
 
 /**
  * Current week's matchups for the current season, for the Live tab, plus what the live
@@ -38,7 +50,17 @@ export async function GET() {
       const games = await scoreboard(league.season, week);
       const scoring = league.scoring_settings ?? {};
       const projections = games ? await starterProjections(league.season, week, lastScoredWeek, matchups, games, scoring).catch(() => null) : null;
-      if (games && projections) Object.assign(body, { games, projections, allowedScoring: allowedScoring(scoring), allowed });
+      if (games && projections) {
+        Object.assign(body, { games, projections, allowedScoring: allowedScoring(scoring), allowed });
+        // While games are on, save the odds for the week's win-probability history (lib/liveHistory.ts)
+        if (Object.values(games).some((g) => g.state === 'in')) {
+          const spread = await seasonSpread(baseUrl, leagueId, lastScoredWeek).catch(() => null);
+          if (spread !== null) {
+            const odds = liveWinOdds(matchups, projections, games, spread, { allowed, allowedScoring: allowedScoring(scoring) });
+            await saveSnapshot(league.season, week, odds);
+          }
+        }
+      }
     }
     return NextResponse.json(body);
   } catch (error) {
