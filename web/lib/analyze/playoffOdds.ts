@@ -406,6 +406,22 @@ function rng(seed: number) {
   };
 }
 
+/** Redraws for a picked result before falling back to swapping the scores (pickedScores) */
+const FORCED_REDRAWS = 50;
+
+/**
+ * Both teams' scores in a game whose result is picked (the what-if picker): redrawn until the
+ * picked side wins, so they come from the model given that result. Swapping the draws instead
+ * would hand an underdog the favorite's score (a 100-point team picked over a 130-point one
+ * would average 134 instead of 125), skewing points-for tiebreaks. Only a near-certain upset
+ * runs out of tries, and then falls back to the swap.
+ */
+export function pickedScores(draw: () => [number, number], aWins: boolean): [number, number] {
+  let [a, b] = draw();
+  for (let tries = 0; (aWins ? a < b : b < a) && tries < FORCED_REDRAWS; tries++) [a, b] = draw();
+  return (aWins ? a < b : b < a) ? [b, a] : [a, b];
+}
+
 /** A team's power ranking: the model's expected weekly score and how sure its rank is */
 export interface TeamStrength {
   /** Expected weekly score (the fitted model's, before the persistent team uncertainty) */
@@ -506,7 +522,7 @@ export function simulatePlayoffOdds(
   teamSpread = 0,
   /**
    * Results to hold fixed (the what-if picker): remaining-game index -> the roster that wins it.
-   * Both teams still score from the model; the picked team gets the higher of the two scores.
+   * Both teams still score from the model, given the picked result (pickedScores).
    */
   forced?: Record<number, number>
 ): OddsResult {
@@ -523,7 +539,10 @@ export function simulatePlayoffOdds(
   );
   const meanFor = (week: number, id: number) => meanByWeek[week]?.[id] ?? avgMean.get(id)!;
   let offset: Map<number, number> | null = null;
-  const score = (week: number, id: number) => meanFor(week, id) + (offset?.get(id) ?? 0) + spread * normal();
+  const score = (week: number, id: number, noise = normal) => meanFor(week, id) + (offset?.get(id) ?? 0) + spread * noise();
+  // A picked result's redraws come from their own stream, so every other draw lines up with the
+  // same run without picks (the what-if picker compares the two)
+  const redrawNoise = rng(seed + 1);
   const lastPlace = new Map(ids.map((id) => [id, 0]));
   const champion = new Map(ids.map((id) => [id, 0]));
   const toiletBye = new Map(ids.map((id) => [id, 0]));
@@ -559,12 +578,13 @@ export function simulatePlayoffOdds(
       const a = byId.get(g.a);
       const b = byId.get(g.b);
       if (!a || !b) continue;
-      let sa = score(g.week, g.a);
-      let sb = score(g.week, g.b);
       const winner = forced?.[gi];
-      if ((winner === g.a && sa < sb) || (winner === g.b && sb < sa)) [sa, sb] = [sb, sa];
+      const first: [number, number] = [score(g.week, g.a), score(g.week, g.b)];
+      let draws = 0;
+      const draw = (): [number, number] => (draws++ === 0 ? first : [score(g.week, g.a, redrawNoise), score(g.week, g.b, redrawNoise)]);
+      const [drawnA, sb] = winner === undefined ? first : pickedScores(draw, winner === g.a);
       // A tie goes to b below: a picked winner wins it
-      if (winner === g.a && sa === sb) sa += 0.01;
+      const sa = winner === g.a && drawnA === sb ? drawnA + 0.01 : drawnA;
       a.pointsFor += sa;
       b.pointsFor += sb;
       if (sa > sb) {

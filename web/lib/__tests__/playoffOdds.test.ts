@@ -10,6 +10,7 @@ import {
   singleGameModel,
   singleGameWeights,
   simulatePlayoffOdds,
+  pickedScores,
   strengthRanks,
   statusFor,
   playoffScenarios,
@@ -194,6 +195,39 @@ describe('simulatePlayoffOdds', () => {
     expect(sum((o) => o.division)).toBeCloseTo(2);
     expect(sum((o) => o.bye)).toBeCloseTo(1);
     for (const o of Object.values(odds)) expect(o.seedOdds.reduce((s, v) => s + v, 0)).toBeCloseTo(o.playoffs);
+  });
+
+  it('always gives a picked result, and leaves the odds alone without picks', () => {
+    // Week 6: 4 v 6 is game index 5; team 6 (90) picked over team 4 (100)
+    const plain = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 4000, 7);
+    const picked = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 4000, 7, undefined, true, 0, { 5: 6 });
+    const none = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 4000, 7, undefined, true, 0, {});
+    // Team 6 plays two games; picked to win one, its expected wins rise by its chance of losing it
+    expect(picked.teams[6].expectedWins - plain.teams[6].expectedWins).toBeGreaterThan(0.5);
+    expect(picked.teams[4].expectedWins).toBeLessThan(plain.teams[4].expectedWins - 0.5);
+    expect(none.teams[1].playoffs).toBe(plain.teams[1].playoffs);
+    // Games not picked keep their draws: teams outside the picked game win exactly as often
+    for (const id of [1, 2, 3, 5]) expect(picked.teams[id].expectedWins).toBe(plain.teams[id].expectedWins);
+  });
+
+  it('draws a picked upset from the model given the result, not by swapping', () => {
+    // A 100-point team picked over a 130-point one, sd 25: given the upset, E[a] = 124.9, E[b] = 105.1
+    const normal = (() => {
+      let s = 12345;
+      const u = () => ((s = (s * 1103515245 + 12345) % 2147483648) + 1) / 2147483649;
+      return () => Math.sqrt(-2 * Math.log(u())) * Math.cos(2 * Math.PI * u());
+    })();
+    let ta = 0;
+    let tb = 0;
+    const n = 40000;
+    for (let i = 0; i < n; i++) {
+      const [a, b] = pickedScores(() => [100 + 25 * normal(), 130 + 25 * normal()], true);
+      expect(a).toBeGreaterThanOrEqual(b);
+      ta += a;
+      tb += b;
+    }
+    expect(ta / n).toBeCloseTo(124.9, 0);
+    expect(tb / n).toBeCloseTo(105.1, 0);
   });
 
   it('is deterministic for a given seed', () => {

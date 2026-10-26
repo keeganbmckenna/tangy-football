@@ -124,7 +124,8 @@ come from nflverse. During the week, the odds the site computes live are saved i
   expected weekly score. The 80% range on each rank comes from drawing every team's strength
   as mean + tau × z and re-ranking, so it shows how sure the model is, not a separate model.
 - **What If** (`simulatePlayoffOdds` with `forced`): the playoff simulation with picked results
-  held fixed (the picked team gets the higher of the two drawn scores), run in the browser
+  held fixed (both scores redrawn until the picked team wins, so points-for tiebreaks stay
+  realistic), run in the browser
   against the same random draws without the picks.
 - **Games Ahead**: the single-game model's win odds for every remaining game.
 
