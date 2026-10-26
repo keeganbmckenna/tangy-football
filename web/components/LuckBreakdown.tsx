@@ -57,7 +57,8 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
   );
   const chartData = byTotal.map((t) => ({
     name: t.teamName,
-    luck: Math.round(t.total * 100) / 100,
+    // Exact (rounded once, for display, like the table: rounding twice turned -0.545 into -0.6)
+    luck: t.total,
     close: formatRecord(t.close.wins, t.close.losses, t.close.ties),
   }));
   const th = 'px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-[var(--muted)] sm:px-4';
