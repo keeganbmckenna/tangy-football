@@ -41,13 +41,15 @@ export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionP
   return (
     <SectionCard
       title="Score Distribution"
-      subtitle="Every weekly score, steady teams to boom-or-bust ones"
+      subtitle="Every weekly score, and how spread out they were"
       gradientType="info"
       footer={
         <span>
           Each dot is a week. The shaded band is the team&apos;s middle half of weeks and the line is its median. Booms are
           weeks above {leagueQ3.toFixed(1)} (the league&apos;s top quarter of scores) and busts below {leagueQ1.toFixed(1)} (its
-          bottom quarter). SD is how far a team&apos;s scores typically land from its average: lower is steadier.
+          bottom quarter); a team with more booms is mostly just a better team. SD is how far its scores landed from its
+          average this season. That&apos;s mostly chance: across thousands of other leagues, a team&apos;s spread barely carries
+          over from the first half of a season to the second, so a low SD so far doesn&apos;t make a team steady.
         </span>
       }
     >
@@ -107,10 +109,10 @@ export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionP
               <th className={`${PIN_TH} py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] bg-[var(--surface)]`}>Team</th>
               <SortableTh sort={sort} col="median" className={th}>Median</SortableTh>
               <SortableTh sort={sort} col="mean" className={th}>Avg</SortableTh>
-              <SortableTh sort={sort} col="sd" best="asc" tip="Standard deviation of weekly scores: lower is steadier" className={th}>SD</SortableTh>
+              <SortableTh sort={sort} col="sd" best="asc" tip="How far its weekly scores landed from its average. Mostly chance: it barely carries over from one half of a season to the other" className={th}>SD</SortableTh>
               <SortableTh sort={sort} col="floor" tip="Lowest score" className={th}>Floor</SortableTh>
               <SortableTh sort={sort} col="ceiling" tip="Highest score" className={th}>Ceiling</SortableTh>
-              <SortableTh sort={sort} col="booms" tip="Weeks in the league's top quarter of scores" className={th}>Booms</SortableTh>
+              <SortableTh sort={sort} col="booms" tip="Weeks in the league's top quarter of scores (mostly a sign of a good team)" className={th}>Booms</SortableTh>
               <SortableTh sort={sort} col="busts" best="asc" tip="Weeks in the league's bottom quarter of scores" tipAlign="right" className={th}>Busts</SortableTh>
             </tr>
           </thead>

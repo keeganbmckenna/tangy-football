@@ -1,6 +1,8 @@
 /**
- * How steady each team's scoring is: the spread of its weekly scores, its floor and ceiling,
- * and how often it boomed or busted against the league's own quartiles.
+ * How spread out each team's weekly scores were: their SD, floor and ceiling, and how often it
+ * boomed or busted against the league's own quartiles. Descriptive only: a team's SD barely
+ * carries over from one half of a season to the other (split-half r 0.06 across 45,753 crawled
+ * team-seasons, scripts/backtests/stats_audit.py), and booms mostly track how good it is.
  */
 
 import type { TeamStats } from '../types';
