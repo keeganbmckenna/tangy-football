@@ -296,6 +296,19 @@ export function fittedStrength(
   return { meanByWeek, spread, teamSpread: c.tau, lineupWeight: c.lineup };
 }
 
+/**
+ * Strength uncertainty for the power rankings' ranges at a snapshot week: measured over every
+ * remaining week including the playoffs (scripts/backtests/tau_playoffs.py), about 9 points all
+ * season. The odds use fittedWeights' tau, measured over the regular season only, which falls to
+ * 0 by week 14 because one game left can't separate strength from noise; for the odds the
+ * difference stayed under the adoption bar (title Brier -0.0003 in weeks 12-14), but a range
+ * that collapses to one rank would claim a certainty the model doesn't have.
+ */
+export function rankTau(snapshotWeek: number): number {
+  const { a, b } = strengthModel.rankTau;
+  return Math.sqrt(a / (Math.max(snapshotWeek, 1) + b));
+}
+
 type SingleGameWeights = { lineup: number; ppg: number; sd: number };
 
 /**
@@ -435,8 +448,8 @@ export interface TeamStrength {
 
 /**
  * Power rankings from the model: teams ranked by expected weekly score, with an 80% interval
- * on each rank from the model's own uncertainty in true strength (tau, the persistent team
- * spread): in each draw every team's strength is mean + tau * z, and the teams are re-ranked.
+ * on each rank from the model's uncertainty in true strength (rankTau): in each draw every
+ * team's strength is mean + tau * z, and the teams are re-ranked.
  */
 export function strengthRanks(means: Record<number, number>, tau: number, sims = 4000, seed = 2026): Record<number, TeamStrength> {
   const ids = Object.keys(means).map(Number);

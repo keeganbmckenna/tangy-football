@@ -122,7 +122,10 @@ come from nflverse. During the week, the odds the site computes live are saved i
 
 - **Power rankings** (`strengthRanks` in `playoffOdds.ts`): teams ranked by the fitted model's
   expected weekly score. The 80% range on each rank comes from drawing every team's strength
-  as mean + tau × z and re-ranking, so it shows how sure the model is, not a separate model.
+  as mean + tau × z and re-ranking. Its tau (`rankTau`, about 9 points all season) is measured
+  over every remaining week including the playoffs (`tau_playoffs.py`): the odds' own tau is
+  measured over the regular season only and falls to 0 by week 14, when one game left can't
+  separate strength from noise, which would collapse every range to a single rank.
 - **What If** (`simulatePlayoffOdds` with `forced`): the playoff simulation with picked results
   held fixed (both scores redrawn until the picked team wins, so points-for tiebreaks stay
   realistic), run in the browser

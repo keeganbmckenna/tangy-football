@@ -1,7 +1,7 @@
 {
   "model": "fitted lineup + points per game, with persistent team uncertainty (scripts/backtests/export_model.py)",
   "fittedOn": "4486 crawled 12-team league-seasons, 2018-2025",
-  "exported": "2026-10-22",
+  "exported": "2026-10-26",
   "weeks": {
     "3": {
       "lineup": 0.4065,
@@ -63,6 +63,11 @@
       "ppg": 0.279,
       "tau": 0.0
     }
+  },
+  "rankTau": {
+    "about": "strength uncertainty for the power rankings' ranges: tau^2 = a / (week + b), over every remaining week incl. the playoffs (tau_playoffs.py)",
+    "a": 9089.21,
+    "b": 100.0
   },
   "singleGame": {
     "about": "a team's score in one week, h weeks ahead (1 = next), centred on the league's: lineup x that week's lineup gap + ppg x points-per-game gap, residual sd (single_games.py, model E)",

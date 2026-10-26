@@ -50,7 +50,15 @@ def fit_all():
             if not np.isfinite(Y[rows, hh]).any(): continue
             bb, rs = SG.fit_single_week(P, Lw_gap, Y, rows, hh)
             games[str(int(e))][str(hh + 1)] = {'lineup': round(float(bb[0]), 4), 'ppg': round(float(bb[1]), 4), 'sd': round(rs, 3)}
-    return weeks, games, len(np.unique(P['league']))
+    # The Power Rankings' ranges (strengthRanks): strength uncertainty measured over every remaining
+    # week including the playoffs, smoothed (tau_playoffs.py; descriptive, the odds keep 'tau')
+    import tau_playoffs as TP, title_odds as TO
+    pp, ok = TO.playoff_points(data)
+    Pp = G.pack([r for r, k in zip(data, ok) if k])
+    a, c, _ = TP.curve(Pp, pp[ok], np.ones(len(Pp['e']), bool))
+    rank_tau = {'about': "strength uncertainty for the power rankings' ranges: tau^2 = a / (week + b), over every remaining week incl. the playoffs (tau_playoffs.py)",
+                'a': round(float(a), 2), 'b': round(float(c), 3)}
+    return weeks, games, len(np.unique(P['league'])), rank_tau
 
 
 def fixture(season, e, model, sims=200000):
@@ -96,9 +104,9 @@ def fixture(season, e, model, sims=200000):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--fixture', action='store_true'); a = ap.parse_args()
-    weeks, games, n = fit_all()
+    weeks, games, n, rank_tau = fit_all()
     out = {'model': 'fitted lineup + points per game, with persistent team uncertainty (scripts/backtests/export_model.py)',
-           'fittedOn': f'{n} crawled 12-team league-seasons, 2018-2025', 'exported': datetime.date.today().isoformat(), 'weeks': weeks,
+           'fittedOn': f'{n} crawled 12-team league-seasons, 2018-2025', 'exported': datetime.date.today().isoformat(), 'weeks': weeks, 'rankTau': rank_tau,
            'singleGame': {'about': "a team's score in one week, h weeks ahead (1 = next), centred on the league's: lineup x that week's lineup gap "
                                    '+ ppg x points-per-game gap, residual sd (single_games.py, model E)', 'weeks': games}}
     path = os.path.join(WEB, 'analyze', 'strengthModel.json')

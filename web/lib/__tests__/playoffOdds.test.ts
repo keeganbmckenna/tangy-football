@@ -12,6 +12,7 @@ import {
   simulatePlayoffOdds,
   pickedScores,
   strengthRanks,
+  rankTau,
   statusFor,
   playoffScenarios,
   pointsRaces,
@@ -497,5 +498,12 @@ describe('strengthRanks', () => {
     expect(unsure[2].rankHigh).toBeGreaterThanOrEqual(3);
     expect(unsure[3].rankLow).toBeLessThanOrEqual(2);
     expect(unsure[4].rankHigh).toBe(4);
+  });
+
+  it('keeps the ranges open late in the season', () => {
+    // Measured over the remaining weeks incl. the playoffs, uncertainty stays near 9 all season
+    expect(rankTau(3)).toBeGreaterThan(8);
+    expect(rankTau(14)).toBeGreaterThan(8);
+    expect(rankTau(14)).toBeLessThanOrEqual(rankTau(3));
   });
 });
