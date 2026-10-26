@@ -6,6 +6,7 @@ import type { ChangeEvent } from 'react';
 import Image from 'next/image';
 import PlayoffRace from '@/components/PlayoffRace';
 import WeeklyScores from '@/components/WeeklyScores';
+import ScoreDistribution from '@/components/ScoreDistribution';
 import WeeklyMatchups from '@/components/WeeklyMatchups';
 import PlayoffBracket from '@/components/PlayoffBracket';
 import ToiletBowlBracket from '@/components/ToiletBowlBracket';
@@ -16,6 +17,7 @@ import WeeklyRankingsHeatmap from '@/components/WeeklyRankingsHeatmap';
 import PlayEveryoneAnalysis from '@/components/PlayEveryoneAnalysis';
 import ScheduleLuckDistribution from '@/components/ScheduleLuckDistribution';
 import WeeklyPlayAll from '@/components/WeeklyPlayAll';
+import LuckBreakdown from '@/components/LuckBreakdown';
 import DraftBoard from '@/components/DraftBoard';
 import LiveTab from '@/components/LiveTab';
 import TradesTab from '@/components/TradesTab';
@@ -562,6 +564,13 @@ export default function Home() {
                 <WeeklyScores teams={teamStats} maxWeek={regularSeasonWeekCap} />
               </section>
             </ErrorBoundary>
+            {regularSeasonWeekCap !== undefined && (
+              <ErrorBoundary>
+                <section>
+                  <ScoreDistribution teams={teamStats} maxWeek={regularSeasonWeekCap} />
+                </section>
+              </ErrorBoundary>
+            )}
             <ErrorBoundary>
               <section>
                 <WeeklyRankingsHeatmap rankingsData={weeklyRankings} teams={teamStats} maxWeek={regularSeasonWeekCap} />
@@ -607,6 +616,13 @@ export default function Home() {
                 <PlayEveryoneAnalysis data={playEveryoneData} />
               </section>
             </ErrorBoundary>
+            {regularSeasonWeekCap !== undefined && (
+              <ErrorBoundary>
+                <section>
+                  <LuckBreakdown teams={teamStats} playEveryone={playEveryoneData} matchups={matchups} maxWeek={regularSeasonWeekCap} />
+                </section>
+              </ErrorBoundary>
+            )}
             <ErrorBoundary>
               <section>
                 <ScheduleLuckDistribution data={scheduleLuckSimulation} />

@@ -24,6 +24,8 @@ export interface SleeperRoster {
     fpts_against?: number;
     fpts_against_decimal?: number;
     division?: number;
+    /** FAAB spent this season */
+    waiver_budget_used?: number;
   };
 }
 
@@ -82,6 +84,8 @@ export interface SleeperLeague {
     num_teams?: number;
     /** Last week trades are allowed (0 = no deadline) */
     trade_deadline?: number;
+    /** FAAB each team starts with (0 or missing without FAAB) */
+    waiver_budget?: number;
   };
   bracket_id?: string | null;
   loser_bracket_id?: string | null;

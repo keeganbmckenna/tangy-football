@@ -10,6 +10,7 @@ import {
   singleGameModel,
   singleGameWeights,
   simulatePlayoffOdds,
+  strengthRanks,
   statusFor,
   playoffScenarios,
   pointsRaces,
@@ -209,6 +210,17 @@ describe('simulatePlayoffOdds', () => {
     const base = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 8000, 7);
     // the favorite's odds come down when team strength is uncertain
     expect(wide.teams[1].playoffs).toBeLessThan(base.teams[1].playoffs);
+  });
+
+  it('holds picked results fixed, and changes nothing without picks', () => {
+    const plain = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7);
+    const none = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7, undefined, true, 0, {});
+    expect(none.teams).toEqual(plain.teams);
+    // Team 6 wins both its games: always 2 more wins, and better odds than without the picks
+    const picked = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7, undefined, true, 0, { 2: 6, 5: 6 });
+    expect(picked.teams[6].expectedWins).toBe(2);
+    expect(picked.teams[5].expectedWins).toBeLessThan(plain.teams[5].expectedWins);
+    expect(picked.teams[6].playoffs).toBeGreaterThan(plain.teams[6].playoffs);
   });
 
   it('reports how this week changes the odds', () => {
@@ -438,3 +450,18 @@ describe('fitted model parity with the Python reference', () => {
   }
 });
 
+
+describe('strengthRanks', () => {
+  it('ranks by expected score, with rank intervals that widen with uncertainty', () => {
+    const means = { 1: 120, 2: 110, 3: 109, 4: 90 };
+    const sure = strengthRanks(means, 0);
+    expect([1, 2, 3, 4].map((id) => sure[id].rank)).toEqual([1, 2, 3, 4]);
+    expect(sure[2]).toMatchObject({ rankLow: 2, rankHigh: 2 });
+    const unsure = strengthRanks(means, 8);
+    // 2 and 3 are a point apart: either could be second or third
+    expect(unsure[2].rankLow).toBeLessThanOrEqual(2);
+    expect(unsure[2].rankHigh).toBeGreaterThanOrEqual(3);
+    expect(unsure[3].rankLow).toBeLessThanOrEqual(2);
+    expect(unsure[4].rankHigh).toBe(4);
+  });
+});

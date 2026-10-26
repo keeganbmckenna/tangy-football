@@ -406,6 +406,40 @@ function rng(seed: number) {
   };
 }
 
+/** A team's power ranking: the model's expected weekly score and how sure its rank is */
+export interface TeamStrength {
+  /** Expected weekly score (the fitted model's, before the persistent team uncertainty) */
+  mean: number;
+  /** Rank by mean (1 = strongest) */
+  rank: number;
+  /** 80% interval of its rank, with each team's strength drawn mean + tau * z */
+  rankLow: number;
+  rankHigh: number;
+}
+
+/**
+ * Power rankings from the model: teams ranked by expected weekly score, with an 80% interval
+ * on each rank from the model's own uncertainty in true strength (tau, the persistent team
+ * spread): in each draw every team's strength is mean + tau * z, and the teams are re-ranked.
+ */
+export function strengthRanks(means: Record<number, number>, tau: number, sims = 4000, seed = 2026): Record<number, TeamStrength> {
+  const ids = Object.keys(means).map(Number);
+  const order = [...ids].sort((a, b) => means[b] - means[a]);
+  const ranks = new Map(ids.map((id) => [id, [] as number[]]));
+  const normal = rng(seed);
+  for (let s = 0; s < (tau > 0 ? sims : 1); s++) {
+    const drawn = ids.map((id) => ({ id, v: means[id] + tau * normal() })).sort((a, b) => b.v - a.v);
+    drawn.forEach((d, i) => ranks.get(d.id)!.push(i + 1));
+  }
+  const quantile = (v: number[], q: number) => {
+    const sorted = [...v].sort((a, b) => a - b);
+    return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
+  };
+  return Object.fromEntries(
+    order.map((id, i) => [id, { mean: means[id], rank: i + 1, rankLow: quantile(ranks.get(id)!, 0.1), rankHigh: quantile(ranks.get(id)!, 0.9) }])
+  );
+}
+
 /** Odds of each outcome, given some condition (e.g. winning this week) */
 export interface OutcomeOdds {
   playoffs: number;
@@ -469,7 +503,12 @@ export function simulatePlayoffOdds(
   playoffWeekStart?: number,
   toiletBowl = true,
   /** Persistent team uncertainty: one normal offset per team per simulated season (fittedStrength) */
-  teamSpread = 0
+  teamSpread = 0,
+  /**
+   * Results to hold fixed (the what-if picker): remaining-game index -> the roster that wins it.
+   * Both teams still score from the model; the picked team gets the higher of the two scores.
+   */
+  forced?: Record<number, number>
 ): OddsResult {
   const normal = rng(seed);
   const ids = teams.map((t) => t.rosterId);
@@ -515,12 +554,15 @@ export function simulatePlayoffOdds(
     const sim = teams.map((t) => ({ ...t }));
     const byId = new Map(sim.map((t) => [t.rosterId, t]));
     const nextWinners: boolean[] = [];
-    for (const g of remaining) {
+    for (let gi = 0; gi < remaining.length; gi++) {
+      const g = remaining[gi];
       const a = byId.get(g.a);
       const b = byId.get(g.b);
       if (!a || !b) continue;
-      const sa = score(g.week, g.a);
-      const sb = score(g.week, g.b);
+      let sa = score(g.week, g.a);
+      let sb = score(g.week, g.b);
+      const winner = forced?.[gi];
+      if ((winner === g.a && sa < sb) || (winner === g.b && sb < sa)) [sa, sb] = [sb, sa];
       a.pointsFor += sa;
       b.pointsFor += sb;
       if (sa > sb) {
@@ -902,6 +944,18 @@ export interface PlayoffOddsResponse {
    * the trade tools' weekly odds): aWins is a's chance. Null without projections.
    */
   gameOdds: Array<{ week: number; a: number; b: number; aWins: number }> | null;
+  /** Power rankings from the fitted model (strengthRanks); null without projections */
+  strength: Record<number, TeamStrength> | null;
+  /**
+   * What the playoff simulation runs on, for the what-if picker to re-run it in the browser
+   * with some results fixed (remaining is in the same order as gameOdds)
+   */
+  model: {
+    remaining: RemainingGame[];
+    meanByWeek: Record<number, Record<number, number>>;
+    spread: number;
+    teamSpread: number;
+  } | null;
   remainingWeeks: number;
   /** Remaining weeks that had projections; empty if season form only */
   projectionWeeks: number[];

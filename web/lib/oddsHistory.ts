@@ -47,6 +47,8 @@ export interface OddsCheckpoint {
   week: number;
   /** rosterId -> odds */
   odds: Record<number, OddsSnapshot>;
+  /** rosterId -> the model's expected weekly score then (power rankings); missing in older files */
+  strength?: Record<number, number>;
 }
 
 /** /api/odds-history/{season} */
@@ -152,8 +154,10 @@ export async function buildOddsHistory(league: SleeperLeague): Promise<OddsHisto
     const result = simulatePlayoffOdds(
       teams, remaining, format, meanByWeek, spread, HISTORY_SIMS, 2026, playoffWeekStart, hasToiletBowl, fitted?.teamSpread ?? 0
     );
+    const firstWeek = meanByWeek[strengthWeeks[0]] ?? {};
     checkpoints.push({
       week: k,
+      strength: Object.fromEntries(rosters.map((r) => [r.roster_id, Math.round((firstWeek[r.roster_id] ?? 0) * 100) / 100])),
       odds: Object.fromEntries(
         Object.values(result.teams).map((o) => [
           o.rosterId,

@@ -7,7 +7,7 @@ import { buildOddsHistory } from '@/lib/oddsHistory';
 export const dynamic = 'force-dynamic';
 
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 /**
  * How each team's playoff, bye, division, title and toilet-bowl odds moved through a season:

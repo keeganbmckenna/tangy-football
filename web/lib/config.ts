@@ -97,4 +97,10 @@ export const CACHE_CONFIG = {
    * Week-by-week odds history (1 hour; rebuilt as soon as a new week is scored)
    */
   oddsHistory: 3600,
+
+  /**
+   * Season insights: lineups, projections and waiver moves (1 hour; rebuilt as soon as a
+   * new week is scored)
+   */
+  seasonInsights: 3600,
 } as const;
