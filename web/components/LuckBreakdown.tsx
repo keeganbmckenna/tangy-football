@@ -33,8 +33,8 @@ function LuckTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
   return (
     <div className="rounded-lg border-2 border-[var(--chart-tooltip-border)] bg-[var(--chart-tooltip-bg)] p-3 shadow-lg">
       <p className="mb-1 font-bold text-[var(--chart-tooltip-text)]">{d.name}</p>
-      <p className="text-sm text-[var(--chart-tooltip-muted)]">Schedule: {signed(d.schedule)} wins</p>
-      <p className="text-sm text-[var(--chart-tooltip-muted)]">Opponents&apos; days: {signed(d.opponents)} wins</p>
+      <p className="text-sm text-[var(--chart-tooltip-muted)]">Who you played: {signed(d.schedule)} wins</p>
+      <p className="text-sm text-[var(--chart-tooltip-muted)]">How they played: {signed(d.opponents)} wins</p>
       <p className="text-sm font-semibold text-[var(--chart-tooltip-text)]">Total luck: {signed(d.total)} wins</p>
     </div>
   );
@@ -42,7 +42,8 @@ function LuckTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
 
 /**
  * Why each record is what it is: real wins against what the scoring deserved (play-all),
- * with the difference split into schedule luck and opponents' off or career days, plus the
+ * with the difference split into who it played (opponent strength) and how they played (their
+ * off or big weeks against it), plus the
  * close-game record (lib/analyze/luck.ts)
  */
 export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }: LuckBreakdownProps) {
@@ -78,13 +79,24 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
       subtitle="Real wins against the wins each team's scoring deserved, and where the difference came from"
       gradientType="warning"
       footer={
-        <span>
-          <strong>Play-all</strong> is each team&apos;s record had it played every other team every week, and{' '}
-          <strong>Expected</strong> the wins that rate gives over its real games: what its scoring deserved. <strong>Schedule</strong> is the wins a team would have had if
-          every opponent had scored its own season average, minus that expectation: drawing weak or strong opponents.{' '}
-          <strong>Opponents&apos; days</strong> is real wins minus those: opponents having off days (or career days) against
-          you. The two add up to the luck factor. Close games were decided by under {CLOSE_GAME_MARGIN} points.
-        </span>
+        <ul className="space-y-1">
+          <li>
+            <strong>Expected:</strong> the wins a team&apos;s scoring deserved. Its play-all record (as if it played every team
+            every week) gives a win rate, applied to its real games.
+          </li>
+          <li>
+            <strong>Who you played:</strong> luck in the opponents you drew. Plus means weaker opponents than average, minus
+            means you kept drawing the good teams. (Measured by pretending each opponent scored its season average.)
+          </li>
+          <li>
+            <strong>How they played:</strong> luck in how those opponents scored that week. Plus means they had off weeks
+            against you, minus means they had big weeks against you.
+          </li>
+          <li>
+            <strong>Luck</strong> is the two added up: real wins minus expected wins. <strong>Close</strong> is the record in
+            games decided by under {CLOSE_GAME_MARGIN} points.
+          </li>
+        </ul>
       }
     >
       <div className="border-b border-[var(--border)] p-4 sm:p-6">
@@ -106,8 +118,8 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
               <ReferenceLine x={0} stroke={CHART_THEME.axis} />
               <Tooltip active={tap.active} content={<LuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
               <Legend formatter={(value) => <span style={{ color: CHART_THEME.legend }}>{value}</span>} />
-              <Bar isAnimationActive={false} dataKey="schedule" name="Schedule" stackId="luck" fill={SCHEDULE_COLOR} maxBarSize={18} />
-              <Bar isAnimationActive={false} dataKey="opponents" name="Opponents' days" stackId="luck" fill={OPPONENTS_COLOR} maxBarSize={18} />
+              <Bar isAnimationActive={false} dataKey="schedule" name="Who you played" stackId="luck" fill={SCHEDULE_COLOR} maxBarSize={18} />
+              <Bar isAnimationActive={false} dataKey="opponents" name="How they played" stackId="luck" fill={OPPONENTS_COLOR} maxBarSize={18} />
             </BarChart>
           </ResponsiveContainer>
         </LazyMount>
@@ -121,9 +133,9 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
               <SortableTh sort={sort} col="record" className={th}>Record</SortableTh>
               <SortableTh sort={sort} col="playAll" tip="Its record had it played every other team every week" className={th}>Play-all</SortableTh>
               <SortableTh sort={sort} col="expected" tip="Wins the team's scoring deserved: its play-all win rate times games played" className={th}>Expected</SortableTh>
-              <SortableTh sort={sort} col="schedule" tip="Wins from who it drew: with every opponent at its season average, minus expected" className={th}>Schedule</SortableTh>
-              <SortableTh sort={sort} col="opponents" tip="Wins from opponents' off or career days against it" className={th}>Opp. days</SortableTh>
-              <SortableTh sort={sort} col="total" tip="Real wins minus expected wins" className={th}>Luck</SortableTh>
+              <SortableTh sort={sort} col="schedule" tip="Plus: drew weaker opponents than average. Minus: kept drawing the good teams" className={th}>Who you played</SortableTh>
+              <SortableTh sort={sort} col="opponents" tip="Plus: opponents had off weeks against you. Minus: they had big weeks against you" className={th}>How they played</SortableTh>
+              <SortableTh sort={sort} col="total" tip="Who you played + how they played: real wins minus expected wins" className={th}>Luck</SortableTh>
               <SortableTh sort={sort} col="close" tip={`Record in games decided by under ${CLOSE_GAME_MARGIN} points`} tipAlign="right" className={th}>Close</SortableTh>
             </tr>
           </thead>

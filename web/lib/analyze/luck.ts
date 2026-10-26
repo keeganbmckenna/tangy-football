@@ -2,11 +2,11 @@
  * Why a team's record is what it is: its real wins split from the wins its scoring
  * deserved (the play-all expectation) into two kinds of luck, plus its close-game record.
  *
- * - Schedule: the wins it would have had if every opponent had scored its own season
- *   average, minus the play-all expectation. Drawing weak opponents (or strong ones) shows up
- *   here.
- * - Opponents' days: real wins minus those average-opponent wins. Opponents having off days
- *   against you (or career days) show up here.
+ * - Who you played (schedule): the wins it would have had if every opponent had scored its own
+ *   season average, minus the play-all expectation. Drawing weak opponents (or strong ones)
+ *   shows up here.
+ * - How they played (opponentsDays): real wins minus those average-opponent wins. Opponents
+ *   having off weeks against you (or big weeks) show up here.
  *
  * The two add up to the play-all luck factor (real wins minus expected wins).
  */
