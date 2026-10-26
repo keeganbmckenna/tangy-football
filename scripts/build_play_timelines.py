@@ -292,7 +292,7 @@ def build(season: str, weeks: list[int] | None, recent: int | None = None, curre
                 last_score = (hs, as_)
                 if touched and isinstance(p.desc, str):
                     # With its game's teams, so a play only counts its own game's players
-                    plays.append([t, " ".join(p.desc.split())[:180], home, away])
+                    plays.append([t, " ".join(p.desc.split())[:300], home, away])
             if snaps:
                 games[game_id] = {"home": home, "away": away, "snaps": snaps}
 

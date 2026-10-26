@@ -4,6 +4,27 @@ import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveEvents, type P
 const ev = (t: number, players: PlayEvent['players'], before = 0.5, after = 0.5): PlayEvent => ({ t, desc: null, players, before, after });
 
 describe('cleanPlay', () => {
+  it('keeps just the play: no QB hits, tacklers, snapper and holder, penalties or trivia', () => {
+    expect(cleanPlay('J.Goff pass short middle to J.Williams for 10 yards, TOUCHDOWN [L.Van Ness].')).toBe('J.Goff pass short middle to J.Williams for 10 yards, TOUCHDOWN.');
+    expect(cleanPlay('D.Maye pass deep left to S.Diggs to NE 42 for 16 yards (T.Bernard, L.Vander Esch).')).toBe('D.Maye pass deep left to S.Diggs to NE 42 for 16 yards.');
+    expect(cleanPlay('D.Carlson 52 yard field goal is GOOD, Center-T.Sieg, Holder-A.Cole.')).toBe('D.Carlson 52 yard field goal is GOOD.');
+    expect(cleanPlay('T.Heinicke sacked at WAS 38 for -12 yards (H.Reddick). PENALTY on PHI-B.Graham, Unnecessary Roughness, 15 yards, enforced at WAS 38.')).toBe(
+      'T.Heinicke sacked at WAS 38 for -12 yards.'
+    );
+    expect(cleanPlay('L.Jackson pass short middle to M.Andrews for 5 yards, TOUCHDOWN. BAL 89-Andrews 31st career rec TD, 2nd in franchise history (Heap 41).')).toBe(
+      'L.Jackson pass short middle to M.Andrews for 5 yards, TOUCHDOWN.'
+    );
+  });
+
+  it('shortens replay reviews and drops what a cut-off description leaves', () => {
+    expect(cleanPlay('R.Dowdle left guard for 1 yard, TOUCHDOWN. The Replay Official reviewed the runner broke the plane ruling, and the play was Upheld.')).toBe(
+      'R.Dowdle left guard for 1 yard, TOUCHDOWN. Upheld on review.'
+    );
+    expect(cleanPlay('B.Perkins pass short right intended for V.Jefferson INTERCEPTED by N.Bolton at LA 42. N.Bolton to LA 27 for 15 yards (B.Perk')).toBe(
+      'B.Perkins pass short right intended for V.Jefferson INTERCEPTED by N.Bolton at LA 42. N.Bolton to LA 27 for 15 yards'
+    );
+  });
+
   it('drops the clock, formation notes, eligibility reports and jersey numbers', () => {
     expect(cleanPlay('(8:01) 75-J.Travis reported in as eligible. 28-J.Taylor right end for 3 yards, TOUCHDOWN.')).toBe('J.Taylor right end for 3 yards, TOUCHDOWN.');
     expect(cleanPlay('(13:32) (No Huddle, Shotgun) 1-J.Hurts pass deep right to 26-S.Barkley for 47 yards (31-D.Williams).')).toBe(
