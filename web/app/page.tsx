@@ -31,6 +31,7 @@ import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import PlayoffPicture from '@/components/PlayoffPicture';
 import PowerRankings from '@/components/PowerRankings';
+import SeasonReview from '@/components/SeasonReview';
 import OddsHistoryChart from '@/components/OddsHistoryChart';
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -481,6 +482,20 @@ export default function Home() {
         )}
         {activeTab === 'overview' && !isLegacySeason && (
           <>
+            {!regularSeasonInProgress && leagueData && leagueSettings && leagueData.lastScoredWeek >= leagueSettings.regularSeasonEnd && (
+              <ErrorBoundary>
+                <section>
+                  <SeasonReview
+                    season={selectedSeason || leagueData.league.season}
+                    leagueData={leagueData}
+                    teamStats={teamStats}
+                    playEveryone={playEveryoneData}
+                    matchups={matchups}
+                    regularSeasonEnd={leagueSettings.regularSeasonEnd}
+                  />
+                </section>
+              </ErrorBoundary>
+            )}
             {leagueData && leagueSettings && <DataThrough leagueData={leagueData} regularSeasonEnd={leagueSettings.regularSeasonEnd} />}
             <ErrorBoundary>
               <section>
