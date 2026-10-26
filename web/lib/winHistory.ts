@@ -38,8 +38,11 @@ export interface PlayEvent {
   after: number;
 }
 
-/** A play counts as big if it's worth this many points to one side's starters... */
-export const BIG_PLAY_POINTS = 6;
+/**
+ * A play counts as big if it's worth this many points to one side's starters (a touchdown pass,
+ * worth 4-5.5 here, included)...
+ */
+export const BIG_PLAY_POINTS = 4;
 /** ...or moves the win odds this much */
 export const BIG_PLAY_ODDS = 0.1;
 /** At most this many per matchup, biggest first */
@@ -139,6 +142,9 @@ export function liveEvents(
   return out;
 }
 
+/** A loss this big can be a score taken back */
+const RETRACTED_POINTS = 3;
+
 /** How long after a score a correction can still take it back (a flag, a review, a stat fix) */
 const RETRACTION_SECONDS = 20 * 60;
 
@@ -151,7 +157,7 @@ export function dropRetractions(events: PlayEvent[]): PlayEvent[] {
   const sorted = [...events].sort((x, y) => x.t - y.t);
   const dropped = new Set<PlayEvent>();
   for (const later of sorted) {
-    for (const lost of later.players.filter((p) => p.pts <= -BIG_PLAY_POINTS / 2)) {
+    for (const lost of later.players.filter((p) => p.pts <= -RETRACTED_POINTS)) {
       const earlier = sorted.find(
         (e) =>
           !dropped.has(e) &&
