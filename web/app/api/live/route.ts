@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { SLEEPER_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, TeamStats } from '@/lib/types';
-import { liveWinOdds, scoreSpread, type LiveWeekData } from '@/lib/analyze/live';
+import { allowedPoints, liveWinOdds, scoreSpread, type LiveWeekData } from '@/lib/analyze/live';
 import { CACHE_CONFIG } from '@/lib/config';
 import { saveSnapshot } from '@/lib/liveHistory';
 import { liveMatchups, scoreboard } from '@/lib/liveData';
@@ -59,7 +59,13 @@ export async function GET() {
             const odds = liveWinOdds(matchups, projections, games, spread, { allowed, allowedScoring: allowedScoring(scoring) });
             // Each starter's points now, so the save can spot big moments since the last one
             const starters = (rosterId: number) => (matchups.find((m) => m.roster_id === rosterId)?.starters ?? []).filter((id) => id && id !== '0');
-            const pts = Object.fromEntries(matchups.flatMap((m) => starters(m.roster_id).map((id) => [id, m.players_points?.[id] ?? 0])));
+            // A defense from its kickoff baseline: starting in the shutout bracket isn't a play
+            const kickoff = allowedPoints(0, allowedScoring(scoring));
+            const pts = Object.fromEntries(
+              matchups.flatMap((m) =>
+                starters(m.roster_id).map((id) => [id, (m.players_points?.[id] ?? 0) - (id in allowed && games[id]?.state !== 'pre' ? kickoff : 0)])
+              )
+            );
             await saveSnapshot(league.season, week, odds, {
               pts,
               starters: odds.map((o) => ({ matchupId: o.matchupId, a: starters(o.a.rosterId), b: starters(o.b.rosterId) })),

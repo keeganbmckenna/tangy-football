@@ -171,7 +171,9 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     const atT = matchups.map((m) => {
       const starters = (m.starters ?? []).filter((id) => id && id !== '0');
       const players_points = Object.fromEntries(starters.map((id) => [id, Math.round(pointsAt(id) * 100) / 100]));
-      starters.forEach((id) => points.set(id, players_points[id]));
+      // For the big plays: a defense measured from its kickoff baseline, since starting in the
+      // shutout bracket (10 points here) at kickoff isn't a play
+      starters.forEach((id) => points.set(id, players_points[id] - (id in allowed ? allowedPoints(0, ptsAllowed) : 0)));
       return { ...m, players_points, points: starters.reduce((s, id) => s + players_points[id], 0) };
     });
     return { points, odds: liveWinOdds(atT, projections, games, spread, { allowed, allowedScoring: ptsAllowed }) };
