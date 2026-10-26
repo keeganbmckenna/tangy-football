@@ -23,7 +23,7 @@ const REST_TOKEN = process.env.KV_REST_API_TOKEN;
 export const liveHistoryEnabled = () => !!REST_URL && !!REST_TOKEN;
 
 /** Run Redis commands in one round trip (Upstash's pipeline); null without Redis or on any failure */
-async function redis(commands: Array<Array<string | number>>): Promise<unknown[] | null> {
+async function redis(commands: Array<Array<string | number>>, timeoutMs = 3000): Promise<unknown[] | null> {
   if (!liveHistoryEnabled()) return null;
   try {
     const res = await fetch(`${REST_URL}/pipeline`, {
@@ -31,7 +31,7 @@ async function redis(commands: Array<Array<string | number>>): Promise<unknown[]
       headers: { Authorization: `Bearer ${REST_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(commands),
       cache: 'no-store',
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) return null;
     const out = (await res.json()) as Array<{ result?: unknown; error?: string }>;
@@ -131,10 +131,13 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
 export async function replaceSnapshots(history: WinHistory): Promise<boolean> {
   const k = key(history.season, history.week);
   const end = history.times[history.times.length - 1] ?? 0;
+  // A whole week in one write: more time than a live save gets
   const res = await redis([
     ['LRANGE', k, 0, -1],
     ['LRANGE', `${k}:events`, 0, -1],
-  ]);
+  ], 20_000);
+  // Without the saved points, replacing them could drop the live ones after the replay's end
+  if (!res) return false;
   const later = ((res?.[0] as string[] | undefined) ?? []).filter((r) => (JSON.parse(r) as Snapshot).t > end);
   const laterEvents = ((res?.[1] as string[] | undefined) ?? []).filter((r) => (JSON.parse(r) as { event: PlayEvent }).event.t > end);
   const replayed = history.times.map((t, i) =>
@@ -148,5 +151,5 @@ export async function replaceSnapshots(history: WinHistory): Promise<boolean> {
     ['RPUSH', k, ...replayed, ...later],
     ['EXPIRE', k, KEEP_SECONDS],
     ...(events.length ? [['RPUSH', `${k}:events`, ...events], ['EXPIRE', `${k}:events`, KEEP_SECONDS]] : []),
-  ]));
+  ], 20_000));
 }
