@@ -18,7 +18,7 @@ The **You** picker highlights your team everywhere and puts your matchup first, 
 - **Power Rankings** (during the regular season): teams ranked by the playoff-odds model's expected weekly score, each with the range its rank lands in 80% of the time and its move since last week.
 - **Weekly Matchups:** every result for any completed week. Tap one to see both lineups and benches, with each player's points, box score line (like 26/34, 374 yd, 4 TD) and his projection from before the game.
   - **Awards:** a strip of the week's awards above the results: high and low score, biggest blowout, closest game, unluckiest loss, luckiest win, most left on the bench, biggest upset (by projections) and who beat their projections most.
-  - **How it swung:** each matchup's win odds through the week, replayed play by play on each NFL game's real clock with the Live tab's model, with the lead changes counted (every week since 2022).
+  - **How it swung:** each matchup's win odds through the week, replayed play by play on each NFL game's real clock with the Live tab's model, with the lead changes counted; or switch to both teams' scores through the week, with how long each led (every week since 2022).
 
 For a season before Sleeper, Overview shows that season's final standings and top three.
 
