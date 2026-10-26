@@ -12,6 +12,7 @@ excludes zero, in at least 6 of 8 seasons.
     python live_eval.py --l1c      # added: a Student-t link
     python live_eval.py --l2       # rung 2: skew, and the weight on the projected margin
     python live_eval.py --l3       # rung 3: production curve over the game clock (LIVE_ALPHA replays first)
+    python live_eval.py --l4       # rungs 4-5 and their ceilings (live_state.py --fit and the LIVE_USE replays first)
     python live_eval.py --l3b-fit  # rung 3b: each fold's player variances, then for each season s:
       LIVE_VAR=cache/live_var/s.json LIVE_TAG=_vs python live_replay.py; then python live_eval.py --l3b
 """
@@ -319,7 +320,40 @@ def rung3b():
     print(f'L3b: meets the bar in {wins} of {len(SEASONS)} seasons -> {"PASSES" if wins >= 6 else "fails"}')
 
 
+def rung_dirs(name, dir_for, ceiling=False):
+    """A variant replayed per fold (dir_for(held-out season) holds that fold's replay of every season),
+    L1a's multiplier refit on it, against L1a on the current model"""
+    print(f'\n{name} vs L1a' + (' (a ceiling: uses what happened later)' if ceiling else ''))
+    print('season   L1a      variant   change     95% (leagues)          multiplier')
+    wins = 0
+    for s in SEASONS:
+        base_tr = [thin(to_dev(flat(o))) for o in SEASONS if o != s]
+        th0 = fit(base_tr, *L1A); del base_tr
+        var_tr = [thin(to_dev(flat(o, dir_for(s)))) for o in SEASONS if o != s]
+        th1 = fit(var_tr, *L1A); del var_tr
+        ref = to_dev(flat(s)); base = per_matchup(ref, odds_l1(ref, th0)).cpu().numpy(); del ref
+        D = to_dev(flat(s, dir_for(s))); new = per_matchup(D, odds_l1(D, th1)).cpu().numpy()
+        d = new - base
+        lo, hi = league_interval(D['league'], d)
+        ok = d.mean() <= -MIN_GAIN and hi < 0
+        wins += ok
+        print(f'{s}    {base.mean():.4f}   {new.mean():.4f}   {d.mean():+.4f}   ({lo:+.4f}, {hi:+.4f})  {"meets" if ok else "     "}  x{math.exp(th1[0]):.2f} (L1a x{math.exp(th0[0]):.2f})', flush=True)
+        del D; torch.cuda.empty_cache()
+    print(f'{name}: meets the bar in {wins} of {len(SEASONS)} seasons -> {"PASSES" if wins >= 6 else "fails"}', flush=True)
+
+
+def rung45():
+    d = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}'))
+    f = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}{s}'))
+    rung_dirs('Oracle: each NFL team\'s actual remaining points', d('oracle_team'), ceiling=True)
+    rung_dirs('Oracle: each team-position\'s actual remaining points', d('oracle_group'), ceiling=True)
+    rung_dirs('L4: game state (margin, quarter, drive EP)', f('state'))
+    rung_dirs('L5: same-game correlations', f('corr'))
+    rung_dirs('L4+L5', f('statecorr'))
+
+
 def main():
+    if '--l4' in sys.argv: return rung45()
     if '--l3' in sys.argv: return rung3()
     if '--l3b-fit' in sys.argv: return fit_variances()
     if '--l3b' in sys.argv: return rung3b()

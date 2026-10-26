@@ -307,6 +307,13 @@ were made just before those games, which would leak information.
     a Student-t link (nu about 5.4; 2 of 8).
   - **Our league** (exploratory, 428 matchups): x1.3 is its best (0.3630 vs 0.3692 at the old
     scale); the shipped x1.43 scores 0.3645.
-  - Still to test: game state (possession, field position), correlated players through the
-    week, and player-level simulation. With the error's shape right at every stage and skew,
-    variance allocation and tails each worth under 0.003, they have little room.
+  - **Game state and correlated players** (`live_state.py`, rungs 4-5): the game script is
+    real for receivers (a WR whose team is up 17+ in the 3rd quarter scores 0.57 of his
+    projection x share left from there; down 9-16, 1.32; RBs flat; kickers best late in close
+    games), and same-game misses correlate (QB-WR1 +0.36, a defense vs the QB it faces -0.37).
+    But game state explains 1.3-4.3% of a player's remaining-points miss, and in the odds:
+    game state -0.0003 to -0.0013 (0 of 8 seasons reach 0.002), correlations about -0.0001,
+    both -0.0016 at best. **Ceiling**: odds that knew each NFL team's actual remaining fantasy
+    points would gain only about 0.01 (0.025 knowing each team-position's); the rest is which
+    player scores. Game state reaches 5-10% of that ceiling. Not adopted; the live ladder is
+    closed for 2026 (player-level simulation can't beat that ceiling's small gap).

@@ -6,7 +6,8 @@ build_play_timelines.py does this for our league: points in our scoring, for our
 only. The crawled leagues each have their own scoring, so this keeps the stats themselves
 (passing yards, receptions, field goals by distance, sacks...) as events [time, who, stat,
 amount], for every player the play-by-play names, plus each NFL game's clock and score after
-every play. A league's points at time t are then its scoring settings times the stats so far.
+every play and the situation going forward (who has the ball, field position, the possession's
+expected points). A league's points at time t are then its scoring settings times the stats so far.
 
 Stats are Sleeper's scoring keys (COMPONENTS). Yardage bonuses (bonus_rec_yd_100, ...) switch
 on when the running total crosses the line. Points allowed come from the game score in the
@@ -234,13 +235,15 @@ def season_components(season):
         for game_id, g in wk.groupby('game_id', sort=False):
             g = g.sort_values('play_id', kind='stable')
             home, away = team(g.home_team.iloc[0]), team(g.away_team.iloc[0])
-            snaps, t_last = [], None
+            snaps, situ, t_last = [], [], None
             yards = defaultdict(lambda: defaultdict(float))  # running yards per player, for bonuses
             for p in g.itertuples():
                 t = epoch(p.time_of_day) or t_last
                 if t is None: continue
                 t_last = t
                 snaps.append((t, int(num(p.qtr) or 1), int(num(p.quarter_seconds_remaining)), int(num(p.total_home_score)), int(num(p.total_away_score))))
+                pt = team(p.posteam)
+                situ.append((1.0 if pt == home else -1.0 if pt == away else 0.0, num(p.yardline_100), num(p.ep)))
                 for who, k, v in play_stats(p, sid, pos):
                     i = who_ix.setdefault(who, len(who_ix))
                     ev.append((t, i, K[k], v))
@@ -253,7 +256,10 @@ def season_components(season):
                             was, now = before.get(base, 0.0) >= line, y[base] >= line
                             if was != now: ev.append((t, i, K[bk], 1.0 if now else -1.0))
             if snaps:
-                games.append((home, away, np.array(snaps, dtype=np.int64)))
+                # The situation going forward after each play: who has the ball, how far from the
+                # goal line, and that possession's expected points (nflverse's ep), from the next play
+                nxt = np.array(situ[1:] + [(0.0, 0.0, 0.0)], dtype=np.float32)
+                games.append((home, away, np.array(snaps, dtype=np.int64), nxt))
         ev = np.array(ev, dtype=[('t', 'i8'), ('who', 'i4'), ('k', 'i2'), ('v', 'f4')])
         weeks[int(week)] = {'games': games, 'ids': list(who_ix), 'ev': ev}
     os.makedirs(OUT, exist_ok=True)

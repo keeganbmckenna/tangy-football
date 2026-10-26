@@ -98,6 +98,7 @@ python export_model.py --fixture            # fit on every league and write web/
 | Script | Question |
 |---|---|
 | `live_pregame.py` | The Live tab's kickoff spread on our league (0.7; too few matchups, replaced by `live_eval.py`) |
+| `live_state.py` | Game state (score margin, quarter, possession) and same-game correlations in the live odds, with their ceilings |
 | `drift.py` | Strength that drifts through the season (real, but worth 0.00005) |
 | `schedule_luck.py` | How much the schedule decides; random vs real remaining schedules |
 | `improvements.py` | Recency-weighted and median form, score vs projections, nonlinear terms, per-team uncertainty, noise shape |
