@@ -201,12 +201,53 @@ def replay_week(season, w, week, lgs, proj, history, inj, keys):
             E_[key] += v * games[team][1]
             if p in rows: A_[key] += (cum[rows[p], -1] - cum[rows[p]]).to(DT)
         oracle = {k: torch.where(E_[k] > 0.5, A_[k] / E_[k].clamp(min=0.5), torch.ones_like(E_[k])) for k in E_}
-    extra = {'half': half, 'team_half': team_half, 'oracle': oracle}
+    extra = {'half': half, 'team_half': team_half, 'oracle': oracle, 'inj': injury_scale(week, times, rows, P), 'implied': IMPLIED.get((int(season), w), {})}
     out = []
     for c0 in range(0, len(lgs), CHUNK):
         chunk = [lg for lg in lgs[c0:c0 + CHUNK] if w in lg['weeks']]
         if chunk: out.append(replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, reports, extra))
     return out
+
+
+def injury_scale(week, times, rows, P):
+    """[E, T] multiplier on each player's remaining projection after a flagged in-game injury
+    (addendum test 1): the oracle zeroes it if he never records another stat in the game; the
+    model scales it by the fitted chance he will, given the minutes since with no stat"""
+    if not USE & {'inj_oracle', 'inj_model'} or not week.get('injured'): return None
+    import live_injury as LI
+    T = len(times)
+    out = torch.ones(len(week['ids']), T, dtype=DT, device=DEV)
+    ev = week['ev']
+    for t_i, pid in week['injured']:
+        e = rows.get(pid)
+        group = LI.GROUP.get((P.get(pid) or (None,))[0])
+        if e is None or not group: continue
+        end = next((sn[-1, 0] for _, _, sn, _ in week['games'] if sn[0, 0] <= t_i <= sn[-1, 0]), t_i + 3600)
+        later = ev['t'][(ev['who'] == e) & (ev['t'] > t_i + LI.RETURN_AFTER) & (ev['t'] <= end)]
+        back = later.min() if len(later) else np.inf
+        for j in np.flatnonzero((times >= t_i) & (times < back)):
+            if 'inj_oracle' in USE:
+                f = 0.0 if not np.isfinite(back) else 1.0
+            else:
+                mins = (times[j] - t_i) / 60
+                b = max(x for x in LI.BINS if x <= mins)
+                f = (FIT['returns'].get(group) or {}).get(str(b))
+                f = 1.0 if f is None else f
+            out[e, j] = min(out[e, j].item(), f)
+    return out
+
+
+def implied_points():
+    """(season, week) -> team -> implied points minus the week's average (nflverse closing lines)"""
+    if 'vegas' not in USE: return {}
+    import live_injury as LI
+    d = LI.implied()
+    out = defaultdict(dict)
+    for r in d.itertuples(): out[(int(r.season), int(r.week))][canon(r.team)] = r.centred
+    return out
+
+
+IMPLIED = implied_points()
 
 
 def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, reports, extra):
@@ -317,9 +358,19 @@ def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, r
         z = torch.zeros(int(dm.sum()), dtype=DT, device=DEV)
         def_proj[dm] = LM.defense_expected(z, torch.zeros_like(z, dtype=torch.bool), z, t(allowed_proj[dm]), t(other[dm]),
                                            torch.ones_like(z), BRt[0][dl], BRt[1][dl], BRt[2][dl]).cpu().numpy()
+    if 'vegas' in USE:
+        # Addendum test 2: each player's projection moved by his team's implied points
+        beta = np.array([FIT['vegas'].get(p, 0.0) for p in slot['pos']])
+        imp_c = np.array([extra['implied'].get(tm, 0.0) if tm else 0.0 for tm in slot['team']])
+        full = np.where(has_proj & ~is_def_np, np.maximum(full + beta * imp_c, 0.0), full)
     proj_pre = np.where(is_def_np, def_proj, full * pre_share)
     proj_post = np.where(is_def_np, def_proj, full * post_share)
     proj_t = torch.where(started, t(proj_post).unsqueeze(1), t(proj_pre).unsqueeze(1))
+    if extra.get('inj') is not None:
+        # Addendum test 1: an injured player's remaining projection (and so his spread) scaled
+        known = (ent >= 0) & ~is_def
+        proj_t = proj_t.clone()
+        proj_t[known] = proj_t[known] * extra['inj'][ent[known]]
 
     # Expected points still to come: defenses by bracket, everyone else projection x share left
     add = proj_t * rem

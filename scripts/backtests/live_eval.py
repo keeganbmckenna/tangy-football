@@ -352,7 +352,50 @@ def rung45():
     rung_dirs('L4+L5', f('statecorr'))
 
 
+LATE = 0.05
+
+
+def late_score(D, odds):
+    """The addendum's late-game target: log loss over samples with under 5% of the kickoff variance
+    left, each matchup's averaged, over matchups that reach it"""
+    y = D['y'][D['mi']]
+    p = odds.clamp(EPS, 1 - EPS)
+    ll = -(y * torch.log(p) + (1 - y) * torch.log(1 - p))
+    m = (D['left'] < LATE).float()
+    num = torch.zeros(D['M'], device=DEV).index_add_(0, D['mi'], ll * m)
+    den = torch.zeros(D['M'], device=DEV).index_add_(0, D['mi'], m)
+    keep = den > 0
+    return (num[keep] / den[keep]).cpu().numpy(), keep.cpu().numpy()
+
+
+def late_look():
+    """Exploratory: the late-game score of variants already tested, each fitted leaving the season out"""
+    data = {s: to_dev(flat(s)) for s in SEASONS}
+    thinned = {s: thin(D) for s, D in data.items()}
+    thinner = {s: thin(D, 8) for s, D in data.items()}
+    variants = {'L1a one multiplier': (odds_l1, [0.0], thinned), 'L1b multiplier by variance left': (lambda D, th: odds_l1(D, th, curve=True), [0.0] * len(KNOTS), thinned),
+                'L1c Student-t': (odds_t, [0.4, 2.0], thinner)}
+    print('late-game log loss (under 5% of the kickoff variance left), each season fitted on the others:')
+    print('season   ' + '   '.join(f'{k:>32}' for k in variants))
+    for s, D in data.items():
+        vals = []
+        for name, (fn, init, th_data) in variants.items():
+            th = fit([th_data[o] for o in SEASONS if o != s], fn, init)
+            v, _ = late_score(D, fn(D, th)); vals.append(v.mean())
+        print(f'{s}     ' + '   '.join(f'{v:32.4f}' for v in vals), flush=True)
+
+
+def injuries_vegas():
+    d = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}'))
+    f = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}{s}'))
+    rung_dirs('Injuries, oracle: an injured player who never records another stat is zeroed', d('injoracle'), ceiling=True)
+    rung_dirs('Injuries, model: chance he returns by minutes since with no stat', f('injmodel'))
+    rung_dirs('Vegas: projection + beta x team implied points', f('vegas'))
+
+
 def main():
+    if '--injuries' in sys.argv: return injuries_vegas()
+    if '--late' in sys.argv: return late_look()
     if '--l4' in sys.argv: return rung45()
     if '--l3' in sys.argv: return rung3()
     if '--l3b-fit' in sys.argv: return fit_variances()

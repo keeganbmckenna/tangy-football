@@ -19,7 +19,7 @@ brackets) is left to the replay, which ends each player at his official points.
 Writes cache/live_components/{season}.pkl (git-ignored). --check compares each player's
 half-PPR total from these stats with Sleeper's weekly stats.
 """
-import gzip, json, os, pickle, sys
+import gzip, json, os, pickle, re, sys
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Pool
@@ -224,11 +224,37 @@ def play_stats(p, sid, pos):
     return out
 
 
+INJURED = re.compile(r'([A-Z]{2,3})-\d{1,2}-([A-Z][A-Za-z.\' -]+?) was injured during the play')
+NAME_COLS = (('passer_player_name', 'passer_player_id'), ('rusher_player_name', 'rusher_player_id'),
+             ('receiver_player_name', 'receiver_player_id'), ('kicker_player_name', 'kicker_player_id'))
+
+
+def injuries_by_week(pbp, sid):
+    """week -> [(time, Sleeper ID)]: fantasy players the play text says were injured (penalized
+    plays too), matched by team and short name to the players the season's plays name"""
+    known = {}
+    for name_col, id_col in NAME_COLS:
+        sub = pbp[[name_col, id_col, 'posteam']].dropna().drop_duplicates()
+        for n, g, tm in sub.itertuples(index=False):
+            known[(team(tm), n)] = g
+    out = defaultdict(list)
+    hits = pbp[pbp.desc.str.contains('was injured during the play', na=False)]
+    for p in hits.itertuples():
+        t = epoch(p.time_of_day)
+        if t is None: continue
+        for tm, name in INJURED.findall(p.desc):
+            who = sid(known.get((team(tm), name.strip())))
+            if who: out[int(p.week)].append((t, who))
+    return out
+
+
 def season_components(season):
     pbp = pd.read_parquet(os.path.join(PBP, f'play_by_play_{season}.parquet'))
-    pbp = pbp[(pbp.season_type == 'REG') & (pbp.play_type != 'no_play')]
+    pbp = pbp[pbp.season_type == 'REG']
     ids, pos = ids_for(season), positions(season)
     sid = lambda g: ids.get(g) if isinstance(g, str) else None
+    injured = injuries_by_week(pbp, sid)
+    pbp = pbp[pbp.play_type != 'no_play']
     weeks = {}
     for week, wk in pbp.groupby('week'):
         games, who_ix, ev = [], {}, []
@@ -261,7 +287,7 @@ def season_components(season):
                 nxt = np.array(situ[1:] + [(0.0, 0.0, 0.0)], dtype=np.float32)
                 games.append((home, away, np.array(snaps, dtype=np.int64), nxt))
         ev = np.array(ev, dtype=[('t', 'i8'), ('who', 'i4'), ('k', 'i2'), ('v', 'f4')])
-        weeks[int(week)] = {'games': games, 'ids': list(who_ix), 'ev': ev}
+        weeks[int(week)] = {'games': games, 'ids': list(who_ix), 'ev': ev, 'injured': injured.get(int(week), [])}
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, f'{season}.pkl'), 'wb') as f: pickle.dump(weeks, f)
     n = sum(len(w['ev']) for w in weeks.values())
