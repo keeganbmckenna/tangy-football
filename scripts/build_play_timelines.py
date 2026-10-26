@@ -15,7 +15,9 @@ Scoring uses the league's own settings. Bonuses, stat corrections and anything t
 misses are made up by the gap to the official final, spread over the player's game.
 web/scripts/build-win-history.ts turns these into win odds with the Live tab's own model.
 
-    uv run python scripts/build_play_timelines.py 2025 [--weeks 1 2 3 | --recent 2]
+    uv run python scripts/build_play_timelines.py 2025 [--weeks 1 2 3 | --recent 2 | --current]
+
+--current replays the week in progress, through the games played so far.
 
 Writes scripts/cache/timelines/{season}/{week}.json (git-ignored; the win history built from
 it is what's committed). Downloads nflverse files into scripts/cache/nflverse/.
@@ -48,8 +50,8 @@ def get(url: str):
         return json.load(r)
 
 
-def download(url: str, path: Path) -> Path:
-    if not path.exists():
+def download(url: str, path: Path, refresh: bool = False) -> Path:
+    if refresh or not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         req = urllib.request.Request(url, headers={"User-Agent": "tangy-football"})
         with urllib.request.urlopen(req, timeout=300) as r:
@@ -183,13 +185,18 @@ def play_points(p, s: dict, ids: dict) -> tuple[dict, dict]:
     return pts, dst
 
 
-def build(season: str, weeks: list[int] | None, recent: int | None = None) -> None:
+def build(season: str, weeks: list[int] | None, recent: int | None = None, current: bool = False) -> None:
     league = league_for(season)
     scoring = league.get("scoring_settings") or {}
     last = (league.get("settings") or {}).get("last_scored_leg") or 0
+    if current:
+        # The week in progress: Sleeper's current week, while it's past the last scored one
+        last = max(last, (league.get("settings") or {}).get("leg") or 0)
+        weeks = [last]
     pbp = pd.read_parquet(download(
         f"https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet",
         CACHE / "nflverse" / f"play_by_play_{season}.parquet",
+        refresh=current,  # The week in progress: the latest plays
     ))
     ids = crosswalk()
     gsis_of = {v: k for k, v in ids.items()}
@@ -251,9 +258,10 @@ def main() -> None:
     parser.add_argument("seasons", nargs="+")
     parser.add_argument("--weeks", nargs="*", type=int)
     parser.add_argument("--recent", type=int, help="only the last N scored weeks")
+    parser.add_argument("--current", action="store_true", help="the week in progress, through the games played so far")
     args = parser.parse_args()
     for season in args.seasons:
-        build(season, args.weeks, args.recent)
+        build(season, args.weeks, args.recent, args.current)
 
 
 if __name__ == "__main__":

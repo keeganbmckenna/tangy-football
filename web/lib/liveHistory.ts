@@ -87,3 +87,19 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
   });
   return { season, week, times: snapshots.map((s) => s.t), matchups: [...matchups.values()] };
 }
+
+/**
+ * Replace the week's saved snapshots up to the end of a replay with the replay's own points
+ * (scripts/build-win-history.ts --current): the week in progress, rebuilt from the play-by-play
+ * for the games played so far. Snapshots saved live after the replay's last point are kept.
+ */
+export async function replaceSnapshots(history: WinHistory): Promise<boolean> {
+  const k = key(history.season, history.week);
+  const end = history.times[history.times.length - 1] ?? 0;
+  const existing = ((await redis([['LRANGE', k, 0, -1]]))?.[0] as string[] | undefined) ?? [];
+  const later = existing.filter((r) => (JSON.parse(r) as Snapshot).t > end);
+  const replayed = history.times.map((t, i) =>
+    JSON.stringify({ t, m: history.matchups.map((m) => [m.matchupId, m.a, m.b, m.odds[i], m.scores[i][0], m.scores[i][1]]) } satisfies Snapshot)
+  );
+  return !!(await redis([['DEL', k], ['RPUSH', k, ...replayed, ...later], ['EXPIRE', k, KEEP_SECONDS]]));
+}

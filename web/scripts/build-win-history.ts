@@ -9,8 +9,11 @@
  * his official total: anything the play-by-play missed is added over his game.
  *
  *   npx tsx scripts/build-win-history.ts 2025 [--weeks 1 2 3 | --recent 2]
+ *   npx tsx --env-file=.env.local scripts/build-win-history.ts 2026 --current
  *
- * Writes public/data/win-history/{season}/{week}.json.
+ * Writes public/data/win-history/{season}/{week}.json. --current replays the week in progress
+ * (scripts/build_play_timelines.py --current) into the live snapshots in Redis instead
+ * (lib/liveHistory.ts), so its chart covers the games played before live saving caught them.
  */
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -20,6 +23,8 @@ import { SLEEPER_CONFIG } from '../lib/config';
 import type { SleeperLeague, SleeperMatchup, TeamStats } from '../lib/types';
 import { allowedPoints, gameRemaining, liveWinOdds, scoreSpread, type LiveGame } from '../lib/analyze/live';
 import { allowedScoring, starterProjections } from '../lib/liveProjections';
+import { replaceSnapshots } from '../lib/liveHistory';
+import { teamsPlaying } from '../lib/oddsData';
 import type { WinHistory } from '../lib/winHistory';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -94,7 +99,12 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     teamGame.set(g.home, { home: true, opponent: g.away, snaps: g.snaps });
     teamGame.set(g.away, { home: false, opponent: g.home, snaps: g.snaps });
   }
-  const pregame: Record<string, LiveGame> = Object.fromEntries([...teamGame.keys()].map((t) => [t, { state: 'pre', remaining: 1, label: '' } as LiveGame]));
+  // Teams that play this week but aren't in the play-by-play yet (the week in progress): not kicked off
+  const scheduled = (await teamsPlaying(league.season))?.[week] ?? new Set<string>();
+  const unplayed = [...scheduled].filter((t) => !teamGame.has(t));
+  const pregame: Record<string, LiveGame> = Object.fromEntries(
+    [...teamGame.keys(), ...unplayed].map((t) => [t, { state: 'pre', remaining: 1, label: '' } as LiveGame])
+  );
   const projections = await starterProjections(league.season, week, week - 1, matchups, pregame, scoring, tl.injuries);
   if (!projections) throw new Error(`No projections for ${league.season} week ${week}`);
   const ptsAllowed = allowedScoring(scoring);
@@ -142,6 +152,7 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
   for (const t of sampled) {
     const games: Record<string, LiveGame> = {};
     for (const team of teamGame.keys()) games[team] = gameAt(team, t)!;
+    for (const team of unplayed) games[team] = { state: 'pre', remaining: 1, label: '' };
     const allowed: Record<string, number> = {};
     const pointsAt = (id: string) => {
       const team = teamOf(id);
@@ -178,13 +189,25 @@ async function main() {
   const args = process.argv.slice(2);
   const i = args.indexOf('--weeks');
   const r = args.indexOf('--recent');
+  const current = args.includes('--current');
   const recent = r >= 0 ? Number(args[r + 1]) : null;
-  const seasons = args.slice(0, [i, r].filter((x) => x >= 0).sort((x, y) => x - y)[0] ?? args.length).filter((a) => /^\d{4}$/.test(a));
-  const onlyWeeks = i >= 0 ? args.slice(i + 1).filter((a) => /^\d+$/.test(a)).map(Number) : null;
+  const seasons = args.filter((a) => /^\d{4}$/.test(a));
+  const onlyWeeks = i >= 0 ? args.slice(i + 1).filter((a) => /^\d{1,2}$/.test(a)).map(Number) : null;
   for (const season of seasons) {
     const league = await leagueFor(season);
     const scoring = league.scoring_settings ?? {};
     const last = league.settings?.last_scored_leg ?? 0;
+    if (current) {
+      const week = league.settings?.leg ?? 0;
+      const history = week > last ? await buildWeek(league, week, scoring) : null;
+      if (!history) {
+        console.log(`${season}: no week in progress`);
+        continue;
+      }
+      const saved = await replaceSnapshots(history);
+      console.log(`${season} week ${week} (in progress): ${history.times.length} points ${saved ? 'saved to Redis' : 'NOT saved (no Redis credentials?)'}`);
+      continue;
+    }
     const all = Array.from({ length: last }, (_, k) => k + 1);
     for (const week of onlyWeeks ?? (recent ? all.slice(-recent) : all)) {
       const history = await buildWeek(league, week, scoring);
