@@ -176,3 +176,30 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
   `previousModel` keeps logging for P1. No 2026 data used. The Power Rankings' rank ranges now use
   a strength uncertainty measured including the playoff weeks (descriptive; the odds' tau is
   unchanged, tau_playoffs.py fell under the bar).
+
+## Addendum (2026-10-26): further live-odds tests, set before their data is examined
+
+Five more tests, on the live addendum's primary score and adoption rule (>= 0.002 lower
+time-averaged log loss, 95% interval resampling leagues excluding 0, >= 6 of 8 held-out
+seasons) unless stated, each logged in LOG.md before it runs:
+
+1. **In-game injuries.** Plays the play-by-play marks "was injured during the play": the injured
+   starter's remaining expected points scaled by the chance he returns given the minutes since
+   with no further involvement (fitted on the training seasons). First its ceiling (an oracle
+   that knows whether he returns); the model only if the ceiling reaches the bar.
+2. **Vegas lines.** First a diagnostic on the player-week table: does a player's miss on his
+   Sleeper projection track his team's implied points (nflverse closing spread and total)? A
+   model only if it does (partial correlation with an interval excluding 0).
+3. **Team strength as a state-space model** (season odds): reported against the shipped fitted
+   model under the season addendum's rule, and the Power Rankings' ranges checked for coverage.
+4. **Late-game accuracy.** A secondary target, set now: log loss over samples where under 5% of
+   a matchup's kickoff variance is left. Tested: each player's remaining points drawn from their
+   empirical distribution (by position and share of game left, training seasons) instead of a
+   normal. Adoption on the primary score as usual; the late-game score is reported, and a
+   variant that improves only it (>= 0.01, 6 of 8) is reported as a candidate, not adopted.
+5. **Kalshi player props.** 2026 weeks 1-7 are exploration (kalshi_live.py). Fitted on 2025's
+   per-stat props (anytime TD from week 1; yards ladders from week 5; receptions and passing TDs
+   later), converted to expected half-PPR points; scored on 2025 crawled leagues' replays,
+   leaving each 2025 week out, on the weeks the props cover. The confirmatory test is one-shot
+   on 2026 weeks 8 through 18 of crawled leagues, after the season, with the blend frozen before
+   week 8's data is examined.
