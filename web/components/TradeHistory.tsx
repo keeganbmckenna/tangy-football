@@ -9,6 +9,7 @@ import { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
+import { getHeatmapColorByRatio } from '@/lib/constants';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
 import { tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
@@ -83,6 +84,8 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
   };
   const sort = useTableSort('traders');
   const [showAll, setShowAll] = useState(false);
+  // Trade partners grid: a pair of managers whose trades the list shows
+  const [pair, setPair] = useState<[string, string] | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const me = useMyTeam();
 
@@ -113,6 +116,21 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
     [shown]
   );
   const stats = useMemo(() => tradeLeaders(trades, userOf.id), [trades, userOf]);
+  // How many times each pair of managers traded
+  const partners = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const { season, trade } of trades) {
+      const ids = [...new Set(trade.sides.map((s) => userOf.id(season, s.rosterId)).filter((id): id is string => !!id))];
+      for (const a of ids) for (const b of ids) if (a !== b) counts.set(`${a}|${b}`, (counts.get(`${a}|${b}`) ?? 0) + 1);
+    }
+    return counts;
+  }, [trades, userOf]);
+  const listed = pair
+    ? trades.filter(({ season, trade }) => {
+        const ids = trade.sides.map((s) => userOf.id(season, s.rosterId));
+        return ids.includes(pair[0]) && ids.includes(pair[1]);
+      })
+    : trades;
 
   const subtitle =
     'Every trade since the league moved to Sleeper: what it did to each team’s odds at the time, and how the players it brought in actually scored.';
@@ -336,9 +354,75 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
               {sideList('Best hauls in hindsight', stats.bestHauls, (s) => `${s.side.hindsight.points.toFixed(1)} pts`)}
             </div>
 
+            {partners.size > 0 && (() => {
+              const traders = stats.leaders.map((r) => r.userId).filter((id) => [...partners.keys()].some((k) => k.startsWith(`${id}|`)));
+              const most = Math.max(...partners.values());
+              return (
+                <div>
+                  <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">Trade partners ({seasonLabel})</h4>
+                  <div className="overflow-x-auto">
+                    <table className="text-xs">
+                      <thead>
+                        <tr>
+                          <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)]" />
+                          {traders.map((id) => (
+                            <th key={id} className="px-0.5 pb-2 font-medium text-[var(--muted)]">
+                              <div className="mx-auto w-11 truncate" title={nameOf(id)}>{nameOf(id)}</div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {traders.map((row) => (
+                          <tr key={row}>
+                            <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)] pr-2 text-left font-medium text-[var(--foreground)]">
+                              <div className="w-20 truncate" title={nameOf(row)}>{nameOf(row)}</div>
+                            </th>
+                            {traders.map((col) => {
+                              if (row === col) return <td key={col} className="h-8 w-11 bg-[var(--neutral-bg)]" />;
+                              const n = partners.get(`${row}|${col}`) ?? 0;
+                              if (!n) return <td key={col} className="h-8 w-11 text-center text-[var(--muted)]">·</td>;
+                              const { backgroundColor, textColor } = getHeatmapColorByRatio(0.25 + (0.75 * n) / most);
+                              const on = pair?.[0] === row && pair?.[1] === col;
+                              return (
+                                <td key={col} className="p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPair([row, col]);
+                                      listRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                                    }}
+                                    className={`heat-cell h-7 w-11 rounded text-center font-semibold ${on ? 'ring-2 ring-[var(--accent)]' : ''}`}
+                                    style={{ backgroundColor, color: textColor }}
+                                    title={`${nameOf(row)} and ${nameOf(col)}: ${n} trade${n === 1 ? '' : 's'}`}
+                                  >
+                                    {n}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-2 text-xs text-[var(--muted)]">Trades between each pair of managers. Tap a cell for those trades.</p>
+                </div>
+              );
+            })()}
+
             <div ref={listRef} className="scroll-mt-48">
               <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">
-                {showAll || trades.length <= COLLAPSED_TRADES ? `Every trade (${trades.length})` : `Latest ${COLLAPSED_TRADES} of ${trades.length} trades`}
+                {pair
+                  ? `${nameOf(pair[0])} and ${nameOf(pair[1])}: ${listed.length} trade${listed.length === 1 ? '' : 's'}`
+                  : showAll || trades.length <= COLLAPSED_TRADES
+                    ? `Every trade (${trades.length})`
+                    : `Latest ${COLLAPSED_TRADES} of ${trades.length} trades`}
+                {pair && (
+                  <button type="button" onClick={() => setPair(null)} className="ml-2 text-xs font-medium text-[var(--muted)] underline hover:text-[var(--foreground)]">
+                    Show all
+                  </button>
+                )}
               </h4>
               <div className="mb-2 hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] md:grid">
                 <span>Manager</span>
@@ -347,7 +431,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                 <span>Finished</span>
               </div>
               <div className="space-y-4">
-                {(showAll ? trades : trades.slice(0, COLLAPSED_TRADES)).map(({ season, trade: t }) => (
+                {(showAll || pair ? listed : listed.slice(0, COLLAPSED_TRADES)).map(({ season, trade: t }) => (
                   <div key={`${season}-${t.id}`} className="rounded-lg border border-[var(--border)] px-4">
                     <div className="border-b border-[var(--border)] py-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                       {season} · Week {t.week}
@@ -359,7 +443,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                   </div>
                 ))}
               </div>
-              {trades.length > COLLAPSED_TRADES && (
+              {!pair && trades.length > COLLAPSED_TRADES && (
                 <button
                   type="button"
                   onClick={() => {
