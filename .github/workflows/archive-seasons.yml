@@ -15,7 +15,7 @@ jobs:
   archive:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Archive completed seasons
         run: python3 scripts/archive_season.py
       - name: Commit and push

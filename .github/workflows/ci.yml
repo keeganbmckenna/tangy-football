@@ -25,8 +25,8 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -40,7 +40,7 @@ jobs:
         run: npx vitest run
       # Next.js's build cache between runs: only what changed gets rebuilt. Keyed on the
       # dependencies and the source, falling back to the latest cache for the same dependencies.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: web/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}-${{ hashFiles('web/app/**', 'web/components/**', 'web/hooks/**', 'web/lib/**') }}
@@ -52,8 +52,8 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
       - name: Compile check
