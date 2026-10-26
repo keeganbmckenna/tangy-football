@@ -224,3 +224,11 @@ The averaged scores hide the moments where a fantasy matchup hinges on one last 
 - **Adoption** (set now): the high-leverage score improves by >= 0.01 with a 95% interval
   resampling leagues excluding 0, in >= 6 of 8 seasons, and the primary score doesn't get worse
   by more than 0.0005 in any season.
+- **Test 6 confirmation (2026-10-26, after seeing only 2022-2025 on this target).** Variant 6a/6b
+  missed its preregistered bar (high-leverage score -0.0005 to -0.0007, 0 of 8 at 0.01). An
+  exploratory look at 2022-2025 restricted to pivotal end-game moments (a matchup starter in a
+  game's last 5 minutes and the drive model moving the odds 5+ points; chosen on the two models'
+  predictions only, not outcomes) found -0.055 to -0.066 log loss (6b). Confirmation, set now, on
+  the untouched 2018-2021: 6b's log loss on those pivotal moments improves by >= 0.01 with a 95%
+  interval resampling leagues excluding 0, in >= 3 of the 4 seasons. If it confirms, 6b ships for
+  the Live tab's last minutes only, and the win-history charts are rebuilt.
