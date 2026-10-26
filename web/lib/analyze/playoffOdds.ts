@@ -563,6 +563,8 @@ export function simulatePlayoffOdds(
       let sb = score(g.week, g.b);
       const winner = forced?.[gi];
       if ((winner === g.a && sa < sb) || (winner === g.b && sb < sa)) [sa, sb] = [sb, sa];
+      // A tie goes to b below: a picked winner wins it
+      if (winner === g.a && sa === sb) sa += 0.01;
       a.pointsFor += sa;
       b.pointsFor += sb;
       if (sa > sb) {

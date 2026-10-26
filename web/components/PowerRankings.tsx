@@ -34,8 +34,13 @@ export default function PowerRankings({ season, teamStats }: PowerRankingsProps)
   const n = Object.keys(strength).length;
   const stats = new Map(teamStats.map((t) => [t.rosterId, t]));
   const records = new Map(data.teams.map((t) => [t.rosterId, formatRecord(t.wins, t.losses, t.ties)]));
-  const previous = history?.checkpoints.find((c) => c.week === data.lastScoredWeek - 1)?.strength;
-  const lastRanks = previous ? ranksOf(previous) : null;
+  // The move since last week, with both weeks from the odds history: the same model run the same
+  // way (the ranks shown also count this week's injuries, which last week's can't, so comparing
+  // them would show injuries as moves)
+  const checkpoint = (week: number) => history?.checkpoints.find((c) => c.week === week)?.strength;
+  const [previous, current] = [checkpoint(data.lastScoredWeek - 1), checkpoint(data.lastScoredWeek)];
+  const lastRanks = previous && current ? ranksOf(previous) : null;
+  const nowRanks = previous && current ? ranksOf(current) : null;
   const rows = Object.entries(strength)
     .map(([id, s]) => ({ rosterId: Number(id), ...s }))
     .sort((a, b) => a.rank - b.rank);
@@ -57,7 +62,9 @@ export default function PowerRankings({ season, teamStats }: PowerRankingsProps)
     >
       <ul className="divide-y divide-[var(--border)]">
         {rows.map((r) => {
-          const move = lastRanks?.get(r.rosterId) !== undefined ? lastRanks.get(r.rosterId)! - r.rank : null;
+          const before = lastRanks?.get(r.rosterId);
+          const after = nowRanks?.get(r.rosterId);
+          const move = before !== undefined && after !== undefined ? before - after : null;
           const name = stats.get(r.rosterId)?.teamName ?? `Team ${r.rosterId}`;
           return (
             <li key={r.rosterId} className={`flex items-center gap-3 px-4 py-2.5 sm:px-6 ${mineRow(r.rosterId === me.rosterId)}`}>

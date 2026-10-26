@@ -75,7 +75,9 @@ export function calculateStandingsOverTime(teams: TeamStats[], maxWeek?: number)
       let points = 0;
 
       for (let w = 0; w <= week; w++) {
+        // Ties count as half a win, as everywhere else
         if (team.weeklyResults[w] === 'W') wins++;
+        else if (team.weeklyResults[w] === 'T') wins += 0.5;
         points += team.weeklyScores[w] || 0;
       }
 

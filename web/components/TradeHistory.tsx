@@ -14,6 +14,7 @@ import { formatOdds } from '@/lib/analyze/playoffOdds';
 import { tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
 import type { TradeHistoryResponse, TradeHistorySide } from '@/lib/analyze/trade';
+import { signed } from '@/lib/format';
 
 interface TradeHistoryProps {
   history: HistoryData;
@@ -24,7 +25,7 @@ const ordinal = (n: number) => {
   const v = n % 100;
   return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 };
-const pp = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(d * 100).toFixed(1)}`;
+const pp = (d: number) => signed(d * 100);
 
 function Change({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
   const d = (after - before) * 100;
@@ -210,8 +211,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                 </div>
               )}
               <div className="text-xs text-[var(--muted)]">
-                Projected lineup {side.atTime.lineupPerWeek >= 0 ? '+' : '−'}
-                {Math.abs(side.atTime.lineupPerWeek).toFixed(1)} pts/wk
+                Projected lineup {signed(side.atTime.lineupPerWeek)} pts/wk
               </div>
             </div>
           ) : (

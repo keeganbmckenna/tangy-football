@@ -40,7 +40,7 @@ export function PlayerLabel({ insights, id }: { insights: SeasonInsights; id: st
   );
 }
 
-export const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(digits)}`;
+export { signed } from '@/lib/format';
 
 export const TH = 'px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-[var(--muted)] sm:px-4';
 export const TD = 'px-3 py-3 whitespace-nowrap text-center text-sm tabular-nums text-[var(--foreground)] sm:px-4';

@@ -7,6 +7,7 @@ import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { formatOdds, type PlayoffOddsResponse } from '@/lib/analyze/playoffOdds';
 import type { TeamStats } from '@/lib/types';
+import { percent } from '@/lib/format';
 
 interface GamesAheadProps {
   gameOdds: NonNullable<PlayoffOddsResponse['gameOdds']>;
@@ -136,7 +137,7 @@ export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadPro
                       const { backgroundColor, textColor } = cellColor(g.win);
                       return (
                         <td key={w} className="rounded py-1.5 font-semibold" style={{ backgroundColor, color: textColor }} title={`Week ${w} vs ${name(g.opponent)}: ${formatOdds(g.win)}`}>
-                          {Math.round(g.win * 100)}
+                          {percent(g.win, '')}
                         </td>
                       );
                     })}

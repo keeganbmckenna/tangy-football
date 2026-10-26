@@ -20,6 +20,7 @@ import {
 } from '@/lib/analyze/trade';
 import type { OddsRequest } from '@/lib/analyze/trade.worker';
 import type { TeamStats } from '@/lib/types';
+import { signed } from '@/lib/format';
 
 export interface TradePreset {
   teamA: number;
@@ -87,7 +88,6 @@ function useOddsSimulator() {
 // ---------------------------------------------------------------------------
 // Formatting
 
-const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(digits)}`;
 
 /** Change in percentage points; changes under half a point are within the model's precision */
 function OddsChange({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {

@@ -6,6 +6,7 @@ import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { formatOdds, simulatePlayoffOdds, type PlayoffOddsResponse } from '@/lib/analyze/playoffOdds';
 import type { TeamStats } from '@/lib/types';
+import { pointsChange } from '@/lib/format';
 
 const SIMS = 10000;
 
@@ -63,7 +64,7 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
       return next;
     });
   const change = (now: number, then: number) => {
-    const d = Math.round((then - now) * 100);
+    const d = pointsChange(now, then);
     if (Math.abs(d) < 1) return null;
     return (
       <span className="ml-0.5 text-[10px] font-medium sm:ml-1 sm:text-xs" style={{ color: d > 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>

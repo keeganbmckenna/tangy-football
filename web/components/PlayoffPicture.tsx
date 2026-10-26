@@ -18,6 +18,7 @@ import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { formatOdds, type OutcomeOdds, type OddsTeam, type ProjectedBracketGame, type TeamScenarios } from '@/lib/analyze/playoffOdds';
 import type { TeamStats } from '@/lib/types';
+import { pointsChange } from '@/lib/format';
 
 interface PlayoffPictureProps {
   /** Current season's team stats, for names and divisions */
@@ -442,7 +443,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                             <span style={{ color: RESULT_DOT_COLORS.W }}>{pct(o.ifWin[swingOutcome]!)}</span>
                             <span className="text-[var(--muted)]"> / </span>
                             <span style={{ color: RESULT_DOT_COLORS.L }}>{pct(o.ifLoss[swingOutcome]!)}</span>
-                            <span className="ml-1.5 text-xs text-[var(--muted)]">±{Math.round(Math.abs(o.ifWin[swingOutcome]! - o.ifLoss[swingOutcome]!) * 100)}</span>
+                            <span className="ml-1.5 text-xs text-[var(--muted)]">±{Math.abs(pointsChange(o.ifLoss[swingOutcome]!, o.ifWin[swingOutcome]!))}</span>
                           </>
                         ) : (
                           <span className="text-[var(--muted)]">—</span>

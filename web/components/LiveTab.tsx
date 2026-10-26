@@ -36,6 +36,7 @@ import {
   type PlayoffStatus,
 } from '@/lib/analyze/live';
 import type { LeagueData, TeamStats } from '@/lib/types';
+import { percent } from '@/lib/format';
 
 // While a week is in progress and the tab is visible: scores and game clocks every 10
 // seconds while an NFL game is being played (once a minute between games), and the rest
@@ -61,7 +62,7 @@ function TeamCell({ team }: { team: TeamStats }) {
   return <TeamName name={team.teamName} sub={`@${team.username}`} />;
 }
 
-const oddsText = (p: number) => (p > 0.995 ? '>99%' : p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`);
+const oddsText = (p: number) => percent(p);
 
 function SideSummary({ side, name, username, avatarUrl, align }: { side: LiveSide; name: string; username: string; avatarUrl: string | null; align: 'left' | 'right' }) {
   const left = [side.playing && `${side.playing} playing`, side.toPlay && `${side.toPlay} to play`].filter(Boolean).join(' · ') || 'done';

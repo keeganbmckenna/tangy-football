@@ -12,6 +12,7 @@ import { formatRecord } from '@/lib/analyze/playEveryone';
 import { lineupEfficiency, playerLeaders, teamMvps } from '@/lib/analyze/rosters';
 import type { TradeHistoryResponse } from '@/lib/analyze/trade';
 import type { LeagueData, PlayEveryoneStats, TeamStats, WeekMatchup } from '@/lib/types';
+import { signed } from '@/lib/format';
 
 interface SeasonReviewProps {
   season: string;
@@ -131,7 +132,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
             <Tile
               wide
               label="Best trade"
-              sub={`Week ${trade.t.week} with ${trade.t.sides.filter((s) => s.rosterId !== rosterId).map((s) => name(s.rosterId)).join(', ')} · ${trade.net >= 0 ? '+' : '−'}${Math.abs(trade.net).toFixed(1)} net pts`}
+              sub={`Week ${trade.t.week} with ${trade.t.sides.filter((s) => s.rosterId !== rosterId).map((s) => name(s.rosterId)).join(', ')} · ${signed(trade.net)} net pts`}
             >
               <span title={trade.s.receives.map(player).join(', ')}>
                 {trade.s.receives.map((id) => shortName(player(id))).join(', ') || trade.s.picks.join(', ') || 'Picks and FAAB'}
@@ -145,8 +146,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
           )}
           {myLuck && (
             <Tile label="Luck" sub={`Close games ${formatRecord(myLuck.close.wins, myLuck.close.losses, myLuck.close.ties)}`}>
-              {myLuck.total > 0 ? '+' : myLuck.total < 0 ? '−' : ''}
-              {Math.abs(myLuck.total).toFixed(1)} wins
+              {signed(myLuck.total)} wins
             </Tile>
           )}
           {low && high && (

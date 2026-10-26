@@ -12,6 +12,7 @@ import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
 import { getHeatmapColorByRatio } from '@/lib/constants';
+import { signed } from '@/lib/format';
 import {
   allTimeStandings,
   headToHead,
@@ -197,7 +198,7 @@ export default function HistoryTab() {
               <span className="font-semibold text-[var(--foreground)]">{nameOf(r.a)}</span>
               <span className="text-[var(--muted)]"> leads </span>
               <span className="text-[var(--foreground)]">{nameOf(r.b)}</span>
-              <span className="text-[var(--muted)]"> {record(r.wins, r.losses, r.ties)} ({r.games} games, {r.margin >= 0 ? '+' : '−'}{Math.abs(r.margin).toFixed(1)} per game)</span>
+              <span className="text-[var(--muted)]"> {record(r.wins, r.losses, r.ties)} ({r.games} games, {signed(r.margin)} per game)</span>
             </button>
           </li>
         ))}
@@ -412,8 +413,7 @@ export default function HistoryTab() {
                 </h4>
                 <span className="text-xs text-[var(--muted)]">
                   Points {pair.pointsFor.toFixed(1)} – {pair.pointsAgainst.toFixed(1)} · avg margin{' '}
-                  {(pair.pointsFor - pair.pointsAgainst) / pair.games.length >= 0 ? '+' : '−'}
-                  {Math.abs((pair.pointsFor - pair.pointsAgainst) / pair.games.length).toFixed(1)}
+                  {signed((pair.pointsFor - pair.pointsAgainst) / pair.games.length)}
                 </span>
               </div>
               <ul className="space-y-1 text-xs">

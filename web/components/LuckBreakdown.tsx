@@ -14,6 +14,7 @@ import { recordValue, sortRows } from '@/lib/tableSort';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { CLOSE_GAME_MARGIN, luckBreakdown } from '@/lib/analyze/luck';
 import type { PlayEveryoneStats, TeamStats, WeekMatchup } from '@/lib/types';
+import { asShown, signed } from '@/lib/format';
 
 interface LuckBreakdownProps {
   teams: TeamStats[];
@@ -21,8 +22,6 @@ interface LuckBreakdownProps {
   matchups: Record<number, WeekMatchup[]>;
   maxWeek: number;
 }
-
-const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(digits)}`;
 
 function LuckTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { name: string; luck: number; close: string } }> }) {
   if (!active || !payload?.length) return null;
@@ -63,7 +62,11 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
   }));
   const th = 'px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-[var(--muted)] sm:px-4';
   const td = 'px-3 py-3 whitespace-nowrap text-center text-sm tabular-nums sm:px-4';
-  const tone = (v: number) => (v >= 0.5 ? 'text-[var(--success-text)]' : v <= -0.5 ? 'text-[var(--danger-text)]' : 'text-[var(--foreground)]');
+  // Colored by the number shown, so "+0.5" is always green
+  const tone = (v: number) => {
+    const shown = asShown(v);
+    return shown >= 0.5 ? 'text-[var(--success-text)]' : shown <= -0.5 ? 'text-[var(--danger-text)]' : 'text-[var(--foreground)]';
+  };
 
   return (
     <SectionCard

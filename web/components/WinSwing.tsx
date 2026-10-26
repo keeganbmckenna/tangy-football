@@ -5,6 +5,7 @@ import { Area, AreaChart, Line, LineChart, ReferenceLine, ResponsiveContainer, T
 import { fetchFirst, useSharedFetch } from '@/hooks/useSharedFetch';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
 import { cleanPlay, type WinHistory } from '@/lib/winHistory';
+import { percent } from '@/lib/format';
 
 interface WinSwingProps {
   season: string;
@@ -56,7 +57,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
   const points = data.times.map((t, i) => {
     const p = flip ? 1 - m.odds[i] : m.odds[i];
     const [sa, sb] = flip ? [m.scores[i][1], m.scores[i][0]] : m.scores[i];
-    return { i, t, p: Math.round(p * 1000) / 10, sa, sb };
+    // In percent, unrounded: it's rounded once where it's shown
+    return { i, t, p: p * 100, sa, sb };
   });
   // Where each game day starts, for its label
   const days = points.filter((pt, i) => i === 0 || DAY.format(pt.t * 1000) !== DAY.format(points[i - 1].t * 1000));
@@ -83,7 +85,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
     />
   ));
   // The favorite and its chance (always 50% or more), from the left team's odds in percent
-  const favored = (p: number) => (p >= 50 ? `${a.name} ${p.toFixed(0)}%` : `${b.name} ${(100 - p).toFixed(0)}%`);
+  const favored = (p: number) => (p >= 50 ? `${a.name} ${percent(p / 100)}` : `${b.name} ${percent(1 - p / 100)}`);
   const tooltip = ({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: unknown }> }) => {
     const pt = active ? (payload?.[0]?.payload as (typeof points)[number] | undefined) : undefined;
     if (!pt) return null;
@@ -150,8 +152,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
             : live
               ? `${favored(points[points.length - 1].p)} now`
               : won
-                ? `${a.name} won from ${low.toFixed(0)}%`
-                : `${a.name} peaked at ${high.toFixed(0)}%`}
+                ? `${a.name} won from ${percent(low / 100)}`
+                : `${a.name} peaked at ${percent(high / 100)}`}
           {view === 'odds' && swings > 0 && ` · ${swings} lead change${swings === 1 ? '' : 's'}`}
         </div>
       </div>
@@ -283,8 +285,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
                   <span className="shrink-0 text-[var(--muted)]">{TIME.format(pl.t * 1000)} ET</span>
                   <span className="truncate font-semibold tabular-nums" style={{ color: markerColor(pl.helpsLeft) }}>
                     {/* From the side of the team the play helped */}
-                    {pl.helpsLeft ? a.name : b.name} {Math.round((pl.helpsLeft ? pl.before : 1 - pl.before) * 100)}% →{' '}
-                    {Math.round((pl.helpsLeft ? pl.after : 1 - pl.after) * 100)}%
+                    {pl.helpsLeft ? a.name : b.name} {percent(pl.helpsLeft ? pl.before : 1 - pl.before)} →{' '}
+                    {percent(pl.helpsLeft ? pl.after : 1 - pl.after)}
                   </span>
                 </div>
                 <div className="mt-0.5 text-[var(--foreground)]">{pl.desc ? cleanPlay(pl.desc) : 'Points changed (saved live, before the play-by-play)'}</div>

@@ -8,6 +8,7 @@ import type { TradeDataResponse } from '@/lib/analyze/trade';
 import type { WaiverPickup, WaiverProgress, WaiverTarget } from '@/lib/analyze/waiverFinder';
 import type { WaiverMessage, WaiverRequest } from '@/lib/analyze/waiverFinder.worker';
 import type { TeamStats } from '@/lib/types';
+import { signed } from '@/lib/format';
 
 interface WaiverFinderProps {
   data: TradeDataResponse;
@@ -29,7 +30,6 @@ function Change({ before, after, bad = false }: { before: number; after: number;
   );
 }
 
-const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
 
 export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
   // Starts on your team, if you've picked one in the header

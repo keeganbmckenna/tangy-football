@@ -8,6 +8,7 @@ import type { TradeDataResponse } from '@/lib/analyze/trade';
 import type { FinderProgress, FoundTrade } from '@/lib/analyze/tradeFinder';
 import type { FinderMessage, FinderRequest } from '@/lib/analyze/tradeFinder.worker';
 import type { TeamStats } from '@/lib/types';
+import { signed } from '@/lib/format';
 
 interface TradeFinderProps {
   data: TradeDataResponse;
@@ -38,7 +39,6 @@ function Change({ before, after, bad = false }: { before: number; after: number;
   );
 }
 
-const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
 
 export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProps) {
   // Starts on your team, if you've picked one in the header
