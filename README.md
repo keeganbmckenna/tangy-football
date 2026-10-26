@@ -43,7 +43,8 @@ During the regular season:
 After the regular season, and for past seasons, the **Playoff Bracket** (with placement games), the **Toilet Bowl** and the **Odds Week by Week** chart for the whole season. Tap a game that's been played for both lineups and benches, as in Overview's matchups.
 
 ### Weekly Performance
-- 📈 **Weekly Scores** - Every score, colored by win or loss, with season average and average score and margin in wins and losses.
+- 📈 **Weekly Scores** - Every score, colored by win or loss, with season average, average score and margin in wins and losses, and the league's median winning and losing score each week.
+- 📊 **Score Distribution** - Every team's weekly scores on one line, with spread, floor, ceiling, and boom and bust weeks.
 - 🔥 **Weekly Rankings Heatmap** - Each team's scoring rank each week, with average and median rank.
 
 ### Season Trends
@@ -51,8 +52,12 @@ Line charts of standings over time, cumulative scores, and points above or below
 
 ### Advanced Stats
 - 🎲 **Play Everyone** - Each team's record if it played every team every week, against its real record, with a luck factor.
+- 🍀 **Luck Breakdown** - Real wins against what each team's scoring deserved, split into schedule luck and opponents' off or career days, with close-game records.
 - 🎯 **Schedule Luck Distribution** - 20,000 random schedules per team, showing the range of records it could have had.
 - 📋 **Weekly Play-All** - Week-by-week play-all records as a heatmap.
+
+### Rosters (2022 onward)
+Lineup efficiency (points against the best possible lineup, losses the best lineup would have won), starters against Sleeper's projections, points by position, player leaders and team MVPs, and waiver pickups with FAAB spending in FAAB seasons. All from `/api/season-insights/{season}` (`web/lib/seasonInsights.ts`); completed seasons are pre-built JSON in `web/public/data/season-insights/`.
 
 ### Draft
 - 📋 **Draft Board** - By round for snake drafts, by team and price for auctions. Each pick shows points per available week (`/wk`: half-PPR points divided by the weeks the player could have played, so missed games count as zeros).
@@ -211,6 +216,7 @@ From `web/`: `npx tsc --noEmit` type-checks, `npm run lint` lints, `npx vitest r
 | [CI](.github/workflows/ci.yml) | Every push to `main` and every pull request | Type check, lint, tests and build of the web app; Python compile check |
 | [Prediction log](.github/workflows/prediction-log.yml) | Wednesdays, and before Thursday, Sunday and Monday kickoffs | Saves the site's odds and every player's injury status to the `prediction-log` branch for the 2026 evaluation |
 | [Archive seasons](.github/workflows/archive-seasons.yml) | Every March 15 | Adds the newly completed season to `data/sleeper/` |
+| [Win history](.github/workflows/win-history.yml) | Fridays, September to January | Replays the latest two scored weeks play by play into `web/public/data/win-history/` (each matchup's win odds through the week) |
 
 ## Deployment
 

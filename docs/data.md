@@ -21,9 +21,13 @@ The app's server routes fetch and cache all of it; durations are in `CACHE_CONFI
 | `data/sleeper/{season}/` | Completed seasons: league, users, rosters, brackets, draft, matchups, transactions, every player's weekly projections and stats, the NFL schedule. 2018-2021 hold NFL projections, stats and schedules only (Sleeper's projections start in 2018) | `scripts/archive_season.py`, run by the `Archive seasons` workflow every March 15 |
 | `web/public/data/drafts/{season}.json` | Pre-built draft boards for completed seasons | `scripts/build_draft_data.py` |
 | `web/public/data/trades/{season}.json` | Pre-built trade grades for completed seasons | `scripts/build_trade_history.py` |
-| `web/public/data/odds-history/{season}.json` | Pre-built week-by-week odds for completed seasons | `scripts/build_odds_history.py` |
+| `web/public/data/odds-history/{season}.json` | Pre-built week-by-week odds (and each team's model strength) for completed seasons | `scripts/build_odds_history.py` |
+| `web/public/data/season-insights/{season}.json` | Pre-built lineups (with the best possible lineup), starters' projections and waiver moves for completed seasons | `scripts/build_season_insights.py` |
+| `web/public/data/win-history/{season}/{week}.json` | Each matchup's win odds every 3 minutes of game time, replayed from nflverse play-by-play | `scripts/build_play_timelines.py`, then `web/scripts/build-win-history.ts`; the `Win history` workflow adds new weeks |
 | `web/lib/analyze/strengthModel.json` | The fitted odds-model weights | `scripts/backtests/export_model.py` |
 | `prediction-log` branch | The site's odds and every player's injury status before kickoffs and on Wednesdays, for the 2026 evaluation (Sleeper overwrites injury statuses, so they can't be recovered later) | The `Prediction log` workflow (`scripts/snapshot_predictions.py`) |
+
+The win history's play-by-play comes from [nflverse](https://github.com/nflverse/nflverse-data) (`play_by_play_{season}.parquet`, injury reports), matched to Sleeper players through DynastyProcess's ID table; downloads and the intermediate timelines stay in the git-ignored `scripts/cache/`. Each starter's replayed points end at his official Sleeper total.
 
 A finished season is static: Sleeper's stat corrections run through the Thursday after each
 week's games.
