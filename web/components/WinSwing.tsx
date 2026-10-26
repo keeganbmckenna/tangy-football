@@ -79,6 +79,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
       label={{ value: DAY.format(d.t * 1000), position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 9 }}
     />
   ));
+  // The favorite and its chance (always 50% or more), from the left team's odds in percent
+  const favored = (p: number) => (p >= 50 ? `${a.name} ${p.toFixed(0)}%` : `${b.name} ${(100 - p).toFixed(0)}%`);
   const tooltip = ({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: unknown }> }) => {
     const pt = active ? (payload?.[0]?.payload as (typeof points)[number] | undefined) : undefined;
     if (!pt) return null;
@@ -86,7 +88,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
       <div className="rounded-md border border-[var(--chart-tooltip-border)] bg-[var(--chart-tooltip-bg)] px-2 py-1 text-xs shadow">
         <div className="text-[var(--chart-tooltip-muted)]">{TIME.format(pt.t * 1000)} ET</div>
         <div className="font-semibold text-[var(--chart-tooltip-text)]">
-          {pt.sa.toFixed(1)}–{pt.sb.toFixed(1)} · {a.name} {pt.p.toFixed(0)}%
+          {pt.sa.toFixed(1)}–{pt.sb.toFixed(1)} · {favored(pt.p)}
         </div>
       </div>
     );
@@ -130,7 +132,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           {view === 'score'
             ? `${a.name} led ${ledShare}% of the time`
             : live
-              ? `${a.name} ${points[points.length - 1].p.toFixed(0)}% now`
+              ? `${favored(points[points.length - 1].p)} now`
               : won
                 ? `${a.name} won from ${low.toFixed(0)}%`
                 : `${a.name} peaked at ${high.toFixed(0)}%`}
@@ -210,7 +212,9 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           <div className="flex items-baseline justify-between gap-2">
             <span className="shrink-0 text-[var(--muted)]">{TIME.format(shown.t * 1000)} ET</span>
             <span className="truncate font-semibold tabular-nums" style={{ color: markerColor(shown.helpsLeft) }}>
-              {a.name} {Math.round(shown.before * 100)}% → {Math.round(shown.after * 100)}%
+              {/* From the side of the team the play helped */}
+              {shown.helpsLeft ? a.name : b.name} {Math.round((shown.helpsLeft ? shown.before : 1 - shown.before) * 100)}% →{' '}
+              {Math.round((shown.helpsLeft ? shown.after : 1 - shown.after) * 100)}%
             </span>
           </div>
           <div className="mt-0.5 text-[var(--foreground)]">{shown.desc ? cleanPlay(shown.desc) : 'Points changed (saved live, before the play-by-play)'}</div>
