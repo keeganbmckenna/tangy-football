@@ -77,8 +77,9 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
         <span>
           <strong>Expected</strong> is the wins a team&apos;s scoring deserved: its play-all record (as if it played every team
           every week) turned into a win rate over its real games. <strong>Luck</strong> is real wins minus expected: plus means
-          it won more than its scoring deserved, minus fewer. <strong>Close</strong> is its record in games decided by under{' '}
-          {CLOSE_GAME_MARGIN} points.
+          it won more than its scoring deserved, minus fewer. Over a 14-week season about 90% of teams land within 2.3 wins
+          either way. <strong>Close</strong> is its record in games decided by under {CLOSE_GAME_MARGIN} points. Both are luck:
+          across thousands of other leagues, neither carries over from one half of a season to the other.
         </span>
       }
     >
@@ -119,7 +120,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
               <SortableTh sort={sort} col="playAll" tip="Its record had it played every other team every week" className={th}>Play-all</SortableTh>
               <SortableTh sort={sort} col="expected" tip="Wins the team's scoring deserved: its play-all win rate times games played" className={th}>Expected</SortableTh>
               <SortableTh sort={sort} col="total" tip="Real wins minus expected wins" className={th}>Luck</SortableTh>
-              <SortableTh sort={sort} col="close" tip={`Record in games decided by under ${CLOSE_GAME_MARGIN} points`} tipAlign="right" className={th}>Close</SortableTh>
+              <SortableTh sort={sort} col="close" tip={`Record in games decided by under ${CLOSE_GAME_MARGIN} points: luck, not clutch`} tipAlign="right" className={th}>Close</SortableTh>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">

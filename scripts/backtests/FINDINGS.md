@@ -136,10 +136,11 @@ were made just before those games, which would leak information.
 - **Official injury reports** (`injuries.py`): nflverse's weekly reports for 2022-2025 (6,941
   QB/RB/WR/TE/K rows, all matched to Sleeper through DynastyProcess's ID table), against
   Sleeper's stats and pre-game projections. Of players listed **Doubtful, 0 of 134 played**
-  (the Live tab counts 30% of a doubtful player's projection before kickoff); Out, 1 of 937.
+  (so the Live tab counts nothing for a doubtful player before kickoff; 95% upper bound on
+  the rate 2.7%); Out, 1 of 937.
   **Questionable** players played 73% of the time and scored 0.89 of their pre-game
-  projection (95% 0.84-0.94), against 0.98 for players not on the report; the model counts
-  them in full. Players who played last week and are on this week's report played 81%
+  projection (95% 0.84-0.94), against 0.98 for players not on the report; the Live tab
+  counts 0.9 of it before kickoff (since 2026-10-22). Players who played last week and are on this week's report played 81%
   (Questionable 79%). Among players missing games for any reason, 52%, 30%, 22% and 19%
   played after missing 1, 2, 3 and 4+; not comparable to the model's return rates, which
   only cover injuries Sleeper projects to end.
@@ -147,8 +148,9 @@ were made just before those games, which would leak information.
 - **Other leagues** (`crawl_leagues.py`, `leagues_fit.py`): 2,025 redraft league-seasons like
   ours, 2018-2025 (about 300 a season for 2018-2021, 200 for 2022-2025; found through
   dezdroppedit27's and our managers' leagues and league histories; Sleeper's projections
-  start in 2018 and are equally predictive every season, correlation 0.52-0.56 with actual
-  points). Playoff odds from weeks 4, 7 and 10 (6,075 snapshots), intervals resampling
+  start in 2018, correlation 0.52-0.56 with actual points at the lineup level. At the player
+  level they were weaker in 2018, 2019 and 2021: a starter's points rose 0.64-0.72 per
+  projected point then, against 0.84-0.90 from 2022 on (live_eval.py's replay). Playoff odds from weeks 4, 7 and 10 (6,075 snapshots), intervals resampling
   leagues:
   - **The projection weight should be much lower.** Brier 0.1525 at 0.3 vs 0.1604 at 0.75
     (the site's), 0.1674 at 1.0; 0.2 and 0.1 are worse again. Better than 0.75 in all 8
@@ -276,6 +278,25 @@ were made just before those games, which would leak information.
   so each league's scoring applies) and test, in order, a spread recalibrated by time left,
   the projections' skew, a game-clock production curve, game state, correlated players, and
   player-level simulation.
+
+- **Which team stats measure something** (`stats_audit.py`, 2026-10-26): each stat on weeks
+  1-7 and again on weeks 8-14 of the same team-season, 45,753 crawled team-seasons
+  (2022-2025); the correlation says how much is the team and how much chance.
+
+  | Stat | Split-half r | Full-season reliability |
+  |---|---|---|
+  | Points per game | 0.69 | 0.81 |
+  | Luck (wins - all-play expected) | -0.01 | 0 |
+  | Close-game record | 0.01 | 0.02 |
+  | Weekly score SD | 0.06 | 0.12 |
+  | Boom weeks (league top quarter) | 0.21 | 0.35 (r 0.54 with the mean) |
+  | Lineup efficiency (vs hindsight best) | 0.47 | 0.64 |
+  | Start/sit vs the projections' best lineup | 0.59 | 0.74 |
+  | Starters vs their projections | 0.49 | 0.66 |
+
+  Luck and close games are luck, as labelled (a season's luck has an sd of 1.41 wins; 90% of
+  teams land within 2.3). A team's weekly spread is almost all chance, and its boom weeks
+  mostly say how good it is. Lineup decisions and beating projections are real.
 
 - **Live odds on the crawled leagues** (`live_components.py`, `live_replay.py`, `live_model.py`,
   `live_eval.py`, 2026-10-26, under the preregistered live addendum). Every stat of 2018-2025
