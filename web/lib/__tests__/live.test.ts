@@ -22,6 +22,7 @@ import {
   type LiveWeekData,
 } from '../analyze/live';
 import { rankTeams } from '../analyze/teamStats';
+import strengthModel from '../analyze/strengthModel.json';
 import type { LeagueData, SleeperMatchup, SleeperRoster, SleeperUser, TeamStats } from '../types';
 
 const m = (roster_id: number, matchup_id: number, points: number): SleeperMatchup => ({ roster_id, matchup_id, points });
@@ -345,3 +346,26 @@ describe('driveFor', () => {
   });
 });
 
+
+describe('live odds at kickoff agree with the single-game model', () => {
+  // Both forecast the same game: before any kickoff, the live spread for an average lineup in a
+  // league whose weekly spread is the single-game model's should be the single-game margin spread
+  it('gives the same margin spread when the league spread matches', () => {
+    const weeks = strengthModel.singleGame.weeks as Record<string, Record<string, { sd: number }>>;
+    for (const byAhead of Object.values(weeks)) {
+      const sd = byAhead['1'].sd;
+      const projections: Record<string, LiveProjection> = {};
+      const games: Record<string, LiveGame> = { KC: { state: 'pre', remaining: 1, label: '' } };
+      const matchups = [1, 2].map((r) => {
+        const starters = ['QB', 'RB', 'WR', 'TE'].map((position, i) => {
+          const id = `${r}-${i}`;
+          projections[id] = { points: 15, spreadRatio: 0.6, team: 'KC', name: id, position, injury: null };
+          return id;
+        });
+        return { roster_id: r, matchup_id: 1, starters, players: starters, players_points: {}, points: 0 } as SleeperMatchup;
+      });
+      const [odds] = liveWinOdds(matchups, projections, games, sd);
+      expect(odds.sd).toBeCloseTo(Math.SQRT2 * sd, 6);
+    }
+  });
+});

@@ -273,11 +273,14 @@ export function defenseExpected(
 }
 
 /**
- * A whole game's spread for one team at kickoff, as a share of the league's week-to-week
- * spread: fitted on 2022-2025's matchups with Sleeper's pre-kickoff projections
- * (scripts/backtests/live_pregame.py)
+ * A whole game's spread for one team, as a share of the league's week-to-week spread: about
+ * all of it, since a team's miss on its starters' projections is about as big as its week-to-week
+ * swings. Fitted on the live odds replayed every 3 minutes through 364,672 crawled matchups
+ * (scripts/backtests/live_eval.py): 0.7 x 1.43 (2022-2025's projections; 1.53-1.65 with
+ * 2018-2021's weaker ones). The earlier 0.7, picked on our ~260 kickoff matchups, left the odds
+ * overconfident at every stage of a week; this lowered log loss in all 8 held-out seasons.
  */
-export const LIVE_SPREAD_SCALE = 0.7;
+export const LIVE_SPREAD_SCALE = 1.0;
 
 /** What a defense has allowed so far, and the league's points-allowed scoring */
 export interface DefenseContext {

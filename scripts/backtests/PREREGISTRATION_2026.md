@@ -161,3 +161,10 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
     injury statuses are from after the season.
   - Past seasons' trade grades regenerated on the fitted models.
 
+- 2026-10-26: **the Live tab's spread scale changes from 0.7 to 1.0** under the live addendum's
+  rule. Rung 1 (one multiplier on the spread) lowered the primary score in all 8 held-out
+  seasons of the crawled replay (-0.004 to -0.146; live_eval.py, LOG.md); the value shipped is
+  the fit on 2022-2025 (x1.43; projections like Sleeper's now). Rungs 2-3 and two added variants
+  (logged as deviations before their runs) failed. No 2026 data used. The win history is
+  rebuilt with the new scale. **P3** (the archive replay at kickoff) is scored on both scales.
+  The one-shot crawled-2026 confirmation covers this model.

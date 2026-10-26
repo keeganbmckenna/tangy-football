@@ -98,8 +98,19 @@ a chance of overtime when a game is close late. Before kickoff, players ruled ou
 count for nothing and Questionable ones for 90% of their projection: no Doubtful player played
 (0 of 134) and Questionable players scored 0.89 of their projection (95% 0.84 to 0.94), in NFL
 injury reports from 2022-2025 (`injuries.py`). The uncertainty sums the starters' boom-or-bust
-spreads, scaled so a whole game matches 0.7 of the league's weekly spread, which was well
-calibrated at kickoff (`live_pregame.py`).
+spreads, scaled so a whole game matches the league's week-to-week spread.
+
+**Evidence** (`live_replay.py`, `live_eval.py`; the preregistered live addendum): the site's
+model, ported to PyTorch and checked against this code, replayed every 3 minutes of game time
+through 364,672 matchups of crawled 12-team leagues (2018-2025), scored by log loss averaged
+over each matchup's week. The earlier scale (0.7, picked on our ~260 kickoff matchups) was
+overconfident at every stage: final margins landed 1.4-1.5x the model's spread from kickoff to
+the last few minutes, with no bias. Widening the spread lowered log loss in all 8 held-out
+seasons (by 0.004 to 0.06). The scale ships at 1.0, the fit on 2022-2025, whose projections
+are like Sleeper's now. Tested and not adopted: a spread that changes with the time left,
+skewed scoring, a weight on the projections, scoring that speeds up late in games, per-player
+variance growing with the projection rather than its square (real, but 0.0002-0.0027), and a
+heavier-tailed link.
 
 **Win history** (`web/scripts/build-win-history.ts`): the same model replayed through each
 finished week from nflverse play-by-play, every 3 minutes of game time on each game's real
@@ -125,7 +136,7 @@ heavier-tailed or shrunk weekly noise; recency-weighted, median and last-3-week 
 terms; per-team uncertainty; projection-only player values; streaming from waivers; bench depth;
 roster activity and managers' track records (they help only by spotting abandoned teams, which
 an active league like ours doesn't have); and correlated players such as QB-WR stacks
-(+0.29 correlation, but no effect on kickoff win odds).
+(+0.29 correlation, but no effect on kickoff win odds). For the Live tab, see its section.
 
 ## Changing a model
 
