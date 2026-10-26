@@ -25,7 +25,7 @@ import { allowedPoints, gameRemaining, liveWinOdds, scoreSpread, type LiveGame }
 import { allowedScoring, starterProjections } from '../lib/liveProjections';
 import { replaceSnapshots } from '../lib/liveHistory';
 import { teamsPlaying } from '../lib/oddsData';
-import type { WinHistory } from '../lib/winHistory';
+import { biggestPlays, cleanPlay, type PlayEvent, type WinHistory } from '../lib/winHistory';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TIMELINES = join(HERE, '..', '..', 'scripts', 'cache', 'timelines');
@@ -45,6 +45,8 @@ interface Timeline {
   injuries: Record<string, string>;
   /** Each starter's official points */
   final: Record<string, number>;
+  /** [time, description] of each play that changed a starter's points (older timelines lack them) */
+  plays?: Array<[number, string]>;
 }
 
 const getJson = async <T>(url: string): Promise<T> => {
@@ -148,8 +150,8 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     })
   );
 
-  const series = new Map<number, { a: number; b: number; odds: number[]; scores: Array<[number, number]> }>();
-  for (const t of sampled) {
+  // Every starter's points and each matchup's odds at a moment
+  const evaluate = (t: number) => {
     const games: Record<string, LiveGame> = {};
     for (const team of teamGame.keys()) games[team] = gameAt(team, t)!;
     for (const team of unplayed) games[team] = { state: 'pre', remaining: 1, label: '' };
@@ -165,18 +167,52 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
       }
       return (at(tl.players[id], t)?.[1] ?? 0) + spreadGap;
     };
+    const points = new Map<string, number>();
     const atT = matchups.map((m) => {
       const starters = (m.starters ?? []).filter((id) => id && id !== '0');
       const players_points = Object.fromEntries(starters.map((id) => [id, Math.round(pointsAt(id) * 100) / 100]));
+      starters.forEach((id) => points.set(id, players_points[id]));
       return { ...m, players_points, points: starters.reduce((s, id) => s + players_points[id], 0) };
     });
-    for (const o of liveWinOdds(atT, projections, games, spread, { allowed, allowedScoring: ptsAllowed })) {
-      const s = series.get(o.matchupId) ?? { a: o.a.rosterId, b: o.b.rosterId, odds: [], scores: [] };
+    return { points, odds: liveWinOdds(atT, projections, games, spread, { allowed, allowedScoring: ptsAllowed }) };
+  };
+
+  const series = new Map<number, { a: number; b: number; odds: number[]; scores: Array<[number, number]>; events: PlayEvent[] }>();
+  for (const t of sampled) {
+    for (const o of evaluate(t).odds) {
+      const s = series.get(o.matchupId) ?? { a: o.a.rosterId, b: o.b.rosterId, odds: [], scores: [], events: [] };
       s.odds.push(Math.round(o.aWinOdds * 1000) / 1000);
       s.scores.push([Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]);
       series.set(o.matchupId, s);
     }
   }
+
+  // Each play's effect in every matchup: starters' points and the odds just before and after it
+  const startersOf = new Map(matchups.map((m) => [m.roster_id, (m.starters ?? []).filter((id) => id && id !== '0')]));
+  const nameOf = (id: string) => {
+    const name = projections[id]?.name ?? id;
+    return projections[id]?.position === 'DEF' ? name : name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ');
+  };
+  for (const [t, desc] of tl.plays ?? []) {
+    const before = evaluate(t - 1);
+    const after = evaluate(t);
+    for (const o of after.odds) {
+      const s = series.get(o.matchupId);
+      const prior = before.odds.find((x) => x.matchupId === o.matchupId);
+      if (!s || !prior) continue;
+      const players: PlayEvent['players'] = [];
+      for (const [side, rosterId] of [['a', s.a], ['b', s.b]] as const) {
+        for (const id of startersOf.get(rosterId) ?? []) {
+          const pts = Math.round(((after.points.get(id) ?? 0) - (before.points.get(id) ?? 0)) * 10) / 10;
+          if (Math.abs(pts) >= 0.1) players.push({ side, name: nameOf(id), pts });
+        }
+      }
+      if (!players.length) continue;
+      s.events.push({ t, desc: cleanPlay(desc), players, before: Math.round(prior.aWinOdds * 1000) / 1000, after: Math.round(o.aWinOdds * 1000) / 1000 });
+    }
+  }
+  for (const s of series.values()) s.events = biggestPlays(s.events);
+
   return {
     season: league.season,
     week,

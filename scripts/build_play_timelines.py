@@ -10,6 +10,8 @@ league's season, the timeline the Live tab would have seen:
             takeaways, touchdowns, safeties, blocked kicks); points allowed come from the score
   injuries  the final injury report status for the week (Out, Doubtful, Questionable)
   final     each starter's official points from Sleeper, so the replay ends exactly there
+  plays     the time and nflverse's description of every play that changed a starter's points
+            (or the score of a game with a starting defense), for the charts' big-play markers
 
 Scoring uses the league's own settings. Bonuses, stat corrections and anything the play-by-play
 misses are made up by the gap to the official final, spread over the player's game.
@@ -215,12 +217,15 @@ def build(season: str, weeks: list[int] | None, recent: int | None = None, curre
         starters = {sid for m in ms for sid in (m.get("starters") or []) if sid and sid != "0"}
         final = {sid: (m.get("players_points") or {}).get(sid, 0) for m in ms for sid in (m.get("starters") or []) if sid and sid != "0"}
 
-        games, players, defense = {}, defaultdict(list), defaultdict(list)
+        games, players, defense, plays = {}, defaultdict(list), defaultdict(list), []
         totals, dtotals = defaultdict(float), defaultdict(float)
         for game_id, g in games_w.groupby("game_id", sort=False):
             g = g.sort_values(["qtr", "quarter_seconds_remaining"], ascending=[True, False], kind="stable")
             home, away = TEAM.get(g.home_team.iloc[0], g.home_team.iloc[0]), TEAM.get(g.away_team.iloc[0], g.away_team.iloc[0])
             snaps, t_last = [], None
+            # A starting defense in this game: its points allowed change with the score
+            defense_here = home in starters or away in starters
+            last_score = (0, 0)
             for p in g.itertuples():
                 t = epoch(p.time_of_day) or t_last
                 if t is None:
@@ -229,14 +234,22 @@ def build(season: str, weeks: list[int] | None, recent: int | None = None, curre
                 hs, as_ = int(num(p.total_home_score)), int(num(p.total_away_score))
                 snaps.append([t, int(num(p.qtr) or 1), int(num(p.quarter_seconds_remaining)), hs, as_])
                 pts, dst = play_points(p, scoring, ids)
+                touched = False
                 for sid, v in pts.items():
                     if sid in starters and v:
                         totals[sid] += v
                         players[sid].append([t, round(totals[sid], 2)])
+                        touched = True
                 for team, v in dst.items():
                     if team in starters and v:
                         dtotals[team] += v
                         defense[team].append([t, round(dtotals[team], 2)])
+                        touched = True
+                if defense_here and (hs, as_) != last_score:
+                    touched = True
+                last_score = (hs, as_)
+                if touched and isinstance(p.desc, str):
+                    plays.append([t, " ".join(p.desc.split())[:180]])
             if snaps:
                 games[game_id] = {"home": home, "away": away, "snaps": snaps}
 
@@ -246,7 +259,7 @@ def build(season: str, weeks: list[int] | None, recent: int | None = None, curre
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps({
             "season": season, "week": week, "games": games, "players": players, "defense": defense,
-            "injuries": injury, "final": final,
+            "injuries": injury, "final": final, "plays": sorted(plays),
         }, separators=(",", ":")))
         missing = [sid for sid in starters if sid not in players and not sid.isalpha() and final.get(sid, 0)]
         print(f"{season} week {week}: {len(games)} games, {len(players)} players, {len(defense)} defenses"

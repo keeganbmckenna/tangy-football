@@ -11,7 +11,9 @@ const fakeRedis = vi.fn(async (_url: string, init: { body: string }) => {
       store.strings.set(k, String(args[0]));
       return { result: 'OK' };
     }
-    if (cmd === 'RPUSH') return { result: store.lists.set(k, [...(store.lists.get(k) ?? []), String(args[0])]).get(k)!.length };
+    if (cmd === 'RPUSH') return { result: store.lists.set(k, [...(store.lists.get(k) ?? []), ...args.map(String)]).get(k)!.length };
+    if (cmd === 'GET') return { result: store.strings.get(k) ?? null };
+    if (cmd === 'DEL') return { result: [k, ...args.map(String)].filter((x) => store.lists.delete(x) || store.strings.delete(x)).length };
     if (cmd === 'EXPIRE') return { result: 1 };
     if (cmd === 'LRANGE') return { result: store.lists.get(k) ?? [] };
     return { error: 'unknown command' };
@@ -43,6 +45,17 @@ describe('live win history', () => {
     expect(history?.times).toHaveLength(1);
     expect(history?.matchups[0]).toMatchObject({ matchupId: 1, a: 3, b: 5, odds: [0.6], scores: [[10, 8]] });
     expect(await readSnapshots('2026', 8)).toBeNull();
+  });
+
+  it('saves big moments between saves with each snapshot, and shows them on the history', async () => {
+    const { saveSnapshot, readSnapshots } = await import('../liveHistory');
+    const starters = [{ matchupId: 1, a: ['q'], b: ['r'] }];
+    await saveSnapshot('2026', 7, odds(0.5, 10, 8), { pts: { q: 10, r: 8 }, starters, nameOf: (id) => id });
+    store.strings.delete('win:2026:7:lock');
+    await saveSnapshot('2026', 7, odds(0.72, 17, 8), { pts: { q: 17, r: 8 }, starters, nameOf: (id) => id });
+    const history = await readSnapshots('2026', 7);
+    expect(history?.times).toHaveLength(2);
+    expect(history?.matchups[0].events).toEqual([expect.objectContaining({ before: 0.5, after: 0.72, players: [{ side: 'a', name: 'q', pts: 7 }] })]);
   });
 
   it('does nothing without Redis', async () => {

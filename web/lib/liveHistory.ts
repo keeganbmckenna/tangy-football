@@ -10,7 +10,7 @@
  */
 
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
-import type { WinHistory } from '@/lib/winHistory';
+import { biggestPlays, dropRetractions, liveEvents, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
 
 /** At most one snapshot per this many seconds */
 const EVERY_SECONDS = 120;
@@ -49,27 +49,61 @@ interface Snapshot {
   m: Array<[number, number, number, number, number, number]>;
 }
 
-/** Save the matchups' odds now, unless a snapshot was saved in the last EVERY_SECONDS */
-export async function saveSnapshot(season: string, week: number, odds: LiveMatchupOdds[]): Promise<boolean> {
+/** One matchup's starters by side, for spotting big moments between saves */
+export interface MatchupStarters {
+  matchupId: number;
+  a: string[];
+  b: string[];
+}
+
+/**
+ * Save the matchups' odds now, unless a snapshot was saved in the last EVERY_SECONDS, along
+ * with any big moments since the last save (liveEvents): given each starter's points now
+ */
+export async function saveSnapshot(
+  season: string,
+  week: number,
+  odds: LiveMatchupOdds[],
+  live?: { pts: Record<string, number>; starters: MatchupStarters[]; nameOf: (id: string) => string }
+): Promise<boolean> {
   if (!liveHistoryEnabled() || !odds.length) return false;
   const k = key(season, week);
+  const t = Math.round(Date.now() / 1000);
   const snapshot: Snapshot = {
-    t: Math.round(Date.now() / 1000),
+    t,
     m: odds.map((o) => [o.matchupId, o.a.rosterId, o.b.rosterId, Math.round(o.aWinOdds * 1000) / 1000, Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]),
   };
   // The lock decides who saves: SET NX with an expiry lets one request through per interval
-  const lock = await redis([['SET', `${k}:lock`, '1', 'NX', 'EX', EVERY_SECONDS - 5]]);
+  const lock = await redis([['SET', `${k}:lock`, '1', 'NX', 'EX', EVERY_SECONDS - 5], ['GET', `${k}:state`]]);
   if (lock?.[0] !== 'OK') return false;
-  return !!(await redis([
+  const commands: Array<Array<string | number>> = [
     ['RPUSH', k, JSON.stringify(snapshot)],
     ['EXPIRE', k, KEEP_SECONDS],
-  ]));
+  ];
+  if (live) {
+    const now: LiveState = { t, pts: live.pts, odds: Object.fromEntries(odds.map((o) => [o.matchupId, Math.round(o.aWinOdds * 1000) / 1000])) };
+    const prev = typeof lock[1] === 'string' ? (JSON.parse(lock[1]) as LiveState) : null;
+    const events = prev ? liveEvents(prev, now, live.starters, live.nameOf) : [];
+    if (events.length) commands.push(['RPUSH', `${k}:events`, ...events.map((e) => JSON.stringify(e))], ['EXPIRE', `${k}:events`, KEEP_SECONDS]);
+    commands.push(['SET', `${k}:state`, JSON.stringify(now), 'EX', KEEP_SECONDS]);
+  }
+  return !!(await redis(commands));
 }
 
 /** The week's saved snapshots as a win history (null without Redis or snapshots) */
 export async function readSnapshots(season: string, week: number): Promise<WinHistory | null> {
-  const rows = ((await redis([['LRANGE', key(season, week), 0, -1]]))?.[0] as string[] | undefined) ?? [];
+  const res = await redis([
+    ['LRANGE', key(season, week), 0, -1],
+    ['LRANGE', `${key(season, week)}:events`, 0, -1],
+  ]);
+  const rows = (res?.[0] as string[] | undefined) ?? [];
   if (!rows.length) return null;
+  // Big moments per matchup: retracted scores dropped, the biggest kept
+  const events = new Map<number, PlayEvent[]>();
+  for (const r of (res?.[1] as string[] | undefined) ?? []) {
+    const { matchupId, event } = JSON.parse(r) as { matchupId: number; event: PlayEvent };
+    events.set(matchupId, [...(events.get(matchupId) ?? []), event]);
+  }
   const snapshots = rows.map((r) => JSON.parse(r) as Snapshot).sort((x, y) => x.t - y.t);
   const matchups = new Map<number, WinHistory['matchups'][number]>();
   snapshots.forEach((s, i) => {
@@ -85,6 +119,7 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
       matchups.set(matchupId, m);
     }
   });
+  for (const m of matchups.values()) m.events = biggestPlays(dropRetractions(events.get(m.matchupId) ?? []));
   return { season, week, times: snapshots.map((s) => s.t), matchups: [...matchups.values()] };
 }
 
@@ -96,10 +131,22 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
 export async function replaceSnapshots(history: WinHistory): Promise<boolean> {
   const k = key(history.season, history.week);
   const end = history.times[history.times.length - 1] ?? 0;
-  const existing = ((await redis([['LRANGE', k, 0, -1]]))?.[0] as string[] | undefined) ?? [];
-  const later = existing.filter((r) => (JSON.parse(r) as Snapshot).t > end);
+  const res = await redis([
+    ['LRANGE', k, 0, -1],
+    ['LRANGE', `${k}:events`, 0, -1],
+  ]);
+  const later = ((res?.[0] as string[] | undefined) ?? []).filter((r) => (JSON.parse(r) as Snapshot).t > end);
+  const laterEvents = ((res?.[1] as string[] | undefined) ?? []).filter((r) => (JSON.parse(r) as { event: PlayEvent }).event.t > end);
   const replayed = history.times.map((t, i) =>
     JSON.stringify({ t, m: history.matchups.map((m) => [m.matchupId, m.a, m.b, m.odds[i], m.scores[i][0], m.scores[i][1]]) } satisfies Snapshot)
   );
-  return !!(await redis([['DEL', k], ['RPUSH', k, ...replayed, ...later], ['EXPIRE', k, KEEP_SECONDS]]));
+  // The replay's plays, which have descriptions, in place of the live events they cover
+  const replayedEvents = history.matchups.flatMap((m) => (m.events ?? []).map((event) => JSON.stringify({ matchupId: m.matchupId, event })));
+  const events = [...replayedEvents, ...laterEvents];
+  return !!(await redis([
+    ['DEL', k, `${k}:events`],
+    ['RPUSH', k, ...replayed, ...later],
+    ['EXPIRE', k, KEEP_SECONDS],
+    ...(events.length ? [['RPUSH', `${k}:events`, ...events], ['EXPIRE', `${k}:events`, KEEP_SECONDS]] : []),
+  ]));
 }

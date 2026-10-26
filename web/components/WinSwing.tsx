@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { Area, AreaChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fetchFirst, useSharedFetch } from '@/hooks/useSharedFetch';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
-import type { WinHistory } from '@/lib/winHistory';
+import { cleanPlay, type WinHistory } from '@/lib/winHistory';
 
 interface WinSwingProps {
   season: string;
@@ -35,6 +35,8 @@ const TIME = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric
  */
 export default function WinSwing({ season, week, a, b, live = false, refreshKey = '' }: WinSwingProps) {
   const [view, setViewState] = useState(rememberedView);
+  // The big play whose details show (tapped, or hovered)
+  const [picked, setPicked] = useState<number | null>(null);
   const setView = (v: typeof view) => {
     rememberedView = v;
     setViewState(v);
@@ -89,6 +91,19 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
       </div>
     );
   };
+  // Big plays, from the left team's side, placed between the samples around them
+  const plays = (m.events ?? []).map((e) => {
+    const before = flip ? 1 - e.before : e.before;
+    const after = flip ? 1 - e.after : e.after;
+    const players = e.players.map((pl) => ({ ...pl, left: flip ? pl.side === 'b' : pl.side === 'a' }));
+    const j = data.times.findIndex((t) => t > e.t);
+    const x = j === -1 ? data.times.length - 1 : j === 0 ? 0 : j - 1 + (e.t - data.times[j - 1]) / (data.times[j] - data.times[j - 1]);
+    const net = players.reduce((s, pl) => s + (pl.left ? pl.pts : -pl.pts), 0);
+    return { t: e.t, desc: e.desc, before, after, players, x, helpsLeft: after !== before ? after > before : net >= 0 };
+  });
+  const shown = picked !== null ? plays[picked] : null;
+  const markerColor = (helpsLeft: boolean) =>
+    view === 'score' ? (helpsLeft ? A_COLOR : B_COLOR) : helpsLeft ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L;
   // Above 50% in the left team's color, below in the right's: the gradient splits at the 50% line
   const id = `swing-${season}-${week}-${m.matchupId}`;
 
@@ -122,7 +137,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           {view === 'odds' && swings > 0 && ` · ${swings} lead change${swings === 1 ? '' : 's'}`}
         </div>
       </div>
-      <div className="h-20 w-full">
+      <div className="relative h-20 w-full">
         <ResponsiveContainer width="100%" height="100%">
           {view === 'score' ? (
             <LineChart data={points} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
@@ -153,6 +168,23 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
             </AreaChart>
           )}
         </ResponsiveContainer>
+        {/* Big plays: a thin line each, with a wider area to tap */}
+        {plays.map((pl, i) => (
+          <button
+            key={`${pl.t}-${i}`}
+            type="button"
+            aria-label={`Big play at ${TIME.format(pl.t * 1000)}`}
+            onClick={() => setPicked(picked === i ? null : i)}
+            onMouseEnter={() => setPicked(i)}
+            className="absolute inset-y-0 w-4 -translate-x-1/2"
+            style={{ left: `${(pl.x / Math.max(points.length - 1, 1)) * 100}%` }}
+          >
+            <span
+              className="absolute inset-y-0 left-1/2 -translate-x-1/2"
+              style={{ width: picked === i ? 2 : 1, backgroundColor: markerColor(pl.helpsLeft), opacity: picked === null || picked === i ? 0.9 : 0.35 }}
+            />
+          </button>
+        ))}
       </div>
       <div className="flex justify-between gap-2 text-[10px] text-[var(--muted)]">
         {view === 'score' ? (
@@ -173,6 +205,25 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           </>
         )}
       </div>
+      {shown && (
+        <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-xs">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="shrink-0 text-[var(--muted)]">{TIME.format(shown.t * 1000)} ET</span>
+            <span className="truncate font-semibold tabular-nums" style={{ color: markerColor(shown.helpsLeft) }}>
+              {a.name} {Math.round(shown.before * 100)}% → {Math.round(shown.after * 100)}%
+            </span>
+          </div>
+          <div className="mt-0.5 text-[var(--foreground)]">{shown.desc ? cleanPlay(shown.desc) : 'Points changed (saved live, before the play-by-play)'}</div>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[var(--muted)]">
+            {shown.players.map((pl) => (
+              <span key={`${pl.side}-${pl.name}`}>
+                <span style={{ color: pl.left ? A_COLOR : B_COLOR }}>●</span> {pl.name} {pl.pts > 0 ? '+' : '−'}
+                {Math.abs(pl.pts).toFixed(1)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -57,7 +57,17 @@ export async function GET() {
           const spread = await seasonSpread(baseUrl, leagueId, lastScoredWeek).catch(() => null);
           if (spread !== null) {
             const odds = liveWinOdds(matchups, projections, games, spread, { allowed, allowedScoring: allowedScoring(scoring) });
-            await saveSnapshot(league.season, week, odds);
+            // Each starter's points now, so the save can spot big moments since the last one
+            const starters = (rosterId: number) => (matchups.find((m) => m.roster_id === rosterId)?.starters ?? []).filter((id) => id && id !== '0');
+            const pts = Object.fromEntries(matchups.flatMap((m) => starters(m.roster_id).map((id) => [id, m.players_points?.[id] ?? 0])));
+            await saveSnapshot(league.season, week, odds, {
+              pts,
+              starters: odds.map((o) => ({ matchupId: o.matchupId, a: starters(o.a.rosterId), b: starters(o.b.rosterId) })),
+              nameOf: (id) => {
+                const p = projections[id];
+                return p ? (p.position === 'DEF' ? p.name : p.name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ')) : id;
+              },
+            });
           }
         }
       }
