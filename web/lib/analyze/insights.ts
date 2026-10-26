@@ -25,6 +25,12 @@ export interface TeamWeek {
   optimal: number;
   /** The starters' projections from before the games (null without projections) */
   projected: number | null;
+  /**
+   * What the lineup its projections recommended would have scored: the best lineup by
+   * projection, at the points everyone scored (null without projections; absent in files built
+   * before it was kept)
+   */
+  projectedBest?: number | null;
   starters: string[];
   /** What every player on the roster scored that week */
   playerPoints: Record<string, number>;
@@ -86,6 +92,14 @@ export function teamWeeksFor(
     const starters = (m.starters ?? []).filter((id) => id && id !== '0');
     const starterProjections: Record<string, number> = {};
     if (projections) for (const id of starters) starterProjections[id] = projections[id]?.points ?? 0;
+    // The lineup the projections recommended, scored at what its players actually scored
+    let projectedBest: number | null = null;
+    if (projections) {
+      const byProjection: Record<string, { position: string; points: number }> = {};
+      for (const id of roster) if (positions[id]) byProjection[id] = { position: positions[id], points: projections[id]?.points ?? 0 };
+      const picks = bestLineup(roster, byProjection, rosterPositions).starters;
+      projectedBest = round2(picks.reduce((s, p) => s + (playerPoints[p.playerId] ?? 0), 0));
+    }
     const opponent = m.matchup_id ? matchups.find((o) => o.matchup_id === m.matchup_id && o.roster_id !== m.roster_id) ?? null : null;
     out[m.roster_id] = {
       week,
@@ -95,6 +109,7 @@ export function teamWeeksFor(
       // Never below what it scored (a starter missing from the projections still counted)
       optimal: round2(Math.max(bestLineup(roster, values, rosterPositions).total, m.points ?? 0)),
       projected: projections ? round2(Object.values(starterProjections).reduce((s, v) => s + v, 0)) : null,
+      projectedBest,
       starters,
       playerPoints: Object.fromEntries(roster.filter((id) => playerPoints[id] !== undefined).map((id) => [id, playerPoints[id]])),
       starterProjections,

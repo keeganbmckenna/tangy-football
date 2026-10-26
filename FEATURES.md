@@ -68,7 +68,7 @@ During the current regular season, the trade and waiver tools come first:
 - **Waiver Finder:** the free agents who would help you most, for the rest of the season or for one specific week (to cover a bye), each with the player it would drop.
 
 Then, for any season:
-- **Lineup Efficiency:** points scored against the best lineup each team could have started, points left on the bench, perfect weeks, and losses the best lineup would have won. Tap a team for its costliest week and the start/sit calls behind it.
+- **Lineup Efficiency:** points scored against the best lineup each team could have started, start/sit calls (points scored minus what the lineup its projections recommended would have scored: the decisions a manager could actually have made), points left on the bench, perfect weeks, and losses the best lineup would have won. Tap a team for its costliest week and the start/sit calls behind it.
 - **Versus Projections:** each team's starters against Sleeper's pregame projections as a running total, and its players who beat or missed them most.
 - **Points by Position:** where each team's starting-lineup points come from, against the league average, and how much it leans on its top scorer.
 - **Player Leaders:** top players and single games by points in fantasy starting lineups, by position, and each team's MVP.

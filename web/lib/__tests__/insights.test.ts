@@ -27,6 +27,15 @@ describe('teamWeeksFor', () => {
     // Never below what the lineup scored, even when a starter's position is unknown
     expect(weeks[2].optimal).toBe(60);
   });
+
+  it('scores the lineup the projections recommended at the points everyone scored', () => {
+    // By projection: q1 (q2 unprojected), r1, w1, and r2 (9) at FLEX over w2 (unprojected): what it started
+    expect(weeks[1].projectedBest).toBe(50);
+    const benchW2 = teamWeeksFor(3, matchups, { ...projections, w2: { points: 15 } }, POSITIONS, SLOTS);
+    // With w2 projected 15 he'd take FLEX from r2: 20 + 16 + 20 + 10
+    expect(benchW2[1].projectedBest).toBe(66);
+    expect(teamWeeksFor(3, matchups, null, POSITIONS, SLOTS)[1].projectedBest).toBeNull();
+  });
 });
 
 describe('waiverMoves', () => {

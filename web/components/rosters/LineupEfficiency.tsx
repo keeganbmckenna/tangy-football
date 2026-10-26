@@ -8,6 +8,7 @@ import { useTableSort } from '@/hooks/useTableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { sortRows } from '@/lib/tableSort';
 import { lineupEfficiency } from '@/lib/analyze/rosters';
+import { signed } from '@/lib/format';
 import { PlayerLabel, TD, TH, teamNames, type RostersCardProps } from './shared';
 
 /**
@@ -24,8 +25,9 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
   const users = new Map(teamStats.map((t) => [t.rosterId, t.username]));
   const byEfficiency = [...data].sort((a, b) => b.efficiency - a.efficiency);
   const rows = sortRows(byEfficiency, sort.state, (t, key) =>
-    ({ efficiency: t.efficiency, bench: t.leftOnBench, perfect: t.perfectWeeks, flipped: t.flippedLosses })[key]
+    ({ efficiency: t.efficiency, calls: t.startSit ?? 0, bench: t.leftOnBench, perfect: t.perfectWeeks, flipped: t.flippedLosses })[key]
   );
+  const hasCalls = data.some((t) => t.startSit !== null);
   const lowest = Math.min(...data.map((t) => t.efficiency));
   const floor = Math.max(0, Math.floor(lowest * 20) / 20 - 0.05);
 
@@ -38,7 +40,15 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
         <span>
           The best lineup is the highest-scoring legal lineup from the players on the roster that week, at the points they
           actually scored (Sleeper&apos;s &quot;max points&quot;), so it&apos;s hindsight: nobody hits 100%. <strong>Lost with a better lineup</strong> counts
-          losses where the best lineup would have outscored the opponent. Tap a team for its costliest week.
+          losses where the best lineup would have outscored the opponent.{' '}
+          {hasCalls && (
+            <>
+              <strong>Start/sit</strong> is points scored minus what the lineup its projections recommended would have scored:
+              plus means its calls beat the projections. It only asks for what a manager could have known, and it&apos;s the most
+              repeatable team stat after scoring itself.{' '}
+            </>
+          )}
+          Tap a team for its costliest week.
         </span>
       }
     >
@@ -49,6 +59,11 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
             <tr>
               <th className={`${PIN_TH} py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] bg-[var(--surface)]`}>Team</th>
               <SortableTh sort={sort} col="efficiency" tip="Points scored ÷ the best lineup's points" className={TH}>Efficiency</SortableTh>
+              {hasCalls && (
+                <SortableTh sort={sort} col="calls" tip="Points scored minus what the lineup its projections recommended would have scored" className={TH}>
+                  Start/sit
+                </SortableTh>
+              )}
               <SortableTh sort={sort} col="bench" best="asc" tip="Points the best lineups would have added over the season" className={TH}>Left on bench</SortableTh>
               <SortableTh sort={sort} col="perfect" tip="Weeks it started the best possible lineup" className={TH}>Perfect wks</SortableTh>
               <SortableTh sort={sort} col="flipped" best="asc" tip="Losses the best lineup would have won" tipAlign="right" className={TH}>Lost w/ better lineup</SortableTh>
@@ -75,6 +90,14 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
                         <span className="w-12 text-right font-semibold">{(t.efficiency * 100).toFixed(1)}%</span>
                       </div>
                     </td>
+                    {hasCalls && (
+                      <td
+                        className={`${TD} font-semibold`}
+                        style={{ color: !t.startSit ? undefined : t.startSit > 0 ? 'var(--success-text)' : 'var(--danger-text)' }}
+                      >
+                        {t.startSit === null ? '–' : signed(t.startSit, 1)}
+                      </td>
+                    )}
                     <td className={TD}>{t.leftOnBench.toFixed(1)}</td>
                     <td className={TD}>
                       {t.perfectWeeks}
@@ -84,7 +107,7 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
                   </tr>
                   {expanded && (
                     <tr>
-                      <td colSpan={5} className="bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] sm:px-6">
+                      <td colSpan={hasCalls ? 6 : 5} className="bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] sm:px-6">
                         {/* Stays in view while the table scrolls sideways */}
                         <div className="sticky left-4 max-w-[calc(100vw-4rem)] whitespace-normal sm:max-w-none">
                         {c ? (

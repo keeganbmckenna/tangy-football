@@ -44,6 +44,15 @@ export interface LineupEfficiency {
   /** Weeks it started the best possible lineup */
   perfectWeeks: number;
   weeks: number;
+  /**
+   * Start/sit calls: points scored minus what the lineup its projections recommended would have
+   * scored, over the weeks with projections (null without them). Unlike efficiency it only asks
+   * for what a manager could have known: across 45,753 crawled team-seasons it repeats from one
+   * half of a season to the other more than any other team stat but scoring itself (split-half r
+   * 0.59, 0.61 in leagues where every team stays active; scripts/backtests/stats_audit.py)
+   */
+  startSit: number | null;
+  startSitWeeks: number;
   /** The week its lineup cost it the most (losses the best lineup would have won first) */
   costliest: CostlyWeek | null;
 }
@@ -89,10 +98,13 @@ export function lineupEfficiency(insights: SeasonInsights, rosterPositions: stri
     const flippedWeeks = weeks.filter((w) => w.opponentPoints !== null && w.points < w.opponentPoints && w.optimal > w.opponentPoints);
     const pool = flippedWeeks.length ? flippedWeeks : weeks;
     const worst = pool.reduce<TeamWeek | null>((m, w) => (!m || w.optimal - w.points > m.optimal - m.points ? w : m), null);
+    const called = weeks.filter((w) => w.projectedBest != null);
     return {
       rosterId: Number(rid),
       points,
       optimal,
+      startSit: called.length ? Math.round(sum(called.map((w) => w.points - w.projectedBest!)) * 100) / 100 : null,
+      startSitWeeks: called.length,
       efficiency: optimal > 0 ? points / optimal : 1,
       leftOnBench: optimal - points,
       flippedLosses: flippedWeeks.length,

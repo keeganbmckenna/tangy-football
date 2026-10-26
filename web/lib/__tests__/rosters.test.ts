@@ -59,6 +59,15 @@ describe('lineup decisions', () => {
     expect(t1.perfectWeeks).toBe(1);
     expect(t1.costliest).toMatchObject({ week: 1, flipped: true });
   });
+
+  it('adds up start/sit calls against the lineup the projections recommended, where known', () => {
+    const data = insights();
+    data.teams[1][0].projectedBest = 55;
+    const t1 = lineupEfficiency(data, SLOTS).find((t) => t.rosterId === 1)!;
+    expect(t1.startSit).toBe(52 - 55);
+    expect(t1.startSitWeeks).toBe(1);
+    expect(lineupEfficiency(insights(), SLOTS).find((t) => t.rosterId === 1)!.startSit).toBeNull();
+  });
 });
 
 describe('projections, positions and players', () => {

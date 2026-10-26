@@ -7,7 +7,7 @@ import { buildSeasonInsights } from '@/lib/seasonInsights';
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 /**
  * A season's lineups, projections and waiver moves (lib/seasonInsights.ts), for the Rosters
