@@ -162,7 +162,7 @@ export function projectedToiletBracket(seeds: number[], playoffWeekStart: number
 // Team strength
 
 /** Positions each lineup slot accepts; anything else (K, DEF) accepts itself */
-const SLOT_POSITIONS: Record<string, string[]> = {
+export const SLOT_POSITIONS: Record<string, string[]> = {
   FLEX: ['RB', 'WR', 'TE'],
   WRRB_FLEX: ['RB', 'WR'],
   REC_FLEX: ['WR', 'TE'],

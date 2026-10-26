@@ -4,7 +4,7 @@
  * (Overview, the current season) are left out to keep links short.
  */
 
-export const TAB_IDS = ['overview', 'live', 'postseason', 'weekly', 'trends', 'advanced', 'draft', 'trades', 'history'] as const;
+export const TAB_IDS = ['overview', 'live', 'postseason', 'weekly', 'trends', 'advanced', 'rosters', 'draft', 'trades', 'history'] as const;
 
 export function readUrlState(search: string): { tab: string | null; season: string | null } {
   const params = new URLSearchParams(search);

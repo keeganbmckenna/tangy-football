@@ -23,6 +23,7 @@ import DraftBoard from '@/components/DraftBoard';
 import LiveTab from '@/components/LiveTab';
 import TradesTab from '@/components/TradesTab';
 import HistoryTab from '@/components/HistoryTab';
+import RostersTab from '@/components/RostersTab';
 import LegacySeasonOverview from '@/components/LegacySeasonOverview';
 import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
 import { readUrlState, urlSearchFor } from '@/lib/urlState';
@@ -277,6 +278,7 @@ export default function Home() {
     { id: 'weekly', name: 'Weekly Performance', icon: '📈' },
     { id: 'trends', name: 'Season Trends', icon: '📉' },
     { id: 'advanced', name: 'Advanced Stats', icon: '🔬' },
+    { id: 'rosters', name: 'Rosters', icon: '🧩' },
     { id: 'draft', name: 'Draft', icon: '📋' },
     { id: 'trades', name: 'Trades & Waivers', icon: '🔄' },
     { id: 'history', name: 'History', icon: '🏛️' },
@@ -650,6 +652,15 @@ export default function Home() {
               </section>
             </ErrorBoundary>
           </>
+        )}
+
+        {/* Rosters Tab: lineups, players and pickups (Sleeper seasons) */}
+        {activeTab === 'rosters' && leagueData && (
+          <RostersTab
+            season={selectedSeason || leagueData.league.season}
+            teamStats={teamStats}
+            rosterPositions={leagueData.league.roster_positions ?? []}
+          />
         )}
 
         {/* History Tab: every season, whichever one is selected */}
