@@ -222,11 +222,13 @@ interface Props {
   /** What the second number is: "proj" */
   projLabel?: string;
   footnote?: ReactNode;
+  /** Shown above the lineups, e.g. how the win odds swung */
+  chart?: ReactNode;
   onClose: () => void;
 }
 
 /** Both lineups of a matchup, slot by slot (and the benches, when given), in a dialog */
-export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, onClose }: Props) {
+export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -295,6 +297,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
           </button>
         </div>
         <div className="overflow-y-auto px-1 pb-4 sm:px-3">
+          {chart}
           <table className="w-full table-fixed">
             <colgroup>
               <col />

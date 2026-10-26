@@ -1,0 +1,47 @@
+# Each Friday in season, replays the latest weeks' matchups play by play into the
+# win-probability history (web/public/data/win-history/): nflverse's play-by-play is
+# updated within a day of each game, and Sleeper's stat corrections run through Thursday.
+# Rebuilds the last two scored weeks, so corrections to the earlier one are picked up.
+name: Win history
+
+on:
+  schedule:
+    - cron: '0 12 * 9-12,1 5'   # Fridays, 12:00 UTC, September to January
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: win-history
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install the site's dependencies
+        working-directory: web
+        run: npm ci
+      - name: The current season
+        id: season
+        run: echo "season=$(curl -s https://api.sleeper.app/v1/league/1323741311471194112 | python3 -c 'import json,sys; print(json.load(sys.stdin)["season"])')" >> "$GITHUB_OUTPUT"
+      - name: Play-by-play timelines
+        run: uv run python scripts/build_play_timelines.py ${{ steps.season.outputs.season }} --recent 2
+      - name: Win history
+        working-directory: web
+        run: npx tsx scripts/build-win-history.ts ${{ steps.season.outputs.season }} --recent 2
+      - name: Commit and push
+        run: |
+          git config user.name 'win-history'
+          git config user.email 'win-history@users.noreply.github.com'
+          git add web/public/data/win-history
+          git commit -m "Win history: latest weeks of ${{ steps.season.outputs.season }}" || exit 0
+          git push

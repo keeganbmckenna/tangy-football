@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
+import WinSwing from '@/components/WinSwing';
 import type { MatchupPlayersData } from '@/app/api/matchup-players/route';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
@@ -90,6 +91,7 @@ export function useMatchupLineups(leagueData: LeagueData | null | undefined) {
         b={b}
         slots={(leagueData?.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
         footnote="Final points, with each player's Sleeper projection from before the games."
+        chart={season ? <WinSwing season={season} week={open.week} a={{ rosterId: open.a.rosterId, name: a.name }} b={{ rosterId: open.b.rosterId, name: b.name }} /> : null}
         onClose={close}
       />
     ) : null;

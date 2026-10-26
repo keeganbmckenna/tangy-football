@@ -15,6 +15,8 @@ wheels/
 
 # Backtest cache and outputs
 scripts/backtests/cache/
+# Site build caches (nflverse downloads, play-by-play timelines)
+scripts/cache/
 scripts/backtests/*.npy
 scripts/backtests/*.pkl
 scripts/backtests/rows.json
