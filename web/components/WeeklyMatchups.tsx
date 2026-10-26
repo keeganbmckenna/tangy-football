@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMatchupLineups } from '@/components/useMatchupLineups';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { myWeekMatchupFirst } from '@/lib/analyze/myMatchup';
 import { useMyTeam } from '@/hooks/useMyTeam';
+import { useSeasonInsights } from '@/hooks/useSeasonInsights';
+import { weekAwards } from '@/lib/analyze/awards';
 import { LeagueData, WeekMatchup } from '@/lib/types';
 
 interface WeeklyMatchupsProps {
@@ -26,6 +28,15 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
   // My matchup first, with me on the left
   const me = useMyTeam();
   const currentMatchups = myWeekMatchupFirst(matchups[selectedWeek] || [], me.rosterId);
+
+  // The week's awards; the lineup and projection ones once the season's insights load
+  const { data: insights } = useSeasonInsights(leagueData?.league.season);
+  const awards = useMemo(() => {
+    const teamWeeks = insights
+      ? new Map(Object.entries(insights.teams).flatMap(([rid, list]) => list.filter((w) => w.week === selectedWeek).map((w) => [Number(rid), w] as const)))
+      : undefined;
+    return weekAwards(matchups[selectedWeek] ?? [], teamWeeks);
+  }, [matchups, selectedWeek, insights]);
 
   // Tap a matchup for both lineups
   const lineups = useMatchupLineups(leagueData);
@@ -55,6 +66,23 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData }:
           ))}
         </div>
       </div>
+      {awards.length > 0 && (
+        <div className="border-b border-[var(--border)] py-3">
+          {/* One row that scrolls sideways on phones, wrapping on wider screens */}
+          <ul className="flex gap-2 overflow-x-auto px-4 sm:flex-wrap sm:px-6" aria-label={`Week ${selectedWeek} awards`}>
+            {awards.map((a) => (
+              <li
+                key={a.id}
+                className={`w-44 shrink-0 rounded-lg border px-3 py-2 sm:w-auto sm:max-w-[16rem] ${a.rosterId === me.rosterId ? 'border-[var(--accent)]' : 'border-[var(--border)]'} bg-[var(--surface)]`}
+              >
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">{a.label}</div>
+                <div className="truncate text-sm font-medium text-[var(--foreground)]" title={a.who}>{a.who}</div>
+                <div className="text-xs tabular-nums text-[var(--muted)]">{a.detail}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="grid gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
         {currentMatchups.length === 0 ? (
           <p className="col-span-full text-center text-[var(--muted)] py-8">
