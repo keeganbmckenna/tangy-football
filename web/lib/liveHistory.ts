@@ -1,14 +1,14 @@
 /**
  * The win-probability history of the week in progress: each matchup's live win odds saved
  * every couple of minutes while games are on (by /api/live, which a workflow also pings during
- * game windows), in Redis. The "How it swung" chart reads it back until the week's play-by-play
- * replay (lib/winHistory.ts) replaces it.
+ * game windows), in Upstash Redis through its HTTP API (no connection to open per request).
+ * The "How it swung" chart reads it back until the week's play-by-play replay
+ * (lib/winHistory.ts) replaces it.
  *
- * Needs REDIS_URL, set by Vercel's Redis integration (web/.env.local for local runs); without
- * it saving and reading do nothing.
+ * Needs KV_REST_API_URL and KV_REST_API_TOKEN, set by Vercel's Upstash integration
+ * (web/.env.local for local runs); without them saving and reading do nothing.
  */
 
-import { createClient } from 'redis';
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
 import type { WinHistory } from '@/lib/winHistory';
 
@@ -17,25 +17,27 @@ const EVERY_SECONDS = 120;
 /** Kept this long: the play-by-play replay takes over within the week */
 const KEEP_SECONDS = 45 * 24 * 3600;
 
-const REDIS_URL = process.env.REDIS_URL;
+const REST_URL = process.env.KV_REST_API_URL;
+const REST_TOKEN = process.env.KV_REST_API_TOKEN;
 
-export const liveHistoryEnabled = () => !!REDIS_URL;
+export const liveHistoryEnabled = () => !!REST_URL && !!REST_TOKEN;
 
-/**
- * Run some work with a Redis connection, opened and closed around it (serverless functions
- * don't keep connections between requests reliably); null without Redis or on any failure
- */
-async function withRedis<T>(work: (client: ReturnType<typeof createClient>) => Promise<T>): Promise<T | null> {
-  if (!REDIS_URL) return null;
-  const client = createClient({ url: REDIS_URL, socket: { connectTimeout: 3000, reconnectStrategy: false } });
-  client.on('error', () => {});
+/** Run Redis commands in one round trip (Upstash's pipeline); null without Redis or on any failure */
+async function redis(commands: Array<Array<string | number>>): Promise<unknown[] | null> {
+  if (!liveHistoryEnabled()) return null;
   try {
-    await client.connect();
-    return await work(client);
+    const res = await fetch(`${REST_URL}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${REST_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(commands),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const out = (await res.json()) as Array<{ result?: unknown; error?: string }>;
+    return out.some((r) => r.error) ? null : out.map((r) => r.result);
   } catch {
     return null;
-  } finally {
-    if (client.isOpen) await client.quit().catch(() => {});
   }
 }
 
@@ -55,19 +57,18 @@ export async function saveSnapshot(season: string, week: number, odds: LiveMatch
     t: Math.round(Date.now() / 1000),
     m: odds.map((o) => [o.matchupId, o.a.rosterId, o.b.rosterId, Math.round(o.aWinOdds * 1000) / 1000, Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]),
   };
-  const saved = await withRedis(async (client) => {
-    // The lock decides who saves: SET NX with an expiry lets one request through per interval
-    if ((await client.set(`${k}:lock`, '1', { NX: true, EX: EVERY_SECONDS - 5 })) !== 'OK') return false;
-    await client.rPush(k, JSON.stringify(snapshot));
-    await client.expire(k, KEEP_SECONDS);
-    return true;
-  });
-  return saved === true;
+  // The lock decides who saves: SET NX with an expiry lets one request through per interval
+  const lock = await redis([['SET', `${k}:lock`, '1', 'NX', 'EX', EVERY_SECONDS - 5]]);
+  if (lock?.[0] !== 'OK') return false;
+  return !!(await redis([
+    ['RPUSH', k, JSON.stringify(snapshot)],
+    ['EXPIRE', k, KEEP_SECONDS],
+  ]));
 }
 
 /** The week's saved snapshots as a win history (null without Redis or snapshots) */
 export async function readSnapshots(season: string, week: number): Promise<WinHistory | null> {
-  const rows = (await withRedis((client) => client.lRange(key(season, week), 0, -1))) ?? [];
+  const rows = ((await redis([['LRANGE', key(season, week), 0, -1]]))?.[0] as string[] | undefined) ?? [];
   if (!rows.length) return null;
   const snapshots = rows.map((r) => JSON.parse(r) as Snapshot).sort((x, y) => x.t - y.t);
   const matchups = new Map<number, WinHistory['matchups'][number]>();

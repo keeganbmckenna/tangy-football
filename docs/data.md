@@ -29,7 +29,7 @@ The app's server routes fetch and cache all of it; durations are in `CACHE_CONFI
 
 The win history's play-by-play comes from [nflverse](https://github.com/nflverse/nflverse-data) (`play_by_play_{season}.parquet`, injury reports), matched to Sleeper players through DynastyProcess's ID table; downloads and the intermediate timelines stay in the git-ignored `scripts/cache/`. Each starter's replayed points end at his official Sleeper total.
 
-During games, `/api/live` saves each matchup's win odds every 2 minutes to Redis (`REDIS_URL`, from Vercel's Redis integration; `web/.env.local` locally), and the `Live ping` workflow loads it every 5 minutes in game windows so nothing is missed. That's the week-in-progress curve, read back by `/api/live/history` until the play-by-play replay is built.
+During games, `/api/live` saves each matchup's win odds every 2 minutes to Upstash Redis over its HTTP API (`KV_REST_API_URL` and `KV_REST_API_TOKEN`, from Vercel's Upstash integration; `web/.env.local` locally), and the `Live ping` workflow loads it every 5 minutes in game windows so nothing is missed. That's the week-in-progress curve, read back by `/api/live/history` until the play-by-play replay is built.
 
 A finished season is static: Sleeper's stat corrections run through the Thursday after each
 week's games.
