@@ -28,8 +28,10 @@ it is what's committed). Downloads nflverse files into scripts/cache/nflverse/.
 
 import argparse
 import csv
+import functools
 import gzip
 import json
+import re
 import urllib.request
 from collections import defaultdict
 from datetime import datetime
@@ -88,6 +90,39 @@ def crosswalk() -> dict:
         for r in csv.DictReader(open(path))
         if r.get("gsis_id") not in (None, "", "NA") and r.get("sleeper_id") not in (None, "", "NA")
     }
+
+
+def norm_name(name: str) -> str:
+    """A name for matching: lowercase letters only, without Jr./Sr./II and the like"""
+    return re.sub(r"[^a-z]", "", re.sub(r"\b(jr|sr|ii|iii|iv|v)\b\.?", "", name.lower()))
+
+
+@functools.cache
+def player_lists() -> tuple[dict, dict]:
+    """nflverse's players by (name, position) -> GSIS IDs, and Sleeper's players; loaded once a run"""
+    nfl = pd.read_parquet(download(
+        "https://github.com/nflverse/nflverse-data/releases/download/players/players.parquet",
+        CACHE / "nflverse" / "players.parquet",
+        refresh=True,
+    ), columns=["gsis_id", "display_name", "position"])
+    by_key: dict = defaultdict(list)
+    for r in nfl.itertuples():
+        if isinstance(r.gsis_id, str) and isinstance(r.display_name, str):
+            by_key[(norm_name(r.display_name), r.position)].append(r.gsis_id)
+    return by_key, get(f"{SLEEPER}/players/nfl")
+
+
+def name_matches(sleeper_ids: set) -> dict:
+    """GSIS ID -> Sleeper ID for players the ID table misses (rookies, mostly), by full name and
+    position from nflverse's and Sleeper's player lists, where the match is unique"""
+    by_key, sleeper = player_lists()
+    out = {}
+    for sid in sleeper_ids:
+        p = sleeper.get(sid) or {}
+        gsis = by_key.get((norm_name(p.get("full_name") or ""), p.get("position")), [])
+        if len(gsis) == 1:
+            out[gsis[0]] = sid
+    return out
 
 
 def injuries(season: str) -> dict:
@@ -216,6 +251,12 @@ def build(season: str, weeks: list[int] | None, recent: int | None = None, curre
             continue
         ms = matchups(league, week)
         starters = {sid for m in ms for sid in (m.get("starters") or []) if sid and sid != "0"}
+        # Starters the ID table doesn't know (new players): match them by name and position
+        unmatched = {sid for sid in starters if not sid.isalpha() and sid not in gsis_of}
+        if unmatched:
+            for gsis, sid in name_matches(unmatched).items():
+                ids[gsis] = sid
+                gsis_of[sid] = gsis
         final = {sid: (m.get("players_points") or {}).get(sid, 0) for m in ms for sid in (m.get("starters") or []) if sid and sid != "0"}
 
         games, players, defense, plays = {}, defaultdict(list), defaultdict(list), []
