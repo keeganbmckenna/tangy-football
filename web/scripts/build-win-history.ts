@@ -153,10 +153,13 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     })
   );
 
-  // Every starter's points and each matchup's odds at a moment
-  const evaluate = (t: number) => {
+  // Every starter's points and each matchup's odds at a moment. With only, just that game's two
+  // teams are at t and every other game a second earlier: a play's swing is its own, even when
+  // another game had a play in the same second
+  const evaluate = (t: number, only?: { home?: string; away?: string }) => {
+    const timeFor = (team: string | null) => (!only?.home || team === only.home || team === only.away ? t : t - 1);
     const games: Record<string, LiveGame> = {};
-    for (const team of teamGame.keys()) games[team] = gameAt(team, t)!;
+    for (const team of teamGame.keys()) games[team] = gameAt(team, timeFor(team))!;
     for (const team of unplayed) games[team] = { state: 'pre', remaining: 1, label: '' };
     const allowed: Record<string, number> = {};
     const pointsAt = (id: string) => {
@@ -166,9 +169,9 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
       if (/^[A-Z]{2,3}$/.test(id)) {
         if (!g || g.state === 'pre') return 0;
         allowed[id] = g.opponentScore ?? 0;
-        return (at(tl.defense[id], t)?.[1] ?? 0) + allowedPoints(allowed[id], ptsAllowed) + spreadGap;
+        return (at(tl.defense[id], timeFor(team))?.[1] ?? 0) + allowedPoints(allowed[id], ptsAllowed) + spreadGap;
       }
-      return (at(tl.players[id], t)?.[1] ?? 0) + spreadGap;
+      return (at(tl.players[id], timeFor(team))?.[1] ?? 0) + spreadGap;
     };
     const points = new Map<string, number>();
     const atT = matchups.map((m) => {
@@ -212,7 +215,7 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     };
     const inGame = (id: string) => (!home || teamOf(id) === home || teamOf(id) === away) && named(id);
     const before = evaluate(t - 1);
-    const after = evaluate(t);
+    const after = evaluate(t, { home, away });
     for (const o of after.odds) {
       const s = series.get(o.matchupId);
       const prior = before.odds.find((x) => x.matchupId === o.matchupId);
