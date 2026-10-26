@@ -148,7 +148,7 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-xs uppercase tracking-wider text-[var(--muted)]">
-                <th className="py-2 pr-2 text-left font-medium">Team</th>
+                <th className="py-2 pl-2.5 pr-2 text-left font-medium">Team</th>
                 <th className="px-1.5 py-2 text-right font-medium sm:px-2">Playoffs</th>
                 <th className="px-1.5 py-2 text-right font-medium sm:px-2">Bye</th>
                 {data.format.hasDivisions && <th className="py-2 pl-1.5 text-right font-medium sm:pl-2">Div</th>}
@@ -161,7 +161,7 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
                 if (!now || !then) return null;
                 return (
                   <tr key={t.rosterId} className={mineRow(t.rosterId === me.rosterId)}>
-                    <td className="max-w-[7rem] py-2 pr-1.5 text-[var(--foreground)] sm:max-w-none">
+                    <td className="max-w-[7rem] py-2 pl-2.5 pr-1.5 text-[var(--foreground)] sm:max-w-none">
                       <div className="truncate" title={name(t.rosterId)}>{name(t.rosterId)}</div>
                       {/* The real record, and with picks for this team, the record they'd give */}
                       <div className="whitespace-nowrap text-xs tabular-nums text-[var(--muted)]">
