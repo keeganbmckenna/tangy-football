@@ -217,7 +217,7 @@ From `web/`: `npx tsc --noEmit` type-checks, `npm run lint` lints, `npx vitest r
 | [Prediction log](.github/workflows/prediction-log.yml) | Wednesdays, and before Thursday, Sunday and Monday kickoffs | Saves the site's odds and every player's injury status to the `prediction-log` branch for the 2026 evaluation |
 | [Archive seasons](.github/workflows/archive-seasons.yml) | Every March 15 | Adds the newly completed season to `data/sleeper/` |
 | [Live ping](.github/workflows/live-ping.yml) | Every 5 minutes during NFL game windows, September to January | Loads `/api/live` so each matchup's win odds are saved to Redis for the in-progress week's chart |
-| [Win history](.github/workflows/win-history.yml) | Fridays, September to January | Replays the latest two scored weeks play by play into `web/public/data/win-history/` (each matchup's win odds through the week) |
+| [Win history](.github/workflows/win-history.yml) | Tuesdays, Wednesdays and Fridays, September to January | Replays the latest two scored weeks play by play into `web/public/data/win-history/` (each matchup's win odds through the week) |
 
 ## Deployment
 

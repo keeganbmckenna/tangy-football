@@ -1,12 +1,14 @@
-# Each Friday in season, replays the latest weeks' matchups play by play into the
-# win-probability history (web/public/data/win-history/): nflverse's play-by-play is
-# updated within a day of each game, and Sleeper's stat corrections run through Thursday.
-# Rebuilds the last two scored weeks, so corrections to the earlier one are picked up.
+# Replays the latest weeks' matchups play by play into the win-probability history
+# (web/public/data/win-history/), replacing the live snapshots. Tuesday, once Monday night's
+# game is in nflverse's play-by-play (updated overnight); Wednesday in case Sleeper hadn't
+# marked the week scored yet; Friday after Sleeper's stat corrections (they run through
+# Thursday). Each run rebuilds the last two scored weeks.
 name: Win history
 
 on:
   schedule:
-    - cron: '0 12 * 9-12,1 5'   # Fridays, 12:00 UTC, September to January
+    - cron: '0 15 * 9-12,1 2,3'   # Tuesdays and Wednesdays, 15:00 UTC (11 AM ET), September to January
+    - cron: '0 12 * 9-12,1 5'     # Fridays, 12:00 UTC
   workflow_dispatch:
 
 permissions:
