@@ -209,17 +209,20 @@ def play_points(p, s: dict, ids: dict) -> tuple[dict, dict]:
             dst[de] += s.get("fum_rec", 0)
         if p.safety == 1:
             dst[de] += s.get("safe", 0)
-        if (p.punt_blocked == 1 or (isinstance(p.field_goal_result, str) and p.field_goal_result == "blocked")):
+        if isinstance(p.field_goal_result, str) and p.field_goal_result == "blocked":
             dst[de] += s.get("blk_kick", 0)
     td_team = TEAM.get(p.td_team, p.td_team) if isinstance(p.td_team, str) else None
     if td_team and td_team != off and not returns:
         dst[td_team] += s.get("def_td", 0)
-    if returns and isinstance(off, str):
-        # On kickoffs and punts nflverse's posteam is the receiving team
-        yards = num(p.return_yards)
-        dst[off] += s.get("def_kr_yd" if p.play_type == "kickoff" else "def_pr_yd", 0) * yards
-        if td_team == off:
-            dst[off] += s.get("def_st_td", 0)
+    if returns:
+        # The returning team: nflverse's posteam on kickoffs, but the punting team on punts
+        receiving = TEAM.get(p.return_team, p.return_team) if isinstance(p.return_team, str) else (off if p.play_type == "kickoff" else de)
+        if isinstance(receiving, str):
+            dst[receiving] += s.get("def_kr_yd" if p.play_type == "kickoff" else "def_pr_yd", 0) * num(p.return_yards)
+        if p.play_type == "punt" and p.punt_blocked == 1 and isinstance(de, str):
+            dst[de] += s.get("blk_kick", 0)
+        if td_team:
+            dst[td_team] += s.get("def_st_td", 0) + s.get("st_td", 0)
     return pts, dst
 
 
