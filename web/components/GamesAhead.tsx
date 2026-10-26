@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import { useMyTeam } from '@/hooks/useMyTeam';
-import { RESULT_DOT_COLORS } from '@/lib/constants';
+import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { formatOdds, type PlayoffOddsResponse } from '@/lib/analyze/playoffOdds';
 import type { TeamStats } from '@/lib/types';
@@ -14,13 +14,18 @@ interface GamesAheadProps {
   teamStats: TeamStats[];
 }
 
+/** Win chance as a heatmap color: 20% or less at the dark end, 80% or more at the bright end */
+const cellColor = (p: number) => getHeatmapColorByRatio((p - 0.2) / 0.6);
+
 /**
  * One team's chance of winning each of its remaining regular-season games, from the
- * single-game model (the trade tools' weekly odds), with its expected wins. Defaults to your team.
+ * single-game model (the trade tools' weekly odds), with its expected wins (defaults to your
+ * team); or every team's at once as a grid, easiest remaining schedule first.
  */
 export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadProps) {
   const me = useMyTeam();
   const [picked, setPicked] = useState<number | null>(null);
+  const [view, setView] = useState<'team' | 'all'>('team');
   const stats = new Map(teamStats.map((t) => [t.rosterId, t]));
   const name = (id: number) => stats.get(id)?.teamName ?? `Team ${id}`;
   const records = new Map(teams.map((t) => [t.rosterId, formatRecord(t.wins, t.losses, t.ties)]));
@@ -28,11 +33,20 @@ export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadPro
   const rosterId = picked ?? (me.rosterId !== null && records.has(me.rosterId) ? me.rosterId : options[0]?.rosterId);
   if (rosterId === undefined) return null;
 
-  const games = gameOdds
-    .filter((g) => g.a === rosterId || g.b === rosterId)
-    .sort((x, y) => x.week - y.week)
-    .map((g) => ({ week: g.week, opponent: g.a === rosterId ? g.b : g.a, win: g.a === rosterId ? g.aWins : 1 - g.aWins }));
+  const gamesFor = (id: number) =>
+    gameOdds
+      .filter((g) => g.a === id || g.b === id)
+      .sort((x, y) => x.week - y.week)
+      .map((g) => ({ week: g.week, opponent: g.a === id ? g.b : g.a, win: g.a === id ? g.aWins : 1 - g.aWins }));
+  const games = gamesFor(rosterId);
   const expected = games.reduce((s, g) => s + g.win, 0);
+  const weeks = [...new Set(gameOdds.map((g) => g.week))].sort((a, b) => a - b);
+  const grid = teams
+    .map((t) => {
+      const list = gamesFor(t.rosterId);
+      return { rosterId: t.rosterId, byWeek: new Map(list.map((g) => [g.week, g])), expected: list.reduce((s, g) => s + g.win, 0), count: list.length };
+    })
+    .sort((a, b) => b.expected / (b.count || 1) - a.expected / (a.count || 1));
 
   return (
     <SectionCard
@@ -49,22 +63,91 @@ export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadPro
       }
     >
       <div className="space-y-4 p-4 sm:p-6">
-        <label className="flex flex-wrap items-center gap-2 text-sm text-[var(--foreground)]">
-          Team
-          <select
-            value={rosterId}
-            onChange={(e) => setPicked(Number(e.target.value))}
-            className="max-w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-          >
-            {options.map((t) => (
-              <option key={t.rosterId} value={t.rosterId}>
-                {name(t.rosterId)}
-                {t.rosterId === me.rosterId ? ' (you)' : ''}
-              </option>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex shrink-0 gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1" role="group" aria-label="Show">
+            {[
+              { id: 'team' as const, label: 'One team' },
+              { id: 'all' as const, label: 'All teams' },
+            ].map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setView(o.id)}
+                aria-pressed={view === o.id}
+                className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                  view === o.id ? 'bg-[var(--info-bg)] text-[var(--info-text)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                {o.label}
+              </button>
             ))}
-          </select>
-        </label>
-        {games.length ? (
+          </div>
+          {view === 'team' && (
+            <label className="flex flex-wrap items-center gap-2 text-sm text-[var(--foreground)]">
+              Team
+              <select
+                value={rosterId}
+                onChange={(e) => setPicked(Number(e.target.value))}
+                className="max-w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              >
+                {options.map((t) => (
+                  <option key={t.rosterId} value={t.rosterId}>
+                    {name(t.rosterId)}
+                    {t.rosterId === me.rosterId ? ' (you)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {view === 'all' ? (
+          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <table className="w-full border-separate border-spacing-0.5 text-center text-xs tabular-nums">
+              <thead>
+                <tr className="text-[var(--muted)]">
+                  <th className="sticky left-0 z-[1] bg-[var(--surface-elevated)] pr-2 text-left font-medium">Team</th>
+                  {weeks.map((w) => (
+                    <th key={w} className="min-w-[2.25rem] font-medium">W{w}</th>
+                  ))}
+                  <th className="min-w-[2.75rem] pl-1 font-medium" title="Expected wins over the remaining games">Exp. W</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grid.map((row) => (
+                  <tr
+                    key={row.rosterId}
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setPicked(row.rosterId);
+                      setView('team');
+                    }}
+                    title={`${name(row.rosterId)}: see its games`}
+                  >
+                    <td
+                      className={`sticky left-0 z-[1] max-w-[7rem] truncate bg-[var(--surface-elevated)] py-1 pr-2 text-left text-xs sm:max-w-[11rem] ${
+                        row.rosterId === me.rosterId ? 'font-semibold text-[var(--foreground)]' : 'text-[var(--foreground)]'
+                      }`}
+                    >
+                      {name(row.rosterId)}
+                    </td>
+                    {weeks.map((w) => {
+                      const g = row.byWeek.get(w);
+                      if (!g) return <td key={w} className="text-[var(--muted)]">–</td>;
+                      const { backgroundColor, textColor } = cellColor(g.win);
+                      return (
+                        <td key={w} className="rounded py-1.5 font-semibold" style={{ backgroundColor, color: textColor }} title={`Week ${w} vs ${name(g.opponent)}: ${formatOdds(g.win)}`}>
+                          {Math.round(g.win * 100)}
+                        </td>
+                      );
+                    })}
+                    <td className="pl-1 font-semibold text-[var(--foreground)]">{row.expected.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-[var(--muted)]">Win chance (%) in each game, easiest remaining schedule first. Tap a team for its games.</p>
+          </div>
+        ) : games.length ? (
           <>
             <ul className="divide-y divide-[var(--border)]">
               {games.map((g) => {

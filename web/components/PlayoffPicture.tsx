@@ -6,6 +6,7 @@ import RetryButton from '@/components/ui/RetryButton';
 import BracketBoard, { type BoardColumn, type BoardTeam } from '@/components/BracketBoard';
 import OddsHistoryChart from '@/components/OddsHistoryChart';
 import GamesAhead from '@/components/GamesAhead';
+import WhatIf from '@/components/WhatIf';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
@@ -526,6 +527,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           })}
         </div>
       </SectionCard>
+
+      <WhatIf data={data} teamStats={teamStats} />
     </div>
   );
 }
