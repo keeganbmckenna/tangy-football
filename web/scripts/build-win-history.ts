@@ -45,8 +45,8 @@ interface Timeline {
   injuries: Record<string, string>;
   /** Each starter's official points */
   final: Record<string, number>;
-  /** [time, description] of each play that changed a starter's points (older timelines lack them) */
-  plays?: Array<[number, string]>;
+  /** [time, description, home team, away team] of each play that changed a starter's points */
+  plays?: Array<[number, string, string?, string?]>;
 }
 
 const getJson = async <T>(url: string): Promise<T> => {
@@ -195,7 +195,16 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     const name = projections[id]?.name ?? id;
     return projections[id]?.position === 'DEF' ? name : name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ');
   };
-  for (const [t, desc] of tl.plays ?? []) {
+  for (const [t, desc, home, away] of tl.plays ?? []) {
+    // Only this play's game (another game's play at the same second isn't part of it), and a player
+    // only if the play names him (two plays in one game can share a second); defenses go unnamed
+    const text = desc.toLowerCase();
+    const named = (id: string) => {
+      if (/^[A-Z]{2,3}$/.test(id)) return true;
+      const last = (projections[id]?.name ?? '').split(' ').filter((w) => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(w)).pop();
+      return !last || text.includes(last.toLowerCase());
+    };
+    const inGame = (id: string) => (!home || teamOf(id) === home || teamOf(id) === away) && named(id);
     const before = evaluate(t - 1);
     const after = evaluate(t);
     for (const o of after.odds) {
@@ -204,7 +213,7 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
       if (!s || !prior) continue;
       const players: PlayEvent['players'] = [];
       for (const [side, rosterId] of [['a', s.a], ['b', s.b]] as const) {
-        for (const id of startersOf.get(rosterId) ?? []) {
+        for (const id of (startersOf.get(rosterId) ?? []).filter(inGame)) {
           const pts = Math.round(((after.points.get(id) ?? 0) - (before.points.get(id) ?? 0)) * 10) / 10;
           if (Math.abs(pts) >= 0.1) players.push({ side, name: nameOf(id), pts });
         }

@@ -10,8 +10,9 @@ league's season, the timeline the Live tab would have seen:
             takeaways, touchdowns, safeties, blocked kicks); points allowed come from the score
   injuries  the final injury report status for the week (Out, Doubtful, Questionable)
   final     each starter's official points from Sleeper, so the replay ends exactly there
-  plays     the time and nflverse's description of every play that changed a starter's points
-            (or the score of a game with a starting defense), for the charts' big-play markers
+  plays     the time, nflverse's description and the game's two teams of every play that changed
+            a starter's points (or the score of a game with a starting defense), for the charts'
+            big-play markers
 
 Scoring uses the league's own settings. Bonuses, stat corrections and anything the play-by-play
 misses are made up by the gap to the official final, spread over the player's game.
@@ -249,7 +250,8 @@ def build(season: str, weeks: list[int] | None, recent: int | None = None, curre
                     touched = True
                 last_score = (hs, as_)
                 if touched and isinstance(p.desc, str):
-                    plays.append([t, " ".join(p.desc.split())[:180]])
+                    # With its game's teams, so a play only counts its own game's players
+                    plays.append([t, " ".join(p.desc.split())[:180], home, away])
             if snaps:
                 games[game_id] = {"home": home, "away": away, "snaps": snaps}
 
