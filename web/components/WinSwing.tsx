@@ -67,7 +67,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
     // In percent, unrounded: it's rounded once where it's shown
     return { i, t, p: p * 100, sa, sb };
   });
-  // Live, the chart ends at the odds the card shows now: saves come every couple of minutes
+  // Live, the chart ends at the odds the card shows now: saves come every 30 seconds at most
   if (live && now) {
     const t = Math.max(Math.floor(Date.now() / 1000), data.times[data.times.length - 1]);
     points.push({ i: points.length, t, p: now.odds * 100, sa: now.sa, sb: now.sb });

@@ -1,7 +1,7 @@
 /**
  * The win-probability history of the week in progress: each matchup's live win odds saved
- * every couple of minutes while games are on (by /api/live, which a workflow also pings during
- * game windows), in Upstash Redis through its HTTP API (no connection to open per request).
+ * every 30 seconds at most while games are on (lib/liveSave.ts, from the live routes the Live tab
+ * polls and a workflow pings during game windows), in Upstash Redis through its HTTP API (no connection to open per request).
  * The "How it swung" chart reads it back until the week's play-by-play replay
  * (lib/winHistory.ts) replaces it.
  *
@@ -12,8 +12,8 @@
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
 import { biggestPlays, cleanPlay, dropRetractions, liveEvents, PLAY_LOOKBACK_SECONDS, playersInPlay, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
 
-/** At most one snapshot per this many seconds */
-const EVERY_SECONDS = 120;
+/** At most one snapshot per this many seconds (a big moment covers what changed in between) */
+const EVERY_SECONDS = 30;
 /** Kept this long: the play-by-play replay takes over within the week */
 const KEEP_SECONDS = 45 * 24 * 3600;
 
@@ -56,46 +56,63 @@ export interface MatchupStarters {
   b: string[];
 }
 
-/**
- * Save the matchups' odds now, unless a snapshot was saved in the last EVERY_SECONDS, along
- * with any big moments since the last save (liveEvents): given each starter's points now
- */
-export async function saveSnapshot(
-  season: string,
-  week: number,
-  odds: LiveMatchupOdds[],
+/** What a save records: the odds now, and for big moments each starter's points */
+export interface SaveInput {
+  odds: LiveMatchupOdds[];
   live?: {
     pts: Record<string, number>;
     starters: MatchupStarters[];
     nameOf: (id: string) => string;
     /** The play behind a big moment, from its game's play-by-play (matchPlay), when it can be found */
     describe?: (event: PlayEvent, since: number) => Promise<{ t: number; text: string; teams?: string[] } | null>;
-  }
-): Promise<boolean> {
-  if (!liveHistoryEnabled() || !odds.length) return false;
+  };
+}
+
+/**
+ * Save the matchups' odds now, unless a snapshot was saved in the last EVERY_SECONDS, along
+ * with any big moments since the last save (liveEvents). Given a function, it's only called once
+ * this request has the save, so working out the odds costs one request per interval.
+ */
+export async function saveSnapshot(season: string, week: number, input: SaveInput | (() => Promise<SaveInput | null>)): Promise<boolean> {
+  if (!liveHistoryEnabled()) return false;
+  if (typeof input !== 'function' && !input.odds.length) return false;
   const k = key(season, week);
+  // The lock decides who saves: SET NX with an expiry lets one request through per interval
+  const lock = await redis([['SET', `${k}:lock`, '1', 'NX', 'EX', EVERY_SECONDS - 5], ['GET', `${k}:state`]]);
+  if (lock?.[0] !== 'OK') return false;
+  const built = typeof input === 'function' ? await input().catch(() => null) : input;
+  if (!built?.odds.length) return false;
+  const { odds, live } = built;
   const t = Math.round(Date.now() / 1000);
   const snapshot: Snapshot = {
     t,
     m: odds.map((o) => [o.matchupId, o.a.rosterId, o.b.rosterId, Math.round(o.aWinOdds * 1000) / 1000, Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]),
   };
-  // The lock decides who saves: SET NX with an expiry lets one request through per interval
-  const lock = await redis([['SET', `${k}:lock`, '1', 'NX', 'EX', EVERY_SECONDS - 5], ['GET', `${k}:state`]]);
-  if (lock?.[0] !== 'OK') return false;
   const commands: Array<Array<string | number>> = [
     ['RPUSH', k, JSON.stringify(snapshot)],
     ['EXPIRE', k, KEEP_SECONDS],
   ];
   if (live) {
-    const now: LiveState = { t, pts: live.pts, odds: Object.fromEntries(odds.map((o) => [o.matchupId, Math.round(o.aWinOdds * 1000) / 1000])) };
     const prev = typeof lock[1] === 'string' ? (JSON.parse(lock[1]) as LiveState) : null;
+    const now: LiveState = {
+      t,
+      pts: live.pts,
+      odds: Object.fromEntries(odds.map((o) => [o.matchupId, Math.round(o.aWinOdds * 1000) / 1000])),
+      played: { ...prev?.played },
+    };
     const events = prev ? liveEvents(prev, now, live.starters, live.nameOf) : [];
-    // Each big moment's play, when its game's play-by-play has it: its text and time
+    // Each big moment's play, when its game's play-by-play has it: its text and time. The search
+    // starts after the player's last play already given to a moment, so one play isn't given twice.
     if (prev && live.describe) {
       await Promise.all(
         events.map(async ({ event }) => {
-          const play = await live.describe!(event, prev.t - PLAY_LOOKBACK_SECONDS).catch(() => null);
-          if (play) Object.assign(event, playersInPlay({ ...event, t: play.t, desc: cleanPlay(play.text), teams: play.teams }));
+          const top = [...event.players].sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts))[0];
+          const after = top?.id ? prev.played?.[top.id] : undefined;
+          const since = Math.max(prev.t - PLAY_LOOKBACK_SECONDS, after === undefined ? -Infinity : after + 1);
+          const play = await live.describe!(event, since).catch(() => null);
+          if (!play) return;
+          Object.assign(event, playersInPlay({ ...event, t: play.t, desc: cleanPlay(play.text), teams: play.teams }));
+          if (top.id) now.played![top.id] = Math.max(now.played![top.id] ?? 0, play.t);
         })
       );
     }

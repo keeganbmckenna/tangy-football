@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { SLEEPER_CONFIG } from '@/lib/config';
 import { liveMatchups, scoreboard, UPSTREAM_TIMEOUT_MS } from '@/lib/liveData';
 import type { LiveScoresData } from '@/lib/analyze/live';
+import { saveLiveOdds } from '@/lib/liveSave';
 import type { SleeperLeague } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,9 @@ export async function GET() {
     const [{ matchups, allowed, stats }, games] = week > 0
       ? await Promise.all([liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {}), scoreboard(league.season, week)])
       : [{ matchups: [], allowed: {}, stats: {} }, null];
+    // While games are on, save the odds for the week's win-probability history, once answered (every
+    // viewer polls this every few seconds, so saves keep their interval)
+    if (week > 0) after(() => saveLiveOdds(league, week, matchups, allowed, games).catch((e) => console.error('Live save failed:', e)));
     const body: LiveScoresData = { week, matchups, games: games ?? undefined, allowed, stats, fetchedAt: new Date().toISOString() };
     return NextResponse.json(body, { headers: { 'Cache-Control': 'public, s-maxage=8, stale-while-revalidate=10' } });
   } catch (error) {

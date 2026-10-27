@@ -25,7 +25,7 @@ export interface WinHistory {
   matchups: WinHistoryMatchup[];
 }
 
-/** A play (or, saved live, a couple of minutes of plays) in one matchup, and what it did */
+/** A play (or, saved live, what changed between two saves) in one matchup, and what it did */
 export interface PlayEvent {
   /** Unix seconds */
   t: number;
@@ -114,11 +114,13 @@ export interface LiveState {
   t: number;
   pts: Record<string, number>;
   odds: Record<number, number>;
+  /** The time of each starter's latest play given to a big moment (live saves) */
+  played?: Record<string, number>;
 }
 
 /**
  * Big moments between two live saves, per matchup: live saves don't see plays, only each
- * starter's points every couple of minutes, so an event is everything that changed in between
+ * starter's points every 30 seconds or so, so an event is everything that changed in between
  * (desc null), kept when it's big (isBigPlay)
  */
 export function liveEvents(
