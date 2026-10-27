@@ -691,7 +691,8 @@ def sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add
             lo = torch.floor(v); w_hi = v - lo
             pmf = torch.zeros(len(act_s), SIM_BINS, dtype=DT, device=dev)
             lo_i = lo.long() % SIM_BINS
-            pmf.scatter_add_(1, lo_i, (1 - w_hi) / q.shape[1]); pmf.scatter_add_(1, (lo_i + 1) % SIM_BINS, w_hi / q.shape[1])
+            wq = torch.tensor(LS.WEIGHTS, dtype=DT, device=dev).unsqueeze(0)
+            pmf.scatter_add_(1, lo_i, (1 - w_hi) * wq); pmf.scatter_add_(1, (lo_i + 1) % SIM_BINS, w_hi * wq)
             rows.append((act_s, pmf))
         if len(act_d):
             mu = add[act_d, ti] * s_sign[act_d]; sdv = var_i[act_d, ti].clamp(min=1e-6).sqrt()

@@ -9,6 +9,7 @@ import { calculateDivisionStandings, calculateWildCardStandings } from './playof
 import { calculateWeeklyPlayAll } from './playEveryone';
 import type { StatLine } from './statLine';
 import { normalCdf } from './trade';
+import remainingPointsTables from './remainingPoints.json';
 
 /** Response of /api/live */
 export interface LiveWeekData {
@@ -433,20 +434,28 @@ export function liveWinOdds(
   const lineupVariance = matchups.map((m) => starters(m).reduce((v, { p }) => v + (p.spreadRatio * p.points) ** 2, 0)).filter((v) => v > 0);
   const scale = lineupVariance.length ? fullVariance / (lineupVariance.reduce((a, b) => a + b, 0) / lineupVariance.length) : 1;
 
-  const side = (m: SleeperMatchup) => {
+  const side = (m: SleeperMatchup, sign: 1 | -1) => {
     let left = 0;
     let variance = 0;
     let toPlay = 0;
     let playing = 0;
+    // Its starters still to play, for the one-sided case (remainingPointsOdds)
+    const players: RemainingPlayer[] = [];
+    const defenses: RemainingDefense[] = [];
     for (const { id, p, g } of starters(m)) {
       const remaining = g ? g.remaining : 0;
-      left += expectedAdd(id, p, m.players_points?.[id] ?? 0, g, defense);
-      variance += scale * (p.spreadRatio * p.points) ** 2 * remaining;
+      const add = expectedAdd(id, p, m.players_points?.[id] ?? 0, g, defense);
+      const v = scale * (p.spreadRatio * p.points) ** 2 * remaining;
+      left += add;
+      variance += v;
       if (g?.state === 'pre') toPlay++;
       else if (g?.state === 'in') playing++;
+      if (remaining <= 0) continue;
+      if (p.defense && defense.allowedScoring) defenses.push({ mean: add, sd: Math.sqrt(v), sign });
+      else players.push({ position: p.position, projection: p.original ?? p.points, expected: p.points * remaining, remaining, sign });
     }
     const score = m.points ?? 0;
-    return { s: { rosterId: m.roster_id, score, projected: score + left, toPlay, playing }, variance };
+    return { s: { rosterId: m.roster_id, score, projected: score + left, toPlay, playing }, variance, players, defenses };
   };
   const byId = new Map<number, SleeperMatchup[]>();
   for (const m of matchups) {
@@ -456,13 +465,105 @@ export function liveWinOdds(
   const out: LiveMatchupOdds[] = [];
   for (const [matchupId, pair] of byId) {
     if (pair.length !== 2) continue;
-    const [a, b] = pair.map(side);
+    const [a, b] = [side(pair[0], 1), side(pair[1], -1)];
     const diff = a.s.projected - b.s.projected;
     const sd = Math.sqrt(a.variance + b.variance);
-    const aWinOdds = sd > 0.01 ? normalCdf(diff / sd) : diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
+    let aWinOdds = sd > 0.01 ? normalCdf(diff / sd) : diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
+    // One team done (or nearly) and the other close with players left: a normal curve puts real
+    // odds on its players losing points, which almost never happens, so use their real
+    // distributions instead (remainingPointsOdds)
+    const lead = a.s.score - b.s.score;
+    const total = Math.max(a.variance + b.variance, 1e-9);
+    const oneSided =
+      Math.abs(lead) < ONE_SIDED_MARGIN &&
+      ((a.variance / total < ONE_SIDED_SHARE && b.variance > 0.01) || (b.variance / total < ONE_SIDED_SHARE && a.variance > 0.01));
+    if (oneSided) aWinOdds = remainingPointsOdds(lead, [...a.players, ...b.players], [...a.defenses, ...b.defenses]);
     out.push({ matchupId, a: a.s, b: b.s, aWinOdds, sd });
   }
   return out.sort((x, y) => x.matchupId - y.matchupId);
+}
+
+/** One team's remaining variance under this share of the matchup's... */
+const ONE_SIDED_SHARE = 0.02;
+/** ...and the score within this many points: where remainingPointsOdds takes over */
+const ONE_SIDED_MARGIN = 10;
+
+/** A starter still to play, for remainingPointsOdds: sign +1 for team a's, -1 for b's */
+export interface RemainingPlayer {
+  position: string;
+  /** His half-PPR projection for the whole game (for the table's projection bin) */
+  projection: number;
+  /** Points still expected: projection x share of game left */
+  expected: number;
+  /** Share of his game left */
+  remaining: number;
+  sign: 1 | -1;
+}
+
+/** A defense still to play: its expected remaining points and spread (the model's normal) */
+export interface RemainingDefense {
+  mean: number;
+  sd: number;
+  sign: 1 | -1;
+}
+
+const RP_STEP = 0.5;
+const RP = remainingPointsTables as { positions: string[]; projEdges: number[]; remEdges: number[]; weights: number[]; quantiles: number[][][][] };
+/** Edges at or below v (numpy's searchsorted, side right) */
+const binOf = (edges: number[], v: number) => edges.filter((e) => e <= v).length;
+
+/**
+ * Team a's chance of winning from each starter's real distribution of points still to come,
+ * instead of one normal curve for the margin: from 2020-2025's play-by-play, by position,
+ * projection and share of game left, as quantiles relative to his remaining projection
+ * (remainingPoints.json, scripts/backtests/live_sim.py). A player often adds a lot, often nothing,
+ * and almost never loses points: a top receiver with half his game left ended 0.61+ points down
+ * in none of 14,283 cases. Defenses keep the model's normal. The margin's distribution is built on
+ * a half-point grid; a's odds are the chance the current margin plus it ends above 0. Used when
+ * one team is done or nearly done and the other is within 10 points (ONE_SIDED_*): there it was
+ * 7-14% more accurate in 2020-2025 (live addendum test 7), where the normal was most off.
+ */
+export function remainingPointsOdds(current: number, players: RemainingPlayer[], defenses: RemainingDefense[]): number {
+  let dist = new Map<number, number>([[0, 1]]);
+  const combine = (values: number[], weights: number[]) => {
+    const out = new Map<number, number>();
+    for (const [b, p] of dist) {
+      values.forEach((v, i) => {
+        const x = v / RP_STEP;
+        const lo = Math.floor(x);
+        const f = x - lo;
+        out.set(b + lo, (out.get(b + lo) ?? 0) + p * weights[i] * (1 - f));
+        if (f) out.set(b + lo + 1, (out.get(b + lo + 1) ?? 0) + p * weights[i] * f);
+      });
+    }
+    dist = out;
+  };
+  for (const pl of players) {
+    const pi = RP.positions.indexOf(pl.position);
+    if (pl.expected <= 0 || pl.remaining <= 0 || pi < 0) continue;
+    const q = RP.quantiles[pi][binOf(RP.projEdges, pl.projection)][binOf(RP.remEdges, pl.remaining)];
+    combine(q.map((v) => pl.sign * v * pl.expected), RP.weights);
+  }
+  for (const d of defenses) {
+    if (d.sd <= 0) {
+      combine([d.sign * d.mean], [1]);
+      continue;
+    }
+    const lo = Math.floor((d.mean - 6 * d.sd) / RP_STEP);
+    const hi = Math.ceil((d.mean + 6 * d.sd) / RP_STEP);
+    const values: number[] = [];
+    const weights: number[] = [];
+    for (let k = lo; k <= hi; k++) {
+      const v = k * RP_STEP;
+      values.push(d.sign * v);
+      weights.push(normalCdf((v + RP_STEP / 2 - d.mean) / d.sd) - normalCdf((v - RP_STEP / 2 - d.mean) / d.sd));
+    }
+    const total = weights.reduce((a, w) => a + w, 0);
+    combine(values, weights.map((w) => w / total));
+  }
+  let odds = 0;
+  for (const [b, p] of dist) odds += p * normalCdf((current + b * RP_STEP) / (RP_STEP / 2));
+  return odds;
 }
 
 /**

@@ -8,6 +8,8 @@ import {
   liveStandings,
   liveTeamStats,
   liveWinOdds,
+  remainingPointsOdds,
+  type RemainingPlayer,
   liveLineup,
   leaguePoints,
   defenseExpected,
@@ -23,6 +25,7 @@ import {
 } from '../analyze/live';
 import { rankTeams } from '../analyze/teamStats';
 import strengthModel from '../analyze/strengthModel.json';
+import remainingOddsFixture from './fixtures/remainingOdds.json';
 import type { LeagueData, SleeperMatchup, SleeperRoster, SleeperUser, TeamStats } from '../types';
 
 const m = (roster_id: number, matchup_id: number, points: number): SleeperMatchup => ({ roster_id, matchup_id, points });
@@ -369,3 +372,45 @@ describe('live odds at kickoff agree with the single-game model', () => {
     }
   });
 });
+
+describe('odds from players\' real remaining-points distributions', () => {
+  it('matches the research version (scripts/backtests/live_sim.py)', () => {
+    for (const c of remainingOddsFixture as Array<{ current: number; players: Array<[string, number, number, number, number]>; defenses: Array<[number, number, number]>; odds: number }>) {
+      const players = c.players.map(([position, projection, expected, remaining, sign]) => ({ position, projection, expected, remaining, sign: sign as 1 | -1 }));
+      const defenses = c.defenses.map(([mean, sd, sign]) => ({ mean, sd, sign: sign as 1 | -1 }));
+      expect(remainingPointsOdds(c.current, players, defenses)).toBeCloseTo(c.odds, 5);
+    }
+  });
+
+  it('almost never lets a player lose the points a narrow lead needs', () => {
+    // Up 0.61, the other team done, a WR projected 14.2 with 54% of his game left
+    const ceedee: RemainingPlayer = { position: 'WR', projection: 14.2, expected: 14.2 * 0.54, remaining: 0.54, sign: 1 };
+    expect(remainingPointsOdds(0.61, [ceedee], [])).toBeGreaterThan(0.995);
+    // Down 3 instead: now he has to score, which a fair share of halves he doesn't
+    const down = remainingPointsOdds(-3, [ceedee], []);
+    expect(down).toBeGreaterThan(0.4);
+    expect(down).toBeLessThan(0.95);
+  });
+
+  it('takes over in liveWinOdds only when one team is done and the score is close', () => {
+    const games: Record<string, LiveGame> = { DAL: { state: 'in', remaining: 0.54, label: '' }, KC: { state: 'post', remaining: 0, label: '' } };
+    const projections: Record<string, LiveProjection> = {
+      cd: { points: 14.2, spreadRatio: 0.6, team: 'DAL', name: 'CeeDee', position: 'WR', injury: null },
+      done: { points: 15, spreadRatio: 0.6, team: 'KC', name: 'Done', position: 'WR', injury: null },
+    };
+    const m = (r: number, starters: string[], pts: number) =>
+      ({ roster_id: r, matchup_id: 1, starters, players: starters, players_points: Object.fromEntries(starters.map((id) => [id, pts])), points: pts }) as SleeperMatchup;
+    const [close] = liveWinOdds([m(1, ['cd'], 111.49), m(2, ['done'], 110.88)], projections, games, 25);
+    expect(close.aWinOdds).toBeGreaterThan(0.995);
+    // Not close: the normal model as before
+    const [far] = liveWinOdds([m(1, ['cd'], 90), m(2, ['done'], 110.88)], projections, games, 25);
+    expect(far.aWinOdds).toBeCloseTo(normalCdfFor(90 + 14.2 * 0.54 - 110.88, far.sd), 9);
+  });
+});
+
+function normalCdfFor(diff: number, sd: number) {
+  const x = Math.abs(diff / sd) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return diff >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
+}

@@ -100,6 +100,14 @@ count for nothing and Questionable ones for 90% of their projection: no Doubtful
 injury reports from 2022-2025 (`injuries.py`). The uncertainty sums the starters' boom-or-bust
 spreads, scaled so a whole game matches the league's week-to-week spread.
 
+When one team is done (or nearly) and the other is within 10 points with players left, a normal
+curve misleads: it puts real odds on those players losing points, which almost never happens.
+There the odds come from each player's real distribution of points still to come instead
+(`remainingPointsOdds`, tables in `web/lib/analyze/remainingPoints.json` from
+`scripts/backtests/live_sim.py`, 2020-2025): often a lot, often nothing, rarely negative. A top
+receiver with half his game left ended 0.61+ points down in none of 14,283 cases, so a team up
+0.61 with him left and its opponent done is above 99%, not the normal's 92%.
+
 **Evidence** (`live_replay.py`, `live_eval.py`; the preregistered live addendum): the site's
 model, ported to PyTorch and checked against this code, replayed every 3 minutes of game time
 through 364,672 matchups of crawled 12-team leagues (2018-2025), scored by log loss averaged

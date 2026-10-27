@@ -260,3 +260,11 @@ player's real distribution.
   in 2018 and 2019, everywhere and as a hybrid used only in one-sided moments). The hybrid is
   carried into the season-end 2026 confirmation as a named candidate: one-sided close moments
   >= 0.01 better with an interval excluding 0, and the primary score no worse than +0.0005.
+- 2026-10-26, **owner's decision after test 7's results: the hybrid ships**, judged on 2020-2025,
+  the seasons whose projections are like Sleeper's now (2018 lacks retired players' projections;
+  2019's were the weakest: points per projected point 0.65 vs 0.84-0.90 from 2022), the same
+  reasoning that set the live spread scale on 2022-2025. On 2020-2025: one-sided close moments
+  -0.016 to -0.032 (6 of 6 meet 0.01) and the primary score -0.0003 to -0.0010 (6 of 6 better).
+  This is a deviation from the rule as written (which required no season worse), chosen after
+  seeing 2018-2019 fail; the season-end 2026 confirmation stays one-shot, and the hybrid comes out
+  if it fails there. Production tables are fitted on 2020-2025.
