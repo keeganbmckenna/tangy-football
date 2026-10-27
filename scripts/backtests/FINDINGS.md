@@ -298,7 +298,9 @@ were made just before those games, which would leak information.
     a game's last 5 minutes): on all high-leverage moments only -0.0005 to -0.0007, but on the
     pivotal ones (the drive model moving the odds 5+ points, ~10% of matchups) -0.055 to -0.066
     in 2022-2025 and -0.009 to -0.052 in 2018-2021 (better in all 8 seasons; the preregistered
-    confirmation passed 2 of 4). **A candidate**: rechecked on 2026 after the season.
+    confirmation passed 2 of 4). Then dropped: added on top of the shipped player blend it made
+    pivotal end-game moments worse in 4 of 6 seasons 2020-2025 (the blend already carries a late
+    touchdown's chance).
   - **Player-level distributions** (`live_sim.py`, test 7), prompted by a live case shown at 92%
     that was really 99%+: each starter's points still to come drawn from what players like him
     actually scored from that moment (2.6M player-moments: from halfway through a game, WRs go
@@ -310,7 +312,8 @@ were made just before those games, which would leak information.
     rising from 0 to 1 as the smaller side's share of the remaining variance falls from 5% to
     1%, any margin. Better overall in all six seasons 2020-2025 (-0.0003 to -0.0021); the
     hand-off adds a median 0.2 points to a step (a hard switch: 2.7, and 10+ points on 13% of
-    switches). The 2026 check confirms or removes it.
+    switches). The 2026 check (frozen in the preregistration's final addendum) confirms or
+    removes it: the one live candidate.
   - **Kalshi player props**: in-game prices lag plays a median 47 s with 23-cent spreads; 2026
     fantasy-points markets alone are worse than our player model (+0.025 log loss), and 2025's
     per-stat props blended into the odds gain 0.0003 at best, and lose where they disagree most.

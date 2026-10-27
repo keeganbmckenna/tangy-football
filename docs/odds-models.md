@@ -125,8 +125,8 @@ almost nothing). The player-based blend above: more accurate overall in every se
 (up to 0.002) and 7-14% in one-sided close moments; worse in 2018-2019, when projections were
 weak, so it was judged on 2020-2025 (logged as a deviation) and the 2026 check confirms or removes
 it. A late-game drive model (nflfastR's touchdown and field-goal chances in a game's last
-minutes) is a candidate for that check too: 12-14% better where a final drive decides a
-matchup in 2022-2025, but its confirmation on 2018-2021 fell short.
+minutes) beat the plain normal where a final drive decided a matchup, but added on top of the
+player blend it made those moments worse, so it was dropped.
 
 **Win history** (`web/scripts/build-win-history.ts`): the same model replayed through each
 finished week from nflverse play-by-play, every 3 minutes of game time on each game's real

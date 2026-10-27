@@ -473,9 +473,9 @@ def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, r
     eg_out = None
     if 'sim' in USE:
         eg_out = sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add, proj_t, scale, fa, fb, sd, score, pa_, pb_,
-                          P, is_def, t(has_proj, torch.bool))
+                          P, is_def, t(has_proj, torch.bool), [lg['scoring'] for lg in chunk])
     if USE & {'endgame', 'endgame6b'}:
-        eg_out = endgame_odds(slot, S, T, m, side, n_sides, pairs, games, teams, gi, state, rem, add, proj_t, scale, fa, fb, sd, pvar,
+        eg_out = (eg_out or {}) | endgame_odds(slot, S, T, m, side, n_sides, pairs, games, teams, gi, state, rem, add, proj_t, scale, fa, fb, sd, pvar,
                               P, prow_, PM, keys, WP, lg_np, full, is_def)
     if 'corr' in USE:
         # Rung 5: same-game pairs of modelled starters add 2 rho sd_i sd_j to the margin's variance
@@ -646,7 +646,7 @@ SIM_STEP, SIM_BINS = 0.5, 1024
 
 
 def sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add, proj_t, scale, fa, fb, sd, score, pa_, pb_,
-             P, is_def, has_proj):
+             P, is_def, has_proj, league_w):
     """Addendum test 7: a's odds from each starter's empirical remaining-points distribution (live_sim.py
     tables), convolved by FFT on the GPU; defenses keep a normal. Returns the L1a odds at LIVE_MULT,
     these, and where the one-sided close target applies."""
@@ -680,29 +680,25 @@ def sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add
     grid = torch.where(grid < SIM_BINS // 2, grid, grid - SIM_BINS) * SIM_STEP
     edges = (torch.arange(SIM_BINS + 1, device=dev, dtype=DT) - 0.5) * SIM_STEP  # for the defenses' normals (non-negative half)
     rbins = torch.bucketize(rem.contiguous(), torch.tensor(LS.REM_EDGES, dtype=DT, device=dev), right=True)
-    for ti in range(T):
-        act_s = torch.nonzero(skill & (rem[:, ti] > 0) & (mean_i[:, ti] > 0)).squeeze(1)
-        act_d = torch.nonzero(defn & (rem[:, ti] > 0)).squeeze(1)
-        if not len(act_s) and not len(act_d): continue
-        rows = []
-        if len(act_s):
-            q = SIM_Q[pos_i[act_s], pb_i[act_s], rbins[act_s, ti]].to(DT) * mean_i[act_s, ti].unsqueeze(1)  # [n, 64]
-            v = q * s_sign[act_s].unsqueeze(1) / SIM_STEP
-            lo = torch.floor(v); w_hi = v - lo
-            pmf = torch.zeros(len(act_s), SIM_BINS, dtype=DT, device=dev)
-            lo_i = lo.long() % SIM_BINS
-            wq = torch.tensor(LS.WEIGHTS, dtype=DT, device=dev).unsqueeze(0)
-            pmf.scatter_add_(1, lo_i, (1 - w_hi) * wq); pmf.scatter_add_(1, (lo_i + 1) % SIM_BINS, w_hi * wq)
-            rows.append((act_s, pmf))
-        if len(act_d):
-            mu = add[act_d, ti] * s_sign[act_d]; sdv = var_i[act_d, ti].clamp(min=1e-6).sqrt()
-            # Bins centred on grid values: P(bin) from the normal's CDF at the bin edges, wrapped
-            gv = grid.unsqueeze(0)
-            pmf = (LM.normal_cdf((gv + SIM_STEP / 2 - mu.unsqueeze(1)) / sdv.unsqueeze(1)) - LM.normal_cdf((gv - SIM_STEP / 2 - mu.unsqueeze(1)) / sdv.unsqueeze(1))).clamp(min=0)
-            rows.append((act_d, pmf))
-        idx = torch.cat([r[0] for r in rows]); pmf = torch.cat([r[1] for r in rows])
+    drives = 'drives' in USE
+    out_d = out.clone() if drives else None
+    wq = torch.tensor(LS.WEIGHTS, dtype=DT, device=dev).unsqueeze(0)
+
+    def spread_pmf(values, weights):
+        """[n, bins] pmf from signed point values [n, q] with weights [1 or n, q], linear split between grid points"""
+        v = values / SIM_STEP
+        lo = torch.floor(v); w_hi = v - lo
+        pmf = torch.zeros(values.shape[0], SIM_BINS, dtype=DT, device=dev)
+        lo_i = lo.long() % SIM_BINS
+        pmf.scatter_add_(1, lo_i, (1 - w_hi) * weights); pmf.scatter_add_(1, (lo_i + 1) % SIM_BINS, w_hi * weights)
+        return pmf
+
+    def normal_pmf(mu, sdv):
+        gv = grid.unsqueeze(0)
+        return (LM.normal_cdf((gv + SIM_STEP / 2 - mu.unsqueeze(1)) / sdv.unsqueeze(1)) - LM.normal_cdf((gv - SIM_STEP / 2 - mu.unsqueeze(1)) / sdv.unsqueeze(1))).clamp(min=0)
+
+    def convolve(kk, pmf, ti, into):
         F = torch.fft.fft(pmf.to(torch.complex64), dim=1)
-        kk = s_k[idx]
         prod = torch.ones(M_, SIM_BINS, dtype=torch.complex64, device=dev)
         order = torch.argsort(kk); sk = kk[order]
         first = torch.ones_like(sk, dtype=torch.bool); first[1:] = sk[1:] != sk[:-1]
@@ -715,15 +711,100 @@ def sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add
         dist = torch.fft.ifft(prod[ks], dim=1).real.to(DT).clamp(min=0)
         dist = dist / dist.sum(1, keepdim=True).clamp(min=1e-12)
         z = (cur[ks, ti].unsqueeze(1) + grid.unsqueeze(0)) / (SIM_STEP / 2)
-        out[ks, ti] = (dist * LM.normal_cdf(z)).sum(1)
+        into[ks, ti] = (dist * LM.normal_cdf(z)).sum(1)
+
+    if drives:
+        # The end-game drive model (test 6b) for players in a game's last 5 minutes
+        NT = len(teams)
+        st = lambda i: torch.stack([games[tm][i] for tm in teams] + [torch.zeros(T, dtype=DT, device=dev)])
+        Q_, CLK, TDp, FGp, OWN, OPP = st(6), st(7), st(8), st(9), st(2), st(3)
+        Sx = torch.stack([games[tm][0] for tm in teams] + [torch.full((T,), -1, dtype=torch.long, device=dev)])
+        eg_team = (Sx == LM.IN) & (((Q_ == 4) & (CLK <= 300)) | (Q_ >= 5))
+        trail = OPP - OWN
+        FGp = torch.where((Q_ == 4) & (CLK <= 120) & (trail >= 4) & (trail <= 8), torch.zeros_like(FGp), FGp)
+        g_of = lambda pid: (P.get(pid) or (None, None, {}))[2] if pid else {}
+        pst = [g_of(pid) for pid in slot.get('pid', [None] * S)]
+        rush_td = np.array([x.get('rush_td') or 0.0 for x in pst]); rec_td = np.array([x.get('rec_td') or 0.0 for x in pst]); pass_td = np.array([x.get('pass_td') or 0.0 for x in pst])
+        lw = lambda k: np.array([league_w[i].get(k, 0.0) for i in slot['league']])
+        w_rush, w_rec, w_pass, w_xp = lw('rush_td'), lw('rec_td'), lw('pass_td'), lw('xpm')
+        w_fg = np.where(lw('fgm_30_39') > 0, lw('fgm_30_39'), 3.0)
+        posn = np.array(slot['pos']); is_k, is_qb = posn == 'K', posn == 'QB'
+        full_half = np.maximum(half, 1e-9)
+        frac = np.where(is_k, 1.0, np.clip((6 * rush_td + 6 * rec_td + 4 * pass_td) / full_half, 0, 1))
+        team_td, team_rush = defaultdict(float), defaultdict(float)
+        for pid, (p_pos, tm, stt) in P.items():
+            if p_pos in ('QB', 'RB', 'WR', 'TE'):
+                team_td[tm] += (stt.get('rush_td') or 0) + (stt.get('rec_td') or 0); team_rush[tm] += stt.get('rush_td') or 0
+        tot_td = np.array([max(team_td.get(tm, 0.0), 1e-6) if tm else 1e-6 for tm in slot['team']])
+        sh_rush, sh_rec = np.where(is_k, 0, rush_td / tot_td), np.where(is_k, 0, rec_td / tot_td)
+        rs_team = torch.tensor([team_rush[tm] / team_td[tm] if team_td.get(tm) else 0.45 for tm in teams] + [0.45], dtype=DT, device=dev)
+        T_ = lambda a, dt=DT: torch.tensor(a, dtype=dt, device=dev)
+        f_t, wr_t, wc_t, wp_t, wx_t, wf_t = T_(frac), T_(w_rush), T_(w_rec), T_(w_pass), T_(w_xp), T_(w_fg)
+        shr_t, shc_t, k_t_, qb_t = T_(sh_rush), T_(sh_rec), T_(is_k, torch.bool), T_(is_qb, torch.bool)
+
+    for ti in range(T):
+        live_s = skill & (rem[:, ti] > 0) & (mean_i[:, ti] > 0)
+        act_s = torch.nonzero(live_s).squeeze(1)
+        act_d = torch.nonzero(defn & (rem[:, ti] > 0)).squeeze(1)
+        if not len(act_s) and not len(act_d): continue
+        idx_l, pmf_l = [], []
+        if len(act_s):
+            q = SIM_Q[pos_i[act_s], pb_i[act_s], rbins[act_s, ti]].to(DT) * mean_i[act_s, ti].unsqueeze(1)
+            pmf_s = spread_pmf(q * s_sign[act_s].unsqueeze(1), wq)
+            idx_l.append(act_s); pmf_l.append(pmf_s)
+        if len(act_d):
+            pmf_dfn = normal_pmf(add[act_d, ti] * s_sign[act_d], var_i[act_d, ti].clamp(min=1e-6).sqrt())
+            idx_l.append(act_d); pmf_l.append(pmf_dfn)
+        convolve(s_k[torch.cat(idx_l)], torch.cat(pmf_l), ti, out)
+        if not drives: continue
+        # With drives: players in a game's last 5 minutes swap their empirical distribution for their
+        # smooth non-TD part plus their team's discrete drive outcomes
+        eg_s = live_s & eg_team[gi[:], ti] if len(act_s) else live_s
+        if not eg_s.any():
+            out_d[:, ti] = out[:, ti]; continue
+        keep = ~eg_s[act_s] if len(act_s) else None
+        idx_l, pmf_l = [], []
+        if len(act_s) and keep.any(): idx_l.append(act_s[keep]); pmf_l.append(pmf_s[keep])
+        if len(act_d): idx_l.append(act_d); pmf_l.append(pmf_dfn)
+        e_idx = torch.nonzero(eg_s).squeeze(1)
+        # Smooth non-TD part (kickers have none)
+        sm = e_idx[~k_t_[e_idx]]
+        if len(sm):
+            idx_l.append(sm); pmf_l.append(normal_pmf(mean_i[sm, ti] * (1 - f_t[sm]) * s_sign[sm], (var_i[sm, ti].clamp(min=1e-6).sqrt() * (1 - f_t[sm])).clamp(min=1e-3)))
+        # Each (matchup, NFL team): no score / field goal / a touchdown by one of its players or another
+        key = s_k[e_idx] * (NT + 1) + gi[e_idx]
+        ukey, grp = torch.unique(key, return_inverse=True)
+        G = len(ukey); g_k, g_team = ukey // (NT + 1), ukey % (NT + 1)
+        sgn = s_sign[e_idx]
+        z_ = lambda: torch.zeros(G, dtype=DT, device=dev)
+        xp = z_().index_add_(0, grp, torch.where(k_t_[e_idx], sgn * wx_t[e_idx], torch.zeros_like(sgn)))
+        fgj = z_().index_add_(0, grp, torch.where(k_t_[e_idx], sgn * wf_t[e_idx], torch.zeros_like(sgn)))
+        qbj = z_().index_add_(0, grp, torch.where(qb_t[e_idx], sgn * wp_t[e_idx], torch.zeros_like(sgn)))
+        srush = z_().index_add_(0, grp, shr_t[e_idx]); srec = z_().index_add_(0, grp, shc_t[e_idx])
+        p_td, p_fg = TDp[g_team, ti].clamp(0, 1), FGp[g_team, ti].clamp(0, 1)
+        other = (1 - srush - srec).clamp(min=0); rs = rs_team[g_team]
+        n_ev = 4
+        vals = torch.stack([torch.zeros(G, dtype=DT, device=dev), fgj, xp, xp + qbj], 1)
+        probs = torch.stack([(1 - p_td - p_fg).clamp(min=0), p_fg, p_td * other * rs, p_td * other * (1 - rs)], 1)
+        gpmf = spread_pmf(vals, probs)
+        # Each matchup player's own touchdown
+        own_r = xp[grp] + sgn * wr_t[e_idx]; own_c = xp[grp] + qbj[grp] + sgn * wc_t[e_idx]
+        add_pmf = spread_pmf(torch.stack([own_r, own_c], 1), torch.stack([p_td[grp] * shr_t[e_idx], p_td[grp] * shc_t[e_idx]], 1))
+        gpmf = gpmf.index_add_(0, grp, add_pmf)
+        gpmf = gpmf / gpmf.sum(1, keepdim=True).clamp(min=1e-12)
+        idx_l.append(None); pmf_l.append(gpmf)
+        kk = torch.cat([s_k[i] for i in idx_l if i is not None] + [g_k])
+        convolve(kk, torch.cat(pmf_l), ti, out_d)
     # One-sided close: one side's remaining variance under 2% of the matchup's, the other side still playing, margin under 10
     v_side = torch.zeros(n_sides, T, dtype=DT, device=dev).index_add_(0, side[has_proj], var_i[has_proj])
     va, vb = v_side[pa_], v_side[pb_]
     tot = (va + vb).clamp(min=1e-9)
     one = (((va / tot < 0.02) & (vb > 0.01)) | ((vb / tot < 0.02) & (va > 0.01))) & (cur.abs() < 10)
     share = torch.minimum(va, vb) / tot
-    return {'odds_m': base.float().cpu().numpy(), 'odds_sim': out.float().cpu().numpy(), 'one': one.cpu().numpy(),
-            'share': share.float().cpu().numpy()}
+    res = {'odds_m': base.float().cpu().numpy(), 'odds_sim': out.float().cpu().numpy(), 'one': one.cpu().numpy(),
+           'share': share.float().cpu().numpy()}
+    if drives: res['odds_simd'] = out_d.float().cpu().numpy()
+    return res
 
 
 def replay_season(season):
@@ -753,7 +834,7 @@ def replay_season(season):
 
 def load(season, out=None):
     z = np.load(os.path.join(out or OUT, f'{season}.npz'))
-    keys = ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3', 'odds_m', 'odds_eg', 'eg', 'odds_sim', 'one', 'share')
+    keys = ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3', 'odds_m', 'odds_eg', 'eg', 'odds_sim', 'one', 'share', 'odds_simd')
     return [{k: z[f'{k}_{i}'] for k in keys if f'{k}_{i}' in z.files} for i in range(int(z['n']))]
 
 

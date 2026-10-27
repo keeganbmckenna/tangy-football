@@ -268,3 +268,20 @@ player's real distribution.
   This is a deviation from the rule as written (which required no season worse), chosen after
   seeing 2018-2019 fail; the season-end 2026 confirmation stays one-shot, and the hybrid comes out
   if it fails there. Production tables are fitted on 2020-2025.
+
+## Addendum (2026-10-26, final): the live model's 2026 confirmation, frozen before any 2026 crawl
+
+One candidate, to keep the one-shot test clean: **the shipped Live model** as of commit
+`41aedc4` (spread scale 1.0; the player-based blend from 5% to 1% of the remaining variance, tables
+fitted on 2020-2025). Dropped before the crawl: the end-game drive model (on top of the blend it
+made pivotal end-game moments worse in 4 of 6 seasons, 2020-2025).
+- **Data.** 12-team crawled leagues' 2026 regular seasons, crawled once after the season (same
+  filters as 2018-2025: played, no IDP, this league left out), replayed with live_replay.py.
+- **Comparison.** The shipped model vs the earlier one (scale 0.7, no blend), and vs scale 1.0
+  without the blend (the blend's own contribution).
+- **Targets and rules.** Primary score (time-averaged log loss): the shipped model must beat the
+  earlier one by >= 0.002 with a 95% interval resampling leagues excluding 0. One-sided close
+  moments (one side under 2% of the remaining variance, the other still playing, margin under
+  10): the blend must improve on scale 1.0 alone by >= 0.01 with an interval excluding 0, and not
+  worsen the primary score by more than 0.0005. Any part that fails is removed for 2027.
+- Reported whatever the result, in LOG.md and FINDINGS.md.
