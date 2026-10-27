@@ -53,6 +53,14 @@ export default function WinSwing(props: WinSwingProps) {
   const [picked, setPicked] = useState<number | null>(null);
   // Over a big play's tap area (for the pointer): the chart keeps the mouse, so its odds still show
   const [overPlay, setOverPlay] = useState(false);
+  // Full screen: the window's size, kept current as a phone turns
+  const [viewport, setViewport] = useState(() => (typeof window === 'undefined' ? { w: 1024, h: 768 } : { w: window.innerWidth, h: window.innerHeight }));
+  useEffect(() => {
+    if (!full) return;
+    const onResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [full]);
   // Full screen: Escape leaves it (and not the dialog under it)
   useEffect(() => {
     if (!full) return;
@@ -173,8 +181,9 @@ export default function WinSwing(props: WinSwingProps) {
   };
   // Above 50% in the left team's color, below in the right's: the gradient splits at the 50% line
   const id = `swing-${season}-${week}-${m.matchupId}${full ? '-full' : ''}`;
-  // In pixels, for the gradient's 50% split: full screen fills most of the window
-  const chartHeight = full ? Math.round(Math.min(Math.max(window.innerHeight * 0.5, 220), 560)) : 80;
+  // In pixels, for the gradient's 50% split. Full screen: wide rather than tall (about 0.55 of the
+  // width, so a phone held upright gets a short, wide chart), within 60% of the window's height
+  const chartHeight = full ? Math.round(Math.max(160, Math.min(viewport.w * 0.55, viewport.h * 0.6, 560))) : 80;
   const playRow = (pl: (typeof plays)[number]) => (
     <>
       <div className="flex items-baseline justify-between gap-2">
