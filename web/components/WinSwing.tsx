@@ -47,8 +47,11 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
   };
   // A finished week: the play-by-play replay, or the odds saved live until it's built
   const saved = `/api/live/history?season=${season}&week=${week}`;
-  const { data } = useSharedFetch<WinHistory>(`win-history:${season}:${week}:${live ? refreshKey : ''}`, () =>
-    fetchFirst(live ? [saved] : [`/data/win-history/${season}/${week}.json`, saved], 'the win history')
+  // A live refresh keeps the last chart up until the new one arrives, so the dialog doesn't jump
+  const { data } = useSharedFetch<WinHistory>(
+    `win-history:${season}:${week}:${live ? refreshKey : ''}`,
+    () => fetchFirst(live ? [saved] : [`/data/win-history/${season}/${week}.json`, saved], 'the win history'),
+    `win-history:${season}:${week}:`
   );
   const m = data?.matchups.find((x) => (x.a === a.rosterId && x.b === b.rosterId) || (x.a === b.rosterId && x.b === a.rosterId));
   if (!data || !m || data.times.length < 2) return null;
