@@ -169,3 +169,11 @@ describe('matchPlay longest play', () => {
     expect(matchPlay(e, plays, 'Williams', 0)?.t).toBe(40);
   });
 });
+
+describe('cleanPlay injury updates', () => {
+  it('drops a note after the play', () => {
+    expect(cleanPlay('B.Corum left guard for 4 yards, TOUCHDOWN. B.McManus extra point is GOOD. ** Injury Update: P.Johnson has returned to the game.')).toBe(
+      'B.Corum left guard for 4 yards, TOUCHDOWN. B.McManus extra point is GOOD.'
+    );
+  });
+});

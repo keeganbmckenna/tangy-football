@@ -70,7 +70,7 @@ export function biggestPlays(events: PlayEvent[], n = BIG_PLAYS_SHOWN): PlayEven
 
 /**
  * A play-by-play description, readable: just the play. Drops the game clock, formation notes,
- * players reporting as eligible, jersey numbers and team prefixes, injury notes, QB hits
+ * players reporting as eligible, jersey numbers and team prefixes, injury notes and updates, QB hits
  * ("[L.Van Ness]"), tacklers ("(T.Bernard)"), a kick's snapper and holder, penalties (a play
  * wiped out by one is never a big play), milestone trivia, and shortens replay reviews to
  * "Upheld on review." or "Reversed on review."
@@ -91,6 +91,8 @@ export function cleanPlay(desc: string): string {
     text
       // Penalties, from where they start to the end of the description
       .replace(/\s*(?:PENALTY|Penalty)\b[\s\S]*$/, '')
+      // Notes after the play ("** Injury Update: J.Chinn has returned to the game.")
+      .replace(/\s*\*\*[\s\S]*$/, '')
       // Milestone trivia ("BAL 89-Andrews 31st career rec TD ...")
       .replace(/\s*[A-Z]{2,3} \d{1,2}-[A-Z][A-Za-z'.-]* \d+(?:st|nd|rd|th) career[\s\S]*$/, '')
       // QB hits and tacklers
