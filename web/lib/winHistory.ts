@@ -73,7 +73,9 @@ export function biggestPlays(events: PlayEvent[], n = BIG_PLAYS_SHOWN): PlayEven
  * players reporting as eligible, jersey numbers and team prefixes, injury notes and updates, QB hits
  * ("[L.Van Ness]"), tacklers ("(T.Bernard)"), a kick's snapper and holder, penalties (a play
  * wiped out by one is never a big play), milestone trivia, and shortens replay reviews to
- * "Upheld on review." or "Reversed on review."
+ * "Upheld on review." or "Reversed on review." (a reversed call followed by the play as ruled:
+ * "Reversed on review: " and that play). Drops timeouts, injury statuses ("His return is
+ * Questionable.") and stat-keeping notes ("Officially, a sack for 0 yards.", "QB pressure: ...").
  */
 export function cleanPlay(desc: string): string {
   let text = desc
@@ -82,17 +84,41 @@ export function cleanPlay(desc: string): string {
     .replace(/\((?:Punt|Kick|Field Goal|Run|Pass) formation\)\s*/gi, '')
     // "68-B.Jones reported in as eligible" (nflverse) or "B.Jones reported in as eligible" (ESPN)
     .replace(/(?:\d{1,2}-)?[A-Z][A-Za-z'.-]*(?: [A-Z][A-Za-z'.-]*)? reported in as (?:in)?eligible\.?\s*/g, '')
-    .replace(/(?:^|\s)[A-Z]{2,3}-\d{1,2}-[A-Z][A-Za-z'.-]* was injured during the play\.?/g, '');
+    .replace(/(?:^|\s)(?:[A-Z]{2,3}-)?(?:\d{1,2}-)?[A-Z][a-z]{0,2}\.[A-Za-z'.-]+ was injured(?: during the play)?\.?/g, '');
   // Replay reviews: just the outcome (a review cut off before it says is dropped)
   text = text.replace(/\s*The Replay Official reviewed[^.]*?(?:and the play was\s+)?(Upheld|REVERSED|Reversed|confirmed|stands)[^.]*\.?/gi, (_m, outcome: string) =>
     /revers/i.test(outcome) ? ' Reversed on review.' : ' Upheld on review.'
   ).replace(/\s*The Replay Official[\s\S]*$/, '');
+  // Coaches' challenges the same way ("Jacksonville challenged the pass completion ruling, and the play was Upheld.")
+  text = text
+    .replace(/\s*[A-Z][A-Za-z. ]+ challenged the [^.]*? ruling, and the play was (Upheld|REVERSED|Reversed)\.?/g, (_m, outcome: string) =>
+      /revers/i.test(outcome) ? ' Reversed on review.' : ' Upheld on review.'
+    )
+    .replace(/\s*The ruling on the field[^.]*\.?/g, '')
+    // ...and that sentence cut off ("The rul")
+    .replace(/\s*The rul[\w ]*$/, '');
+  // A reversed call followed by the play as ruled: just the play as ruled (when it isn't cut off before
+  // it says what happened)
+  const ruled = /Reversed on review\.\s+([A-Z][\s\S]*)$/.exec(text)?.[1];
+  if (ruled && /yard|TOUCHDOWN|incomplete|INTERCEPTED|FUMBLES|GOOD|no gain/.test(ruled)) text = `Reversed on review: ${ruled}`;
   return (
     text
       // Penalties, from where they start to the end of the description
       .replace(/\s*(?:PENALTY|Penalty)\b[\s\S]*$/, '')
       // Notes after the play ("** Injury Update: J.Chinn has returned to the game.")
       .replace(/\s*\*\*[\s\S]*$/, '')
+      // Timeouts, injury statuses and stat-keeping notes
+      .replace(/\s*\(Timeout[^)]*\)?\.?/gi, '')
+      .replace(/\s*(?:His return is|He is) (?:Questionable|Probable|Doubtful|Out)\.?/g, '')
+      .replace(/\s*Officially, [^.]*\./g, '')
+      .replace(/\s*QB pressure: [A-Z][a-z]{0,2}\.[A-Za-z'-]+\.?/g, '')
+      .replace(/\s*Pass caught \d+ yds?\.[^.]*\./g, '')
+      .replace(/\s*(?:Pass -?\d+, YAC -?\d+|-?\d+ YAC)\.?/g, '')
+      .replace(/\s*\(sack split by [^)]*\)/gi, '')
+      .replace(/\s*\(\d{1,2}-[A-Z][a-z]{0,2}\.[A-Za-z'.-]+\)/g, '')
+      .replace(/\s*Pass deflected by (?:\d{1,2} )?[A-Z][a-z]{0,2}\.[A-Za-z'-]+\.?/g, '')
+      // Season and record trivia ("6th defensive TD of season for NE, ties franchise record.")
+      .replace(/\s*(?:[A-Z]{2,3} \d{1,2}-[A-Z][A-Za-z'.-]* )?\d+(?:st|nd|rd|th) [^.]*\b(?:season|career|franchise|record)\b[\s\S]*$/i, '')
       // Milestone trivia ("BAL 89-Andrews 31st career rec TD ...")
       .replace(/\s*[A-Z]{2,3} \d{1,2}-[A-Z][A-Za-z'.-]* \d+(?:st|nd|rd|th) career[\s\S]*$/, '')
       // QB hits and tacklers
@@ -110,6 +136,8 @@ export function cleanPlay(desc: string): string {
       // over ("... Upheld on review. T")
       .replace(/\s*\([^)]*$/, '')
       .replace(/(\.)\s+\S{1,3}$/, '$1')
+      // ...or mid-phrase ("for 2 yards,")
+      .replace(/[,;]\s*$/, '…')
   );
 }
 

@@ -28,7 +28,7 @@ describe('cleanPlay', () => {
   it('drops the clock, formation notes, eligibility reports and jersey numbers', () => {
     expect(cleanPlay('(8:01) 75-J.Travis reported in as eligible. 28-J.Taylor right end for 3 yards, TOUCHDOWN.')).toBe('J.Taylor right end for 3 yards, TOUCHDOWN.');
     expect(cleanPlay('(13:32) (No Huddle, Shotgun) 1-J.Hurts pass deep right to 26-S.Barkley for 47 yards (31-D.Williams).')).toBe(
-      'J.Hurts pass deep right to S.Barkley for 47 yards (D.Williams).'
+      'J.Hurts pass deep right to S.Barkley for 47 yards.'
     );
     expect(cleanPlay('(:03) 10-D.Maye pass short right to 38-R.Stevenson for 48 yards, TOUCHDOWN.')).toBe('D.Maye pass short right to R.Stevenson for 48 yards, TOUCHDOWN.');
     expect(cleanPlay('1-J.Hurts pass deep right to 26-S.Barkley for 47 yards, TOUCHDOWN. DEN-98-J.Franklin-Myers was injured during the play.')).toBe(
@@ -177,3 +177,28 @@ describe('cleanPlay injury updates', () => {
     );
   });
 });
+
+describe('cleanPlay notes and challenges', () => {
+  it.each([
+    [
+      'T.Brady pass deep left to M.Evans pushed ob at ATL 1 for 40 yards. Tampa Bay challenged the short of the goal line ruling, and the play was Upheld. The ruling on the field stands. (Timeout #1.)',
+      'T.Brady pass deep left to M.Evans pushed ob at ATL 1 for 40 yards. Upheld on review.',
+    ],
+    [
+      'A.Dalton pass incomplete deep right to C.Olave. New Orleans challenged the incomplete pass ruling, and the play was REVERSED. A.Dalton pass deep right to C.Olave for 16 yards, TOUCHDOWN. He is Out.',
+      'Reversed on review: A.Dalton pass deep right to C.Olave for 16 yards, TOUCHDOWN.',
+    ],
+    ['C.Stroud pass deep left to N.Collins to DEN 26 for 52 yards. His return is Questionable.', 'C.Stroud pass deep left to N.Collins to DEN 26 for 52 yards.'],
+    ['M.Willis sacked at TEN 9 for -5 yards (sack split by C.Jones and C.Dunlap).', 'M.Willis sacked at TEN 9 for -5 yards.'],
+    [
+      'J.Fields sacked at NYG 35 for -8 yards. FUMBLES, RECOVERED by K.Thibodeaux at NYG 25. Officially, a sack for 0 Yards.',
+      'J.Fields sacked at NYG 35 for -8 yards. FUMBLES, RECOVERED by K.Thibodeaux at NYG 25.',
+    ],
+    [
+      'R.Wilson pass short left to C.Sutton for 7 yards, TOUCHDOWN. QB pressure: S.Lawson. Pass caught 8 yds. into end zone, along sideline.',
+      'R.Wilson pass short left to C.Sutton for 7 yards, TOUCHDOWN.',
+    ],
+    ['M.Ryan sacked at IND 31 for -10 yards. FUMBLES, RECOVERED by S.Williams at IND 29. S.Williams for 29 yards, TOUCHDOWN. Reversed on review.', 'M.Ryan sacked at IND 31 for -10 yards. FUMBLES, RECOVERED by S.Williams at IND 29. S.Williams for 29 yards, TOUCHDOWN. Reversed on review.'],
+  ])('%s', (raw, clean) => expect(cleanPlay(raw)).toBe(clean));
+});
+
