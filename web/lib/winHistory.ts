@@ -13,7 +13,7 @@ export interface WinHistoryMatchup {
   odds: number[];
   /** [a's score, b's score] at each time */
   scores: Array<[number, number]>;
-  /** Its biggest plays (biggestPlays), in time order */
+  /** Its biggest plays (biggestPlays, up to BIG_PLAYS_KEPT), in time order */
   events?: PlayEvent[];
 }
 
@@ -47,8 +47,10 @@ export interface PlayEvent {
 export const BIG_PLAY_POINTS = 4;
 /** ...or moves the win odds this much */
 export const BIG_PLAY_ODDS = 0.1;
-/** At most this many per matchup, biggest first */
+/** At most this many per matchup on the chart, biggest first... */
 export const BIG_PLAYS_SHOWN = 8;
+/** ...and kept per matchup, for the full-screen chart */
+export const BIG_PLAYS_KEPT = 20;
 
 /** What a play was worth to one side: its starters' points from it, added up */
 export const sidePoints = (e: PlayEvent, side: 'a' | 'b') => e.players.filter((p) => p.side === side).reduce((s, p) => s + p.pts, 0);

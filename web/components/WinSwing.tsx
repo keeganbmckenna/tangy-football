@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Area, AreaChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fetchFirst, useSharedFetch } from '@/hooks/useSharedFetch';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
-import { cleanPlay, type WinHistory } from '@/lib/winHistory';
+import { biggestPlays, cleanPlay, type WinHistory } from '@/lib/winHistory';
 import { percent } from '@/lib/format';
 
 interface WinSwingProps {
@@ -18,6 +19,9 @@ interface WinSwingProps {
   refreshKey?: string;
   /** The week in progress: a's odds and both scores right now (the Live tab's), drawn as the last point */
   now?: { odds: number; sa: number; sb: number };
+  /** Full screen: a tall chart and every saved big play, listed; onClose leaves it */
+  full?: boolean;
+  onClose?: () => void;
 }
 
 /** Plays closer than this share of the chart's width share one tap area (each keeps its line) */
@@ -41,12 +45,25 @@ const TIME = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric
  * saved live. Only game time is drawn, so the gaps between Thursday, Sunday and Monday are
  * closed up and marked by day.
  */
-export default function WinSwing({ season, week, a, b, live = false, refreshKey = '', now }: WinSwingProps) {
+export default function WinSwing(props: WinSwingProps) {
+  const { season, week, a, b, live = false, refreshKey = '', now, full = false, onClose } = props;
+  const [expanded, setExpanded] = useState(false);
   const [view, setViewState] = useState(rememberedView);
   // The big play whose details show (clicked or tapped: hovering is for reading the odds)
   const [picked, setPicked] = useState<number | null>(null);
   // Over a big play's tap area (for the pointer): the chart keeps the mouse, so its odds still show
   const [overPlay, setOverPlay] = useState(false);
+  // Full screen: Escape leaves it (and not the dialog under it)
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose?.();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [full, onClose]);
   const setView = (v: typeof view) => {
     rememberedView = v;
     setViewState(v);
@@ -113,7 +130,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
     );
   };
   // Big plays, from the left team's side, placed between the samples around them
-  const plays = (m.events ?? []).map((e) => {
+  // The chart shows the biggest few; full screen every one saved
+  const plays = (full ? (m.events ?? []) : biggestPlays(m.events ?? [])).map((e) => {
     const before = flip ? 1 - e.before : e.before;
     const after = flip ? 1 - e.after : e.after;
     const players = e.players.map((pl) => ({ ...pl, left: flip ? pl.side === 'b' : pl.side === 'a' }));
@@ -154,11 +172,48 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
     return (best as { gi: number } | null)?.gi ?? null;
   };
   // Above 50% in the left team's color, below in the right's: the gradient splits at the 50% line
-  const id = `swing-${season}-${week}-${m.matchupId}`;
+  const id = `swing-${season}-${week}-${m.matchupId}${full ? '-full' : ''}`;
+  // In pixels, for the gradient's 50% split: full screen fills most of the window
+  const chartHeight = full ? Math.round(Math.min(Math.max(window.innerHeight * 0.5, 220), 560)) : 80;
+  const playRow = (pl: (typeof plays)[number]) => (
+    <>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="shrink-0 text-[var(--muted)]">{TIME.format(pl.t * 1000)} ET</span>
+        <span className="truncate font-semibold tabular-nums" style={{ color: markerColor(pl.helpsLeft) }}>
+          {/* From the side of the team the play helped */}
+          {pl.helpsLeft ? a.name : b.name} {percent(pl.helpsLeft ? pl.before : 1 - pl.before)} → {percent(pl.helpsLeft ? pl.after : 1 - pl.after)}
+        </span>
+      </div>
+      <div className="mt-0.5 text-[var(--foreground)]">{pl.desc ? cleanPlay(pl.desc) : 'Points changed (saved live, before the play-by-play)'}</div>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[var(--muted)]">
+        {pl.players.map((p) => (
+          <span key={`${p.side}-${p.name}`}>
+            <span style={{ color: p.left ? A_COLOR : B_COLOR }}>●</span> {p.name} {p.pts > 0 ? '+' : '−'}
+            {Math.abs(p.pts).toFixed(1)}
+          </span>
+        ))}
+      </div>
+    </>
+  );
 
   return (
-    <div className="px-2 pt-3 sm:px-3">
-      <div className="mb-1 text-[10px] text-[var(--muted)] sm:text-xs">
+    <div className={full ? '' : 'px-2 pt-3 sm:px-3'}>
+      <div className={`mb-1 text-[var(--muted)] ${full ? 'text-xs sm:text-sm' : 'text-[10px] sm:text-xs'}`}>
+        {full && (
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="truncate text-base font-semibold text-[var(--foreground)] sm:text-lg">
+              {a.name} vs {b.name}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Exit full screen"
+              className="shrink-0 rounded-md p-1.5 text-lg leading-none text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <span className="font-semibold uppercase tracking-wider">How it swung</span>
           <span className="flex gap-0.5 rounded-full border border-[var(--border)] p-0.5" role="group" aria-label="Show">
@@ -174,6 +229,19 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
               </button>
             ))}
           </span>
+          {!full && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              aria-label="Full screen"
+              title="Full screen"
+              className="ml-auto rounded p-1 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
+              </svg>
+            </button>
+          )}
         </div>
         <div className="mt-0.5 truncate">
           {view === 'score'
@@ -187,8 +255,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
         </div>
       </div>
       <div
-        className="relative h-20 w-full"
-        style={{ cursor: overPlay ? 'pointer' : undefined }}
+        className="relative w-full"
+        style={{ height: chartHeight, cursor: overPlay ? 'pointer' : undefined }}
         onClick={(e) => {
           const gi = groupAt(e);
           if (gi !== null) setPicked(picked === gi ? null : gi);
@@ -210,7 +278,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
             <AreaChart data={points} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
               <defs>
                 {/* In the chart's own pixels (80 high, 2 of top margin), so the split sits on the 50% line */}
-                <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2="80">
+                <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2={chartHeight}>
                   <stop offset="0%" stopColor={RESULT_DOT_COLORS.W} stopOpacity={0.45} />
                   <stop offset="50%" stopColor={RESULT_DOT_COLORS.W} stopOpacity={0.08} />
                   <stop offset="50%" stopColor={RESULT_DOT_COLORS.L} stopOpacity={0.08} />
@@ -290,7 +358,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           </>
         )}
       </div>
-      {shown && picked !== null && (
+      {!full && shown && picked !== null && (
         <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-xs">
           {/* Step through the matchup's big plays in time order */}
           <div className="mb-1 flex items-center justify-between gap-2 text-[var(--muted)]">
@@ -321,28 +389,44 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           <div className="divide-y divide-[var(--border)]">
             {shown.map((pl) => (
               <div key={pl.t} className="py-1.5 first:pt-0 last:pb-0">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="shrink-0 text-[var(--muted)]">{TIME.format(pl.t * 1000)} ET</span>
-                  <span className="truncate font-semibold tabular-nums" style={{ color: markerColor(pl.helpsLeft) }}>
-                    {/* From the side of the team the play helped */}
-                    {pl.helpsLeft ? a.name : b.name} {percent(pl.helpsLeft ? pl.before : 1 - pl.before)} →{' '}
-                    {percent(pl.helpsLeft ? pl.after : 1 - pl.after)}
-                  </span>
-                </div>
-                <div className="mt-0.5 text-[var(--foreground)]">{pl.desc ? cleanPlay(pl.desc) : 'Points changed (saved live, before the play-by-play)'}</div>
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[var(--muted)]">
-                  {pl.players.map((p) => (
-                    <span key={`${p.side}-${p.name}`}>
-                      <span style={{ color: p.left ? A_COLOR : B_COLOR }}>●</span> {p.name} {p.pts > 0 ? '+' : '−'}
-                      {Math.abs(p.pts).toFixed(1)}
-                    </span>
-                  ))}
-                </div>
+                {playRow(pl)}
               </div>
             ))}
           </div>
         </div>
       )}
+      {/* Full screen: every saved big play, in time order; a play's row and its line pick each other */}
+      {full && plays.length > 0 && (
+        <div className="mt-3">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+            {plays.length} big play{plays.length === 1 ? '' : 's'}
+          </div>
+          <div className="divide-y divide-[var(--border)] rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs sm:text-sm">
+            {plays.map((pl, i) => {
+              const gi = groups.findIndex((g) => g.includes(i));
+              return (
+                <button
+                  key={pl.t}
+                  type="button"
+                  onClick={() => setPicked(picked === gi ? null : gi)}
+                  className={`block w-full px-3 py-2 text-left ${picked === gi ? 'bg-[var(--info-bg)]' : 'hover:bg-[var(--solid-elevated)]'}`}
+                >
+                  {playRow(pl)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {expanded &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-[var(--solid-elevated)]" role="dialog" aria-modal="true" aria-label={`${a.name} vs ${b.name}: how it swung`}>
+            <div className="mx-auto max-w-6xl p-4 sm:p-6">
+              <WinSwing {...props} full onClose={() => setExpanded(false)} />
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

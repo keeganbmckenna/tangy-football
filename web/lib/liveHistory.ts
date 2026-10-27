@@ -10,7 +10,7 @@
  */
 
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
-import { biggestPlays, cleanPlay, dropRetractions, liveEvents, PLAY_LOOKBACK_SECONDS, playersInPlay, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
+import { BIG_PLAYS_KEPT, biggestPlays, cleanPlay, dropRetractions, liveEvents, PLAY_LOOKBACK_SECONDS, playersInPlay, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
 
 /** At most one snapshot per this many seconds (a big moment covers what changed in between) */
 const EVERY_SECONDS = 30;
@@ -154,7 +154,7 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
       matchups.set(matchupId, m);
     }
   });
-  for (const m of matchups.values()) m.events = biggestPlays(dropRetractions(events.get(m.matchupId) ?? []));
+  for (const m of matchups.values()) m.events = biggestPlays(dropRetractions(events.get(m.matchupId) ?? []), BIG_PLAYS_KEPT);
   return { season, week, times: snapshots.map((s) => s.t), matchups: [...matchups.values()] };
 }
 

@@ -25,7 +25,7 @@ import { allowedPoints, gameRemaining, liveWinOdds, scoreSpread, type LiveGame }
 import { allowedScoring, starterProjections } from '../lib/liveProjections';
 import { replaceSnapshots } from '../lib/liveHistory';
 import { teamsPlaying } from '../lib/oddsData';
-import { biggestPlays, cleanPlay, type PlayEvent, type WinHistory } from '../lib/winHistory';
+import { BIG_PLAYS_KEPT, biggestPlays, cleanPlay, type PlayEvent, type WinHistory } from '../lib/winHistory';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TIMELINES = join(HERE, '..', '..', 'scripts', 'cache', 'timelines');
@@ -231,7 +231,7 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
       s.events.push({ t, desc: cleanPlay(desc), players, before: Math.round(prior.aWinOdds * 1000) / 1000, after: Math.round(o.aWinOdds * 1000) / 1000 });
     }
   }
-  for (const s of series.values()) s.events = biggestPlays(s.events);
+  for (const s of series.values()) s.events = biggestPlays(s.events, BIG_PLAYS_KEPT);
 
   if (DIAGNOSTICS) {
     mkdirSync(join(DIAG, league.season), { recursive: true });
