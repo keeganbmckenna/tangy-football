@@ -719,6 +719,11 @@ export function liveStandings(
   playoffTeams: number,
   hasDivisions: boolean
 ): LiveStandings {
+  // Before anyone has scored (the week is shown from when the last one is scored) there's no
+  // result yet; once games are on, a matchup still at 0-0 is a tie as things stand
+  const started = teams.some((t) => (t.weeklyScores[week - 1] ?? 0) > 0);
+  const matchupResult = (score: number, opponent: number | undefined) =>
+    opponent === undefined || !started ? null : liveResult(score, opponent);
   // Copies, since ranking and playoff calculations mutate teams
   const before = rankTeams(teams.map((t) => ({ ...t })));
   const beforeStatus = playoffPicture(before, playoffTeams, hasDivisions).status;
@@ -727,7 +732,7 @@ export function liveStandings(
     teams.map((t) => {
       const score = t.weeklyScores[week - 1] ?? 0;
       const opponent = t.weeklyOpponentScores[week - 1];
-      const result = opponent === undefined ? null : liveResult(score, opponent);
+      const result = matchupResult(score, opponent);
       return {
         ...t,
         wins: t.wins + (result === 'W' ? 1 : 0),
@@ -749,7 +754,7 @@ export function liveStandings(
       now: { rank: t.standing, wins: t.wins, losses: t.losses, ties: t.ties, status: nowStatus.get(t.rosterId)! },
       liveResult: (() => {
         const opponent = t.weeklyOpponentScores[week - 1];
-        return opponent === undefined ? null : liveResult(t.weeklyScores[week - 1] ?? 0, opponent);
+        return matchupResult(t.weeklyScores[week - 1] ?? 0, opponent);
       })(),
     };
   });

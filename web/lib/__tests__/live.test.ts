@@ -157,6 +157,14 @@ describe('matchups level at 0', () => {
 });
 
 describe('liveStandings', () => {
+  it('adds no results before anyone has scored', () => {
+    const live = liveWeek([m(1, 1, 0), m(2, 1, 0), m(3, 2, 0), m(4, 2, 0)]);
+    for (const r of liveStandings(liveTeamStats(league(), live), 2, 2, true).rows) {
+      expect(r.liveResult).toBeNull();
+      expect(r.now).toMatchObject({ wins: r.before.wins, losses: r.before.losses, ties: r.before.ties });
+    }
+  });
+
   it('applies the live result as if the week ended now', () => {
     const live = liveWeek([m(1, 1, 40), m(2, 1, 70), m(3, 2, 60), m(4, 2, 80)]);
     const { rows, divisions, wildCard } = liveStandings(liveTeamStats(league(), live), 2, 2, true);
