@@ -283,7 +283,7 @@ were made just before those games, which would leak information.
   the projections' skew, a game-clock production curve, game state, correlated players, and
   player-level simulation.
 
-- **More live-odds ideas, tested** (2026-10-26, preregistered tests 1-6; `live_injury.py`,
+- **More live-odds ideas, tested** (2026-10-26, preregistered tests 1-7; `live_injury.py`,
   `live_eval.py`, `kalshi_live.py`, `kalshi_props.py`, `kalshi_props_model.py`). Each fitted
   leaving the season (or week) out and scored on the crawled leagues' replays:
   - **In-game injuries** (play text "was injured during the play"): flagged fantasy players record
@@ -298,7 +298,19 @@ were made just before those games, which would leak information.
     a game's last 5 minutes): on all high-leverage moments only -0.0005 to -0.0007, but on the
     pivotal ones (the drive model moving the odds 5+ points, ~10% of matchups) -0.055 to -0.066
     in 2022-2025 and -0.009 to -0.052 in 2018-2021 (better in all 8 seasons; the preregistered
-    confirmation passed 2 of 4). **The one candidate**: rechecked on 2026 after the season.
+    confirmation passed 2 of 4). **A candidate**: rechecked on 2026 after the season.
+  - **Player-level distributions** (`live_sim.py`, test 7), prompted by a live case shown at 92%
+    that was really 99%+: each starter's points still to come drawn from what players like him
+    actually scored from that moment (2.6M player-moments: from halfway through a game, WRs go
+    negative 0.6% of the time, TEs 0.4%, RBs 1.8%; top receivers never ended 0.61+ down in 14,283
+    cases), convolved by FFT on the GPU. Everywhere: better in 4 of 6 seasons 2020-2025, worse in
+    2022 and 2024 (no fitted spread to absorb projection quality). In one-sided close moments:
+    -0.017 to -0.032 in 2020-2025, but +0.23 and +0.06 in 2018-2019, the weak-projection seasons.
+    **Ships as a blend** (owner's decision, logged as a deviation; judged on 2020-2025): weight
+    rising from 0 to 1 as the smaller side's share of the remaining variance falls from 5% to
+    1%, any margin. Better overall in all six seasons 2020-2025 (-0.0003 to -0.0021); the
+    hand-off adds a median 0.2 points to a step (a hard switch: 2.7, and 10+ points on 13% of
+    switches). The 2026 check confirms or removes it.
   - **Kalshi player props**: in-game prices lag plays a median 47 s with 23-cent spreads; 2026
     fantasy-points markets alone are worse than our player model (+0.025 log loss), and 2025's
     per-stat props blended into the odds gain 0.0003 at best, and lose where they disagree most.
@@ -361,5 +373,6 @@ were made just before those games, which would leak information.
     game state -0.0003 to -0.0013 (0 of 8 seasons reach 0.002), correlations about -0.0001,
     both -0.0016 at best. **Ceiling**: odds that knew each NFL team's actual remaining fantasy
     points would gain only about 0.01 (0.025 knowing each team-position's); the rest is which
-    player scores. Game state reaches 5-10% of that ceiling. Not adopted; the live ladder is
-    closed for 2026 (player-level simulation can't beat that ceiling's small gap).
+    player scores. Game state reaches 5-10% of that ceiling. Not adopted. (Player-level
+    distributions were tested afterwards and ship as a blend once one team runs low on players:
+    see "More live-odds ideas, tested".)

@@ -89,6 +89,10 @@ python export_model.py --fixture            # fit on every league and write web/
 | `trades.py` | The weight on a trade's projected lineup change (0.43, not 0.75) |
 | `injuries.py` | Official NFL injury reports: Doubtful players count 0, Questionable 0.9 |
 | `live_components.py`, `live_replay.py`, `live_model.py`, `live_eval.py` | The Live tab's odds replayed through every week of the crawled leagues on the GPU (the site's model ported to PyTorch, checked against `live_odds_fixture.json` from `web/scripts/export-live-fixture.ts`): the spread scale, and the tested alternatives |
+| `live_sim.py`, `live_state.py` | Players' real distributions of points still to come (often a lot, often nothing, rarely negative), blended into the Live tab's odds as one team runs out of players; the site's tables and parity fixture |
+| `returns.py` | Injured players' chances of being back, by games missed (the odds model's RETURN_RATE) |
+| `tau_playoffs.py` | Strength uncertainty over every remaining week incl. the playoffs: the Power Rankings' ranges |
+| `stats_audit.py` | Which descriptive team stats measure something (split-half reliability): luck is luck, start/sit calls are real |
 | `live_defense.py` | The Live tab's defense projections |
 | `live_diagnostics.py` | The Live tab's odds through each week on our league: calibration, spread, and when points arrive in a game (exploratory) |
 | `own_league.py`, `league_activity.py` | The fitted models on our own 2022-2025 seasons |
@@ -99,6 +103,9 @@ python export_model.py --fixture            # fit on every league and write web/
 |---|---|
 | `live_pregame.py` | The Live tab's kickoff spread on our league (0.7; too few matchups, replaced by `live_eval.py`) |
 | `live_state.py` | Game state (score margin, quarter, possession) and same-game correlations in the live odds, with their ceilings |
+| `live_injury.py` | In-game injury flags and Vegas lines in the live odds (an oracle ceiling under 0.001) |
+| `live_replay.py` (LIVE_USE=endgame6b) | Late-game drives as discrete touchdowns and field goals (a candidate for the 2026 check) |
+| `kalshi_live.py`, `kalshi_props.py`, `kalshi_props_model.py` | Kalshi's in-game prices: their lag behind plays, and 2025's player props blended into the live odds |
 | `drift.py` | Strength that drifts through the season (real, but worth 0.00005) |
 | `schedule_luck.py` | How much the schedule decides; random vs real remaining schedules |
 | `improvements.py` | Recency-weighted and median form, score vs projections, nonlinear terms, per-team uncertainty, noise shape |

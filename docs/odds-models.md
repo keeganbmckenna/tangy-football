@@ -118,8 +118,15 @@ the last few minutes, with no bias. Widening the spread lowered log loss in all 
 seasons (by 0.004 to 0.06). The scale ships at 1.0, the fit on 2022-2025, whose projections
 are like Sleeper's now. Tested and not adopted: a spread that changes with the time left,
 skewed scoring, a weight on the projections, scoring that speeds up late in games, per-player
-variance growing with the projection rather than its square (real, but 0.0002-0.0027), and a
-heavier-tailed link.
+variance growing with the projection rather than its square (real, but 0.0002-0.0027), a
+heavier-tailed link, in-game injury flags, Vegas lines, game state and correlated players (each
+under 0.002), and Kalshi's player props (in-game prices trail plays by about 47 seconds and add
+almost nothing). The player-based blend above: more accurate overall in every season 2020-2025
+(up to 0.002) and 7-14% in one-sided close moments; worse in 2018-2019, when projections were
+weak, so it was judged on 2020-2025 (logged as a deviation) and the 2026 check confirms or removes
+it. A late-game drive model (nflfastR's touchdown and field-goal chances in a game's last
+minutes) is a candidate for that check too: 12-14% better where a final drive decides a
+matchup in 2022-2025, but its confirmation on 2018-2021 fell short.
 
 **Win history** (`web/scripts/build-win-history.ts`): the same model replayed through each
 finished week from nflverse play-by-play, every 3 minutes of game time on each game's real
