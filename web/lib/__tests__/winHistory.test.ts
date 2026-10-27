@@ -76,6 +76,14 @@ describe('live events', () => {
   });
 });
 
+describe('cleaning ESPN play text', () => {
+  it('drops eligibility reports with or without a jersey number', () => {
+    expect(cleanPlay('B.Jones reported in as eligible. J.Williams left tackle to PHI 25 for 34 yards.')).toBe('J.Williams left tackle to PHI 25 for 34 yards.');
+    expect(cleanPlay('A.St. Brown reported in as ineligible. J.Goff pass short left to S.LaPorta for 8 yards.')).toBe('J.Goff pass short left to S.LaPorta for 8 yards.');
+    expect(cleanPlay('68-B.Jones reported in as eligible. J.Williams up the middle for 3 yards.')).toBe('J.Williams up the middle for 3 yards.');
+  });
+});
+
 describe('the play behind a live event', () => {
   // ESPN's play-by-play of DAL @ PHI, 2026 week 7: Makai Lemon's plays (wall-clock times)
   const plays = [

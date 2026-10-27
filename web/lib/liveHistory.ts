@@ -117,6 +117,8 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
   const events = new Map<number, PlayEvent[]>();
   for (const r of (res?.[1] as string[] | undefined) ?? []) {
     const { matchupId, event } = JSON.parse(r) as { matchupId: number; event: PlayEvent };
+    // Cleaned again on the way out, so text saved before a cleanup rule existed reads the same
+    if (event.desc) event.desc = cleanPlay(event.desc);
     events.set(matchupId, [...(events.get(matchupId) ?? []), event]);
   }
   const snapshots = rows.map((r) => JSON.parse(r) as Snapshot).sort((x, y) => x.t - y.t);

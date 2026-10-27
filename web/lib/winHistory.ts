@@ -76,7 +76,8 @@ export function cleanPlay(desc: string): string {
     .replace(/^\(\d{0,2}:\d{2}\)\s*/, '')
     .replace(/\((?:No Huddle|Shotgun|Pistol|Under Center)(?:,\s*(?:No Huddle|Shotgun|Pistol|Under Center))*\)\s*/g, '')
     .replace(/\((?:Punt|Kick|Field Goal|Run|Pass) formation\)\s*/gi, '')
-    .replace(/\d{1,2}-[A-Z][A-Za-z'.-]* reported in as eligible\.?\s*/g, '')
+    // "68-B.Jones reported in as eligible" (nflverse) or "B.Jones reported in as eligible" (ESPN)
+    .replace(/(?:\d{1,2}-)?[A-Z][A-Za-z'.-]*(?: [A-Z][A-Za-z'.-]*)? reported in as (?:in)?eligible\.?\s*/g, '')
     .replace(/(?:^|\s)[A-Z]{2,3}-\d{1,2}-[A-Z][A-Za-z'.-]* was injured during the play\.?/g, '');
   // Replay reviews: just the outcome (a review cut off before it says is dropped)
   text = text.replace(/\s*The Replay Official reviewed[^.]*?(?:and the play was\s+)?(Upheld|REVERSED|Reversed|confirmed|stands)[^.]*\.?/gi, (_m, outcome: string) =>
