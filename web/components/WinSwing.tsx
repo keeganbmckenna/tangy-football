@@ -202,7 +202,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
               <XAxis dataKey="i" type="number" domain={[0, points.length - 1]} hide />
               <YAxis domain={[0, 'dataMax']} hide />
               {dayLines}
-              <Tooltip cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }} content={tooltip} />
+              <Tooltip isAnimationActive={false} cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }} content={tooltip} />
               <Line type="stepAfter" dataKey="sa" stroke={A_COLOR} strokeWidth={1.75} dot={false} isAnimationActive={false} />
               <Line type="stepAfter" dataKey="sb" stroke={B_COLOR} strokeWidth={1.75} dot={false} isAnimationActive={false} />
             </LineChart>
@@ -221,7 +221,7 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
               <YAxis domain={[0, 100]} hide />
               <ReferenceLine y={50} stroke="var(--border)" strokeDasharray="3 3" />
               {dayLines}
-              <Tooltip cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }} content={tooltip} />
+              <Tooltip isAnimationActive={false} cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }} content={tooltip} />
               <Area type="monotone" dataKey="p" stroke="var(--foreground)" strokeWidth={1.25} fill={`url(#${id})`} baseValue={50} isAnimationActive={false} />
             </AreaChart>
           )}

@@ -100,7 +100,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
                 tickLine={false}
               />
               <ReferenceLine x={0} stroke={CHART_THEME.axis} />
-              <Tooltip active={tap.active} content={<LuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
+              <Tooltip isAnimationActive={false} active={tap.active} content={<LuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
               <Bar isAnimationActive={false} dataKey="luck" name="Luck" maxBarSize={18}>
                 {chartData.map((d) => (
                   <Cell key={d.name} fill={d.luck >= 0 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L} />

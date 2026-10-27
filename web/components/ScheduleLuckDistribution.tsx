@@ -218,7 +218,7 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
                       domain={[0, yAxisMax]}
                       style={{ fontSize: '11px' }}
                     />
-                    <Tooltip active={tapTooltip(team.username).active} content={<ScheduleLuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
+                    <Tooltip isAnimationActive={false} active={tapTooltip(team.username).active} content={<ScheduleLuckTooltip />} cursor={{ fill: CHART_THEME.cursor }} />
                     <Bar isAnimationActive={false} dataKey="frequency" minPointSize={1}>
                       {chartData.map((entry) => {
                         const fillColor = entry.isActual

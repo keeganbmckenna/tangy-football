@@ -80,7 +80,7 @@ export default function PointsVsMedian({ differenceData, teams, maxWeek, control
                 axisLine={{ stroke: CHART_THEME.axis }}
                 tickLine={{ stroke: CHART_THEME.axis }}
               />
-              <Tooltip
+              <Tooltip isAnimationActive={false}
                 active={tap.active}
                 cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
                 content={

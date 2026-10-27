@@ -274,7 +274,7 @@ function WinOddsChart({ rows, nameA, nameB }: { rows: ChartRow[]; nameA: string;
             tickLine={{ stroke: CHART_THEME.axis }}
           />
           <ReferenceLine y={50} stroke={CHART_THEME.axis} strokeDasharray="2 4" />
-          <Tooltip
+          <Tooltip isAnimationActive={false}
             active={tap.active}
             cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
             wrapperStyle={{ maxWidth: 260 }}

@@ -69,7 +69,7 @@ export default function VsProjections({ insights, teamStats }: RostersCardProps)
               <XAxis dataKey="week" tick={{ fill: CHART_THEME.tick }} axisLine={{ stroke: CHART_THEME.axis }} tickLine={{ stroke: CHART_THEME.axis }} />
               <YAxis width={40} tick={{ fill: CHART_THEME.tick }} axisLine={{ stroke: CHART_THEME.axis }} tickLine={{ stroke: CHART_THEME.axis }} />
               <ReferenceLine y={0} stroke={CHART_THEME.axis} />
-              <Tooltip
+              <Tooltip isAnimationActive={false}
                 active={tap.active}
                 cursor={{ stroke: CHART_THEME.axis, strokeWidth: 1 }}
                 content={<CustomTooltip teams={teamColors} valueFormatter={(v) => signed(v)} />}
