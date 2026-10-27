@@ -308,3 +308,10 @@ select { background-color: var(--solid-surface) !important; }
   @keyframes score-delta-still { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   .score-delta { animation-name: score-delta-still; }
 }
+
+/* Charts take focus when clicked (Recharts' keyboard layer): no ring around the whole chart */
+.recharts-wrapper:focus,
+.recharts-wrapper :focus,
+.recharts-surface:focus {
+  outline: none;
+}
