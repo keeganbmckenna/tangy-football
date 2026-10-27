@@ -469,24 +469,26 @@ export function liveWinOdds(
     const diff = a.s.projected - b.s.projected;
     const sd = Math.sqrt(a.variance + b.variance);
     let aWinOdds = sd > 0.01 ? normalCdf(diff / sd) : diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
-    // One team done (or nearly) and the other close with players left: a normal curve puts real
-    // odds on its players losing points, which almost never happens, so use their real
-    // distributions instead (remainingPointsOdds)
-    const lead = a.s.score - b.s.score;
-    const total = Math.max(a.variance + b.variance, 1e-9);
-    const oneSided =
-      Math.abs(lead) < ONE_SIDED_MARGIN &&
-      ((a.variance / total < ONE_SIDED_SHARE && b.variance > 0.01) || (b.variance / total < ONE_SIDED_SHARE && a.variance > 0.01));
-    if (oneSided) aWinOdds = remainingPointsOdds(lead, [...a.players, ...b.players], [...a.defenses, ...b.defenses]);
+    // As one team runs out of players to play, a normal curve puts real odds on the other's
+    // players losing points, which almost never happens: blend into their real distributions
+    // (remainingPointsOdds) as the smaller side's share of the remaining variance falls from 5% to
+    // 1%, gradually, so the odds don't jump when it takes over
+    const weight = simulationWeight(Math.min(a.variance, b.variance) / Math.max(a.variance + b.variance, 1e-9));
+    if (weight > 0) {
+      const lead = a.s.score - b.s.score;
+      aWinOdds = weight * remainingPointsOdds(lead, [...a.players, ...b.players], [...a.defenses, ...b.defenses]) + (1 - weight) * aWinOdds;
+    }
     out.push({ matchupId, a: a.s, b: b.s, aWinOdds, sd });
   }
   return out.sort((x, y) => x.matchupId - y.matchupId);
 }
 
-/** One team's remaining variance under this share of the matchup's... */
-const ONE_SIDED_SHARE = 0.02;
-/** ...and the score within this many points: where remainingPointsOdds takes over */
-const ONE_SIDED_MARGIN = 10;
+/** The smaller side's share of the remaining variance where remainingPointsOdds starts to count, and where it's all of it */
+const SIM_FROM = 0.05;
+const SIM_FULL = 0.01;
+
+/** Weight on remainingPointsOdds: 0 above SIM_FROM, rising evenly to 1 at SIM_FULL and below */
+export const simulationWeight = (share: number) => Math.min(1, Math.max(0, (SIM_FROM - share) / (SIM_FROM - SIM_FULL)));
 
 /** A starter still to play, for remainingPointsOdds: sign +1 for team a's, -1 for b's */
 export interface RemainingPlayer {
@@ -519,9 +521,9 @@ const binOf = (edges: number[], v: number) => edges.filter((e) => e <= v).length
  * (remainingPoints.json, scripts/backtests/live_sim.py). A player often adds a lot, often nothing,
  * and almost never loses points: a top receiver with half his game left ended 0.61+ points down
  * in none of 14,283 cases. Defenses keep the model's normal. The margin's distribution is built on
- * a half-point grid; a's odds are the chance the current margin plus it ends above 0. Used when
- * one team is done or nearly done and the other is within 10 points (ONE_SIDED_*): there it was
- * 7-14% more accurate in 2020-2025 (live addendum test 7), where the normal was most off.
+ * a half-point grid; a's odds are the chance the current margin plus it ends above 0. Blended in as
+ * one team runs out of players (simulationWeight): in 2020-2025 more accurate overall in every
+ * season, and 7-14% more accurate in one-sided close moments (live addendum test 7).
  */
 export function remainingPointsOdds(current: number, players: RemainingPlayer[], defenses: RemainingDefense[]): number {
   let dist = new Map<number, number>([[0, 1]]);

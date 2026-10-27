@@ -721,7 +721,9 @@ def sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add
     va, vb = v_side[pa_], v_side[pb_]
     tot = (va + vb).clamp(min=1e-9)
     one = (((va / tot < 0.02) & (vb > 0.01)) | ((vb / tot < 0.02) & (va > 0.01))) & (cur.abs() < 10)
-    return {'odds_m': base.float().cpu().numpy(), 'odds_sim': out.float().cpu().numpy(), 'one': one.cpu().numpy()}
+    share = torch.minimum(va, vb) / tot
+    return {'odds_m': base.float().cpu().numpy(), 'odds_sim': out.float().cpu().numpy(), 'one': one.cpu().numpy(),
+            'share': share.float().cpu().numpy()}
 
 
 def replay_season(season):
@@ -751,7 +753,7 @@ def replay_season(season):
 
 def load(season, out=None):
     z = np.load(os.path.join(out or OUT, f'{season}.npz'))
-    keys = ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3', 'odds_m', 'odds_eg', 'eg', 'odds_sim', 'one')
+    keys = ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3', 'odds_m', 'odds_eg', 'eg', 'odds_sim', 'one', 'share')
     return [{k: z[f'{k}_{i}'] for k in keys if f'{k}_{i}' in z.files} for i in range(int(z['n']))]
 
 

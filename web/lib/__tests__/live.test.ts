@@ -9,6 +9,7 @@ import {
   liveTeamStats,
   liveWinOdds,
   remainingPointsOdds,
+  simulationWeight,
   type RemainingPlayer,
   liveLineup,
   leaguePoints,
@@ -392,7 +393,13 @@ describe('odds from players\' real remaining-points distributions', () => {
     expect(down).toBeLessThan(0.95);
   });
 
-  it('takes over in liveWinOdds only when one team is done and the score is close', () => {
+  it('blends in gradually as one team runs out of players', () => {
+    expect(simulationWeight(0.06)).toBe(0);
+    expect(simulationWeight(0.03)).toBeCloseTo(0.5);
+    expect(simulationWeight(0.005)).toBe(1);
+  });
+
+  it('takes over in liveWinOdds when one team is done', () => {
     const games: Record<string, LiveGame> = { DAL: { state: 'in', remaining: 0.54, label: '' }, KC: { state: 'post', remaining: 0, label: '' } };
     const projections: Record<string, LiveProjection> = {
       cd: { points: 14.2, spreadRatio: 0.6, team: 'DAL', name: 'CeeDee', position: 'WR', injury: null },
@@ -402,9 +409,13 @@ describe('odds from players\' real remaining-points distributions', () => {
       ({ roster_id: r, matchup_id: 1, starters, players: starters, players_points: Object.fromEntries(starters.map((id) => [id, pts])), points: pts }) as SleeperMatchup;
     const [close] = liveWinOdds([m(1, ['cd'], 111.49), m(2, ['done'], 110.88)], projections, games, 25);
     expect(close.aWinOdds).toBeGreaterThan(0.995);
-    // Not close: the normal model as before
+    // Far behind: his real chances of a big half, not the normal's
     const [far] = liveWinOdds([m(1, ['cd'], 90), m(2, ['done'], 110.88)], projections, games, 25);
-    expect(far.aWinOdds).toBeCloseTo(normalCdfFor(90 + 14.2 * 0.54 - 110.88, far.sd), 9);
+    expect(far.aWinOdds).toBeCloseTo(remainingPointsOdds(90 - 110.88, [{ position: 'WR', projection: 14.2, expected: 14.2 * 0.54, remaining: 0.54, sign: 1 }], []), 9);
+    // Both teams with players left: the normal model as before
+    const both = { ...games, KC: { state: 'in' as const, remaining: 0.5, label: '' } };
+    const [mid] = liveWinOdds([m(1, ['cd'], 90), m(2, ['done'], 100)], projections, both, 25);
+    expect(mid.aWinOdds).toBeCloseTo(normalCdfFor(90 + 14.2 * 0.54 - (100 + 15 * 0.5), mid.sd), 9);
   });
 });
 
