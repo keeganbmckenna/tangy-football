@@ -26,6 +26,8 @@ const GROUP_SHARE = 0.03;
 /** Each team's line in the score view */
 const A_COLOR = '#3b82f6';
 const B_COLOR = '#f59e0b';
+/** A group's count when its plays went both teams' ways */
+const MIXED_COLOR = '#6b7280';
 
 // The view picked, for every matchup this visit
 let rememberedView: 'odds' | 'score' = 'odds';
@@ -205,7 +207,9 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           const from = Math.min(...xs);
           const to = Math.max(...xs);
           const on = picked === gi;
-          const color = markerColor(groupHelpsLeft(g));
+          // Plays for both teams: a neutral count, so it doesn't read as one side's run
+          const mixed = new Set(g.map((i) => plays[i].helpsLeft)).size > 1;
+          const color = mixed ? MIXED_COLOR : markerColor(groupHelpsLeft(g));
           return (
             <button
               key={`${plays[g[0]].t}-${gi}`}
