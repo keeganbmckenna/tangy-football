@@ -64,6 +64,9 @@ function TeamCell({ team }: { team: TeamStats }) {
 
 const oddsText = (p: number) => percent(p);
 
+/** Whether a response was made before the one shown */
+const isOlder = (fetchedAt: string, shown: string) => Date.parse(fetchedAt) < Date.parse(shown);
+
 function SideSummary({ side, name, username, avatarUrl, align }: { side: LiveSide; name: string; username: string; avatarUrl: string | null; align: 'left' | 'right' }) {
   const left = [side.playing && `${side.playing} playing`, side.toPlay && `${side.toPlay} to play`].filter(Boolean).join(' · ') || 'done';
   return (
@@ -156,7 +159,13 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     try {
       const res = await fetch('/api/live', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to load live data');
-      setLive((await res.json()) as LiveWeekData);
+      const data = (await res.json()) as LiveWeekData;
+      // Scores older than the ones shown (a cached poll got there first) stay as they are
+      setLive((prev) =>
+        prev && prev.week === data.week && isOlder(data.fetchedAt, prev.fetchedAt)
+          ? { ...data, matchups: prev.matchups, games: prev.games ?? data.games, allowed: prev.allowed, stats: prev.stats, fetchedAt: prev.fetchedAt }
+          : data
+      );
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load live data');
@@ -172,7 +181,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       if (!res.ok) return;
       const data = (await res.json()) as LiveScoresData;
       setLive((prev) =>
-        prev && prev.week === data.week
+        // A poll served from the CDN's cache can be older than what's shown: skip it, so scores don't step back
+        prev && prev.week === data.week && !isOlder(data.fetchedAt, prev.fetchedAt)
           ? {
               ...prev,
               matchups: data.matchups,
