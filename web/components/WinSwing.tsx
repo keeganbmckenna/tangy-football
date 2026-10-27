@@ -43,7 +43,7 @@ const TIME = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric
  */
 export default function WinSwing({ season, week, a, b, live = false, refreshKey = '', now }: WinSwingProps) {
   const [view, setViewState] = useState(rememberedView);
-  // The big play whose details show (tapped, or hovered)
+  // The big play whose details show (clicked or tapped: hovering is for reading the odds)
   const [picked, setPicked] = useState<number | null>(null);
   const setView = (v: typeof view) => {
     rememberedView = v;
@@ -216,9 +216,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
               type="button"
               aria-label={`${g.length > 1 ? `${g.length} big plays` : 'Big play'} at ${TIME.format(plays[g[0]].t * 1000)}`}
               onClick={() => setPicked(on ? null : gi)}
-              onMouseEnter={() => setPicked(gi)}
               // From the first line to the last, with 8px either side to tap
-              className="absolute inset-y-0"
+              className="absolute inset-y-0 cursor-pointer"
               style={{ left: `calc(${from}% - 8px)`, width: `calc(${to - from}% + 16px)` }}
             >
               {g.map((i, k) => (
