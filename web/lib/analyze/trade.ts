@@ -55,6 +55,8 @@ export interface TradeMove {
   rosterId: number;
   sends: string[];
   receives: string[];
+  /** Players this team won't drop to make room */
+  keep?: string[];
 }
 
 /** A team's roster after a trade, including drops and pickups the trade forces */
@@ -109,7 +111,9 @@ export function rosterAfterTrade(inputs: TradeInputs, move: TradeMove, unavailab
   while (active(after).length > capacity) {
     // Ties (usually bench players who never start) go to dropping the lowest-projected one
     let best: { id: string; points: number; own: number } | null = null;
-    for (const p of active(after)) {
+    // Kept players stay unless nobody else can go
+    const droppable = active(after).filter((p) => !move.keep?.includes(p));
+    for (const p of droppable.length ? droppable : active(after)) {
       const points = seasonLineupPoints(inputs, after.filter((x) => x !== p));
       const own = ownPoints(p);
       if (!best || points > best.points + 1e-9 || (Math.abs(points - best.points) <= 1e-9 && own < best.own)) {

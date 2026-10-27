@@ -82,4 +82,19 @@ describe('findPickups', () => {
       expect(r.week!.winAfter).toBeGreaterThan(r.week!.winBefore);
     }
   });
+
+  it('only considers the picked positions and skips injured players when asked', () => {
+    expect(findPickups(league(), 1, { target: 8, sims: 1000, positions: ['QB'] })).toEqual([]);
+    const data = league();
+    data.players.faWR.injury = 'Out';
+    const [top] = findPickups(data, 1, { target: 8, sims: 1000, healthyOnly: true });
+    expect(top.add).toBe('faWR2');
+    data.players.faWR.injury = 'Questionable';
+    expect(findPickups(data, 1, { target: 8, sims: 1000, healthyOnly: true })[0].add).toBe('faWR');
+  });
+
+  it('never drops a kept player when someone else can go', () => {
+    const [top] = findPickups(league(), 1, { target: 8, sims: 1000, keep: ['rbX'] });
+    expect(top.drop).not.toContain('rbX');
+  });
 });

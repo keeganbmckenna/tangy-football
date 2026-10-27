@@ -27,6 +27,12 @@ export type WaiverTarget = 'season' | number;
 
 export interface WaiverOptions {
   target: WaiverTarget;
+  /** Only free agents at these positions (all when empty or missing) */
+  positions?: string[];
+  /** Skip free agents listed out, doubtful, on IR or suspended (questionable ones stay) */
+  healthyOnly?: boolean;
+  /** Roster players never dropped for a pickup */
+  keep?: string[];
   sims?: number;
   seed?: number;
 }
@@ -60,6 +66,9 @@ const SHOWN = 8;
 /** At most this many results per position, so near-identical kickers don't crowd out the rest */
 const PER_POSITION = 3;
 
+/** Injury statuses that mean he won't play soon (questionable players usually do) */
+export const unavailable = (injury: string | null | undefined) => !!injury && !/^q/i.test(injury);
+
 const oddsFor = (o: OddsResult, id: number): WaiverOdds => ({
   playoffs: o.teams[id].playoffs,
   champion: o.teams[id].champion,
@@ -91,8 +100,12 @@ export function findPickups(
   const baseLineup = lineupByWeek(inputs, inputs.rosters[me] ?? []);
 
   const scored: Array<{ add: string; drop: string[]; means: TradeModel; score: number; lineup: [number, number]; weekLineup: [number, number]; weekWin: number }> = [];
+  const positions = options.positions?.length ? new Set(options.positions) : null;
   inputs.freeAgents.forEach((fa, i) => {
-    const change = rosterAfterTrade(inputs, { rosterId: me, sends: [], receives: [fa] });
+    if (i % 10 === 9) onProgress({ stage: 'scoring', done: i + 1, total: inputs.freeAgents.length });
+    if (positions && !positions.has(inputs.positions[fa] ?? '')) return;
+    if (options.healthyOnly && unavailable(data.players[fa]?.injury)) return;
+    const change = rosterAfterTrade(inputs, { rosterId: me, sends: [], receives: [fa], keep: options.keep });
     // Picking someone up only to drop him isn't a move
     if (change.dropped.includes(fa)) return;
     const { model } = meansAfterTrade(data.model, inputs, [change]);
@@ -110,9 +123,10 @@ export function findPickups(
         weekWin,
       });
     }
-    if (i % 10 === 9) onProgress({ stage: 'scoring', done: i + 1, total: inputs.freeAgents.length });
   });
 
+  // With a position or two picked, the list can go deeper at each
+  const perPositionCap = positions ? Math.max(PER_POSITION, Math.ceil(SHOWN / positions.size)) : PER_POSITION;
   const perPosition = new Map<string, number>();
   const finalists = scored
     .sort((a, b) => b.score - a.score)
@@ -120,7 +134,7 @@ export function findPickups(
       const pos = inputs.positions[c.add] ?? '';
       const n = perPosition.get(pos) ?? 0;
       perPosition.set(pos, n + 1);
-      return n < PER_POSITION;
+      return n < perPositionCap;
     })
     .slice(0, FINALISTS);
   const simulate = (m: TradeModel) =>

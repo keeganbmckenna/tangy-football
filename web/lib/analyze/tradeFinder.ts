@@ -55,6 +55,14 @@ export interface FinderOptions {
   marketFilter: boolean;
   /** Search every player on both rosters instead of each roster's POOL_SIZE most valuable (slower) */
   deep?: boolean;
+  /** Only trades with this manager */
+  partner?: number | null;
+  /** Only trades that bring back at least one player at these positions (any when empty or missing) */
+  getPositions?: string[];
+  /** My players that aren't traded or dropped */
+  keep?: string[];
+  /** Most players on either side (1 to 3) */
+  maxPlayers?: number;
   sims?: number;
   finalSims?: number;
   seed?: number;
@@ -141,6 +149,11 @@ export function findTrades(
   const seed = options.seed ?? 2026;
   const regular = inputs.weeks.filter((w) => w <= data.regularSeasonEnd);
   const value = (p: string) => data.players[p]?.value ?? 0;
+  const keep = options.keep ?? [];
+  // One manager picked: the caps that spread the list across managers don't apply
+  const onePartner = options.partner != null;
+  const getPositions = options.getPositions?.length ? new Set(options.getPositions) : null;
+  const sizes = TRADE_SIZES.filter(([g, r]) => Math.max(g, r) <= (options.maxPlayers ?? 3));
 
   // Stage 1: screen with season-average expected points
   const avg: Record<string, { position: string; points: number }> = {};
@@ -150,18 +163,18 @@ export function findTrades(
   const lineup = (players: string[]) => bestLineup(players, avg, inputs.rosterPositions).total;
   const pool = (id: number) =>
     (inputs.rosters[id] ?? [])
-      .filter((p) => avg[p] && !NOT_TRADED.has(avg[p].position) && !(inputs.reserve?.[id] ?? []).includes(p))
+      .filter((p) => avg[p] && !NOT_TRADED.has(avg[p].position) && !(inputs.reserve?.[id] ?? []).includes(p) && !(id === me && keep.includes(p)))
       .sort((a, b) => avg[b].points - avg[a].points)
       .slice(0, options.deep ? undefined : POOL_SIZE);
   const packages = (players: string[]) => Object.fromEntries([1, 2, 3].map((k) => [k, combos(players, k)])) as Record<number, string[][]>;
 
-  const partners = data.teams.map((t) => t.rosterId).filter((id) => id !== me);
+  const partners = data.teams.map((t) => t.rosterId).filter((id) => id !== me && (options.partner == null || id === options.partner));
   const myRoster = inputs.rosters[me] ?? [];
   const myPackages = packages(pool(me));
   const myBefore = lineup(myRoster);
   const total = partners.reduce((s, id) => {
     const theirs = packages(pool(id));
-    return s + TRADE_SIZES.reduce((n, [g, r]) => n + myPackages[g].length * theirs[r].length, 0);
+    return s + sizes.reduce((n, [g, r]) => n + myPackages[g].length * theirs[r].length, 0);
   }, 0);
 
   type Screened = { partner: number; gives: string[]; gets: string[]; gain: number };
@@ -171,11 +184,12 @@ export function findTrades(
     const theirRoster = inputs.rosters[partner] ?? [];
     const theirPackages = packages(pool(partner));
     const theirBefore = lineup(theirRoster);
-    for (const [g, r] of TRADE_SIZES) {
+    for (const [g, r] of sizes) {
       for (const gives of myPackages[g]) {
         const myKept = myRoster.filter((p) => !gives.includes(p));
         for (const gets of theirPackages[r]) {
           checked++;
+          if (getPositions && !gets.some((p) => getPositions.has(avg[p].position))) continue;
           if (options.marketFilter && marketFair(gets.map(value), gives.map(value)) === false) continue;
           const gain = lineup([...myKept, ...gets]) - myBefore;
           if (gain <= 0) continue;
@@ -195,7 +209,7 @@ export function findTrades(
     .sort((a, b) => b.gain - a.gain)
     .filter((c) => {
       const n = perPartner.get(c.partner) ?? 0;
-      if (n >= SHORTLIST / 5) return false;
+      if (!onePartner && n >= SHORTLIST / 5) return false;
       perPartner.set(c.partner, n + 1);
       return true;
     })
@@ -220,7 +234,7 @@ export function findTrades(
   };
   const rescored: Rescored[] = [];
   shortlist.forEach((c, i) => {
-    const mine = rosterAfterTrade(inputs, { rosterId: me, sends: c.gives, receives: c.gets });
+    const mine = rosterAfterTrade(inputs, { rosterId: me, sends: c.gives, receives: c.gets, keep });
     const theirs = rosterAfterTrade(inputs, { rosterId: c.partner, sends: c.gets, receives: c.gives }, mine.added);
     const { model } = meansAfterTrade(data.model, inputs, [mine, theirs]);
     const winGain = expectedWins(me, model) - baseWins[me];
@@ -248,7 +262,7 @@ export function findTrades(
     .filter((c) => {
       const key = `${c.partner}:${c.gives[0]}:${c.gets[0]}`;
       const n = finalistsPer.get(c.partner) ?? 0;
-      if (seen.has(key) || n >= FINALISTS_PER_PARTNER) return false;
+      if (seen.has(key) || (!onePartner && n >= FINALISTS_PER_PARTNER)) return false;
       seen.add(key);
       finalistsPer.set(c.partner, n + 1);
       return true;
@@ -281,7 +295,7 @@ export function findTrades(
     .filter((c) => {
       const n = shownPer.get(c.partner) ?? 0;
       shownPer.set(c.partner, n + 1);
-      return n < SHOWN_PER_PARTNER;
+      return onePartner || n < SHOWN_PER_PARTNER;
     })
     .slice(0, SHOWN);
   const fullBase = simulate(data.model, finalSims);

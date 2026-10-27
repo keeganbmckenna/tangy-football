@@ -108,4 +108,18 @@ describe('findTrades', () => {
       expect(allowed.has(r.size)).toBe(true);
     }
   });
+
+  it('narrows the search to one manager, a trade size, positions to get and players to keep', () => {
+    const opts = { marketFilter: false, sims: 2000, finalSims: 2000 };
+    const withThree = findTrades(league(), 1, { ...opts, partner: 3 });
+    expect(withThree.every((r) => r.partner === 3)).toBe(true);
+    expect(findTrades(league(), 1, { ...opts, maxPlayers: 1 }).every((r) => r.size === '1-for-1')).toBe(true);
+    const rbs = findTrades(league(), 1, { ...opts, getPositions: ['RB'] });
+    expect(rbs.length).toBeGreaterThan(0);
+    expect(rbs.every((r) => r.gets.some((p) => PLAYERS[p][0] === 'RB'))).toBe(true);
+    for (const r of findTrades(league(), 1, { ...opts, keep: ['qbB'] })) {
+      expect(r.gives).not.toContain('qbB');
+      expect(r.moves.meDrops).not.toContain('qbB');
+    }
+  });
 });

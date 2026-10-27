@@ -64,8 +64,8 @@ During the current regular season, the trade and waiver tools come first:
   - lineup changes and forced roster moves;
   - each player's FantasyCalc market value;
   - which other teams' odds move.
-- **Trade Finder:** pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager. It keeps the ones that help you without hurting the other manager, optionally only market-fair ones, each with an "Open in analyzer" button.
-- **Waiver Finder:** the free agents who would help you most, for the rest of the season or for one specific week (to cover a bye), each with the player it would drop.
+- **Trade Finder:** pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager. It keeps the ones that help you without hurting the other manager, optionally only market-fair ones, each with an "Open in analyzer" button. Filters: one manager, trade size (1-for-1, up to 2 or 3 a side), positions to get back, and players you won't trade (or drop).
+- **Waiver Finder:** the free agents who would help you most, for the rest of the season or for one specific week (to cover a bye), each with the player it would drop. Filters: positions, hide injured (out, doubtful, IR, suspended), and players you won't drop.
 
 Then, for any season:
 - **Lineup Efficiency:** points scored against the best lineup each team could have started, start/sit calls (points scored minus what the lineup its projections recommended would have scored: the decisions a manager could actually have made), points left on the bench, perfect weeks, and losses the best lineup would have won. Tap a team for its costliest week and the start/sit calls behind it.

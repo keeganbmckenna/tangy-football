@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMyTeam } from '@/hooks/useMyTeam';
 import SectionCard from '@/components/ui/SectionCard';
+import { KeepPicker, PositionChips, positionsOf } from '@/components/ui/FinderFilters';
 import { bestLineup, formatOdds } from '@/lib/analyze/playoffOdds';
 import type { TradeDataResponse } from '@/lib/analyze/trade';
-import type { WaiverPickup, WaiverProgress, WaiverTarget } from '@/lib/analyze/waiverFinder';
+import type { WaiverOptions, WaiverPickup, WaiverProgress, WaiverTarget } from '@/lib/analyze/waiverFinder';
 import type { WaiverMessage, WaiverRequest } from '@/lib/analyze/waiverFinder.worker';
 import type { TeamStats } from '@/lib/types';
 import { signed } from '@/lib/format';
@@ -35,7 +36,8 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
   // Starts on your team, if you've picked one in the header
   const myTeam = useMyTeam();
   const [me, setMe] = useState<number | null>(myTeam.rosterId);
-  const [target, setTarget] = useState<WaiverTarget>('season');
+  const [options, setOptions] = useState<WaiverOptions>({ target: 'season', positions: [], healthyOnly: false, keep: [] });
+  const { target } = options;
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<WaiverProgress | null>(null);
   const [results, setResults] = useState<{ me: number; target: WaiverTarget; pickups: WaiverPickup[] } | null>(null);
@@ -69,7 +71,8 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
             return { week: g.week, opponent: g.a === me ? g.b : g.a, byes };
           });
 
-  const run = (team: number, t: WaiverTarget) => {
+  const run = (team: number, o: WaiverOptions) => {
+    const t = o.target;
     worker.current?.terminate();
     setRunning(true);
     setError(null);
@@ -96,9 +99,24 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
         w.terminate();
       }
     };
-    const request: WaiverRequest = { data, me: team, options: { target: t } };
+    const request: WaiverRequest = { data, me: team, options: o };
     w.postMessage(request);
   };
+
+  // A changed option runs the search again when one has run (or is running)
+  const change = (patch: Partial<WaiverOptions>) => {
+    const next = { ...options, ...patch };
+    setOptions(next);
+    if (me !== null && (results || running)) run(me, next);
+  };
+  const faPositions = positionsOf(inputs.freeAgents.map((p) => inputs.positions[p]).filter(Boolean));
+  const myPlayers =
+    me === null
+      ? []
+      : (inputs.rosters[me] ?? [])
+          .filter((p) => data.players[p] && !(inputs.reserve?.[me] ?? []).includes(p))
+          .sort((a, b) => data.players[b].expectedPerWeek - data.players[a].expectedPerWeek)
+          .map((p) => ({ id: p, label: label(p) }));
 
   const pct = progress && progress.total ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0;
 
@@ -116,7 +134,7 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
             value={me ?? ''}
             onChange={(e) => {
               setMe(e.target.value ? Number(e.target.value) : null);
-              setTarget('season');
+              setOptions({ ...options, target: 'season', keep: [] });
               setResults(null);
             }}
             className="min-w-[12rem] rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 text-sm text-[var(--foreground)]"
@@ -136,9 +154,7 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
             value={target}
             disabled={me === null}
             onChange={(e) => {
-              const t: WaiverTarget = e.target.value === 'season' ? 'season' : Number(e.target.value);
-              setTarget(t);
-              if (me !== null && results && !running) run(me, t);
+              change({ target: e.target.value === 'season' ? 'season' : Number(e.target.value) });
             }}
             className="min-w-[12rem] max-w-full rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 text-sm text-[var(--foreground)] disabled:opacity-50"
           >
@@ -153,12 +169,23 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
           <button
             type="button"
             disabled={me === null || running}
-            onClick={() => me !== null && run(me, target)}
+            onClick={() => me !== null && run(me, options)}
             className="rounded-md bg-[var(--accent)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
           >
             Find pickups
           </button>
         </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <PositionChips positions={faPositions} value={options.positions ?? []} onChange={(positions) => change({ positions })} label="Positions to pick up" />
+          <label className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+            <input type="checkbox" checked={!!options.healthyOnly} onChange={(e) => change({ healthyOnly: e.target.checked })} className="h-4 w-4" />
+            Hide injured players
+          </label>
+        </div>
+        {me !== null && (
+          <KeepPicker players={myPlayers} value={options.keep ?? []} onChange={(keep) => change({ keep })} summary="Players you won’t drop" />
+        )}
 
         {running && (
           <div>
@@ -178,7 +205,8 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
             {results.pickups.length === 0 ? (
               <p className="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
                 No free agent would help {manager(results.me)}
-                {typeof results.target === 'number' ? ` in week ${results.target}` : ' over the rest of the season'}.
+                {typeof results.target === 'number' ? ` in week ${results.target}` : ' over the rest of the season'}
+                {options.positions?.length || options.healthyOnly || options.keep?.length ? ' with these filters' : ''}.
               </p>
             ) : (
               results.pickups.map((r) => {
@@ -243,7 +271,8 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
               Rest of season ranks pickups by how much they raise your playoff and title odds. A single week ranks them by your
               win odds that week, and still shows each pickup&apos;s season effect: if the drop hurts later, you&apos;ll see it
               there. The best dozen get 5,000 simulated seasons on the same random draws as without the move. At most 3 pickups
-              per position are shown.
+              per position are shown (more when you pick positions). Hide injured players skips anyone listed out, doubtful, on IR
+              or suspended; questionable players stay. Players you won&apos;t drop are never the drop, unless nobody else can go.
             </p>
             <p>
               Projections more than a week or two out are mostly each player&apos;s general outlook with his bye week counted,

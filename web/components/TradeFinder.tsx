@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMyTeam } from '@/hooks/useMyTeam';
 import SectionCard from '@/components/ui/SectionCard';
+import { KeepPicker, PositionChips, positionsOf } from '@/components/ui/FinderFilters';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
 import type { TradeDataResponse } from '@/lib/analyze/trade';
-import type { FinderProgress, FoundTrade } from '@/lib/analyze/tradeFinder';
+import type { FinderOptions, FinderProgress, FoundTrade } from '@/lib/analyze/tradeFinder';
 import type { FinderMessage, FinderRequest } from '@/lib/analyze/tradeFinder.worker';
 import type { TeamStats } from '@/lib/types';
 import { signed } from '@/lib/format';
@@ -44,10 +45,10 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
   // Starts on your team, if you've picked one in the header
   const myTeam = useMyTeam();
   const [me, setMe] = useState<number | null>(myTeam.rosterId);
-  const [marketFilter, setMarketFilter] = useState(true);
+  const [options, setOptions] = useState<FinderOptions>({ marketFilter: true, partner: null, getPositions: [], keep: [], maxPlayers: 3 });
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<FinderProgress | null>(null);
-  const [results, setResults] = useState<{ me: number; deep: boolean; marketFilter: boolean; trades: FoundTrade[] } | null>(null);
+  const [results, setResults] = useState<{ me: number; deep: boolean; marketFilter: boolean; filtered: boolean; trades: FoundTrade[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const worker = useRef<Worker | null>(null);
 
@@ -59,13 +60,13 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
     return p ? `${p.name} (${p.position})` : id;
   };
 
-  const run = (deep: boolean, filter = marketFilter) => {
+  const run = (deep: boolean, o: FinderOptions = options) => {
     if (me === null) return;
     worker.current?.terminate();
     setRunning(true);
     setError(null);
     setProgress(null);
-    const request: FinderRequest = { data, me, options: { marketFilter: filter, deep } };
+    const request: FinderRequest = { data, me, options: { ...o, deep } };
     let w: Worker;
     try {
       w = new Worker(new URL('../lib/analyze/tradeFinder.worker.ts', import.meta.url));
@@ -79,7 +80,7 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
       const msg = e.data;
       if (msg.type === 'progress') setProgress(msg.progress);
       else if (msg.type === 'done') {
-        setResults({ me, deep, marketFilter: filter, trades: msg.results });
+        setResults({ me, deep, marketFilter: o.marketFilter, filtered: o.partner != null || !!o.getPositions?.length || !!o.keep?.length || (o.maxPlayers ?? 3) < 3, trades: msg.results });
         setRunning(false);
         w.terminate();
       } else {
@@ -90,6 +91,23 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
     };
     w.postMessage(request);
   };
+
+  // A changed filter runs the search again when one has run (or is running)
+  const change = (patch: Partial<FinderOptions>) => {
+    const next = { ...options, ...patch };
+    setOptions(next);
+    if (results || running) run(results?.deep ?? false, next);
+  };
+  const { inputs } = data;
+  const tradedPositions = positionsOf(Object.values(inputs.positions).filter((p) => p !== 'K' && p !== 'DEF'));
+  const myPlayers =
+    me === null
+      ? []
+      : (inputs.rosters[me] ?? [])
+          .filter((p) => data.players[p] && !['K', 'DEF'].includes(data.players[p].position) && !(inputs.reserve?.[me] ?? []).includes(p))
+          .sort((a, b) => data.players[b].expectedPerWeek - data.players[a].expectedPerWeek)
+          .map((p) => ({ id: p, label: player(p) }));
+  const select = 'rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 text-sm text-[var(--foreground)]';
 
   const pct = progress && progress.total ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0;
 
@@ -107,6 +125,7 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
             value={me ?? ''}
             onChange={(e) => {
               setMe(e.target.value ? Number(e.target.value) : null);
+              setOptions({ ...options, keep: [], partner: null });
               setResults(null);
             }}
             className="min-w-[12rem] rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 text-sm text-[var(--foreground)]"
@@ -131,16 +150,46 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
           <label className="flex items-center gap-2 text-sm text-[var(--foreground)]">
             <input
               type="checkbox"
-              checked={marketFilter}
-              onChange={(e) => {
-                setMarketFilter(e.target.checked);
-                if (results && !running) run(results.deep, e.target.checked);
-              }}
+              checked={options.marketFilter}
+              onChange={(e) => change({ marketFilter: e.target.checked })}
               className="h-4 w-4"
             />
             Only trades the market sees as fair
           </label>
         </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="sr-only" htmlFor="finder-partner">Trade with</label>
+          <select
+            id="finder-partner"
+            value={options.partner ?? ''}
+            onChange={(e) => change({ partner: e.target.value ? Number(e.target.value) : null })}
+            className={`min-w-[12rem] ${select}`}
+          >
+            <option value="">Any manager</option>
+            {[...teamStats]
+              .filter((t) => t.rosterId !== me)
+              .sort((x, y) => x.username.localeCompare(y.username, undefined, { sensitivity: 'base' }))
+              .map((t) => (
+                <option key={t.rosterId} value={t.rosterId}>
+                  With {t.username}
+                </option>
+              ))}
+          </select>
+          <label className="sr-only" htmlFor="finder-size">Trade size</label>
+          <select id="finder-size" value={options.maxPlayers ?? 3} onChange={(e) => change({ maxPlayers: Number(e.target.value) })} className={select}>
+            <option value={1}>1-for-1 only</option>
+            <option value={2}>Up to 2 players a side</option>
+            <option value={3}>Up to 3 players a side</option>
+          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[var(--muted)]">Get a</span>
+            <PositionChips positions={tradedPositions} value={options.getPositions ?? []} onChange={(getPositions) => change({ getPositions })} label="Positions to get" />
+          </div>
+        </div>
+        {me !== null && (
+          <KeepPicker players={myPlayers} value={options.keep ?? []} onChange={(keep) => change({ keep })} summary="Players you won’t trade or drop" />
+        )}
 
         {running && (
           <div>
@@ -162,7 +211,8 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
               <p className="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
                 No trades found that help {manager(results.me)} without hurting the other manager
                 {results.marketFilter ? ' and that the market sees as fair. Try turning off the market filter' : ''}
-                {!results.deep ? `${results.marketFilter ? ' or searching' : '. Try searching'} deeper` : ''}.
+                {!results.deep ? `${results.marketFilter ? ' or searching' : '. Try searching'} deeper` : ''}
+                {results.filtered ? `${results.marketFilter || !results.deep ? ', or loosening' : '. Try loosening'} the other filters` : ''}.
               </p>
             ) : (
               results.trades.map((t, i) => {
@@ -226,7 +276,7 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
             {!results.deep && (
               <button
                 type="button"
-                onClick={() => run(true, results.marketFilter)}
+                onClick={() => run(true)}
                 className="text-sm font-medium text-[var(--accent)] underline"
               >
                 Search deeper: every player on both rosters (slower)
@@ -249,6 +299,11 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
               A trade is kept only if your odds improve and the other manager&apos;s don&apos;t get worse: their lineup doesn&apos;t
               drop, their playoff and title odds don&apos;t fall, and their odds of losing the toilet bowl don&apos;t rise. Other
               teams can lose a little: playoff spots are fixed, so when two teams both gain, someone else gives it up.
+            </p>
+            <p>
+              The filters narrow the search itself, so a filtered list goes as deep as an unfiltered one: one manager (up to 8
+              trades with them instead of 2), trade size, positions you get back (at least one player at a picked position), and
+              players you won&apos;t trade, who also never get dropped to make room.
             </p>
             <p>
               The market filter uses FantasyCalc redraft values and hides trades where the other manager gets back less than 85% of
