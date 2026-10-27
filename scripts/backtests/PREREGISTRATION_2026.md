@@ -235,3 +235,24 @@ The averaged scores hide the moments where a fantasy matchup hinges on one last 
   Result: 2 of 4 seasons (all four better: -0.009 to -0.052); not confirmed, not shipped. 6b is
   carried into the season-end 2026 confirmation as a named candidate, on the same pivotal-moment
   target and bar (>= 0.01, interval excluding 0).
+
+## Addendum (2026-10-26, later): test 7, player-level distributions, set before it runs
+
+Prompted by a live case: one team done, the other ahead by under a point with one receiver
+playing, shown at 92%. A player's remaining points aren't a symmetric curve: often a lot, often
+nothing, rarely negative (a lost fumble). This replaces the normal approximation with each
+player's real distribution.
+- **Model (L6).** Each modelled starter's remaining points = r x (his projection x share of
+  game left, in the league's scoring), r drawn from the empirical distribution of (points he
+  actually scored from then on) / (half-PPR projection x share left) among the training seasons'
+  player-moments (live_state.py), by position (QB, RB, WR, TE, K), half-PPR projection (under 8,
+  8-14, 14+) and share of game left (6 bins; before kickoff uses the first), as 64 quantiles.
+  Defenses keep the current model's normal (with L1a's multiplier). The margin's distribution is
+  the players' convolved on a half-point grid (FFT, on the GPU); a's odds = P(current margin +
+  remaining margin > 0). Nothing else is fitted; the tables are fitted leaving the season out.
+- **Targets.** Primary as always. Secondary, set now: one-sided close moments, where one side's
+  remaining variance is under 2% of the matchup's, the other side still has players, and the
+  score margin is under 10 points; log loss over those samples per matchup, averaged.
+- **Adoption.** Everywhere, if the primary rule passes (>= 0.002, interval excluding 0, 6 of 8).
+  Otherwise for the one-sided moments only, if that target improves >= 0.01 with an interval
+  excluding 0 in 6 of 8 seasons and the primary score gets no worse than +0.0005 in any season.
