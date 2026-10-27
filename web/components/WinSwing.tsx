@@ -16,6 +16,8 @@ interface WinSwingProps {
   /** The week in progress: the odds saved so far (/api/live/history), reloaded when refreshKey changes */
   live?: boolean;
   refreshKey?: string;
+  /** The week in progress: a's odds and both scores right now (the Live tab's), drawn as the last point */
+  now?: { odds: number; sa: number; sb: number };
 }
 
 /** Plays closer than this share of the chart's width share one tap area (each keeps its line) */
@@ -37,7 +39,7 @@ const TIME = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric
  * saved live. Only game time is drawn, so the gaps between Thursday, Sunday and Monday are
  * closed up and marked by day.
  */
-export default function WinSwing({ season, week, a, b, live = false, refreshKey = '' }: WinSwingProps) {
+export default function WinSwing({ season, week, a, b, live = false, refreshKey = '', now }: WinSwingProps) {
   const [view, setViewState] = useState(rememberedView);
   // The big play whose details show (tapped, or hovered)
   const [picked, setPicked] = useState<number | null>(null);
@@ -63,6 +65,11 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
     // In percent, unrounded: it's rounded once where it's shown
     return { i, t, p: p * 100, sa, sb };
   });
+  // Live, the chart ends at the odds the card shows now: saves come every couple of minutes
+  if (live && now) {
+    const t = Math.max(Math.floor(Date.now() / 1000), data.times[data.times.length - 1]);
+    points.push({ i: points.length, t, p: now.odds * 100, sa: now.sa, sb: now.sb });
+  }
   // Where each game day starts, for its label
   const days = points.filter((pt, i) => i === 0 || DAY.format(pt.t * 1000) !== DAY.format(points[i - 1].t * 1000));
   // Lead changes: the favorite flipping, counted only once the odds get past 55% the other way
