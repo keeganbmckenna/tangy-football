@@ -328,6 +328,7 @@ def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, r
                 slot['proj_row'].append(prow.get(pid, -1) if pr else -1)
                 slot['ratio'].append(ratio(pid, pr[0]) if pr else 0.0)
                 slot['pos'].append(pr[0] if pr else ('DEF' if is_def else ''))
+                slot['pid'].append(pid)
                 slot['share'].append(extra['half'].get(pid, 0.0) / max(extra['team_half'].get(team, 0.0), 1.0))
                 slot['status'].append(reports.get(pid, (None,))[0])
     n_sides = len(sides)
@@ -470,6 +471,9 @@ def replay_chunk(chunk, w, T, times, games, C, rows, P, prow, PM, keys, ratio, r
     odds, sd, fa, fb, scale = LM.win_odds(side[m], n_sides, t(groups, torch.long), t(spreads), proj_t[m], t(slot['ratio'])[m],
                                           rem[m], add[m], score, pa_, pb_, extras=True, pvar=pvar)
     eg_out = None
+    if 'sim' in USE:
+        eg_out = sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add, proj_t, scale, fa, fb, sd, score, pa_, pb_,
+                          P, is_def, t(has_proj, torch.bool))
     if USE & {'endgame', 'endgame6b'}:
         eg_out = endgame_odds(slot, S, T, m, side, n_sides, pairs, games, teams, gi, state, rem, add, proj_t, scale, fa, fb, sd, pvar,
                               P, prow_, PM, keys, WP, lg_np, full, is_def)
@@ -637,6 +641,88 @@ def endgame_odds(slot, S, T, m, side, n_sides, pairs, games, teams, gi, state, r
     return {'odds_m': base.float().cpu().numpy(), 'odds_eg': odds.float().cpu().numpy(), 'eg': flag.cpu().numpy()}
 
 
+SIM_Q = None
+SIM_STEP, SIM_BINS = 0.5, 1024
+
+
+def sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add, proj_t, scale, fa, fb, sd, score, pa_, pb_,
+             P, is_def, has_proj):
+    """Addendum test 7: a's odds from each starter's empirical remaining-points distribution (live_sim.py
+    tables), convolved by FFT on the GPU; defenses keep a normal. Returns the L1a odds at LIVE_MULT,
+    these, and where the one-sided close target applies."""
+    global SIM_Q
+    import live_sim as LS
+    dev = rem.device
+    if SIM_Q is None: SIM_Q = torch.tensor(np.load(os.environ['LIVE_SIM'])['Q'], dtype=torch.float32, device=dev)
+    t_ = lambda a, dt=DT: torch.tensor(a, dtype=dt, device=dev)
+    M_ = len(pairs)
+    mk = np.full(n_sides, -1); sg = np.zeros(n_sides)
+    for k, (sa, sb, _) in enumerate(pairs): mk[sa], sg[sa], mk[sb], sg[sb] = k, 1.0, k, -1.0
+    sl_side = np.array(slot['side'])
+    s_k, s_sign = t_(np.maximum(mk[sl_side], 0), torch.long), t_(sg[sl_side])
+    in_pair = t_(mk[sl_side] >= 0, torch.bool)
+    pos_i = t_([LS.POS.index(p) if p in LS.POS else -1 for p in slot['pos']], torch.long)
+    half = np.array([((P.get(pid) or (None, None, {}))[2].get('pts_half_ppr') or 0.0) if pid else 0.0 for pid in slot.get('pid', [None] * S)])
+    pb_i = t_(LS.proj_bin(half), torch.long)
+    skill = has_proj & ~is_def & (pos_i >= 0) & in_pair
+    defn = has_proj & is_def & in_pair
+    # The model's variances (for defenses, and the one-sided target)
+    ratio = t_(slot['ratio']).unsqueeze(1)
+    var_i = torch.zeros(S, T, dtype=DT, device=dev)
+    var_i[has_proj] = ((ratio * proj_t) ** 2)[has_proj] * rem[has_proj] * scale[side[has_proj]]
+    var_i = var_i * MULT ** 2
+    mean_i = proj_t * rem
+    cur = score[pa_] - score[pb_]
+    diff = fa - fb
+    base = torch.where(sd > 0.01, LM.normal_cdf(diff / (MULT * sd).clamp(min=0.01)), torch.where(diff > 0, 1.0, torch.where(diff < 0, 0.0, 0.5)).to(DT))
+    out = torch.where(cur > 0, 1.0, torch.where(cur < 0, 0.0, 0.5)).to(DT).clone()
+    grid = torch.arange(SIM_BINS, device=dev, dtype=DT)
+    grid = torch.where(grid < SIM_BINS // 2, grid, grid - SIM_BINS) * SIM_STEP
+    edges = (torch.arange(SIM_BINS + 1, device=dev, dtype=DT) - 0.5) * SIM_STEP  # for the defenses' normals (non-negative half)
+    rbins = torch.bucketize(rem.contiguous(), torch.tensor(LS.REM_EDGES, dtype=DT, device=dev), right=True)
+    for ti in range(T):
+        act_s = torch.nonzero(skill & (rem[:, ti] > 0) & (mean_i[:, ti] > 0)).squeeze(1)
+        act_d = torch.nonzero(defn & (rem[:, ti] > 0)).squeeze(1)
+        if not len(act_s) and not len(act_d): continue
+        rows = []
+        if len(act_s):
+            q = SIM_Q[pos_i[act_s], pb_i[act_s], rbins[act_s, ti]].to(DT) * mean_i[act_s, ti].unsqueeze(1)  # [n, 64]
+            v = q * s_sign[act_s].unsqueeze(1) / SIM_STEP
+            lo = torch.floor(v); w_hi = v - lo
+            pmf = torch.zeros(len(act_s), SIM_BINS, dtype=DT, device=dev)
+            lo_i = lo.long() % SIM_BINS
+            pmf.scatter_add_(1, lo_i, (1 - w_hi) / q.shape[1]); pmf.scatter_add_(1, (lo_i + 1) % SIM_BINS, w_hi / q.shape[1])
+            rows.append((act_s, pmf))
+        if len(act_d):
+            mu = add[act_d, ti] * s_sign[act_d]; sdv = var_i[act_d, ti].clamp(min=1e-6).sqrt()
+            # Bins centred on grid values: P(bin) from the normal's CDF at the bin edges, wrapped
+            gv = grid.unsqueeze(0)
+            pmf = (LM.normal_cdf((gv + SIM_STEP / 2 - mu.unsqueeze(1)) / sdv.unsqueeze(1)) - LM.normal_cdf((gv - SIM_STEP / 2 - mu.unsqueeze(1)) / sdv.unsqueeze(1))).clamp(min=0)
+            rows.append((act_d, pmf))
+        idx = torch.cat([r[0] for r in rows]); pmf = torch.cat([r[1] for r in rows])
+        F = torch.fft.fft(pmf.to(torch.complex64), dim=1)
+        kk = s_k[idx]
+        prod = torch.ones(M_, SIM_BINS, dtype=torch.complex64, device=dev)
+        order = torch.argsort(kk); sk = kk[order]
+        first = torch.ones_like(sk, dtype=torch.bool); first[1:] = sk[1:] != sk[:-1]
+        start = torch.cummax(torch.where(first, torch.arange(len(sk), device=dev), torch.zeros_like(sk)), 0).values
+        ranks = torch.empty_like(kk); ranks[order] = torch.arange(len(sk), device=dev) - start
+        for r in range(int(ranks.max().item()) + 1):
+            sel = ranks == r
+            prod[kk[sel]] = prod[kk[sel]] * F[sel]
+        ks = torch.unique(kk)
+        dist = torch.fft.ifft(prod[ks], dim=1).real.to(DT).clamp(min=0)
+        dist = dist / dist.sum(1, keepdim=True).clamp(min=1e-12)
+        z = (cur[ks, ti].unsqueeze(1) + grid.unsqueeze(0)) / (SIM_STEP / 2)
+        out[ks, ti] = (dist * LM.normal_cdf(z)).sum(1)
+    # One-sided close: one side's remaining variance under 2% of the matchup's, the other side still playing, margin under 10
+    v_side = torch.zeros(n_sides, T, dtype=DT, device=dev).index_add_(0, side[has_proj], var_i[has_proj])
+    va, vb = v_side[pa_], v_side[pb_]
+    tot = (va + vb).clamp(min=1e-9)
+    one = (((va / tot < 0.02) & (vb > 0.01)) | ((vb / tot < 0.02) & (va > 0.01))) & (cur.abs() < 10)
+    return {'odds_m': base.float().cpu().numpy(), 'odds_sim': out.float().cpu().numpy(), 'one': one.cpu().numpy()}
+
+
 def replay_season(season):
     t0 = time.time()
     lgs = leagues(season)
@@ -664,7 +750,7 @@ def replay_season(season):
 
 def load(season, out=None):
     z = np.load(os.path.join(out or OUT, f'{season}.npz'))
-    keys = ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3', 'odds_m', 'odds_eg', 'eg')
+    keys = ('league', 'outcome', 'diff', 'sd', 'left', 'odds', 'week', 'final_diff', 'cur', 'k3', 'odds_m', 'odds_eg', 'eg', 'odds_sim', 'one')
     return [{k: z[f'{k}_{i}'] for k in keys if f'{k}_{i}' in z.files} for i in range(int(z['n']))]
 
 

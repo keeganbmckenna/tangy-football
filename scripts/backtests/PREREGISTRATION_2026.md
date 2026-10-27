@@ -256,3 +256,7 @@ player's real distribution.
 - **Adoption.** Everywhere, if the primary rule passes (>= 0.002, interval excluding 0, 6 of 8).
   Otherwise for the one-sided moments only, if that target improves >= 0.01 with an interval
   excluding 0 in 6 of 8 seasons and the primary score gets no worse than +0.0005 in any season.
+  Test 7 result: not adopted (the one-sided target passed 6 of 8, but the primary score got worse
+  in 2018 and 2019, everywhere and as a hybrid used only in one-sided moments). The hybrid is
+  carried into the season-end 2026 confirmation as a named candidate: one-sided close moments
+  >= 0.01 better with an interval excluding 0, and the primary score no worse than +0.0005.

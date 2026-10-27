@@ -446,6 +446,34 @@ def endgame_eval():
         print(f'{name}: meets the high-leverage bar in {wins} of 8; worst primary change {worst_primary:+.5f} -> {"ADOPT" if adopt else "not adopted"}')
 
 
+def sim_eval():
+    """Addendum test 7: the primary score and the one-sided close target, L6 against L1a"""
+    print('\nL6 player-level distributions vs L1a')
+    print('season   primary L1a  L6     change    95% (leagues)      | one-sided: matchups  L1a     L6     change    95%')
+    prim_wins = one_wins = 0; worst = -1
+    for s in SEASONS:
+        rs = LR.load(s, os.path.join(LR.HERE, 'cache', 'live_replay_sim'))
+        pa, pb, oa, ob, lg, lg1 = [], [], [], [], [], []
+        for r in rs:
+            keep = r['outcome'] != 0.5
+            y = r['outcome'][keep][:, None]
+            a = np.clip(r['odds_m'][keep], EPS, 1 - EPS); b = np.clip(r['odds_sim'][keep], EPS, 1 - EPS)
+            la = -(y * np.log(a) + (1 - y) * np.log(1 - a)); lb = -(y * np.log(b) + (1 - y) * np.log(1 - b))
+            pa.append(la.mean(1)); pb.append(lb.mean(1)); lg.append(r['league'][keep])
+            one = r['one'][keep]; has = one.any(1)
+            oa.append((la * one).sum(1)[has] / one.sum(1)[has]); ob.append((lb * one).sum(1)[has] / one.sum(1)[has]); lg1.append(r['league'][keep][has])
+        A, B, L = np.concatenate(pa), np.concatenate(pb), np.concatenate(lg)
+        d = B - A; lo, hi = league_interval(L, d)
+        OA, OB, L1 = np.concatenate(oa), np.concatenate(ob), np.concatenate(lg1)
+        d1 = OB - OA; lo1, hi1 = league_interval(L1, d1)
+        prim_wins += d.mean() <= -MIN_GAIN and hi < 0
+        one_wins += d1.mean() <= -0.01 and hi1 < 0
+        worst = max(worst, d.mean())
+        print(f'{s}     {A.mean():.4f}  {B.mean():.4f}  {d.mean():+.4f}  ({lo:+.4f}, {hi:+.4f}) | {len(OA):8,}  {OA.mean():.4f}  {OB.mean():.4f}  {d1.mean():+.4f}  ({lo1:+.4f}, {hi1:+.4f})', flush=True)
+    print(f'primary: {prim_wins} of 8 meet 0.002 -> {"ADOPT everywhere" if prim_wins >= 6 else "no"}; one-sided: {one_wins} of 8 meet 0.01, worst primary {worst:+.5f} -> '
+          f'{"ADOPT for one-sided moments" if prim_wins < 6 and one_wins >= 6 and worst <= 0.0005 else "-"}')
+
+
 def injuries_vegas():
     d = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}'))
     f = lambda tag: (lambda s: os.path.join(LR.HERE, 'cache', f'live_replay_{tag}{s}'))
@@ -459,6 +487,7 @@ def main():
     if '--late' in sys.argv: return late_look()
     if '--props' in sys.argv: return props_eval()
     if '--endgame' in sys.argv: return endgame_eval()
+    if '--sim' in sys.argv: return sim_eval()
     if '--l4' in sys.argv: return rung45()
     if '--l3' in sys.argv: return rung3()
     if '--l3b-fit' in sys.argv: return fit_variances()
