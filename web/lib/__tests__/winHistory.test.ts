@@ -188,6 +188,10 @@ describe('cleanPlay notes and challenges', () => {
       'A.Dalton pass incomplete deep right to C.Olave. New Orleans challenged the incomplete pass ruling, and the play was REVERSED. A.Dalton pass deep right to C.Olave for 16 yards, TOUCHDOWN. He is Out.',
       'Reversed on review: A.Dalton pass deep right to C.Olave for 16 yards, TOUCHDOWN.',
     ],
+    [
+      'S.Darnold pass deep left to J.Smith-Njigba pushed ob at KC 1 for 27 yards. The Replay Official reviewed the runner broke the plane ruling, and the play was REVERSED.S.Darnold pass deep left to J.Smith-Njigba for 28 yards, TOUCHDOWN.',
+      'Reversed on review: S.Darnold pass deep left to J.Smith-Njigba for 28 yards, TOUCHDOWN.',
+    ],
     ['C.Stroud pass deep left to N.Collins to DEN 26 for 52 yards. His return is Questionable.', 'C.Stroud pass deep left to N.Collins to DEN 26 for 52 yards.'],
     ['M.Willis sacked at TEN 9 for -5 yards (sack split by C.Jones and C.Dunlap).', 'M.Willis sacked at TEN 9 for -5 yards.'],
     [

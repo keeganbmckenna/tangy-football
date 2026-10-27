@@ -99,6 +99,8 @@ export function cleanPlay(desc: string): string {
     .replace(/\s*The rul[\w ]*$/, '');
   // A reversed call followed by the play as ruled: just the play as ruled (when it isn't cut off before
   // it says what happened)
+  // (ESPN can leave out the space after the review: "REVERSED.S.Darnold pass ...")
+  text = text.replace(/(on review\.)(?=\S)/g, '$1 ');
   const ruled = /Reversed on review\.\s+([A-Z][\s\S]*)$/.exec(text)?.[1];
   if (ruled && /yard|TOUCHDOWN|incomplete|INTERCEPTED|FUMBLES|GOOD|no gain/.test(ruled)) text = `Reversed on review: ${ruled}`;
   return (
