@@ -116,7 +116,7 @@ function AuctionBoard({ data, leagueData, core }: { data: DraftData; leagueData:
     <div className="space-y-6">
       {teams.map((team) => (
         <div key={team.rosterId ?? 'none'} className="overflow-x-auto">
-          <h3 className="px-6 pt-4 pb-2 text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">
+          <h3 className="px-3 pt-4 pb-2 text-sm sm:px-6 font-bold text-[var(--foreground)] uppercase tracking-wider">
             {teamNameForRoster(leagueData, team.rosterId)}
             <span className="ml-2 text-xs font-normal normal-case text-[var(--muted)]">
               {team.picks.length} picks · ${team.spent} spent · {(team.core ?? 0).toFixed(1)}/wk core
@@ -126,7 +126,7 @@ function AuctionBoard({ data, leagueData, core }: { data: DraftData; leagueData:
             <tbody className="divide-y divide-[var(--border)]">
               {team.picks.map((pick) => (
                 <tr key={pick.pick_no} className="hover:bg-[var(--hover)]">
-                  <td className="px-6 py-2 whitespace-nowrap text-sm font-bold text-[var(--accent)] w-16">
+                  <td className="px-3 py-2 whitespace-nowrap text-sm font-bold text-[var(--accent)] sm:w-16 sm:px-6">
                     ${pick.amount ?? '—'}
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap">
@@ -138,8 +138,11 @@ function AuctionBoard({ data, leagueData, core }: { data: DraftData; leagueData:
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-[var(--foreground)]">
                     <span className="font-semibold">{ppwOf(pick).toFixed(1)}</span>
-                    <span className="text-[var(--muted)]">
-                      /wk · {pick.median_ppg.toFixed(1)} healthy · {pick.games}g
+                    <span className="text-[var(--muted)]">/wk</span>
+                    {/* The detail goes under on phones */}
+                    <span className="block text-xs text-[var(--muted)] sm:inline sm:text-sm">
+                      <span className="hidden sm:inline"> · </span>
+                      {pick.median_ppg.toFixed(1)} healthy · {pick.games}g
                       {pick.available_weeks !== undefined && `/${pick.available_weeks}`}
                     </span>
                   </td>
@@ -242,10 +245,10 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
               <SortableTh sort={sort} col="core" tip="Core/wk: points per available week from the team’s intended starters (most expensive or earliest pick at each lineup slot)" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Core/wk
               </SortableTh>
-              <SortableTh sort={sort} col="haul" tip="Points per available week from every player drafted, starters or not" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="haul" tip="Points per available week from every player drafted, starters or not" className="hidden sm:table-cell px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 All picks/wk
               </SortableTh>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Best pick</th>
+              <th className="hidden px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sm:table-cell">Best pick</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
@@ -259,7 +262,7 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--foreground)]">
                       ${s.spent}
                       {data.budget !== null && (
-                        <span className="text-xs text-[var(--muted)]"> / ${data.budget}</span>
+                        <span className="hidden text-xs text-[var(--muted)] sm:inline"> / ${data.budget}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
@@ -270,10 +273,10 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-[var(--foreground)]">
                   {(s.core ?? 0).toFixed(1)}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]">
+                <td className="hidden px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)] sm:table-cell">
                   {s.haul.toFixed(1)}
                 </td>
-                <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)]">
+                <td className="hidden px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)] sm:table-cell">
                   {s.bestPick ? (
                     <>
                       {s.bestPick.name}

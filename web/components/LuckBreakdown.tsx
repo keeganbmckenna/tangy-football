@@ -5,7 +5,7 @@ import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLin
 import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -117,7 +117,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
             <tr>
               <th className={`${PIN_TH} py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] bg-[var(--surface)]`}>Team</th>
               <SortableTh sort={sort} col="record" className={th}>Record</SortableTh>
-              <SortableTh sort={sort} col="playAll" tip="Its record had it played every other team every week" className={th}>Play-all</SortableTh>
+              <SortableTh sort={sort} col="playAll" tip="Its record had it played every other team every week" className={`${th} ${WIDE_ONLY}`}>Play-all</SortableTh>
               <SortableTh sort={sort} col="expected" tip="Wins the team's scoring deserved: its play-all win rate times games played" className={th}>Expected</SortableTh>
               <SortableTh sort={sort} col="total" tip="Real wins minus expected wins" className={th}>Luck</SortableTh>
               <SortableTh sort={sort} col="close" tip={`Record in games decided by under ${CLOSE_GAME_MARGIN} points: luck, not clutch`} tipAlign="right" className={th}>Close</SortableTh>
@@ -130,7 +130,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
                   <TeamName name={t.teamName} sub={`@${t.username}`} />
                 </td>
                 <td className={`${td} text-[var(--foreground)]`}>{formatRecord(t.wins, t.losses, t.ties)}</td>
-                <td className={`${td} text-[var(--muted)]`}>{formatRecord(t.playAll.wins, t.playAll.losses, t.playAll.ties)}</td>
+                <td className={`${td} ${WIDE_ONLY} text-[var(--muted)]`}>{formatRecord(t.playAll.wins, t.playAll.losses, t.playAll.ties)}</td>
                 <td className={`${td} text-[var(--muted)]`}>{t.expectedWins.toFixed(1)}</td>
                 <td className={`${td} font-semibold ${tone(t.total)}`}>{signed(t.total)}</td>
                 <td className={`${td} text-[var(--foreground)]`}>{formatRecord(t.close.wins, t.close.losses, t.close.ties)}</td>

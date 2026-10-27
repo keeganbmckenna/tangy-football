@@ -2,13 +2,16 @@
 
 import type { ReactNode } from 'react';
 
-/** The definition bubble, shown on hover or keyboard focus of the surrounding `group/term` */
+/**
+ * The definition bubble, shown on hover or keyboard focus of the surrounding `group/term`. Not
+ * displayed otherwise (not just invisible), so it doesn't make its table scroll sideways.
+ */
 export function TermTip({ tip, align = 'center' }: { tip: ReactNode; align?: 'center' | 'left' | 'right' }) {
   const pos = align === 'left' ? 'left-0' : align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2';
   return (
     <span
       role="tooltip"
-      className={`pointer-events-none invisible absolute top-full z-30 mt-1.5 w-56 rounded-md border border-[var(--border)] bg-[var(--chart-tooltip-bg)] px-2.5 py-1.5 text-left text-xs font-normal normal-case tracking-normal text-[var(--foreground)] opacity-0 shadow-lg transition-opacity group-hover/term:visible group-hover/term:opacity-100 group-focus-within/term:visible group-focus-within/term:opacity-100 ${pos}`}
+      className={`pointer-events-none absolute top-full z-30 mt-1.5 hidden w-56 rounded-md border border-[var(--border)] bg-[var(--chart-tooltip-bg)] px-2.5 py-1.5 text-left text-xs font-normal normal-case tracking-normal text-[var(--foreground)] shadow-lg group-hover/term:block group-focus-within/term:block ${pos}`}
     >
       {tip}
     </span>

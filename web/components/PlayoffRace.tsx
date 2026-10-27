@@ -42,6 +42,17 @@ interface TeamRowProps {
   annotation?: StandingAnnotation;
 }
 
+/** A header that's shorter on phones */
+function Short({ short, long }: { short: string; long: string }) {
+  return (
+    <>
+      <span className="sm:hidden" aria-hidden>{short}</span>
+      <span className="hidden sm:inline">{long}</span>
+      <span className="sr-only sm:hidden">{long}</span>
+    </>
+  );
+}
+
 /** Team photo, falling back to the initial if it's missing or fails to load */
 function TeamAvatar({ url, name }: { url: string | null | undefined; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -92,7 +103,9 @@ function TeamRow({
               <div className="text-sm font-medium text-[var(--foreground)]">
                 {team.teamName}
               </div>
-              <div className="text-xs text-[var(--muted)]">@{team.username}</div>
+              <div className="max-w-[7rem] truncate text-xs text-[var(--muted)] sm:max-w-none" title={team.username}>@{team.username}</div>
+              {/* The division column is hidden on phones */}
+              {showDivision && <div className="max-w-[7rem] truncate text-xs text-[var(--muted)] sm:hidden">{team.divisionName || `Div ${team.division}`}</div>}
               {annotation?.playoffChange && (
                 <div
                   className="whitespace-nowrap text-xs font-medium"
@@ -105,7 +118,7 @@ function TeamRow({
           </div>
         </td>
         <td className="px-4 py-3 text-sm text-[var(--foreground)] whitespace-nowrap">
-          {annotation && <span className="text-[var(--muted)] font-normal">{annotation.previousRecord} → </span>}
+          {annotation && <span className="block text-xs text-[var(--muted)] font-normal sm:inline sm:text-sm">{annotation.previousRecord} → </span>}
           {team.wins}-{team.losses}
           {team.ties > 0 && `-${team.ties}`}
           {annotation && <span className="ml-2"><ResultDot result={annotation.liveResult} live /></span>}
@@ -114,7 +127,7 @@ function TeamRow({
           {team.totalPoints.toFixed(2)}
         </td>
         {showDivision && (
-          <td className="px-4 py-3 text-xs">
+          <td className="hidden px-4 py-3 text-xs sm:table-cell">
             <span className="inline-block whitespace-nowrap px-2 py-1 bg-[var(--neutral-bg)] text-[var(--neutral-text)] rounded">
               {team.divisionName || `Div ${team.division}`}
             </span>
@@ -162,10 +175,10 @@ function DivisionCard({ division, annotations, avatar }: { division: DivisionSta
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12">Rank</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12"><Short short="#" long="Rank" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">Record</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">Points</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Short short="W-L" long="Record" /></th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Short short="Pts" long="Points" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back: how far behind the division leader, in games (a win for one team and a loss for the other is one game)">GB</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points back: how many fewer points this team has scored than the division's top scorer" align="right">PB</Term></th>
             </tr>
@@ -222,10 +235,10 @@ function OverallStandingsCard({
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12">Rank</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12"><Short short="#" long="Rank" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">Record</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">Points</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Short short="W-L" long="Record" /></th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Short short="Pts" long="Points" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back from the last playoff spot: + means ahead of it, by that many games">GB</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points ahead (+) of or behind the team holding the last playoff spot; points scored are the tiebreaker" align="right">PB</Term></th>
             </tr>
@@ -269,21 +282,13 @@ function WildCardCard({
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                Rank
-              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase"><Short short="#" long="Rank" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
                 Team
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                Record
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                Points
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                Division
-              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase"><Short short="W-L" long="Record" /></th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase"><Short short="Pts" long="Points" /></th>
+              <th className="hidden px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase sm:table-cell">Division</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase">
                 <Term tip="Games back from the last wild card spot: + means ahead of it, by that many games">GB</Term>
               </th>

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { sortRows } from '@/lib/tableSort';
@@ -107,11 +107,11 @@ export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionP
           <thead className="bg-[var(--surface)]">
             <tr>
               <th className={`${PIN_TH} py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] bg-[var(--surface)]`}>Team</th>
-              <SortableTh sort={sort} col="median" className={th}>Median</SortableTh>
+              <SortableTh sort={sort} col="median" className={`${th} ${WIDE_ONLY}`}>Median</SortableTh>
               <SortableTh sort={sort} col="mean" className={th}>Avg</SortableTh>
               <SortableTh sort={sort} col="sd" best="asc" tip="How far its weekly scores landed from its average. Mostly chance: it barely carries over from one half of a season to the other" className={th}>SD</SortableTh>
-              <SortableTh sort={sort} col="floor" tip="Lowest score" className={th}>Floor</SortableTh>
-              <SortableTh sort={sort} col="ceiling" tip="Highest score" className={th}>Ceiling</SortableTh>
+              <SortableTh sort={sort} col="floor" tip="Lowest score" className={`${th} ${WIDE_ONLY}`}>Floor</SortableTh>
+              <SortableTh sort={sort} col="ceiling" tip="Highest score" className={`${th} ${WIDE_ONLY}`}>Ceiling</SortableTh>
               <SortableTh sort={sort} col="booms" tip="Weeks in the league's top quarter of scores (mostly a sign of a good team)" className={th}>Booms</SortableTh>
               <SortableTh sort={sort} col="busts" best="asc" tip="Weeks in the league's bottom quarter of scores" tipAlign="right" className={th}>Busts</SortableTh>
             </tr>
@@ -122,11 +122,11 @@ export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionP
                 <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>
                   <TeamName name={t.teamName} sub={`@${t.username}`} />
                 </td>
-                <td className={td}>{t.median.toFixed(1)}</td>
+                <td className={`${td} ${WIDE_ONLY}`}>{t.median.toFixed(1)}</td>
                 <td className={td}>{t.mean.toFixed(1)}</td>
                 <td className={td}>{t.sd.toFixed(1)}</td>
-                <td className={td}>{t.floor.toFixed(1)}</td>
-                <td className={td}>{t.ceiling.toFixed(1)}</td>
+                <td className={`${td} ${WIDE_ONLY}`}>{t.floor.toFixed(1)}</td>
+                <td className={`${td} ${WIDE_ONLY}`}>{t.ceiling.toFixed(1)}</td>
                 <td className={`${td} text-[var(--success-text)]`}>{t.booms}</td>
                 <td className={`${td} text-[var(--danger-text)]`}>{t.busts}</td>
               </tr>

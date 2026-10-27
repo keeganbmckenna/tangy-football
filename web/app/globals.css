@@ -315,3 +315,14 @@ select { background-color: var(--solid-surface) !important; }
 .recharts-surface:focus {
   outline: none;
 }
+
+/* Phones: tables as compact as they can be and still read well, so fewer scroll sideways.
+   Unlayered, so these win over the cells' Tailwind padding and text sizes below 640px. */
+@media (max-width: 639px) {
+  main :is(th, td):is(.px-3, .px-4, .px-6) { padding-left: 0.5rem; padding-right: 0.5rem; }
+  main :is(th, td).py-3 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  main :is(th, td).py-4 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+  main table.text-sm, main table :is(.text-sm), main :is(th, td).text-sm { font-size: 0.8125rem; line-height: 1.125rem; }
+  main table :is(.text-xs), main :is(th, td).text-xs { font-size: 0.6875rem; line-height: 1rem; }
+  main table .tracking-wider { letter-spacing: 0.02em; }
+}

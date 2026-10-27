@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { sortRows } from '@/lib/tableSort';
@@ -58,14 +58,17 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
           <thead className="bg-[var(--surface)]">
             <tr>
               <th className={`${PIN_TH} py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] bg-[var(--surface)]`}>Team</th>
-              <SortableTh sort={sort} col="efficiency" tip="Points scored ÷ the best lineup's points" className={TH}>Efficiency</SortableTh>
+              <SortableTh sort={sort} col="efficiency" tip="Points scored ÷ the best lineup's points" label="Efficiency" className={TH}>
+                <span className="sm:hidden">Eff.</span>
+                <span className="hidden sm:inline">Efficiency</span>
+              </SortableTh>
               {hasCalls && (
                 <SortableTh sort={sort} col="calls" tip="Points scored minus what the lineup its projections recommended would have scored" className={TH}>
                   Start/sit
                 </SortableTh>
               )}
               <SortableTh sort={sort} col="bench" best="asc" tip="Points the best lineups would have added over the season" className={TH}>Left on bench</SortableTh>
-              <SortableTh sort={sort} col="perfect" tip="Weeks it started the best possible lineup" className={TH}>Perfect wks</SortableTh>
+              <SortableTh sort={sort} col="perfect" tip="Weeks it started the best possible lineup" className={`${TH} ${WIDE_ONLY}`}>Perfect wks</SortableTh>
               <SortableTh sort={sort} col="flipped" best="asc" tip="Losses the best lineup would have won" tipAlign="right" className={TH}>Lost w/ better lineup</SortableTh>
             </tr>
           </thead>
@@ -79,15 +82,15 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
                     <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>
                       <TeamName name={name(t.rosterId)} sub={`@${users.get(t.rosterId) ?? ''}`} />
                     </td>
-                    <td className={`${TD} min-w-[8rem]`}>
+                    <td className={`${TD} sm:min-w-[8rem]`}>
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 flex-1 rounded-full bg-[var(--border)]">
+                        <div className="hidden h-1.5 flex-1 rounded-full bg-[var(--border)] sm:block">
                           <div
                             className="h-full rounded-full bg-[var(--accent)]"
                             style={{ width: `${Math.max(0, (t.efficiency - floor) / (1 - floor)) * 100}%` }}
                           />
                         </div>
-                        <span className="w-12 text-right font-semibold">{(t.efficiency * 100).toFixed(1)}%</span>
+                        <span className="text-right font-semibold sm:w-12">{(t.efficiency * 100).toFixed(1)}%</span>
                       </div>
                     </td>
                     {hasCalls && (
@@ -99,7 +102,7 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
                       </td>
                     )}
                     <td className={TD}>{t.leftOnBench.toFixed(1)}</td>
-                    <td className={TD}>
+                    <td className={`${TD} ${WIDE_ONLY}`}>
                       {t.perfectWeeks}
                       <span className="text-[var(--muted)]">/{t.weeks}</span>
                     </td>

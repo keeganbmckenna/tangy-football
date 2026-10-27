@@ -38,8 +38,8 @@ export default function SectionCard({
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
       {/* Header */}
-      <div className={`section-header bg-gradient-to-r ${gradientClass} px-6 py-4`} data-tone={gradientType}>
-        <h2 className="text-2xl font-bold text-white">{title}</h2>
+      <div className={`section-header bg-gradient-to-r ${gradientClass} px-4 py-3 sm:px-6 sm:py-4`} data-tone={gradientType}>
+        <h2 className="text-xl font-bold text-white sm:text-2xl">{title}</h2>
         {subtitle && <p className="text-white/90 text-sm mt-1">{subtitle}</p>}
       </div>
 

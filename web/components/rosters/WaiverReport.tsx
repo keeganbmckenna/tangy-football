@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
@@ -72,7 +72,7 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
               <SortableTh sort={sort} col="moves" className={TH}>Pickups</SortableTh>
               {faab && <SortableTh sort={sort} col="spent" tip="FAAB spent this season, per Sleeper (FAAB can also change hands in trades)" className={TH}>Spent</SortableTh>}
               <SortableTh sort={sort} col="points" tip="Points its pickups scored in its starting lineup" className={TH}>Pickup pts</SortableTh>
-              {faab && <SortableTh sort={sort} col="perDollar" tip="Pickup points per FAAB dollar spent" tipAlign="right" className={TH}>Pts / $</SortableTh>}
+              {faab && <SortableTh sort={sort} col="perDollar" tip="Pickup points per FAAB dollar spent" tipAlign="right" className={`${TH} ${WIDE_ONLY}`}>Pts / $</SortableTh>}
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
@@ -84,7 +84,7 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
                 <td className={TD}>{t.moves}</td>
                 {faab && <td className={TD}>${t.spent}</td>}
                 <td className={`${TD} font-semibold`}>{t.startedPoints.toFixed(1)}</td>
-                {faab && <td className={`${TD} text-[var(--muted)]`}>{t.spent > 0 ? (t.startedPoints / t.spent).toFixed(1) : '—'}</td>}
+                {faab && <td className={`${TD} ${WIDE_ONLY} text-[var(--muted)]`}>{t.spent > 0 ? (t.startedPoints / t.spent).toFixed(1) : '—'}</td>}
               </tr>
             ))}
           </tbody>

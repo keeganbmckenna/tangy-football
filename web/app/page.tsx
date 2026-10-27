@@ -447,7 +447,7 @@ export default function Home() {
 
       {/* Main Content */}
       <MyTeamContext.Provider value={myTeam}>
-      <main className="relative z-[1] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="relative z-[1] max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {loading ? (
           <div className="flex flex-col items-center py-24 text-[var(--muted)]">
             <FootballSpinner size="sm" />

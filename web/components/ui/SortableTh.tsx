@@ -38,7 +38,7 @@ export default function SortableTh({ sort, col, best = 'desc', label, className 
         }`}
       >
         {tip ? <span className="underline decoration-dotted decoration-from-font underline-offset-2">{children}</span> : children}
-        <span aria-hidden className={`text-[9px] ${active ? '' : 'opacity-30'}`}>
+        <span aria-hidden className={`text-[9px] ${active ? '' : 'hidden opacity-30 sm:inline'}`}>
           {active === 'asc' ? '▲' : active === 'desc' ? '▼' : '↕'}
         </span>
       </button>

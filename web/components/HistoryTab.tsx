@@ -306,15 +306,21 @@ export default function HistoryTab() {
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
                 <th className={`${PIN_TH} py-3 font-medium bg-[var(--surface-elevated)]`}>Manager</th>
-                <SortableTh sort={standingsSort} col="seasons" className="px-3 py-3 text-center font-medium">Seasons</SortableTh>
+                <SortableTh sort={standingsSort} col="seasons" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Seasons</SortableTh>
                 <SortableTh sort={standingsSort} col="record" className="px-3 py-3 text-center font-medium">Record</SortableTh>
-                <SortableTh sort={standingsSort} col="winPct" className="px-3 py-3 text-center font-medium">Win %</SortableTh>
-                <SortableTh sort={standingsSort} col="ppg" label="Points per game" className="px-3 py-3 text-center font-medium">Pts/game</SortableTh>
+                <SortableTh sort={standingsSort} col="winPct" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Win %</SortableTh>
+                <SortableTh sort={standingsSort} col="ppg" label="Points per game" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Pts/game</SortableTh>
                 <SortableTh sort={standingsSort} col="playoffs" label="Playoff appearances" className="px-3 py-3 text-center font-medium">Playoffs</SortableTh>
-                <SortableTh sort={standingsSort} col="finals" className="px-3 py-3 text-center font-medium">Finals</SortableTh>
-                <SortableTh sort={standingsSort} col="titles" className="px-3 py-3 text-center font-medium">Titles</SortableTh>
-                <SortableTh sort={standingsSort} col="toilet" best="asc" className="px-3 py-3 text-center font-medium">Toilet bowl losses</SortableTh>
-                <SortableTh sort={standingsSort} col="best" tip="Highest final place in any season (1st–6th from Sleeper brackets, 1st–3rd before)" tipAlign="right" best="asc" className="px-3 py-3 text-center font-medium">Best finish</SortableTh>
+                <SortableTh sort={standingsSort} col="finals" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Finals</SortableTh>
+                <SortableTh sort={standingsSort} col="titles" label="Titles" className="px-3 py-3 text-center font-medium">
+                  <span className="sm:hidden" aria-hidden>🏆</span>
+                  <span className="sr-only sm:not-sr-only">Titles</span>
+                </SortableTh>
+                <SortableTh sort={standingsSort} col="toilet" best="asc" label="Toilet bowl losses" className="px-3 py-3 text-center font-medium">
+                  <span className="sm:hidden" aria-hidden>💩</span>
+                  <span className="sr-only sm:not-sr-only">Toilet bowl losses</span>
+                </SortableTh>
+                <SortableTh sort={standingsSort} col="best" tip="Highest final place in any season (1st–6th from Sleeper brackets, 1st–3rd before)" tipAlign="right" best="asc" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Best finish</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -326,7 +332,7 @@ export default function HistoryTab() {
                       <span className="hidden sm:block">
                         <Avatar m={managers.get(r.userId)} size={6} />
                       </span>
-                      <span className="max-w-[7.5rem] truncate font-medium text-[var(--foreground)] sm:max-w-none" title={nameOf(r.userId)}>
+                      <span className="max-w-[6.5rem] truncate font-medium text-[var(--foreground)] sm:max-w-none" title={nameOf(r.userId)}>
                         {nameOf(r.userId)}
                       </span>
                       {managers.get(r.userId)?.firstName && managers.get(r.userId)!.firstName !== nameOf(r.userId) && (
@@ -335,15 +341,15 @@ export default function HistoryTab() {
                       {!current.has(r.userId) && <span className="hidden text-xs text-[var(--muted)] sm:inline">· former</span>}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.seasons}</td>
+                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.seasons}</td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{record(r.wins, r.losses, r.ties)}</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{(r.winPct * 100).toFixed(1)}%</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.scoredGames ? r.pointsPerGame.toFixed(1) : '—'}</td>
+                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{(r.winPct * 100).toFixed(1)}%</td>
+                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.scoredGames ? r.pointsPerGame.toFixed(1) : '—'}</td>
                   <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.playoffs}</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.finals}</td>
+                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.finals}</td>
                   <td className="px-3 py-2 text-center font-semibold text-[var(--foreground)]">{r.titles ? `🏆 ${r.titles}` : '0'}</td>
                   <td className="px-3 py-2 text-center font-semibold text-[var(--foreground)]">{r.toiletLosses ? `💩 ${r.toiletLosses}` : '0'}</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.bestFinish ? ordinal(r.bestFinish) : '—'}</td>
+                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.bestFinish ? ordinal(r.bestFinish) : '—'}</td>
                 </tr>
               ))}
             </tbody>

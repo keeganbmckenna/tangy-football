@@ -10,7 +10,7 @@ import GamesAhead from '@/components/GamesAhead';
 import WhatIf from '@/components/WhatIf';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -376,8 +376,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
               <thead className="bg-[var(--surface)]">
                 <tr>
                   <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>Team</th>
-                  <SortableTh sort={sort} col="record" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Record</SortableTh>
-                  <SortableTh sort={sort} col="seed" best="asc" label="Current seed" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Now</SortableTh>
+                  <SortableTh sort={sort} col="record" className="hidden sm:table-cell px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Record</SortableTh>
+                  <SortableTh sort={sort} col="seed" best="asc" label="Current seed" className="hidden sm:table-cell px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Now</SortableTh>
                   <SortableTh sort={sort} col="playoffs" best="desc" label="Playoff odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Playoffs</SortableTh>
                   {data.format.hasDivisions && (
                     <SortableTh sort={sort} col="division" best="desc" label="Division odds" className="px-3 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Division</SortableTh>
@@ -418,11 +418,11 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                           after={st && <span className="text-xs font-medium" style={{ color: TONE_COLOR[st.tone] }}>{st.label}</span>}
                         />
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-center text-sm text-[var(--foreground)]">
+                      <td className={`${WIDE_ONLY} px-3 py-2 whitespace-nowrap text-center text-sm text-[var(--foreground)]`}>
                         {record(t)}
                         <div className="text-xs text-[var(--muted)]">{t.pointsFor.toFixed(1)} pts</div>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-center text-sm text-[var(--foreground)]">
+                      <td className={`${WIDE_ONLY} px-3 py-2 whitespace-nowrap text-center text-sm text-[var(--foreground)]`}>
                         {seed ? (
                           <>
                             Seed {seed}

@@ -6,7 +6,7 @@ import CustomTooltip from '@/components/CustomTooltip';
 import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
 import { useChartHover } from '@/hooks/useChartHover';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { useTableSort } from '@/hooks/useTableSort';
@@ -103,8 +103,8 @@ export default function VsProjections({ insights, teamStats }: RostersCardProps)
               <SortableTh sort={sort} col="diff" tip="Starters' points minus their projections, season to date" className={TH}>+/−</SortableTh>
               <SortableTh sort={sort} col="points" className={TH}>Scored</SortableTh>
               <SortableTh sort={sort} col="projected" className={TH}>Projected</SortableTh>
-              <th className={`${TH} text-left`}>Best</th>
-              <th className={`${TH} text-left`}>Worst</th>
+              <th className={`${TH} ${WIDE_ONLY} text-left`}>Best</th>
+              <th className={`${TH} ${WIDE_ONLY} text-left`}>Worst</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
@@ -120,14 +120,14 @@ export default function VsProjections({ insights, teamStats }: RostersCardProps)
                   <td className={`${TD} font-semibold ${diff >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}`}>{signed(diff)}</td>
                   <td className={TD}>{t.points.toFixed(1)}</td>
                   <td className={`${TD} text-[var(--muted)]`}>{t.projected.toFixed(1)}</td>
-                  <td className={`${TD} text-left`}>
+                  <td className={`${TD} ${WIDE_ONLY} text-left`}>
                     {best && (
                       <>
                         <PlayerLabel insights={insights} id={best.playerId} /> <span className="text-[var(--success-text)]">{signed(best.diff)}</span>
                       </>
                     )}
                   </td>
-                  <td className={`${TD} text-left`}>
+                  <td className={`${TD} ${WIDE_ONLY} text-left`}>
                     {worst && worst !== best && (
                       <>
                         <PlayerLabel insights={insights} id={worst.playerId} /> <span className="text-[var(--danger-text)]">{signed(worst.diff)}</span>

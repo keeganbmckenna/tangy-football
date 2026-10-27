@@ -11,7 +11,7 @@ import { formatStatLine } from '@/lib/analyze/statLine';
 import WinSwing from '@/components/WinSwing';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -232,8 +232,9 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     const statuses = liveMatchupStatus(live.matchups);
     const names = new Map(teams.map((t) => [t.rosterId, t.teamName]));
     const standings = liveStandings(teams, week, playoffTeams, hasDivisions);
+    // Before anyone has scored there's no before → now to show
     const annotations = new Map<number, StandingAnnotation>(
-      standings.rows.map((row) => [
+      standings.rows.filter((row) => row.liveResult !== null).map((row) => [
         row.team.rosterId,
         {
           previousRecord: formatRecord(row.before.wins, row.before.losses, row.before.ties),
@@ -475,7 +476,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                 <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>Team</th>
                 <SortableTh sort={sort} col="score" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Score</SortableTh>
                 <SortableTh sort={sort} col="week" tip="This week’s record against every other team at the current scores" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">This week vs all</SortableTh>
-                <SortableTh sort={sort} col="margin" label="Real matchup margin" className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Real matchup</SortableTh>
+                <SortableTh sort={sort} col="margin" label="Real matchup margin" className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Real matchup</SortableTh>
                 <SortableTh sort={sort} col="season" tip="Season play-all record, counting this week as if it ended now" tipAlign="right" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Season play-all</SortableTh>
               </tr>
             </thead>
@@ -500,7 +501,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                         <ResultDot result={s?.result ?? null} live />
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-[var(--muted)]">
+                    <td className={`${WIDE_ONLY} px-4 py-3 whitespace-nowrap text-sm text-[var(--muted)]`}>
                       {s && s.opponentRosterId !== null ? (
                         <>
                           vs {view.names.get(s.opponentRosterId) ?? `Team ${s.opponentRosterId}`}{' '}
@@ -515,7 +516,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-[var(--foreground)]">
                       {formatRecord(row.seasonWins, row.seasonLosses, row.seasonTies)}
-                      <span className="ml-2 text-xs text-[var(--muted)]">{(row.seasonWinPct * 100).toFixed(1)}%</span>
+                      <span className="block text-xs text-[var(--muted)] sm:ml-2 sm:inline">{(row.seasonWinPct * 100).toFixed(1)}%</span>
                     </td>
                   </tr>
                 );

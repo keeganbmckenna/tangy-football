@@ -53,8 +53,8 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
 
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
-      <div className="section-header bg-gradient-to-r from-green-600 to-green-800 px-6 py-4" data-tone="green">
-        <h2 className="text-2xl font-bold text-white mb-3">Weekly Matchups</h2>
+      <div className="section-header bg-gradient-to-r from-green-600 to-green-800 px-4 py-3 sm:px-6 sm:py-4" data-tone="green">
+        <h2 className="text-xl font-bold text-white mb-3 sm:text-2xl">Weekly Matchups</h2>
         <div className="flex gap-1 flex-wrap">
           {weeks.map((week) => (
             <button
