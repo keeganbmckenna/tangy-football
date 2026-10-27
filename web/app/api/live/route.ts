@@ -1,7 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { SLEEPER_CONFIG } from '@/lib/config';
 import type { SleeperLeague } from '@/lib/types';
-import type { LiveWeekData } from '@/lib/analyze/live';
+import { currentWeek, type LiveWeekData } from '@/lib/analyze/live';
 import { saveLiveOdds } from '@/lib/liveSave';
 import { liveMatchups, scoreboard } from '@/lib/liveData';
 import { allowedScoring, fetchJson, starterProjections } from '@/lib/liveProjections';
@@ -18,7 +18,7 @@ export async function GET() {
   try {
     const { leagueId, baseUrl, maxWeeks } = SLEEPER_CONFIG;
     const league = await fetchJson<SleeperLeague>(`${baseUrl}/league/${leagueId}`);
-    const week = Math.min(league.settings?.leg ?? 0, maxWeeks);
+    const week = Math.min(currentWeek(league.settings?.leg ?? 0, league.settings?.last_scored_leg ?? 0), maxWeeks);
     const lastScoredWeek = league.settings?.last_scored_leg ?? 0;
     // Points from live stats, the same as /api/live/scores, so the two never disagree
     const { matchups, allowed, stats } = week > 0

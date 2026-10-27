@@ -1,7 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { SLEEPER_CONFIG } from '@/lib/config';
 import { liveMatchups, scoreboard, UPSTREAM_TIMEOUT_MS } from '@/lib/liveData';
-import type { LiveScoresData } from '@/lib/analyze/live';
+import { currentWeek, type LiveScoresData } from '@/lib/analyze/live';
 import { saveLiveOdds } from '@/lib/liveSave';
 import type { SleeperLeague } from '@/lib/types';
 
@@ -18,7 +18,7 @@ export async function GET() {
     const res = await fetch(`${baseUrl}/league/${leagueId}`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`League request failed (${res.status})`);
     const league = (await res.json()) as SleeperLeague;
-    const week = Math.min(league.settings?.leg ?? 0, maxWeeks);
+    const week = Math.min(currentWeek(league.settings?.leg ?? 0, league.settings?.last_scored_leg ?? 0), maxWeeks);
     const [{ matchups, allowed, stats }, games] = week > 0
       ? await Promise.all([liveMatchups(leagueId, league.season, week, league.scoring_settings ?? {}), scoreboard(league.season, week)])
       : [{ matchups: [], allowed: {}, stats: {} }, null];

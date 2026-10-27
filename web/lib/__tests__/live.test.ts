@@ -3,6 +3,7 @@ import {
   driveFor,
   gameMatchup,
   liveWeekNumber,
+  currentWeek,
   liveMatchupStatus,
   livePlayAll,
   liveStandings,
@@ -68,6 +69,15 @@ const liveWeek = (matchups: SleeperMatchup[]): LiveWeekData => ({
   playoffWeekStart: 15,
   matchups,
   fetchedAt: '2026-10-11T18:00:00Z',
+});
+
+describe('currentWeek', () => {
+  it('moves on to the next week once the current one is scored', () => {
+    expect(currentWeek(7, 6)).toBe(7);
+    expect(currentWeek(7, 7)).toBe(8);
+    expect(currentWeek(1, 0)).toBe(1);
+    expect(currentWeek(0, 0)).toBe(0);
+  });
 });
 
 describe('liveWeekNumber', () => {

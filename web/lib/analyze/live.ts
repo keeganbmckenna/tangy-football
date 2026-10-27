@@ -574,6 +574,14 @@ export function remainingPointsOdds(current: number, players: RemainingPlayer[],
  * The week in progress, or null when none is: Sleeper's current week once it's
  * past the last scored week, during the regular season.
  */
+/**
+ * The week being played or up next. Sleeper's leg stays on a week until the next one's waivers
+ * run (Wednesday), but once that week is scored the next one's matchups are already set.
+ */
+export function currentWeek(leg: number, lastScoredWeek: number): number {
+  return leg > 0 ? Math.max(leg, lastScoredWeek + 1) : leg;
+}
+
 export function liveWeekNumber(week: number, lastScoredWeek: number, regularSeasonEnd: number): number | null {
   if (week <= 0 || week <= lastScoredWeek || week > regularSeasonEnd) return null;
   return week;
