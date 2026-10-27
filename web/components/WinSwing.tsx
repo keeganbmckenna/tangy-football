@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Area, AreaChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fetchFirst, useSharedFetch } from '@/hooks/useSharedFetch';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
@@ -45,6 +45,8 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
   const [view, setViewState] = useState(rememberedView);
   // The big play whose details show (clicked or tapped: hovering is for reading the odds)
   const [picked, setPicked] = useState<number | null>(null);
+  // Over a big play's tap area (for the pointer): the chart keeps the mouse, so its odds still show
+  const [overPlay, setOverPlay] = useState(false);
   const setView = (v: typeof view) => {
     rememberedView = v;
     setViewState(v);
@@ -136,6 +138,21 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
   };
   const markerColor = (helpsLeft: boolean) =>
     view === 'score' ? (helpsLeft ? A_COLOR : B_COLOR) : helpsLeft ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L;
+  // The big-play group under the pointer: its lines plus 8px either side, the closest if two overlap
+  const groupAt = (e: MouseEvent<HTMLDivElement>): number | null => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const span = Math.max(points.length - 1, 1);
+    let best: { gi: number; d: number } | null = null;
+    groups.forEach((g, gi) => {
+      const xs = g.map((i) => (plays[i].x / span) * rect.width);
+      const [from, to] = [Math.min(...xs), Math.max(...xs)];
+      if (x < from - 8 || x > to + 8) return;
+      const d = x < from ? from - x : x > to ? x - to : 0;
+      if (!best || d < best.d) best = { gi, d };
+    });
+    return (best as { gi: number } | null)?.gi ?? null;
+  };
   // Above 50% in the left team's color, below in the right's: the gradient splits at the 50% line
   const id = `swing-${season}-${week}-${m.matchupId}`;
 
@@ -169,7 +186,16 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
           {view === 'odds' && swings > 0 && ` · ${swings} lead change${swings === 1 ? '' : 's'}`}
         </div>
       </div>
-      <div className="relative h-20 w-full">
+      <div
+        className="relative h-20 w-full"
+        style={{ cursor: overPlay ? 'pointer' : undefined }}
+        onClick={(e) => {
+          const gi = groupAt(e);
+          if (gi !== null) setPicked(picked === gi ? null : gi);
+        }}
+        onMouseMove={(e) => setOverPlay(groupAt(e) !== null)}
+        onMouseLeave={() => setOverPlay(false)}
+      >
         <ResponsiveContainer width="100%" height="100%">
           {view === 'score' ? (
             <LineChart data={points} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
@@ -215,9 +241,10 @@ export default function WinSwing({ season, week, a, b, live = false, refreshKey 
               key={`${plays[g[0]].t}-${gi}`}
               type="button"
               aria-label={`${g.length > 1 ? `${g.length} big plays` : 'Big play'} at ${TIME.format(plays[g[0]].t * 1000)}`}
-              onClick={() => setPicked(on ? null : gi)}
+              // Keyboard only: the chart under it takes the mouse (its click picks the play) so hovering shows the odds
+              onClick={(e) => e.detail === 0 && setPicked(on ? null : gi)}
               // From the first line to the last, with 8px either side to tap
-              className="absolute inset-y-0 cursor-pointer"
+              className="pointer-events-none absolute inset-y-0"
               style={{ left: `calc(${from}% - 8px)`, width: `calc(${to - from}% + 16px)` }}
             >
               {g.map((i, k) => (
