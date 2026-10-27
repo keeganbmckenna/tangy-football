@@ -19,6 +19,7 @@ const fetchJson = async <T,>(url: string, revalidate: number): Promise<T> => {
 };
 
 interface EspnEvent {
+  id?: string;
   date?: string;
   status: { clock?: number; period?: number; displayClock?: string; type: { state: string; shortDetail?: string } };
   competitions: Array<{
@@ -34,6 +35,36 @@ const kickoff = (iso?: string) =>
 
 // ESPN's codes that differ from Sleeper's
 const ESPN_TEAM: Record<string, string> = { WSH: 'WAS' };
+
+/** A play from ESPN's play-by-play: its wall-clock time (Unix seconds), text, and whether it scored */
+export interface EspnPlay {
+  t: number;
+  text: string;
+  scoring: boolean;
+}
+
+/** A game's plays so far from ESPN's game summary, oldest first (empty if unavailable) */
+export async function gamePlays(espnId: string): Promise<EspnPlay[]> {
+  try {
+    const d = await fetchJson<{ drives?: { previous?: Array<{ plays?: EspnRawPlay[] }>; current?: { plays?: EspnRawPlay[] } } }>(
+      `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${espnId}`,
+      20
+    );
+    const raw = [...(d.drives?.previous ?? []).flatMap((x) => x.plays ?? []), ...(d.drives?.current?.plays ?? [])];
+    return raw
+      .filter((p) => p.text && p.wallclock)
+      .map((p) => ({ t: Math.round(Date.parse(p.wallclock!) / 1000), text: p.text!, scoring: !!p.scoringPlay }))
+      .sort((a, b) => a.t - b.t);
+  } catch {
+    return [];
+  }
+}
+
+interface EspnRawPlay {
+  text?: string;
+  wallclock?: string;
+  scoringPlay?: boolean;
+}
 
 /** Each NFL team's game this week from ESPN's public scoreboard (null if unavailable) */
 export async function scoreboard(season: string, week: number, revalidate = 5): Promise<Record<string, LiveGame> | null> {
@@ -64,6 +95,7 @@ export async function scoreboard(season: string, week: number, revalidate = 5): 
         const drive = driveFor(situation, { id: c.team.id, code: code(c), home: c.homeAway === 'home' }, { id: o.team.id, code: code(o) });
         games[code(c)] = {
           state,
+          ...(e.id && { espnId: e.id }),
           remaining,
           label,
           opponent: code(o),

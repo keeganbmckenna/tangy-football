@@ -63,6 +63,8 @@ export interface LiveProjection {
 
 export interface LiveGame {
   state: 'pre' | 'in' | 'post';
+  /** ESPN's game ID, for its play-by-play (the live saves' play text) */
+  espnId?: string;
   /** Share of a regulation game still to play, 0-1, plus the expected overtime */
   remaining: number;
   /** How the game stands, e.g. "Q3 5:21", "Final", "Sun 1:00 PM" */

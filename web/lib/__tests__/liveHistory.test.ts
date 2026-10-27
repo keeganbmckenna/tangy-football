@@ -55,7 +55,18 @@ describe('live win history', () => {
     await saveSnapshot('2026', 7, odds(0.72, 17, 8), { pts: { q: 17, r: 8 }, starters, nameOf: (id) => id });
     const history = await readSnapshots('2026', 7);
     expect(history?.times).toHaveLength(2);
-    expect(history?.matchups[0].events).toEqual([expect.objectContaining({ before: 0.5, after: 0.72, players: [{ side: 'a', name: 'q', pts: 7 }] })]);
+    expect(history?.matchups[0].events).toEqual([expect.objectContaining({ desc: null, before: 0.5, after: 0.72, players: [{ side: 'a', name: 'q', pts: 7, id: 'q' }] })]);
+  });
+
+  it('attaches the play behind a big moment when its game\'s play-by-play has it', async () => {
+    const { saveSnapshot, readSnapshots } = await import('../liveHistory');
+    const starters = [{ matchupId: 1, a: ['q'], b: ['r'] }];
+    const describe = async () => ({ t: 1_700_000_000, text: '(Shotgun) T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.' });
+    await saveSnapshot('2026', 8, odds(0.5, 10, 8), { pts: { q: 10, r: 8 }, starters, nameOf: (id) => id, describe });
+    store.strings.delete('win:2026:8:lock');
+    await saveSnapshot('2026', 8, odds(0.72, 17, 8), { pts: { q: 17, r: 8 }, starters, nameOf: (id) => id, describe });
+    const history = await readSnapshots('2026', 8);
+    expect(history?.matchups[0].events?.[0]).toMatchObject({ t: 1_700_000_000, desc: 'T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.' });
   });
 
   it('does nothing without Redis', async () => {

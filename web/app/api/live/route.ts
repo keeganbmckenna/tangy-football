@@ -4,7 +4,8 @@ import type { SleeperLeague, SleeperMatchup, TeamStats } from '@/lib/types';
 import { allowedPoints, liveWinOdds, scoreSpread, type LiveWeekData } from '@/lib/analyze/live';
 import { CACHE_CONFIG } from '@/lib/config';
 import { saveSnapshot } from '@/lib/liveHistory';
-import { liveMatchups, scoreboard } from '@/lib/liveData';
+import { matchPlay } from '@/lib/winHistory';
+import { gamePlays, liveMatchups, scoreboard } from '@/lib/liveData';
 import { allowedScoring, fetchJson, starterProjections } from '@/lib/liveProjections';
 
 // Always run on request; freshness comes from the short fetch cache below
@@ -72,6 +73,15 @@ export async function GET() {
               nameOf: (id) => {
                 const p = projections[id];
                 return p ? (p.position === 'DEF' ? p.name : p.name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ')) : id;
+              },
+              // The play behind a big moment, from ESPN's play-by-play of the moving player's game
+              describe: async (event, since) => {
+                const top = [...event.players].sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts))[0];
+                const p = top?.id ? projections[top.id] : undefined;
+                const espnId = p?.team ? games[p.team]?.espnId : undefined;
+                if (!p || p.position === 'DEF' || !espnId) return null;
+                const lastName = p.name.split(' ').filter((w) => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(w)).pop() ?? '';
+                return matchPlay(event, await gamePlays(espnId), lastName, since);
               },
             });
           }

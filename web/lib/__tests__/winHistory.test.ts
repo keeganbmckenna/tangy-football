@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveEvents, type PlayEvent } from '../winHistory';
+import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveEvents, matchPlay, type PlayEvent } from '../winHistory';
 
 const ev = (t: number, players: PlayEvent['players'], before = 0.5, after = 0.5): PlayEvent => ({ t, desc: null, players, before, after });
 
@@ -60,7 +60,7 @@ describe('live events', () => {
     const out = liveEvents({ t: 0, pts: { q: 10, w: 5, r: 8 }, odds: { 1: 0.5 } }, { t: 120, pts: { q: 14.4, w: 12.1, r: 8 }, odds: { 1: 0.7 } }, matchups, (id) => id.toUpperCase());
     expect(out).toHaveLength(1);
     expect(out[0].event).toMatchObject({ t: 120, desc: null, before: 0.5, after: 0.7 });
-    expect(out[0].event.players).toEqual([{ side: 'a', name: 'Q', pts: 4.4 }, { side: 'a', name: 'W', pts: 7.1 }]);
+    expect(out[0].event.players).toEqual([{ side: 'a', name: 'Q', pts: 4.4, id: 'q' }, { side: 'a', name: 'W', pts: 7.1, id: 'w' }]);
     // Nothing big: nothing saved
     expect(liveEvents({ t: 0, pts: { q: 10 }, odds: { 1: 0.5 } }, { t: 120, pts: { q: 11 }, odds: { 1: 0.52 } }, matchups, (id) => id)).toEqual([]);
   });
@@ -73,5 +73,27 @@ describe('live events', () => {
     // Too long after to be a take-back: both stay
     const late = ev(1000 + 3600, [{ side: 'a', name: 'J. Chase', pts: -7.2 }]);
     expect(dropRetractions([td, late])).toHaveLength(2);
+  });
+});
+
+describe('the play behind a live event', () => {
+  // ESPN's play-by-play of DAL @ PHI, 2026 week 7: Makai Lemon's plays (wall-clock times)
+  const plays = [
+    { t: 1793063906, text: 'T.McKee pass incomplete short middle to M.Lemon (C.Downs). PENALTY on DAL-C.Downs, Defensive Pass Interference, 12 yards, enforced at PHI 30 - No Play.', scoring: false },
+    { t: 1793066834, text: '(Shotgun) T.McKee pass short left to M.Lemon to DAL 39 for 9 yards (D.Overshown).', scoring: false },
+    { t: 1793066876, text: 'T.McKee pass short left to M.Lemon pushed ob at DAL 24 for 15 yards (M.Bell).', scoring: false },
+    { t: 1793067204, text: '(Shotgun) T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.', scoring: true },
+  ];
+  const event = (t: number, pts: number): PlayEvent => ({ t, desc: null, players: [{ side: 'b', name: 'M. Lemon', pts, id: 'x' }], before: 0.26, after: 0.46 });
+
+  it('credits a touchdown-sized move to the touchdown, and a smaller one to the catches before it', () => {
+    // Saved at 10:19 PM ET (+3.4: the 9- and 15-yard catches) and 10:22 (+6.9: the touchdown)
+    expect(matchPlay(event(1793067540, 3.4), plays, 'Lemon', 1793067360 - 600)?.t).toBe(1793066876);
+    expect(matchPlay(event(1793067720, 6.9), plays, 'Lemon', 1793067540 - 600)?.text).toContain('TOUCHDOWN');
+  });
+
+  it('skips plays a penalty wiped out, and finds nothing outside the window', () => {
+    expect(matchPlay(event(1793064000, 1.5), plays, 'Lemon', 1793063000)).toBeNull();
+    expect(matchPlay(event(1793067720, 6.9), plays, 'Lamb', 1793067000)).toBeNull();
   });
 });

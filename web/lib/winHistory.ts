@@ -31,8 +31,8 @@ export interface PlayEvent {
   t: number;
   /** The play-by-play description; null for live events, which only see points change */
   desc: string | null;
-  /** The starters whose points it changed, by side (a is the matchup's a) */
-  players: Array<{ side: 'a' | 'b'; name: string; pts: number }>;
+  /** The starters whose points it changed, by side (a is the matchup's a); id on live saves */
+  players: Array<{ side: 'a' | 'b'; name: string; pts: number; id?: string }>;
   /** a's win odds just before and just after */
   before: number;
   after: number;
@@ -133,7 +133,7 @@ export function liveEvents(
     for (const [side, ids] of [['a', m.a], ['b', m.b]] as const) {
       for (const id of ids) {
         const pts = Math.round(((now.pts[id] ?? 0) - (prev.pts[id] ?? 0)) * 10) / 10;
-        if (Math.abs(pts) >= 0.1) players.push({ side, name: nameOf(id), pts });
+        if (Math.abs(pts) >= 0.1) players.push({ side, name: nameOf(id), pts, id });
       }
     }
     const event: PlayEvent = { t: now.t, desc: null, players, before, after };
@@ -144,6 +144,30 @@ export function liveEvents(
 
 /** A loss this big can be a score taken back */
 const RETRACTED_POINTS = 3;
+
+/** How far back before the previous save a live event's play can be (Sleeper's stats trail the plays) */
+export const PLAY_LOOKBACK_SECONDS = 10 * 60;
+
+/**
+ * The play behind a live event, from its game's play-by-play: plays naming the player whose points
+ * moved most, from PLAY_LOOKBACK_SECONDS before the previous save to now, leaving out plays a
+ * penalty wiped out. A move worth a touchdown (4+ points) takes the latest scoring play; a smaller
+ * one the latest play that didn't score (so a catch before a touchdown isn't credited with it).
+ */
+export function matchPlay(
+  event: PlayEvent,
+  plays: Array<{ t: number; text: string; scoring: boolean }>,
+  lastName: string,
+  since: number
+): { t: number; text: string } | null {
+  const top = [...event.players].sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts))[0];
+  if (!top || !lastName) return null;
+  const name = lastName.toLowerCase();
+  const found = plays.filter((p) => p.t >= since && p.t <= event.t && p.text.toLowerCase().includes(name) && !/no play/i.test(p.text));
+  const wantScore = Math.abs(top.pts) >= 4;
+  const pick = [...found].reverse().find((p) => p.scoring === wantScore) ?? found[found.length - 1];
+  return pick ? { t: pick.t, text: pick.text } : null;
+}
 
 /** How long after a score a correction can still take it back (a flag, a review, a stat fix) */
 const RETRACTION_SECONDS = 20 * 60;

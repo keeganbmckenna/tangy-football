@@ -10,7 +10,7 @@
  */
 
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
-import { biggestPlays, dropRetractions, liveEvents, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
+import { biggestPlays, cleanPlay, dropRetractions, liveEvents, PLAY_LOOKBACK_SECONDS, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
 
 /** At most one snapshot per this many seconds */
 const EVERY_SECONDS = 120;
@@ -64,7 +64,13 @@ export async function saveSnapshot(
   season: string,
   week: number,
   odds: LiveMatchupOdds[],
-  live?: { pts: Record<string, number>; starters: MatchupStarters[]; nameOf: (id: string) => string }
+  live?: {
+    pts: Record<string, number>;
+    starters: MatchupStarters[];
+    nameOf: (id: string) => string;
+    /** The play behind a big moment, from its game's play-by-play (matchPlay), when it can be found */
+    describe?: (event: PlayEvent, since: number) => Promise<{ t: number; text: string } | null>;
+  }
 ): Promise<boolean> {
   if (!liveHistoryEnabled() || !odds.length) return false;
   const k = key(season, week);
@@ -84,6 +90,15 @@ export async function saveSnapshot(
     const now: LiveState = { t, pts: live.pts, odds: Object.fromEntries(odds.map((o) => [o.matchupId, Math.round(o.aWinOdds * 1000) / 1000])) };
     const prev = typeof lock[1] === 'string' ? (JSON.parse(lock[1]) as LiveState) : null;
     const events = prev ? liveEvents(prev, now, live.starters, live.nameOf) : [];
+    // Each big moment's play, when its game's play-by-play has it: its text and time
+    if (prev && live.describe) {
+      await Promise.all(
+        events.map(async ({ event }) => {
+          const play = await live.describe!(event, prev.t - PLAY_LOOKBACK_SECONDS).catch(() => null);
+          if (play) Object.assign(event, { t: play.t, desc: cleanPlay(play.text) });
+        })
+      );
+    }
     if (events.length) commands.push(['RPUSH', `${k}:events`, ...events.map((e) => JSON.stringify(e))], ['EXPIRE', `${k}:events`, KEEP_SECONDS]);
     commands.push(['SET', `${k}:state`, JSON.stringify(now), 'EX', KEEP_SECONDS]);
   }
