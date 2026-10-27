@@ -36,6 +36,8 @@ export interface PlayEvent {
   /** a's win odds just before and just after */
   before: number;
   after: number;
+  /** Live saves: the teams in the play's game, so only those defenses count toward it */
+  teams?: string[];
 }
 
 /**
@@ -153,7 +155,8 @@ export const PLAY_LOOKBACK_SECONDS = 10 * 60;
  * The play behind a live event, from its game's play-by-play: plays naming the player whose points
  * moved most, from PLAY_LOOKBACK_SECONDS before the previous save to now, leaving out plays a
  * penalty wiped out. A move worth a touchdown (4+ points) takes the latest scoring play; a smaller
- * one the latest play that didn't score (so a catch before a touchdown isn't credited with it).
+ * one the longest play that didn't score (so a catch before a touchdown isn't credited with it, and
+ * a short run after a long one isn't either).
  */
 export function matchPlay(
   event: PlayEvent,
@@ -164,10 +167,41 @@ export function matchPlay(
   const top = [...event.players].sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts))[0];
   if (!top || !lastName) return null;
   const name = lastName.toLowerCase();
-  const found = plays.filter((p) => p.t >= since && p.t <= event.t && p.text.toLowerCase().includes(name) && !/no play/i.test(p.text));
+  // A gain isn't an incomplete pass
+  const found = plays.filter(
+    (p) => p.t >= since && p.t <= event.t && p.text.toLowerCase().includes(name) && !/no play/i.test(p.text) && !(top.pts > 0 && /incomplete/i.test(p.text))
+  );
   const wantScore = Math.abs(top.pts) >= 4;
-  const pick = [...found].reverse().find((p) => p.scoring === wantScore) ?? found[found.length - 1];
+  // A touchdown's worth: the latest scoring play. Less: the longest play that didn't score (the
+  // points are mostly its yards), the latest of equals
+  const yards = (text: string) => (/no gain/i.test(text) ? 0 : Number(/for (-?\d+) yards?/i.exec(text)?.[1] ?? 0));
+  const scoring = found.filter((p) => p.scoring);
+  const other = found.filter((p) => !p.scoring);
+  const longest = other.reduce<(typeof found)[number] | undefined>((best, p) => (!best || yards(p.text) >= yards(best.text) ? p : best), undefined);
+  const pick = (wantScore ? scoring[scoring.length - 1] : undefined) ?? longest ?? found[found.length - 1];
   return pick ? { t: pick.t, text: pick.text } : null;
+}
+
+/** A starter's short name ("M. Lemon", "L. Burden III") as play-by-play writes it ("m.lemon") */
+const playName = (name: string) =>
+  name.split(' ').filter((w) => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(w)).join(' ').replace(/^(\S+\.) /, '$1').toLowerCase();
+
+/** A defense's entry: its ID is its team code; older saves without IDs, a name that isn't a player's */
+const isDefense = (p: PlayEvent['players'][number]) => (p.id ? /^[A-Z]{2,3}$/.test(p.id) : !/^[A-Z][a-z]?\. /.test(p.name));
+
+/**
+ * A live event given its play: just the starters the play names, and the defenses in its game
+ * (points allowed move with the other team's scores). A live save sees everything that changed
+ * since the last one, so points from other plays in those minutes would otherwise ride along.
+ * A defense is kept when its game isn't known; with no player named, the event is left as it was.
+ */
+export function playersInPlay(event: PlayEvent): PlayEvent {
+  if (!event.desc) return event;
+  const text = event.desc.toLowerCase();
+  const kept = event.players.filter((p) =>
+    isDefense(p) ? !event.teams || !p.id || event.teams.includes(p.id) : text.includes(playName(p.name))
+  );
+  return kept.some((p) => !isDefense(p)) ? { ...event, players: kept } : event;
 }
 
 /** How long after a score a correction can still take it back (a flag, a review, a stat fix) */

@@ -10,7 +10,7 @@
  */
 
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
-import { biggestPlays, cleanPlay, dropRetractions, liveEvents, PLAY_LOOKBACK_SECONDS, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
+import { biggestPlays, cleanPlay, dropRetractions, liveEvents, PLAY_LOOKBACK_SECONDS, playersInPlay, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
 
 /** At most one snapshot per this many seconds */
 const EVERY_SECONDS = 120;
@@ -69,7 +69,7 @@ export async function saveSnapshot(
     starters: MatchupStarters[];
     nameOf: (id: string) => string;
     /** The play behind a big moment, from its game's play-by-play (matchPlay), when it can be found */
-    describe?: (event: PlayEvent, since: number) => Promise<{ t: number; text: string } | null>;
+    describe?: (event: PlayEvent, since: number) => Promise<{ t: number; text: string; teams?: string[] } | null>;
   }
 ): Promise<boolean> {
   if (!liveHistoryEnabled() || !odds.length) return false;
@@ -95,7 +95,7 @@ export async function saveSnapshot(
       await Promise.all(
         events.map(async ({ event }) => {
           const play = await live.describe!(event, prev.t - PLAY_LOOKBACK_SECONDS).catch(() => null);
-          if (play) Object.assign(event, { t: play.t, desc: cleanPlay(play.text) });
+          if (play) Object.assign(event, playersInPlay({ ...event, t: play.t, desc: cleanPlay(play.text), teams: play.teams }));
         })
       );
     }
@@ -118,8 +118,9 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
   for (const r of (res?.[1] as string[] | undefined) ?? []) {
     const { matchupId, event } = JSON.parse(r) as { matchupId: number; event: PlayEvent };
     // Cleaned again on the way out, so text saved before a cleanup rule existed reads the same
+    // and only the players the play names (saves from before that rule carry the whole window)
     if (event.desc) event.desc = cleanPlay(event.desc);
-    events.set(matchupId, [...(events.get(matchupId) ?? []), event]);
+    events.set(matchupId, [...(events.get(matchupId) ?? []), playersInPlay(event)]);
   }
   const snapshots = rows.map((r) => JSON.parse(r) as Snapshot).sort((x, y) => x.t - y.t);
   const matchups = new Map<number, WinHistory['matchups'][number]>();

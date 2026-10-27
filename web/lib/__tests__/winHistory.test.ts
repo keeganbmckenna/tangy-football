@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveEvents, matchPlay, type PlayEvent } from '../winHistory';
+import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveEvents, matchPlay, playersInPlay, type PlayEvent } from '../winHistory';
 
 const ev = (t: number, players: PlayEvent['players'], before = 0.5, after = 0.5): PlayEvent => ({ t, desc: null, players, before, after });
 
@@ -103,5 +103,69 @@ describe('the play behind a live event', () => {
   it('skips plays a penalty wiped out, and finds nothing outside the window', () => {
     expect(matchPlay(event(1793064000, 1.5), plays, 'Lemon', 1793063000)).toBeNull();
     expect(matchPlay(event(1793067720, 6.9), plays, 'Lamb', 1793067000)).toBeNull();
+  });
+});
+
+describe('playersInPlay', () => {
+  const event = (desc: string | null, players: PlayEvent['players']): PlayEvent => ({ t: 0, desc, players, before: 0.46, after: 0.88 });
+
+  it('keeps only the starters the play names', () => {
+    const e = event('T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN. J.Elliott extra point is GOOD.', [
+      { side: 'a', name: 'J. Williams', pts: 0.6 },
+      { side: 'b', name: 'M. Lemon', pts: 6.9 },
+    ]);
+    expect(playersInPlay(e).players.map((p) => p.name)).toEqual(['M. Lemon']);
+  });
+
+  it('keeps defenses, matches names with suffixes, and leaves an event naming nobody alone', () => {
+    const e = event('M.Harrison pass deep left for 30 yards, TOUCHDOWN.', [
+      { side: 'a', name: 'M. Harrison Jr.', pts: 9 },
+      { side: 'b', name: 'Eagles', pts: -1 },
+      { side: 'b', name: 'S. Barkley', pts: 1 },
+    ]);
+    expect(playersInPlay(e).players.map((p) => p.name)).toEqual(['M. Harrison Jr.', 'Eagles']);
+    // A different Williams isn't this play's
+    const other = event('J.Goff pass short left to J.Williams for 16 yards, TOUCHDOWN.', [
+      { side: 'a', name: 'J. Williams', pts: 8.1 },
+      { side: 'b', name: 'K. Williams', pts: 1.2 },
+    ]);
+    expect(playersInPlay(other).players.map((p) => p.name)).toEqual(['J. Williams']);
+    const none = event('Timeout #1 by DAL.', [{ side: 'a', name: 'J. Williams', pts: 4 }]);
+    expect(playersInPlay(none)).toBe(none);
+    expect(playersInPlay(event(null, none.players)).players).toHaveLength(1);
+  });
+
+  it("keeps only the defenses in the play's game", () => {
+    const e: PlayEvent = {
+      ...event('T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.', [
+        { side: 'b', name: 'M. Lemon', pts: 6.9, id: '1' },
+        { side: 'a', name: 'Cowboys', pts: -1, id: 'DAL' },
+        { side: 'a', name: 'Lions', pts: 2, id: 'DET' },
+      ]),
+      teams: ['PHI', 'DAL'],
+    };
+    expect(playersInPlay(e).players.map((p) => p.name)).toEqual(['M. Lemon', 'Cowboys']);
+  });
+});
+
+describe('matchPlay incompletions', () => {
+  it("doesn't credit a gain to an incomplete pass", () => {
+    const e: PlayEvent = { t: 100, desc: null, players: [{ side: 'a', name: 'C. Lamb', pts: 5.4 }], before: 0.5, after: 0.6 };
+    const plays = [
+      { t: 50, text: 'D.Prescott pass short right to C.Lamb to PHI 30 for 22 yards.', scoring: false },
+      { t: 90, text: 'D.Prescott pass incomplete short left to C.Lamb.', scoring: false },
+    ];
+    expect(matchPlay(e, plays, 'Lamb', 0)?.t).toBe(50);
+  });
+});
+
+describe('matchPlay longest play', () => {
+  it('credits a gain to the longest play, not a short one after it', () => {
+    const e: PlayEvent = { t: 100, desc: null, players: [{ side: 'a', name: 'J. Williams', pts: 4.1 }], before: 0.15, after: 0.24 };
+    const plays = [
+      { t: 40, text: 'J.Williams left tackle to PHI 25 for 34 yards.', scoring: false },
+      { t: 90, text: 'J.Williams left guard to PHI 9 for 2 yards.', scoring: false },
+    ];
+    expect(matchPlay(e, plays, 'Williams', 0)?.t).toBe(40);
   });
 });

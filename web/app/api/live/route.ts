@@ -81,7 +81,9 @@ export async function GET() {
                 const espnId = p?.team ? games[p.team]?.espnId : undefined;
                 if (!p || p.position === 'DEF' || !espnId) return null;
                 const lastName = p.name.split(' ').filter((w) => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(w)).pop() ?? '';
-                return matchPlay(event, await gamePlays(espnId), lastName, since);
+                const play = matchPlay(event, await gamePlays(espnId), lastName, since);
+                const opponent = games[p.team!]?.opponent;
+                return play && { ...play, teams: opponent ? [p.team!, opponent] : [p.team!] };
               },
             });
           }
