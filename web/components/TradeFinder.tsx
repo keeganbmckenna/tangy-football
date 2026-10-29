@@ -6,7 +6,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import { KeepPicker, PositionChips, positionsOf } from '@/components/ui/FinderFilters';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
 import type { TradeDataResponse } from '@/lib/analyze/trade';
-import type { FinderOptions, FinderProgress, FoundTrade } from '@/lib/analyze/tradeFinder';
+import { SHOWN, type FinderOptions, type FinderProgress, type FoundTrade } from '@/lib/analyze/tradeFinder';
 import type { FinderMessage, FinderRequest } from '@/lib/analyze/tradeFinder.worker';
 import type { TeamStats } from '@/lib/types';
 import { signed } from '@/lib/format';
@@ -24,6 +24,10 @@ const STAGE_LABEL: Record<FinderProgress['stage'], string> = {
   simulating: 'Simulating the finalists’ seasons',
   done: 'Done',
 };
+
+/** Minimum rises in playoff or title odds the filters offer (probability) */
+const GAIN_STEPS = [0.005, 0.01, 0.02, 0.03, 0.05];
+const points = (g: number) => `${Math.round(g * 1000) / 10} point${g === 0.01 ? '' : 's'}`;
 
 function Change({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
   const d = (after - before) * 100;
@@ -48,7 +52,17 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
   const [options, setOptions] = useState<FinderOptions>({ marketFilter: true, partner: null, getPositions: [], keep: [], maxPlayers: 3 });
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<FinderProgress | null>(null);
-  const [results, setResults] = useState<{ me: number; deep: boolean; marketFilter: boolean; filtered: boolean; trades: FoundTrade[] } | null>(null);
+  const [results, setResults] = useState<{
+    me: number;
+    deep: boolean;
+    marketFilter: boolean;
+    filtered: boolean;
+    limit: number;
+    /** A load more that found nothing new: nothing more to show */
+    exhausted: boolean;
+    trades: FoundTrade[];
+  } | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const worker = useRef<Worker | null>(null);
 
@@ -60,9 +74,11 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
     return p ? `${p.name} (${p.position})` : id;
   };
 
-  const run = (deep: boolean, o: FinderOptions = options) => {
+  const run = (deep: boolean, o: FinderOptions = options, more = false) => {
     if (me === null) return;
     worker.current?.terminate();
+    const shownBefore = more ? (results?.trades.length ?? 0) : 0;
+    setLoadingMore(more);
     setRunning(true);
     setError(null);
     setProgress(null);
@@ -80,12 +96,22 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
       const msg = e.data;
       if (msg.type === 'progress') setProgress(msg.progress);
       else if (msg.type === 'done') {
-        setResults({ me, deep, marketFilter: o.marketFilter, filtered: o.partner != null || !!o.getPositions?.length || !!o.keep?.length || (o.maxPlayers ?? 3) < 3, trades: msg.results });
+        setResults({
+          me,
+          deep,
+          marketFilter: o.marketFilter,
+          filtered: o.partner != null || !!o.getPositions?.length || !!o.keep?.length || (o.maxPlayers ?? 3) < 3 || !!o.minGain || !!o.minPartnerGain,
+          limit: o.limit ?? SHOWN,
+          exhausted: more && msg.results.length <= shownBefore,
+          trades: msg.results,
+        });
         setRunning(false);
+        setLoadingMore(false);
         w.terminate();
       } else {
         setError(msg.message);
         setRunning(false);
+        setLoadingMore(false);
         w.terminate();
       }
     };
@@ -94,7 +120,8 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
 
   // A changed filter runs the search again when one has run (or is running)
   const change = (patch: Partial<FinderOptions>) => {
-    const next = { ...options, ...patch };
+    // A new search starts from the first page again
+    const next = { ...options, ...patch, limit: undefined };
     setOptions(next);
     if (results || running) run(results?.deep ?? false, next);
   };
@@ -142,7 +169,7 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
           <button
             type="button"
             disabled={me === null || running}
-            onClick={() => run(false)}
+            onClick={() => run(false, { ...options, limit: undefined })}
             className="rounded-md bg-[var(--accent)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
           >
             Find trades
@@ -182,6 +209,34 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
             <option value={2}>Up to 2 players a side</option>
             <option value={3}>Up to 3 players a side</option>
           </select>
+          <label className="sr-only" htmlFor="finder-min-gain">How much it must help you</label>
+          <select
+            id="finder-min-gain"
+            value={options.minGain ?? 0}
+            onChange={(e) => change({ minGain: Number(e.target.value) || undefined })}
+            className={select}
+          >
+            <option value={0}>Helps you at all</option>
+            {GAIN_STEPS.map((g) => (
+              <option key={g} value={g}>
+                Helps you {points(g)}+
+              </option>
+            ))}
+          </select>
+          <label className="sr-only" htmlFor="finder-min-partner-gain">How much it must help them</label>
+          <select
+            id="finder-min-partner-gain"
+            value={options.minPartnerGain ?? 0}
+            onChange={(e) => change({ minPartnerGain: Number(e.target.value) || undefined })}
+            className={select}
+          >
+            <option value={0}>Doesn&apos;t hurt them</option>
+            {GAIN_STEPS.map((g) => (
+              <option key={g} value={g}>
+                Helps them {points(g)}+
+              </option>
+            ))}
+          </select>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-[var(--muted)]">Get a</span>
             <PositionChips positions={tradedPositions} value={options.getPositions ?? []} onChange={(getPositions) => change({ getPositions })} label="Positions to get" />
@@ -191,7 +246,7 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
           <KeepPicker players={myPlayers} value={options.keep ?? []} onChange={(keep) => change({ keep })} summary="Players you won’t trade or drop" />
         )}
 
-        {running && (
+        {running && !loadingMore && (
           <div>
             <div className="mb-1 flex justify-between text-xs text-[var(--muted)]">
               <span>{progress ? STAGE_LABEL[progress.stage] : 'Starting'}…</span>
@@ -205,11 +260,12 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
 
         {error && <p className="text-sm text-[var(--danger-text)]">{error}</p>}
 
-        {results && !running && (
+        {results && (!running || loadingMore) && (
           <div className="space-y-4">
             {results.trades.length === 0 ? (
               <p className="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
-                No trades found that help {manager(results.me)} without hurting the other manager
+                No trades found that help {manager(results.me)}
+                {options.minPartnerGain ? ' and the other manager' : ' without hurting the other manager'}
                 {results.marketFilter ? ' and that the market sees as fair. Try turning off the market filter' : ''}
                 {!results.deep ? `${results.marketFilter ? ' or searching' : '. Try searching'} deeper` : ''}
                 {results.filtered ? `${results.marketFilter || !results.deep ? ', or loosening' : '. Try loosening'} the other filters` : ''}.
@@ -273,7 +329,29 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
                 );
               })
             )}
-            {!results.deep && (
+            {loadingMore ? (
+              <div>
+                <div className="mb-1 text-xs text-[var(--muted)]">
+                  Finding more{progress ? `: ${STAGE_LABEL[progress.stage].toLowerCase()}` : ''}…
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--neutral-bg)]">
+                  <div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            ) : (
+              results.trades.length > 0 &&
+              !results.exhausted && (
+                <button
+                  type="button"
+                  onClick={() => run(results.deep, { ...options, limit: results.limit + SHOWN }, true)}
+                  className="w-full rounded-md border border-[var(--border)] py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--neutral-bg)]"
+                >
+                  Load more trades
+                </button>
+              )
+            )}
+            {results.exhausted && <p className="text-center text-xs text-[var(--muted)]">No more trades found with these filters.</p>}
+            {!results.deep && !loadingMore && (
               <button
                 type="button"
                 onClick={() => run(true)}
@@ -297,7 +375,9 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
             </p>
             <p>
               A trade is kept only if your odds improve and the other manager&apos;s don&apos;t get worse: their lineup doesn&apos;t
-              drop, their playoff and title odds don&apos;t fall, and their odds of losing the toilet bowl don&apos;t rise. Other
+              drop, their playoff and title odds don&apos;t fall, and their odds of losing the toilet bowl don&apos;t rise. The
+              &ldquo;Helps you&rdquo; and &ldquo;Helps them&rdquo; filters ask for more: playoff or title odds (whichever rises
+              more) up by at least that many percentage points. Load more searches each stage deeper for the next 8. Other
               teams can lose a little: playoff spots are fixed, so when two teams both gain, someone else gives it up.
             </p>
             <p>

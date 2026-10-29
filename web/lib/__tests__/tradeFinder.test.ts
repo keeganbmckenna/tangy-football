@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { bestLineupPoints, teamStrength } from '../analyze/playoffOdds';
 import { earlierTradeModel, type TradeDataResponse } from '../analyze/trade';
-import { findTrades, marketFair, packageValue } from '../analyze/tradeFinder';
+import { findTrades, marketFair, packageValue, type FoundTrade } from '../analyze/tradeFinder';
 
 // Lineup: QB, RB, WR and two bench spots. Team 1 has two good QBs and a weak RB;
 // team 2 has two good RBs and a weak QB, so a QB-for-RB swap helps both.
@@ -121,5 +121,26 @@ describe('findTrades', () => {
       expect(r.gives).not.toContain('qbB');
       expect(r.moves.meDrops).not.toContain('qbB');
     }
+  });
+
+  it('keeps only trades that help each side by the asked amount', () => {
+    const opts = { marketFilter: false, sims: 2000, finalSims: 2000, deep: true };
+    const rise = (r: FoundTrade, side: 'me' | 'partner') => {
+      const [b, a] = r.odds[side];
+      return Math.max(a.playoffs - b.playoffs, (a.champion ?? 0) - (b.champion ?? 0));
+    };
+    const mutual = findTrades(league(), 1, { ...opts, minPartnerGain: 0.01 });
+    expect(mutual.length).toBeGreaterThan(0);
+    for (const r of mutual) expect(rise(r, 'partner')).toBeGreaterThanOrEqual(0.01);
+    for (const r of findTrades(league(), 1, { ...opts, minGain: 0.03 })) expect(rise(r, 'me')).toBeGreaterThanOrEqual(0.03);
+  });
+
+  it('shows the next page of trades when the limit grows', () => {
+    const opts = { marketFilter: false, sims: 2000, finalSims: 2000, deep: true };
+    const first = findTrades(league(), 1, { ...opts, limit: 1 });
+    const more = findTrades(league(), 1, { ...opts, limit: 3 });
+    expect(first).toHaveLength(1);
+    expect(more.length).toBeGreaterThan(first.length);
+    expect(more.length).toBeLessThanOrEqual(3);
   });
 });

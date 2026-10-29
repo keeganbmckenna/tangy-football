@@ -13,7 +13,8 @@
  *     expected wins the playoff model gives each team over its real schedule.
  *  3. Simulate the finalists' seasons (the playoff model, same random draws as
  *     without the trade) and keep trades where the partner's playoff and title
- *     odds don't drop and its odds of losing the toilet bowl don't rise.
+ *     odds don't drop and its odds of losing the toilet bowl don't rise (or,
+ *     with minPartnerGain, where its playoff or title odds rise that much).
  *
  * Optional market filter (FantasyCalc redraft values): skip trades the market
  * sees as clearly lopsided against the partner. Values aren't additive:
@@ -38,7 +39,8 @@ export const TRADE_SIZES: Array<[number, number]> = [
 export const POOL_SIZE = 10;
 const SHORTLIST = 200;
 const FINALISTS = 20;
-const SHOWN = 8;
+/** Trades per page of results */
+export const SHOWN = 8;
 /** Most finalists / shown trades with any one manager, so the list covers several partners */
 const FINALISTS_PER_PARTNER = 4;
 const SHOWN_PER_PARTNER = 2;
@@ -63,6 +65,12 @@ export interface FinderOptions {
   keep?: string[];
   /** Most players on either side (1 to 3) */
   maxPlayers?: number;
+  /** Least my playoff or title odds must rise (probability; any rise when missing) */
+  minGain?: number;
+  /** Least the partner's playoff or title odds must rise (probability); when missing, they only mustn't fall */
+  minPartnerGain?: number;
+  /** Trades to show (SHOWN when missing); a bigger limit searches proportionally deeper */
+  limit?: number;
   sims?: number;
   finalSims?: number;
   seed?: number;
@@ -154,6 +162,12 @@ export function findTrades(
   const onePartner = options.partner != null;
   const getPositions = options.getPositions?.length ? new Set(options.getPositions) : null;
   const sizes = TRADE_SIZES.filter(([g, r]) => Math.max(g, r) <= (options.maxPlayers ?? 3));
+  const limit = Math.max(options.limit ?? SHOWN, 1);
+  // Each page of results (load more) widens every stage by as much again; a minimum gain
+  // turns away more finalists, so those searches simulate twice as many
+  const pages = Math.ceil(limit / SHOWN);
+  const mutual = (options.minPartnerGain ?? 0) > 0;
+  const finalistCount = FINALISTS * pages * (mutual || (options.minGain ?? 0) > 0 ? 2 : 1);
 
   // Stage 1: screen with season-average expected points
   const avg: Record<string, { position: string; points: number }> = {};
@@ -177,7 +191,8 @@ export function findTrades(
     return s + sizes.reduce((n, [g, r]) => n + myPackages[g].length * theirs[r].length, 0);
   }, 0);
 
-  type Screened = { partner: number; gives: string[]; gets: string[]; gain: number };
+  // rank: my lineup gain, or when both must gain, the smaller of the two gains
+  type Screened = { partner: number; gives: string[]; gets: string[]; gain: number; rank: number };
   const screened: Screened[] = [];
   let checked = 0;
   for (const partner of partners) {
@@ -194,8 +209,8 @@ export function findTrades(
           const gain = lineup([...myKept, ...gets]) - myBefore;
           if (gain <= 0) continue;
           const theirGain = lineup([...theirRoster.filter((p) => !gets.includes(p)), ...gives]) - theirBefore;
-          if (theirGain < -PARTNER_LINEUP_SLACK) continue;
-          screened.push({ partner, gives, gets, gain });
+          if (theirGain < (mutual ? 1e-9 : -PARTNER_LINEUP_SLACK)) continue;
+          screened.push({ partner, gives, gets, gain, rank: mutual ? Math.min(gain, theirGain) : gain });
         }
       }
       onProgress({ stage: 'screening', done: checked, total });
@@ -206,14 +221,14 @@ export function findTrades(
   // Best screened trades, at most a fifth of the shortlist from any one partner
   const perPartner = new Map<number, number>();
   const shortlist = screened
-    .sort((a, b) => b.gain - a.gain)
+    .sort((a, b) => b.rank - a.rank)
     .filter((c) => {
       const n = perPartner.get(c.partner) ?? 0;
-      if (!onePartner && n >= SHORTLIST / 5) return false;
+      if (!onePartner && n >= (SHORTLIST * pages) / 5) return false;
       perPartner.set(c.partner, n + 1);
       return true;
     })
-    .slice(0, SHORTLIST);
+    .slice(0, SHORTLIST * pages);
   const expectedWins = (id: number, m: TradeModel) => expectedWinsFor(id, data.remaining, m);
   const avgLineup = (players: string[]) => {
     const byWeek = regular.map((w) => {
@@ -241,7 +256,8 @@ export function findTrades(
     const partnerWinGain = expectedWins(c.partner, model) - baseWins[c.partner];
     const lineupMine: [number, number] = [avgLineup(mine.before), avgLineup(mine.after)];
     const lineupTheirs: [number, number] = [avgLineup(theirs.before), avgLineup(theirs.after)];
-    if (winGain > 0 && lineupTheirs[1] - lineupTheirs[0] >= -PARTNER_LINEUP_SLACK && partnerWinGain > -0.1) {
+    const partnerOk = mutual ? partnerWinGain > 0 : lineupTheirs[1] - lineupTheirs[0] >= -PARTNER_LINEUP_SLACK && partnerWinGain > -0.1;
+    if (winGain > 0 && partnerOk) {
       rescored.push({
         ...c,
         means: model,
@@ -262,12 +278,12 @@ export function findTrades(
     .filter((c) => {
       const key = `${c.partner}:${c.gives[0]}:${c.gets[0]}`;
       const n = finalistsPer.get(c.partner) ?? 0;
-      if (seen.has(key) || (!onePartner && n >= FINALISTS_PER_PARTNER)) return false;
+      if (seen.has(key) || (!onePartner && n >= (finalistCount / FINALISTS) * FINALISTS_PER_PARTNER)) return false;
       seen.add(key);
       finalistsPer.set(c.partner, n + 1);
       return true;
     })
-    .slice(0, FINALISTS);
+    .slice(0, finalistCount);
 
   // Stage 3: simulate the finalists on the same draws as the baseline
   const simulate = (m: TradeModel, n: number) =>
@@ -277,15 +293,20 @@ export function findTrades(
     a.playoffs >= b.playoffs - ODDS_TOLERANCE &&
     (a.champion ?? 0) >= (b.champion ?? 0) - ODDS_TOLERANCE &&
     (a.lastPlace ?? 0) <= (b.lastPlace ?? 0) + ODDS_TOLERANCE;
+  /** The larger rise of playoff and title odds */
+  const gain = (b: OddsLine, a: OddsLine) => Math.max(a.playoffs - b.playoffs, (a.champion ?? 0) - (b.champion ?? 0));
+  const partnerPasses = (b: OddsLine, a: OddsLine) => notHurt(b, a) && (!mutual || gain(b, a) >= options.minPartnerGain!);
+  const minePasses = (b: OddsLine, a: OddsLine) =>
+    a.playoffs + (a.champion ?? 0) > b.playoffs + (b.champion ?? 0) && gain(b, a) >= (options.minGain ?? 0);
   const finalists: Array<Rescored & { score: number }> = [];
   distinct.forEach((c, i) => {
     const after = simulate(c.means, sims);
     const meB = oddsLine(base, me);
     const meA = oddsLine(after, me);
-    if (notHurt(oddsLine(base, c.partner), oddsLine(after, c.partner)) && meA.playoffs + (meA.champion ?? 0) > meB.playoffs + (meB.champion ?? 0)) {
+    if (partnerPasses(oddsLine(base, c.partner), oddsLine(after, c.partner)) && minePasses(meB, meA)) {
       finalists.push({ ...c, score: meA.playoffs - meB.playoffs + (meA.champion ?? 0) - (meB.champion ?? 0) });
     }
-    onProgress({ stage: 'simulating', done: i + 1, total: distinct.length + SHOWN });
+    onProgress({ stage: 'simulating', done: i + 1, total: distinct.length + limit });
   });
 
   // The ones shown get a bigger simulation (the analyzer runs 20,000)
@@ -295,24 +316,25 @@ export function findTrades(
     .filter((c) => {
       const n = shownPer.get(c.partner) ?? 0;
       shownPer.set(c.partner, n + 1);
-      return onePartner || n < SHOWN_PER_PARTNER;
+      return onePartner || n < SHOWN_PER_PARTNER * pages;
     })
-    .slice(0, SHOWN);
+    .slice(0, limit);
   const fullBase = simulate(data.model, finalSims);
   const results: FoundTrade[] = [];
   shown.forEach((c, i) => {
     const after = simulate(c.means, finalSims);
     const partnerB = oddsLine(fullBase, c.partner);
     const partnerA = oddsLine(after, c.partner);
-    onProgress({ stage: 'simulating', done: distinct.length + i + 1, total: distinct.length + SHOWN });
-    if (!notHurt(partnerB, partnerA)) return;
+    onProgress({ stage: 'simulating', done: distinct.length + i + 1, total: distinct.length + limit });
+    const mine: [OddsLine, OddsLine] = [oddsLine(fullBase, me), oddsLine(after, me)];
+    if (!partnerPasses(partnerB, partnerA) || !minePasses(...mine)) return;
     results.push({
       partner: c.partner,
       gives: c.gives,
       gets: c.gets,
       size: `${c.gives.length}-for-${c.gets.length}`,
       lineup: c.lineup,
-      odds: { me: [oddsLine(fullBase, me), oddsLine(after, me)], partner: [partnerB, partnerA] },
+      odds: { me: mine, partner: [partnerB, partnerA] },
       market: {
         give: c.gives.reduce((s, p) => s + value(p), 0),
         get: c.gets.reduce((s, p) => s + value(p), 0),
