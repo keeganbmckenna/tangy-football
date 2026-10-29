@@ -62,6 +62,7 @@ During the current regular season, the trade and waiver tools come first:
   - each team's win odds for every remaining week, with and without the trade;
   - season odds before → after;
   - lineup changes and forced roster moves;
+  - both teams' full lineups and benches before and after, for any remaining week;
   - each player's FantasyCalc market value;
   - which other teams' odds move.
 - **Trade Finder:** pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager. It keeps the ones that help you without hurting the other manager, optionally only market-fair ones, each with an "Open in analyzer" button. Filters: one manager, trade size (1-for-1, up to 2 or 3 a side), positions to get back, and players you won't trade (or drop).

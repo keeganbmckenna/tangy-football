@@ -6,6 +6,7 @@ import { useMyTeam } from '@/hooks/useMyTeam';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
+import TradeLineups from '@/components/TradeLineups';
 import { CHART_THEME } from '@/lib/constants';
 import { bestLineup, formatOdds, simulatePlayoffOdds, type OddsResult, type TeamOdds } from '@/lib/analyze/playoffOdds';
 import {
@@ -356,6 +357,7 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
   const [sendB, setSendB] = useState<string[]>(initial?.sendB ?? []);
   const [baseOdds, setBaseOdds] = useState<OddsResult | null>(null);
   const [tradeOdds, setTradeOdds] = useState<{ key: string; odds: OddsResult } | null>(null);
+  const [lineupWeek, setLineupWeek] = useState<number | null>(null);
   const simulate = useOddsSimulator();
 
   // Managers' names: they're how people know each other in the league
@@ -433,6 +435,7 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
     }
   };
 
+  const shownWeek = lineupWeek !== null && inputs.weeks.includes(lineupWeek) ? lineupWeek : Number.isFinite(firstWeek) ? firstWeek : inputs.weeks[0];
   const nameA = name(teamA);
   const nameB = name(teamB);
 
@@ -710,6 +713,45 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
                   </div>
                 );
               })}
+            </div>
+
+            <div>
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--foreground)]">Lineups</h3>
+                  <p className="text-sm text-[var(--muted)]">
+                    Each team&apos;s best lineup and bench by expected points, without the trade and with it.
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                  Week
+                  <select
+                    value={shownWeek}
+                    onChange={(e) => setLineupWeek(Number(e.target.value))}
+                    className="rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1 text-sm text-[var(--foreground)]"
+                  >
+                    {inputs.weeks.map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                        {w >= data.playoffWeekStart ? ' (playoffs)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {(['a', 'b'] as const).map((side) => (
+                  <TradeLineups
+                    key={side}
+                    inputs={inputs}
+                    players={data.players}
+                    change={trade.changes[side]}
+                    week={shownWeek}
+                    name={side === 'a' ? nameA : nameB}
+                    color={COLOR[side]}
+                  />
+                ))}
+              </div>
             </div>
 
             {ripple.length > 0 && (
