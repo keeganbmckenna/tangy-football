@@ -102,7 +102,7 @@ describe('trade effect', () => {
     // Team 1: wr4 (16) starts at WR and wr1 (14) moves to FLEX over rb2 (10): 59 -> 65
     expect(lineupDelta[1][7]).toBe(6);
     expect(model.season.meanByWeek[7][1]).toBeCloseTo(100 + 0.4 * 6);
-    // the season move is the same in every week, playoff weeks too
+    // with no playoff-week projections, the playoffs take the regular-season move
     expect(model.season.meanByWeek[15][1]).toBeCloseTo(100 + 0.4 * 6);
     expect(model.games.meanByWeek[7][1]).toBeCloseTo(0.8 * 6);
     expect(model.games.meanByWeek[8][1]).toBeCloseTo(0.3 * 6);
@@ -110,6 +110,23 @@ describe('trade effect', () => {
     expect(lineupDelta[2][7]).toBe(-8);
     // The input isn't changed
     expect(before.season.meanByWeek[7][1]).toBe(100);
+  });
+
+  it('moves the playoff weeks by the change over the playoff weeks', () => {
+    const base = inputs();
+    // wr4 is out for the playoffs: team 1 gains 6 in the regular season and nothing in week 15
+    // (wr2, sent away, was on its bench)
+    const inp = {
+      ...base,
+      weeks: [7, 8, 15],
+      projections: Object.fromEntries(Object.entries(base.projections).map(([p, v]) => [p, { ...v, 15: p === 'wr4' ? 0 : v[7] }])),
+    };
+    const before = tradeModel({ 7: { 1: 100, 2: 100 }, 8: { 1: 100, 2: 100 }, 15: { 1: 100, 2: 100 } }, { 7: { 1: 0, 2: 0 }, 8: { 1: 0, 2: 0 } });
+    const { model, lineupDelta } = meansAfterTrade(before, inp, [rosterAfterTrade(inp, { rosterId: 1, sends: ['wr2'], receives: ['wr4'] })]);
+    expect(lineupDelta[1][7]).toBe(6);
+    expect(lineupDelta[1][15]).toBe(0);
+    expect(model.season.meanByWeek[8][1]).toBeCloseTo(100 + 0.4 * 6);
+    expect(model.season.meanByWeek[15][1]).toBeCloseTo(100);
   });
 
   it('turns each team into the other when they swap whole rosters', () => {

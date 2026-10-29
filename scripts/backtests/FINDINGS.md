@@ -63,6 +63,16 @@ the crawled leagues (2,025, then 7,385 league-seasons, 2018-2025).
   with a missing starter replaced by a free agent (2.779, 0.1431). Managers cover injuries
   from waivers, and Sleeper's projections run a little low, so the trade tools keep valuing
   the best lineup. Kept for reference.
+- **Trades against each team's best waiver moves** (`trade_waivers.py`, 28,913 teams in
+  two-way trades, 2018-2025): measuring a trade as the gap between each roster at its best
+  with waiver moves, with and without it (forced drops and pickups, up to two free-agent swaps,
+  and byes or injuries covered by the best free agent each week), predicted traded teams' later
+  scoring *worse* than counting only the moves the trade forces (squared error +0.28, 95%
+  +0.14 to +0.42, worse in 8 of 8 seasons; playoff Brier +0.00014). Like the depth and
+  streaming checks, credit for free-agent cover doesn't show up in what teams score. The forced
+  moves themselves beat the bare swap (-0.21, 8 of 8). The trade's change over the playoff
+  weeks predicted playoff-week scores better than its regular-season average (-0.40, 95% -0.69
+  to -0.12, 6 of 8), so the trade tools' title and last-place odds now use it.
 - **Injured players' returns** (`returns.py`, rebuilt 2026-10-26; the first rates came from a
   scratch run that wasn't kept): QB/RB/WR/TE who'd been playing and were projected 5+ points the
   week before, 2018-2025, censored at season end. Of absences that ended that season, 66% played

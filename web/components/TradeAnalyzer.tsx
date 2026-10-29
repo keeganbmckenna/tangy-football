@@ -798,7 +798,8 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
                 </p>
                 <p>
                   A trade changes the rosters, so it moves each team&apos;s expected score by the model&apos;s lineup weight times
-                  its change in projected lineup (averaged over the remaining weeks), like any other roster change; points already
+                  its change in projected lineup (averaged over the remaining regular-season weeks, and separately over the playoff
+                  weeks for the playoffs), like any other roster change; points already
                   scored stay with the team. On 28,899 teams in real trades in other leagues, a trade&apos;s projected change
                   showed up at 43% (95% 40–46%), close to that weight.
                 </p>

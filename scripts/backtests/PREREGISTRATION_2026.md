@@ -176,6 +176,13 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
   `previousModel` keeps logging for P1. No 2026 data used. The Power Rankings' rank ranges now use
   a strength uncertainty measured including the playoff weeks (descriptive; the odds' tau is
   unchanged, tau_playoffs.py fell under the bar).
+- 2026-10-29: **the trade tools' season odds move a traded team's playoff weeks by the trade's
+  lineup change over the playoff weeks** (meansAfterTrade, web/lib/analyze/trade.ts) instead of
+  its regular-season average: on 28,913 teams in real trades (trade_waivers.py, rule set before
+  the run) it predicted playoff-week scores better (-0.40, 95% -0.69 to -0.12, 6 of 8 seasons).
+  Trade tools and stored trade grades only (rebuilt 2022-2025); the playoff odds under test (P1)
+  don't use it. The same run rejected measuring trades against each roster's best waiver moves.
+  No 2026 data used.
 
 ## Addendum (2026-10-26): further live-odds tests, set before their data is examined
 

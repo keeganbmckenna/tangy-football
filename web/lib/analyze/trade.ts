@@ -170,8 +170,10 @@ export function earlierTradeModel(meanByWeek: Means, spread: number, lastScoredW
 /**
  * The models after a trade: in the season model each changed team's expected score moves by the
  * lineup weight times its lineup change averaged over the remaining regular-season weeks (the
- * weeks the single-game model covers), in every week; in the single-game model by that week's
- * weight times that week's change.
+ * weeks the single-game model covers), in every regular-season week, and by its change averaged
+ * over the playoff weeks in the playoffs (trade_waivers.py: on 28,913 teams in real trades, that
+ * predicted playoff-week scores better than the regular-season change); in the single-game model
+ * by that week's weight times that week's change.
  */
 export function meansAfterTrade(
   model: TradeModel,
@@ -182,18 +184,23 @@ export function meansAfterTrade(
   const season = copy(model.season.meanByWeek);
   const games = copy(model.games.meanByWeek);
   const regular = Object.keys(games).map(Number);
+  const playoffs = Object.keys(season).map(Number).filter((w) => !regular.includes(w) && w > Math.max(0, ...regular));
   const lineupDelta: Record<number, Record<number, number>> = {};
   for (const c of changes) {
     const was = lineupByWeek(inputs, c.before);
     const now = lineupByWeek(inputs, c.after);
-    lineupDelta[c.rosterId] = Object.fromEntries(inputs.weeks.map((w) => [w, now[w] - was[w]]));
-    const seasonWeeks = regular.filter((w) => w in lineupDelta[c.rosterId]);
-    const avg = seasonWeeks.length ? seasonWeeks.reduce((s, w) => s + lineupDelta[c.rosterId][w], 0) / seasonWeeks.length : 0;
+    const delta = (lineupDelta[c.rosterId] = Object.fromEntries(inputs.weeks.map((w) => [w, now[w] - was[w]])));
+    const mean = (weeks: number[]) => {
+      const known = weeks.filter((w) => w in delta);
+      return known.length ? known.reduce((s, w) => s + delta[w], 0) / known.length : null;
+    };
+    const avg = mean(regular) ?? 0;
+    const avgPlayoffs = mean(playoffs) ?? avg;
     for (const w of Object.keys(season).map(Number)) {
-      if (season[w][c.rosterId] !== undefined) season[w][c.rosterId] += model.season.lineupWeight * avg;
+      if (season[w][c.rosterId] !== undefined) season[w][c.rosterId] += model.season.lineupWeight * (playoffs.includes(w) ? avgPlayoffs : avg);
     }
     for (const w of regular) {
-      if (games[w][c.rosterId] !== undefined) games[w][c.rosterId] += model.games.lineupWeightByWeek[w] * (lineupDelta[c.rosterId][w] ?? 0);
+      if (games[w][c.rosterId] !== undefined) games[w][c.rosterId] += model.games.lineupWeightByWeek[w] * (delta[w] ?? 0);
     }
   }
   return { model: { season: { ...model.season, meanByWeek: season }, games: { ...model.games, meanByWeek: games } }, lineupDelta };

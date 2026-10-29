@@ -84,12 +84,24 @@ strengths, built for season averages, were worse than the earlier odds for next 
 ## Trades
 
 A trade moves each team's expected score by the model's weight on its change in projected
-lineup: the fitted lineup weight on the change averaged over the remaining weeks for season odds,
-and each week's single-game weight for weekly win odds.
+lineup: the fitted lineup weight on the change averaged over the remaining regular-season weeks
+(and, in the playoff weeks, on the change averaged over the playoff weeks) for season odds, and
+each week's single-game weight for weekly win odds. The change includes the roster moves the
+trade forces: dropping the least useful player when over the limit, picking up the best free
+agent for an opened spot.
 
 **Evidence** (`trades.py`, 28,899 teams in two-way trades): a trade's projected change showed up
 at 0.43 of its size (95% 0.40 to 0.46), in line with the fitted lineup weight week by week. The
 earlier tools used 0.75, overstating trades by about 70%.
+
+**Forced moves and waivers** (`trade_waivers.py`, 28,913 teams): counting the forced drops and
+pickups predicted traded teams' later scoring better than the bare swap (squared error -0.21
+[-0.33, -0.09], 8 of 8 seasons; playoff Brier -0.00013). Measuring each roster at its best with
+waiver moves instead (up to two free-agent swaps, and byes or injuries covered by the best free
+agent each week) predicted *worse* (+0.28 [+0.14, +0.42] vs forced moves, 0 of 8 seasons;
+playoff Brier +0.00014), so it isn't used. Playoff weeks: the change over the playoff weeks
+predicted traded teams' playoff-week scores better than the regular-season change (-0.40
+[-0.69, -0.12], 6 of 8), so title and last-place odds use it.
 
 ## Live tab
 

@@ -54,6 +54,7 @@ python rank_odds.py --weekly --rules ours   # the primary score: fitted model vs
 python title_odds.py                        # title and last-place odds
 python single_games.py                      # the trade tools' single-game win odds
 python trades.py                            # how much of a trade's projected change shows up
+python trade_waivers.py                     # forced moves, waiver moves and playoff weeks in a trade's change
 python own_league.py                        # the models, fitted on other leagues, scored on ours
 python export_model.py --fixture            # fit on every league and write web/lib/analyze/strengthModel.json
 ```
@@ -87,6 +88,7 @@ python export_model.py --fixture            # fit on every league and write web/
 | `title_odds.py` | Title and last-place odds of the fitted model |
 | `single_games.py` | Single-game win odds: a model fitted for one week's score |
 | `trades.py` | The weight on a trade's projected lineup change (0.43, not 0.75) |
+| `trade_waivers.py` | A trade's change with forced moves (kept), at each roster's best with waiver moves (not adopted), and over the playoff weeks (adopted for the playoffs) |
 | `injuries.py` | Official NFL injury reports: Doubtful players count 0, Questionable 0.9 |
 | `live_components.py`, `live_replay.py`, `live_model.py`, `live_eval.py` | The Live tab's odds replayed through every week of the crawled leagues on the GPU (the site's model ported to PyTorch, checked against `live_odds_fixture.json` from `web/scripts/export-live-fixture.ts`): the spread scale, and the tested alternatives |
 | `live_sim.py`, `live_state.py` | Players' real distributions of points still to come (often a lot, often nothing, rarely negative), blended into the Live tab's odds as one team runs out of players; the site's tables and parity fixture |
