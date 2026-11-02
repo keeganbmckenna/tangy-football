@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { ManagerLink } from '@/hooks/useManagerLink';
 
 /**
  * Header and cell classes for a table's first column, pinned while the table
@@ -21,7 +22,8 @@ export default function TeamName({ name, sub, after }: { name: string; sub?: str
       </div>
       {sub && (
         <div className="max-w-[6.5rem] truncate text-xs text-[var(--muted)] sm:max-w-none" title={sub}>
-          {sub}
+          {/* A manager ("@username") opens their page */}
+          {sub.startsWith('@') ? <ManagerLink username={sub.slice(1)} /> : sub}
         </div>
       )}
       {after}

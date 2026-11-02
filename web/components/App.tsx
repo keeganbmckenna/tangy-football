@@ -25,6 +25,8 @@ import { readLinkTarget, readManager, readUrlState, urlSearchFor } from '@/lib/u
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import { usePageTitleBase } from '@/hooks/usePageTitle';
+import { backToCloseActive } from '@/hooks/useBackToClose';
+import { ManagerLinkContext } from '@/hooks/useManagerLink';
 import PlayoffPicture from '@/components/PlayoffPicture';
 import PowerRankings from '@/components/PowerRankings';
 import SeasonReview from '@/components/SeasonReview';
@@ -259,7 +261,8 @@ export default function App() {
     const search = urlSearchFor(activeTab, selectedSeason || leagueData.league.season, current, historyManager);
     if (search !== window.location.search) {
       const url = `${window.location.pathname}${search}${window.location.hash}`;
-      if (fromHistory.current || !urlSynced.current) window.history.replaceState(null, '', url);
+      // Keeping the entry's state: an open dialog's marker lives there (hooks/useBackToClose.ts)
+      if (fromHistory.current || !urlSynced.current) window.history.replaceState(window.history.state, '', url);
       else window.history.pushState(null, '', url);
     }
     fromHistory.current = false;
@@ -268,6 +271,8 @@ export default function App() {
 
   useEffect(() => {
     const onPop = () => {
+      // A back press that closes a matchup's lineups, not a change of view
+      if (backToCloseActive()) return;
       const { tab, season } = readUrlState(window.location.search);
       fromHistory.current = true;
       setActiveTab(tab ?? 'overview');
@@ -292,6 +297,20 @@ export default function App() {
     .filter((tab) => tab.id !== 'live' || isCurrentSeason)
     .filter((tab) => !isLegacySeason || tab.id === 'overview' || tab.id === 'history');
   const tabIds = tabs.map((t) => t.id).join();
+  // A manager's "@username" anywhere opens their page in History (false if they're not in this season)
+  const openManager = useCallback(
+    (username: string) => {
+      const user = leagueData?.users.find((u) => u.username === username || u.display_name === username);
+      if (!user) return false;
+      switchTab('history');
+      setHistoryManager(user.user_id);
+      window.scrollTo({ top: 0 });
+      return true;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leagueData, activeTab]
+  );
+
   // The browser tab: "Stats · Tangy Football", with the season when it isn't the current one
   const shownSeason = selectedSeason || leagueData?.league.season || '';
   usePageTitleBase([tabs.find((t) => t.id === activeTab)?.name, shownSeason && shownSeason !== availableSeasons[0] ? shownSeason : null]);
@@ -460,6 +479,7 @@ export default function App() {
 
       {/* Main Content */}
       <MyTeamContext.Provider value={myTeam}>
+      <ManagerLinkContext.Provider value={openManager}>
       <main className="relative z-[1] max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {loading ? (
           <div className="flex flex-col items-center py-24 text-[var(--muted)]">
@@ -673,6 +693,7 @@ export default function App() {
         </div>
         )}
       </main>
+      </ManagerLinkContext.Provider>
       </MyTeamContext.Provider>
 
       {/* Footer */}

@@ -5,6 +5,7 @@ import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
+import { ManagerLink } from '@/hooks/useManagerLink';
 import {
   ScheduleLuckSimulation,
   ScheduleLuckDistribution as ScheduleLuckDistributionType,
@@ -188,7 +189,7 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <div className="text-sm font-semibold text-[var(--foreground)]">{team.teamName}</div>
-                  <div className="text-xs text-[var(--muted)]">@{team.username}</div>
+                  <div className="text-xs text-[var(--muted)]"><ManagerLink username={team.username} /></div>
                 </div>
                 <div className="text-xs text-[var(--muted)]">
                   Actual wins: <span className="font-semibold text-[var(--foreground)]">{formatWinsLabel(team.actualWins)}</span>

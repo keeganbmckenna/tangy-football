@@ -108,6 +108,11 @@ describe('getCustomTeamName', () => {
     const user = createMockUser({ display_name: '' });
     expect(getCustomTeamName(user, 'Team 1')).toBe('Team 1');
   });
+
+  it('trims a name typed with stray spaces', () => {
+    expect(getCustomTeamName(createMockUser({ display_name: 'x', metadata: { team_name: 'Love thy Naber ' } }), 'Team 1')).toBe('Love thy Naber');
+    expect(getCustomTeamName(createMockUser({ display_name: '  ', metadata: {} }), 'Team 1')).toBe('Team 1');
+  });
 });
 
 describe('getTeamName', () => {

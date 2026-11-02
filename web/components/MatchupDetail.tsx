@@ -9,6 +9,7 @@ import LiveScore from '@/components/ui/LiveScore';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import ShareButton from '@/components/ui/ShareButton';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useBackToClose } from '@/hooks/useBackToClose';
 
 export interface MatchupPlayer {
   playerId: string;
@@ -237,6 +238,7 @@ interface Props {
 export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, panel, sharePath, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   usePageTitle([title]);
+  useBackToClose(onClose);
 
   useEffect(() => {
     closeRef.current?.focus();

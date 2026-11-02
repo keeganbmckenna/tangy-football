@@ -102,6 +102,8 @@ A switch counts the three sections above either with playoff and toilet bowl gam
 ---
 
 ## Across the site
+- **Managers everywhere:** tap a manager's @username in any standings or stats table to open their page in History.
+- **Back closes:** with a matchup's lineups open, the back button (or a phone's back swipe) closes them instead of leaving the page.
 - **Sortable tables:** tap a column header to sort (best first, then reversed, then back to the default order, or use ↺ Default order).
 - **Your team:** highlighted in every table and chart, and pre-selected in the trade and waiver tools.
 - **Shareable links:** the address bar keeps the tab and season, so refresh, back and shared links land on the same view.

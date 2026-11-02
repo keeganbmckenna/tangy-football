@@ -8,6 +8,7 @@ import SectionCard from './ui/SectionCard';
 import ResultDot from './ui/ResultDot';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
 import Term from './ui/Term';
+import { ManagerLink } from '@/hooks/useManagerLink';
 
 /** Extra per-team info for live standings ("if the week ended now") */
 export interface StandingAnnotation {
@@ -103,7 +104,7 @@ function TeamRow({
               <div className="text-sm font-medium text-[var(--foreground)]">
                 {team.teamName}
               </div>
-              <div className="max-w-[7rem] truncate text-xs text-[var(--muted)] sm:max-w-none" title={team.username}>@{team.username}</div>
+              <div className="max-w-[7rem] truncate text-xs text-[var(--muted)] sm:max-w-none" title={team.username}><ManagerLink username={team.username} /></div>
               {/* The division column is hidden on phones */}
               {showDivision && <div className="max-w-[7rem] truncate text-xs text-[var(--muted)] sm:hidden">{team.divisionName || `Div ${team.division}`}</div>}
               {annotation?.playoffChange && (

@@ -59,6 +59,15 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
   const [liveLink, setLiveLink] = useState<number | null>(null);
   const linked = useRef(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
+  // Phones: the week buttons are one row that scrolls sideways, kept centered on the week shown
+  const weekRow = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const row = weekRow.current;
+    const on = row?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!row || !on || row.scrollWidth <= row.clientWidth) return;
+    // Only the row scrolls, never the page
+    row.scrollLeft = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
+  }, [selectedWeek]);
   useEffect(() => {
     if (linked.current || !linkTarget || !leagueData) return;
     const isLive = live?.week === linkTarget.week;
@@ -91,12 +100,13 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
             />
           )}
         </div>
-        <div className="flex gap-1 flex-wrap">
+        <div ref={weekRow} className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 sm:flex-wrap sm:overflow-visible">
           {weeks.map((week) => (
             <button
               key={week}
               onClick={() => setSelectedWeek(week)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              aria-pressed={selectedWeek === week}
+              className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 selectedWeek === week
                   ? 'bg-[var(--surface-elevated)] text-[var(--foreground)]'
                   : 'bg-white/15 text-white hover:bg-white/25'
@@ -109,7 +119,8 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
             <button
               onClick={() => setSelectedWeek(live.week)}
               aria-label={`Week ${live.week}, live`}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              aria-pressed={selectedWeek === live.week}
+              className={`flex shrink-0 items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 selectedWeek === live.week
                   ? 'bg-[var(--surface-elevated)] text-[var(--foreground)]'
                   : 'bg-white/15 text-white hover:bg-white/25'

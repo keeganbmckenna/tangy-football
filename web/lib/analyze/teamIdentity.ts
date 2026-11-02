@@ -38,7 +38,8 @@ export function teamAvatarUrl(data: LeagueData | null | undefined, rosterId: num
  */
 export function getCustomTeamName(user: SleeperUser | undefined, fallback: string): string {
   if (!user) return fallback;
-  return user.metadata?.team_name || user.display_name || fallback;
+  // Sleeper keeps names as typed: a trailing space shows up in titles and line breaks
+  return (user.metadata?.team_name || user.display_name || fallback).trim() || fallback;
 }
 
 /**
