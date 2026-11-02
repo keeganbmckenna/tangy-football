@@ -58,6 +58,12 @@ export const sidePoints = (e: PlayEvent, side: 'a' | 'b') => e.players.filter((p
 export const isBigPlay = (e: PlayEvent) =>
   Math.max(Math.abs(sidePoints(e, 'a')), Math.abs(sidePoints(e, 'b'))) >= BIG_PLAY_POINTS || Math.abs(e.after - e.before) >= BIG_PLAY_ODDS;
 
+/**
+ * Win odds as saved, to 3 decimals: never rounded to 0 or 1 unless decided, so a game with players
+ * still to play never reads 100% (percent shows >99%)
+ */
+export const roundOdds = (p: number) => (p <= 0 || p >= 1 ? p : Math.min(0.999, Math.max(0.001, Math.round(p * 1000) / 1000)));
+
 /** The biggest plays, by how much they moved the odds (then points), in time order */
 export function biggestPlays(events: PlayEvent[], n = BIG_PLAYS_SHOWN): PlayEvent[] {
   const size = (e: PlayEvent) => Math.abs(e.after - e.before) + Math.max(Math.abs(sidePoints(e, 'a')), Math.abs(sidePoints(e, 'b'))) / 1000;
@@ -258,7 +264,7 @@ export function liveMoments(
         if (s) players.push({ side: s, name: ctx.nameOf(id), pts: d, id });
       }
       if (!players.length || odds[k][m.matchupId] === undefined) return;
-      const event: PlayEvent = { t: p.t, desc: cleanPlay(p.text), players, before: odds[k][m.matchupId], after: after[k][m.matchupId], teams: p.teams };
+      const event: PlayEvent = { t: p.t, desc: cleanPlay(p.text), players, before: roundOdds(odds[k][m.matchupId]), after: roundOdds(after[k][m.matchupId]), teams: p.teams };
       if (isBigPlay(event)) events.push({ matchupId: m.matchupId, event });
     });
     // A loss that may be a score taken back: kept without a play, only to cancel the score

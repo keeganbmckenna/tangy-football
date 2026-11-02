@@ -480,6 +480,9 @@ export function liveWinOdds(
       const lead = a.s.score - b.s.score;
       aWinOdds = weight * remainingPointsOdds(lead, [...a.players, ...b.players], [...a.defenses, ...b.defenses]) + (1 - weight) * aWinOdds;
     }
+    // Certain only once nobody is left to play: a huge lead with players still to go is >99%, not 100%
+    const left = a.s.toPlay + a.s.playing + b.s.toPlay + b.s.playing;
+    if (left > 0) aWinOdds = Math.min(1 - 1e-6, Math.max(1e-6, aWinOdds));
     out.push({ matchupId, a: a.s, b: b.s, aWinOdds, sd });
   }
   return out.sort((x, y) => x.matchupId - y.matchupId);

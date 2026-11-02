@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveMoments, matchPlay, PENDING_SECONDS, playersInPlay, type PlayEvent } from '../winHistory';
+import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveMoments, matchPlay, PENDING_SECONDS, playersInPlay, roundOdds, type PlayEvent } from '../winHistory';
 
 const ev = (t: number, players: PlayEvent['players'], before = 0.5, after = 0.5): PlayEvent => ({ t, desc: null, players, before, after });
 
@@ -260,3 +260,13 @@ describe('cleanPlay notes and challenges', () => {
   ])('%s', (raw, clean) => expect(cleanPlay(raw)).toBe(clean));
 });
 
+
+describe('roundOdds', () => {
+  it('never rounds an undecided game to certain', () => {
+    expect(roundOdds(0.9996)).toBe(0.999);
+    expect(roundOdds(0.0004)).toBe(0.001);
+    expect(roundOdds(0.8125)).toBe(0.813);
+    expect(roundOdds(1)).toBe(1);
+    expect(roundOdds(0)).toBe(0);
+  });
+});

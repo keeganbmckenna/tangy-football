@@ -261,6 +261,10 @@ describe('live win odds', () => {
     expect(before.a).toMatchObject({ projected: 80, toPlay: 1, playing: 0 });
     const done: Record<string, LiveGame> = { AAA: { state: 'post', remaining: 0, label: '' }, BBB: { state: 'post', remaining: 0, label: '' } };
     expect(liveWinOdds(matchups, projections, done, 25)[0].aWinOdds).toBe(1);
+    // A huge lead with a player still to go: almost certain, never certain
+    const rout = liveWinOdds([sm(1, 200, ['a1']), sm(2, 10, ['b1'])], projections, { ...done, BBB: pre.BBB }, 25)[0].aWinOdds;
+    expect(rout).toBeGreaterThan(0.999);
+    expect(rout).toBeLessThan(1);
   });
 
   it('gives a volatile lineup a better chance to come back than a steady one', () => {

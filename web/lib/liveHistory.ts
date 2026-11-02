@@ -10,7 +10,7 @@
  */
 
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
-import { BIG_PLAYS_KEPT, biggestPlays, cleanPlay, dropRetractions, liveMoments, playersInPlay, type GamePlays, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
+import { BIG_PLAYS_KEPT, biggestPlays, cleanPlay, dropRetractions, liveMoments, roundOdds, playersInPlay, type GamePlays, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
 
 /** At most one snapshot per this many seconds (a big moment covers what changed in between) */
 const EVERY_SECONDS = 30;
@@ -90,7 +90,7 @@ export async function saveSnapshot(season: string, week: number, input: SaveInpu
   const t = Math.round(Date.now() / 1000);
   const snapshot: Snapshot = {
     t,
-    m: odds.map((o) => [o.matchupId, o.a.rosterId, o.b.rosterId, Math.round(o.aWinOdds * 1000) / 1000, Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]),
+    m: odds.map((o) => [o.matchupId, o.a.rosterId, o.b.rosterId, roundOdds(o.aWinOdds), Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]),
   };
   const commands: Array<Array<string | number>> = [
     ['RPUSH', k, JSON.stringify(snapshot)],
