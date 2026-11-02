@@ -19,11 +19,12 @@ import type { SleeperMatchup } from '@/lib/types';
 /** Remembers, per viewer, whether the panel is collapsed */
 const OPEN_KEY = 'tangy-football:what-it-takes-open';
 
+// Collapsed until this viewer opens it (then remembered either way)
 const readOpen = () => {
   try {
-    return window.localStorage.getItem(OPEN_KEY) !== 'false';
+    return window.localStorage.getItem(OPEN_KEY) === 'true';
   } catch {
-    return true;
+    return false;
   }
 };
 
@@ -55,14 +56,14 @@ interface Props {
 }
 
 /**
- * The Live matchup dialog's "What it takes": each team's target and its odds on a bad, typical
+ * The Live matchup dialog's "What each team needs": each team's target and its odds on a bad, typical
  * or great rest of the week, the players who swing it most, and lineup swaps still open. All from
  * the same model as the win odds (lib/analyze/whatItTakes.ts).
  */
 export default function WhatItTakes({ model, leftRosterId, names, matchups, projections, games, slots, defense }: Props) {
   const left: SideKey = model.a.s.rosterId === leftRosterId ? 'a' : 'b';
   const sides: SideKey[] = [left, left === 'a' ? 'b' : 'a'];
-  // Open unless this viewer collapsed it
+  // Collapsed unless this viewer opened it
   const [open, setOpen] = useState(readOpen);
   const toggle = (next: boolean) => {
     setOpen(next);
@@ -82,7 +83,7 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
   };
   const heading = (
     <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold uppercase tracking-wider text-[var(--muted)] [&::-webkit-details-marker]:hidden">
-      What it takes
+      What each team needs
       <span aria-hidden className={`inline-block text-sm transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
     </summary>
   );
@@ -90,7 +91,7 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
   // Collapsed: just the heading, without working anything out
   if (!open) {
     return (
-      <details className={box} aria-label="What it takes" open={false} onToggle={(e) => e.currentTarget.open && toggle(true)}>
+      <details className={box} aria-label="What each team needs" open={false} onToggle={(e) => e.currentTarget.open && toggle(true)}>
         {heading}
       </details>
     );
@@ -99,7 +100,7 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
   const openSwaps = sides.map((k) => ({ k, list: swaps(model, k, matchups, projections, games, slots, defense).slice(0, SWAPS_SHOWN) }));
 
   return (
-    <details className={box} aria-label="What it takes" open onToggle={(e) => !e.currentTarget.open && toggle(false)}>
+    <details className={box} aria-label="What each team needs" open onToggle={(e) => !e.currentTarget.open && toggle(false)}>
       {heading}
 
       <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
