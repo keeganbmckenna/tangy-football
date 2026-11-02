@@ -117,7 +117,10 @@ team's players losing points, which almost never happens. So as the smaller side
 remaining variance falls from 5% to 1%, the odds blend gradually into each player's real
 distribution of points still to come (no cutoffs, so they don't jump when it takes over)
 (`remainingPointsOdds`, tables in `web/lib/analyze/remainingPoints.json` from
-`scripts/backtests/live_sim.py`, 2020-2025): often a lot, often nothing, rarely negative. A top
+`scripts/backtests/live_sim.py`, 2020-2025, by position, half-PPR projection in 8 bands and share
+of game left): often a lot, often nothing, rarely negative. The bands were finer from 2026-11-01:
+the earlier ones lumped everyone projected under 8 together, so a receiver projected 7 had a 33%
+chance of scoring nothing instead of the real 7-12%. A top
 receiver with half his game left ended 0.61+ points down in none of 14,283 cases, so a team up
 0.61 with him left and its opponent done is above 99%, not the normal's 92%.
 

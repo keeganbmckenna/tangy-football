@@ -663,7 +663,9 @@ def sim_odds(slot, S, T, side, n_sides, pairs, gi, games, teams, state, rem, add
     in_pair = t_(mk[sl_side] >= 0, torch.bool)
     pos_i = t_([LS.POS.index(p) if p in LS.POS else -1 for p in slot['pos']], torch.long)
     half = np.array([((P.get(pid) or (None, None, {}))[2].get('pts_half_ppr') or 0.0) if pid else 0.0 for pid in slot.get('pid', [None] * S)])
-    pb_i = t_(LS.proj_bin(half), torch.long)
+    # Projection bins as the tables were built: the finer ones since test 9, or the earlier 8 and 14
+    edges = LS.PROJ_EDGES if SIM_Q.shape[1] == len(LS.PROJ_EDGES) + 1 else LS.COARSE_EDGES
+    pb_i = t_(np.searchsorted(edges, half, side='right'), torch.long)
     skill = has_proj & ~is_def & (pos_i >= 0) & in_pair
     defn = has_proj & is_def & in_pair
     # The model's variances (for defenses, and the one-sided target)

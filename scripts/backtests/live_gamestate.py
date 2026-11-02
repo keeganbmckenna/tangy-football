@@ -9,6 +9,9 @@ season out; scored by quantile (pinball) loss over the 64 levels, in points, on 
 (share left 0.02-0.95), averaged per player-game.
 
     python live_gamestate.py
+
+Run against live_sim.py as of commit e631b3e (projection bins at 8 and 14); live_sim.py has built
+the finer bins since test 9 was adopted, so rerunning now compares against those.
 """
 import os
 

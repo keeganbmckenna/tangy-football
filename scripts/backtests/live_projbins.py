@@ -5,6 +5,9 @@ lowest bin mixes players projected 1 point with ones projected 7.5. Candidate F 
 (live_gamestate.py) over every moment with share left 0.02 or more, before kickoff included.
 
     python live_projbins.py
+
+Run against live_sim.py as of commit e631b3e (projection bins at 8 and 14); live_sim.py has built
+the finer bins since test 9 was adopted, so rerunning now compares against those.
 """
 import os
 

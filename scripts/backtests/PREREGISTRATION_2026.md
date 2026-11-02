@@ -352,3 +352,14 @@ randomized PIT above) hid it, because the bins' errors cancel.
   -0.79% [-0.86%, -0.71%], short of 1%. WRs projected 6-8 before kickoff scoring half a point or
   less: actual 7-12% (2020-2025), shipped tables 31-33%, F 10.9%. Not adopted as written; the
   panel and the odds keep the shipped tables, and the choice of a logged deviation is the owner's.
+- 2026-11-01, **owner's decision after test 9's results: F ships**, for the panel's ranges and the
+  odds' player tables alike, so they never disagree. A logged deviation, judged as the hybrid was:
+  test 9 targeted the lowest bin's miscalibration, which F fixes (7-12% actual vs 31-33% shipped
+  vs 10.9%), and was better in 8 of 8 seasons on its own score. Its effect on the win odds, the
+  shipped hybrid replayed with each set of tables on the same code (live_replay.py LIVE_USE=sim,
+  fold tables from live_sim.py; the Oct 26 sim cache is not comparable, built before later model
+  changes): primary 2020-2025 -0.00020 to -0.00032 in 5 seasons, +0.00013 in 2021 (2018 +0.0013,
+  2019 +0.0004); one-sided close moments 2020-2025 -0.0005 to -0.0020 in 5, +0.0011 in 2021 (2018
+  +0.013, 2019 +0.006). Small and below the usual bars; worse in the weak-projection seasons, as
+  the hybrid was. **The season-end 2026 confirmation's candidate is now the shipped model with
+  these tables** (commit after e631b3e); its rules are unchanged, and F comes out if it fails.

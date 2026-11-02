@@ -149,6 +149,10 @@ def win_odds(side, n_sides, group, spread, proj, ratio, remaining, add, score, p
     diff = projected[pair_a] - projected[pair_b]
     sd = (var[pair_a] + var[pair_b]).sqrt()
     odds = torch.where(sd > 0.01, normal_cdf(diff / sd.clamp(min=0.01)), torch.where(diff > 0, 1.0, torch.where(diff < 0, 0.0, 0.5)).to(dt))
+    # Certain only once nobody is left to play (the site, since 2026-11-01): within [1e-6, 1 - 1e-6] otherwise
+    playing = torch.zeros(n_sides, T, dtype=dt, device=remaining.device).index_add_(0, side, (remaining > 0).to(dt))
+    open_ = (playing[pair_a] + playing[pair_b]) > 0
+    odds = torch.where(open_, odds.clamp(1e-6, 1 - 1e-6), odds)
     if extras: return odds, sd, projected[pair_a], projected[pair_b], scale[group]
     return odds, sd, projected[pair_a], projected[pair_b]
 

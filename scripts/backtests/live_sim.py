@@ -2,8 +2,8 @@
 
 From every projected player's in-game moments 2018-2025 (live_state.py): r = the points he
 actually scored from then on / (his half-PPR projection x share of his game left). Its
-distribution, as 64 quantiles (dense in the tails), by position (QB, RB, WR, TE, K), half-PPR projection (under 8,
-8-14, 14+) and share of game left (6 bins). It carries what the normal curve can't: often a lot,
+distribution, as 64 quantiles (dense in the tails), by position (QB, RB, WR, TE, K), half-PPR projection (bins at 2, 4, 6, 8, 11, 14 and 18 since
+test 9; a thin cell falls back to the earlier bins at 8 and 14) and share of game left (6 bins). It carries what the normal curve can't: often a lot,
 often nothing (a point mass at 0), rarely negative (a lost fumble or interception).
 
     python live_sim.py     # cache/live_sim_fit/{held-out season}.npz, the site's tables
@@ -20,7 +20,9 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'cache', 'live_sim_fit')
 POS = ('QB', 'RB', 'WR', 'TE', 'K')
-PROJ_EDGES = (8.0, 14.0)
+PROJ_EDGES = (2.0, 4.0, 6.0, 8.0, 11.0, 14.0, 18.0)
+# The earlier bins (until test 9, 2026-11-01): a fine cell with under 200 moments uses its coarse cell
+COARSE_EDGES = (8.0, 14.0)
 REM_EDGES = (0.05, 0.1, 0.25, 0.5, 0.75)
 # Quantile levels: dense in both tails (a lost fumble is a 0.5% event; 64 equal steps of 1.6% would
 # miss it), evenly spaced between; each quantile stands for the probability between its neighbours
@@ -40,17 +42,22 @@ def rem_bin(r):
 
 
 def tables(df):
-    """[5 positions, 3 projection bins, 6 rem bins, NQ] quantiles of r at PROBS (weights WEIGHTS)"""
+    """[5 positions, 8 projection bins, 6 rem bins, NQ] quantiles of r at PROBS (weights WEIGHTS)"""
     Q = np.full((len(POS), len(PROJ_EDGES) + 1, len(REM_EDGES) + 1, NQ), np.nan)
     probs = PROBS
+    # The coarse bin each fine bin sits in (by its lower edge)
+    coarse_of = np.searchsorted(COARSE_EDGES, np.concatenate([[0.0], PROJ_EDGES]), side='right')
     for i, pos in enumerate(POS):
         d = df[df.pos == pos]
-        pb, rb = proj_bin(d.proj.to_numpy()), rem_bin(d.rem.to_numpy())
+        p, rb = d.proj.to_numpy(), rem_bin(d.rem.to_numpy())
+        pb, cb = proj_bin(p), np.searchsorted(COARSE_EDGES, p, side='right')
         r = (d.left / (d.proj * d.rem)).to_numpy()
         for j in range(Q.shape[1]):
             for k in range(Q.shape[2]):
                 x = r[(pb == j) & (rb == k)]
-                if len(x) < 200:  # thin cell: pool projection bins
+                if len(x) < 200:  # thin cell: its coarse cell
+                    x = r[(cb == coarse_of[j]) & (rb == k)]
+                if len(x) < 200:  # still thin: pool projection bins
                     x = r[rb == k]
                 Q[i, j, k] = np.quantile(x, probs)
     return Q
