@@ -58,12 +58,15 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
   // A share link: its week, with its matchup open (the live lineups for the week being played)
   const [liveLink, setLiveLink] = useState<number | null>(null);
   const linked = useRef(false);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (linked.current || !linkTarget || !leagueData) return;
     const isLive = live?.week === linkTarget.week;
     if (!isLive && !weeks.includes(linkTarget.week)) return;
     linked.current = true;
     setSelectedWeek(linkTarget.week);
+    // Bring the section into view once the cards above it have drawn (they'd push it down after)
+    window.setTimeout(() => sectionRef.current?.scrollIntoView({ block: 'start' }), 400);
     if (linkTarget.matchup === null) return;
     if (isLive) setLiveLink(linkTarget.matchup);
     else {
@@ -75,7 +78,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
   }, [linkTarget, leagueData, live?.week, weeks.length, matchups]);
 
   return (
-    <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
+    <div ref={sectionRef} className="section-card scroll-mt-4 bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
       <div className="section-header bg-gradient-to-r from-green-600 to-green-800 px-4 py-3 sm:px-6 sm:py-4" data-tone="green">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-white sm:text-2xl">Weekly Matchups</h2>

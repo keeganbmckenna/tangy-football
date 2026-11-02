@@ -292,7 +292,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
           {head(a, false)}
           {head(b, true)}
           {sharePath && (
-            <ShareButton path={sharePath} title={title} className="-mt-1 shrink-0 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />
+            <ShareButton icon path={sharePath} title={title} className="-mt-1 shrink-0 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />
           )}
           <button
             ref={closeRef}
