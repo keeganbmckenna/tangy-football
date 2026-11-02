@@ -5,7 +5,7 @@
 
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, TeamStats } from '@/lib/types';
-import { allowedPoints, liveWinOdds, scoreSpread, type LiveGame } from '@/lib/analyze/live';
+import { allowedPoints, liveWinOdds, scoreSpread, type LiveGame, type LiveMatchupOdds } from '@/lib/analyze/live';
 import { saveSnapshot } from '@/lib/liveHistory';
 import { gamePlays, liveMatchups, scoreboard } from '@/lib/liveData';
 import { allowedScoring, fetchJson, starterProjections } from '@/lib/liveProjections';
@@ -18,6 +18,24 @@ async function seasonSpread(baseUrl: string, leagueId: string, lastScoredWeek: n
   const scores = new Map<number, number[]>();
   for (const week of weeks) for (const m of week) scores.set(m.roster_id, [...(scores.get(m.roster_id) ?? []), m.points ?? 0]);
   return scoreSpread([...scores.values()].map((weeklyScores) => ({ weeklyScores }) as TeamStats), lastScoredWeek);
+}
+
+/**
+ * The week in progress's odds and scores right now, as the Live tab works them out (for the share
+ * cards, which would otherwise show the last save: between games, nothing saves, but the odds can
+ * still move with injury news). Null without the scoreboard or projections.
+ */
+export async function liveOddsNow(league: SleeperLeague, week: number): Promise<LiveMatchupOdds[] | null> {
+  const lastScoredWeek = league.settings?.last_scored_leg ?? 0;
+  if (week <= lastScoredWeek) return null;
+  const scoring = league.scoring_settings ?? {};
+  const [{ matchups, allowed }, games] = await Promise.all([liveMatchups(SLEEPER_CONFIG.leagueId, league.season, week, scoring), scoreboard(league.season, week)]);
+  if (!games || !matchups.length) return null;
+  const [projections, spread] = await Promise.all([
+    starterProjections(league.season, week, lastScoredWeek, matchups, games, scoring),
+    seasonSpread(SLEEPER_CONFIG.baseUrl, SLEEPER_CONFIG.leagueId, lastScoredWeek),
+  ]);
+  return projections ? liveWinOdds(matchups, projections, games, spread, { allowed, allowedScoring: allowedScoring(scoring) }) : null;
 }
 
 /** Save the odds now while any game is on (at most once per save interval, across all requests) */

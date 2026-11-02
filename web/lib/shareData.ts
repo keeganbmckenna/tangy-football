@@ -10,6 +10,7 @@ import { getWeeklyMatchups } from '@/lib/analyze/matchups';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { loadLeagueData } from '@/lib/leagueData';
 import { readSnapshots } from '@/lib/liveHistory';
+import { liveOddsNow } from '@/lib/liveSave';
 import { cleanPlay, type PlayEvent, type WinHistory, type WinHistoryMatchup } from '@/lib/winHistory';
 import type { LeagueData, SleeperMatchup } from '@/lib/types';
 
@@ -116,7 +117,12 @@ async function weekGames(data: LeagueData, origin: string, season: string, week:
   const status = week <= data.lastScoredWeek ? 'final' : 'live';
   // Nothing scored yet: no card to make
   if (status === 'live' && !sleeper.some((m) => (m.points ?? 0) > 0)) return null;
-  const history = await winHistory(origin, season, week);
+  // A week in progress: the odds and scores right now, as the Live tab has them (the last save can
+  // be hours old between games)
+  const [history, now] = await Promise.all([
+    winHistory(origin, season, week),
+    status === 'live' ? liveOddsNow(data.league, week).catch(() => null) : Promise.resolve(null),
+  ]);
   const pairs = new Map<number, SleeperMatchup[]>();
   for (const m of sleeper) if (m.matchup_id != null) pairs.set(m.matchup_id, [...(pairs.get(m.matchup_id) ?? []), m]);
   const nameOf = (rosterId: number) => getTeamName(rosterId, data).name.trim();
@@ -126,18 +132,21 @@ async function weekGames(data: LeagueData, origin: string, season: string, week:
     const h = history?.matchups.find((x) => x.matchupId === matchupId);
     // The win history's sides when there is one (its odds are a's)
     const [ma, mb] = h && h.a === pair[1].roster_id ? [pair[1], pair[0]] : pair;
-    // Live: the latest saved scores (fresher than Sleeper's), final: Sleeper's official ones
+    // Live: the scores and odds now, ending the saved line; final: Sleeper's official scores
+    const o = now?.find((x) => x.matchupId === matchupId);
+    const aNow = o && (o.a.rosterId === ma.roster_id ? { odds: o.aWinOdds, sa: o.a.score, sb: o.b.score } : { odds: 1 - o.aWinOdds, sa: o.b.score, sb: o.a.score });
     const last = h && status === 'live' ? h.scores[h.scores.length - 1] : null;
+    const odds = [...(h?.odds ?? []), ...(aNow ? [aNow.odds] : [])];
     games.push({
       season,
       week,
       matchupId,
       status,
-      a: team(data, ma.roster_id, last ? last[0] : ma.points ?? 0),
-      b: team(data, mb.roster_id, last ? last[1] : mb.points ?? 0),
-      odds: h?.odds.length ? h.odds : null,
+      a: team(data, ma.roster_id, aNow ? aNow.sa : last ? last[0] : ma.points ?? 0),
+      b: team(data, mb.roster_id, aNow ? aNow.sb : last ? last[1] : mb.points ?? 0),
+      odds: odds.length ? odds : null,
       swing: h ? biggestSwing(h, nameOf) : null,
-      leadChanges: h ? leadChanges(h.odds) : 0,
+      leadChanges: leadChanges(odds),
     });
   }
   return { status, games, history };
