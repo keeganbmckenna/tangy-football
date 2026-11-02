@@ -47,11 +47,11 @@ export interface EspnPlay {
 }
 
 /** A game's plays so far from ESPN's game summary, oldest first (empty if unavailable) */
-export async function gamePlays(espnId: string): Promise<EspnPlay[]> {
+export async function gamePlays(espnId: string, revalidate: number | false = 20): Promise<EspnPlay[]> {
   try {
     const d = await fetchJson<{ drives?: { previous?: Array<{ plays?: EspnRawPlay[] }>; current?: { plays?: EspnRawPlay[] } } }>(
       `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${espnId}`,
-      20
+      revalidate
     );
     const raw = [...(d.drives?.previous ?? []).flatMap((x) => x.plays ?? []), ...(d.drives?.current?.plays ?? [])];
     return raw

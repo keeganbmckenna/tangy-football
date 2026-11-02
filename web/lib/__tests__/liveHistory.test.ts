@@ -47,45 +47,37 @@ describe('live win history', () => {
     expect(await readSnapshots('2026', 8)).toBeNull();
   });
 
-  it('saves big moments between saves with each snapshot, and shows them on the history', async () => {
-    const { saveSnapshot, readSnapshots } = await import('../liveHistory');
-    const starters = [{ matchupId: 1, a: ['q'], b: ['r'] }];
-    await saveSnapshot('2026', 7, { odds: odds(0.5, 10, 8), live: { pts: { q: 10, r: 8 }, starters, nameOf: (id) => id } });
-    store.strings.delete('win:2026:7:lock');
-    await saveSnapshot('2026', 7, { odds: odds(0.72, 17, 8), live: { pts: { q: 17, r: 8 }, starters, nameOf: (id) => id } });
-    const history = await readSnapshots('2026', 7);
-    expect(history?.times).toHaveLength(2);
-    expect(history?.matchups[0].events).toEqual([expect.objectContaining({ desc: null, before: 0.5, after: 0.72, players: [{ side: 'a', name: 'q', pts: 7, id: 'q' }] })]);
+  // One starter q (TEN) against r; a's odds rise 3 points per point q has over 10
+  const starters = [{ matchupId: 1, a: ['q'], b: ['r'] }];
+  const live = (q: number, plays: Array<{ t: number; text: string; scoring: boolean }>) => ({
+    pts: { q, r: 8 },
+    starters,
+    nameOf: (id: string) => (id === 'q' ? 'M. Lemon' : id),
+    teamOf: () => 'TEN',
+    plays: async () => ({ TEN: { plays, teams: ['TEN', 'CIN'] } }),
+    oddsWithout: (points: Record<string, number>) => ({ 1: Math.round((0.5 + (q - (points.q ?? 0) - 10) * 0.03) * 1000) / 1000 }),
   });
 
-  it('attaches the play behind a big moment when its game\'s play-by-play has it', async () => {
+  it('saves each big moment with its play, and its own odds swing', async () => {
     const { saveSnapshot, readSnapshots } = await import('../liveHistory');
-    const starters = [{ matchupId: 1, a: ['q'], b: ['r'] }];
-    const describe = async () => ({ t: 1_700_000_000, text: '(Shotgun) T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.' });
-    await saveSnapshot('2026', 8, { odds: odds(0.5, 10, 8), live: { pts: { q: 10, r: 8 }, starters, nameOf: (id) => id, describe } });
+    const now = Math.round(Date.now() / 1000);
+    const td = { t: now - 20, text: '(Shotgun) T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.', scoring: true };
+    await saveSnapshot('2026', 8, { odds: odds(0.5, 10, 8), live: live(10, []) });
     store.strings.delete('win:2026:8:lock');
-    await saveSnapshot('2026', 8, { odds: odds(0.72, 17, 8), live: { pts: { q: 17, r: 8 }, starters, nameOf: (id) => id, describe } });
+    await saveSnapshot('2026', 8, { odds: odds(0.71, 17, 8), live: live(17, [td]) });
     const history = await readSnapshots('2026', 8);
-    expect(history?.matchups[0].events?.[0]).toMatchObject({ t: 1_700_000_000, desc: 'T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.' });
+    expect(history?.times).toHaveLength(2);
+    expect(history?.matchups[0].events).toEqual([
+      expect.objectContaining({ t: td.t, desc: 'T.McKee pass short right to M.Lemon for 4 yards, TOUCHDOWN.', before: 0.5, after: 0.71, players: [{ side: 'a', name: 'M. Lemon', pts: 7, id: 'q' }] }),
+    ]);
   });
 
-  it("starts a moment's search after the player's last play, and works out the odds only with the save", async () => {
-    const { saveSnapshot } = await import('../liveHistory');
-    const starters = [{ matchupId: 1, a: ['q'], b: ['r'] }];
-    const sinces: number[] = [];
-    const playTimes: number[] = [];
-    const describe = async (_e: unknown, since: number) => {
-      sinces.push(since);
-      playTimes.push(Math.round(Date.now() / 1000) - 5);
-      return { t: playTimes[playTimes.length - 1], text: 'q runs for 40 yards.' };
-    };
-    const save = (o: number, q: number) => saveSnapshot('2026', 9, { odds: odds(o, q, 8), live: { pts: { q, r: 8 }, starters, nameOf: (id) => id, describe } });
-    await save(0.5, 10);
+  it('never shows a moment without its play, and works out the odds only with the save', async () => {
+    const { saveSnapshot, readSnapshots } = await import('../liveHistory');
+    await saveSnapshot('2026', 9, { odds: odds(0.5, 10, 8), live: live(10, []) });
     store.strings.delete('win:2026:9:lock');
-    await save(0.72, 17);
-    store.strings.delete('win:2026:9:lock');
-    await save(0.85, 24);
-    expect(sinces[1]).toBe(playTimes[0] + 1);
+    await saveSnapshot('2026', 9, { odds: odds(0.71, 17, 8), live: live(17, []) });
+    expect((await readSnapshots('2026', 9))?.matchups[0].events).toEqual([]);
     // Within the interval, the odds aren't worked out at all
     const build = vi.fn(async () => ({ odds: odds(0.9, 30, 8) }));
     expect(await saveSnapshot('2026', 9, build)).toBe(false);

@@ -193,7 +193,7 @@ export default function WinSwing(props: WinSwingProps) {
           {pl.helpsLeft ? a.name : b.name} {percent(pl.helpsLeft ? pl.before : 1 - pl.before)} → {percent(pl.helpsLeft ? pl.after : 1 - pl.after)}
         </span>
       </div>
-      <div className="mt-0.5 text-[var(--foreground)]">{pl.desc ? cleanPlay(pl.desc) : 'Points changed (saved live, before the play-by-play)'}</div>
+      <div className="mt-0.5 text-[var(--foreground)]">{pl.desc && cleanPlay(pl.desc)}</div>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[var(--muted)]">
         {pl.players.map((p) => (
           <span key={`${p.side}-${p.name}`}>

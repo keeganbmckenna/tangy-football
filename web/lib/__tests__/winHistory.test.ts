@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveEvents, matchPlay, playersInPlay, type PlayEvent } from '../winHistory';
+import { biggestPlays, cleanPlay, dropRetractions, isBigPlay, liveMoments, matchPlay, PENDING_SECONDS, playersInPlay, type PlayEvent } from '../winHistory';
 
 const ev = (t: number, players: PlayEvent['players'], before = 0.5, after = 0.5): PlayEvent => ({ t, desc: null, players, before, after });
 
@@ -55,14 +55,68 @@ describe('big plays', () => {
 });
 
 describe('live events', () => {
-  const matchups = [{ matchupId: 1, a: ['q', 'w'], b: ['r'] }];
-  it('records what changed between two saves when it is big', () => {
-    const out = liveEvents({ t: 0, pts: { q: 10, w: 5, r: 8 }, odds: { 1: 0.5 } }, { t: 120, pts: { q: 14.4, w: 12.1, r: 8 }, odds: { 1: 0.7 } }, matchups, (id) => id.toUpperCase());
-    expect(out).toHaveLength(1);
-    expect(out[0].event).toMatchObject({ t: 120, desc: null, before: 0.5, after: 0.7 });
-    expect(out[0].event.players).toEqual([{ side: 'a', name: 'Q', pts: 4.4, id: 'q' }, { side: 'a', name: 'W', pts: 7.1, id: 'w' }]);
-    // Nothing big: nothing saved
-    expect(liveEvents({ t: 0, pts: { q: 10 }, odds: { 1: 0.5 } }, { t: 120, pts: { q: 11 }, odds: { 1: 0.52 } }, matchups, (id) => id)).toEqual([]);
+  // q and w (BUF) for a, r (KC) for b; a's odds move 2 points per point of a's starters
+  const matchups = [{ matchupId: 1, a: ['q', 'w', 'BUF'], b: ['r'] }];
+  const names: Record<string, string> = { q: 'J. Allen', w: 'D. Moore', r: 'P. Mahomes', BUF: 'Buffalo Bills' };
+  const team: Record<string, string> = { q: 'BUF', w: 'BUF', r: 'KC', BUF: 'BUF' };
+  const ctx = (now: Record<string, number>, plays: Array<{ t: number; text: string; scoring: boolean }>) => ({
+    nameOf: (id: string) => names[id],
+    teamOf: (id: string) => team[id],
+    plays: { BUF: { plays, teams: ['BUF', 'BAL'] } },
+    oddsWithout: (pts: Record<string, number>) => ({
+      1: Math.round((0.5 + 0.02 * ((now.q ?? 0) + (now.w ?? 0) - (pts.q ?? 0) - (pts.w ?? 0) - 15)) * 1000) / 1000,
+    }),
+  });
+  const prev = { t: 1000, pts: { q: 10, w: 5, r: 8, BUF: 0 }, odds: { 1: 0.5 } };
+
+  it('gives each play its own moment and odds swing, with everyone it names', () => {
+    const now = { t: 1180, pts: { q: 16, w: 16.1, r: 8, BUF: 0 } };
+    const plays = [
+      { t: 1050, text: 'D.Moore pass from J.Allen for 49 yards to BAL 5.', scoring: false },
+      { t: 1120, text: 'J.Allen pass short left to D.Moore for 11 yards, TOUCHDOWN.', scoring: true },
+    ];
+    const { events, state } = liveMoments(prev, now, matchups, ctx(now.pts, plays));
+    // Allen's 6 points and Moore's 11.1 both match the touchdown (worth a touchdown each)
+    expect(events).toHaveLength(1);
+    expect(events[0].event).toMatchObject({ t: 1120, before: 0.5, after: 0.842 });
+    expect(events[0].event.players.map((p) => p.name)).toEqual(['J. Allen', 'D. Moore']);
+    expect(state.played).toEqual({ q: 1120, w: 1120 });
+    expect(state.pts).toEqual(now.pts);
+  });
+
+  it('holds a gain whose play is not in yet, then gives it its play', () => {
+    const now = { t: 1180, pts: { q: 10, w: 12.1, r: 8, BUF: 0 } };
+    const first = liveMoments(prev, now, matchups, ctx(now.pts, []));
+    expect(first.events).toEqual([]);
+    // Not counted yet, so the next save sees the whole gain
+    expect(first.state.pts.w).toBe(5);
+    expect(first.state.pending?.w).toEqual({ first: 1180, since: 1000 });
+    const later = { t: 1240, pts: now.pts };
+    const play = { t: 1100, text: 'J.Allen pass deep right to D.Moore for 71 yards.', scoring: false };
+    const second = liveMoments(first.state, later, matchups, ctx(later.pts, [play]));
+    expect(second.events[0].event).toMatchObject({ t: 1100, desc: play.text, players: [{ name: 'D. Moore', pts: 7.1 }] });
+    expect(second.state.pending).toEqual({});
+  });
+
+  it('gives up on a play after a while, showing nothing', () => {
+    const now = { t: 1180, pts: { q: 10, w: 12.1, r: 8, BUF: 0 } };
+    const held = { ...prev, pending: { w: { first: 1180 - PENDING_SECONDS, since: 1000 } } };
+    const { events, state } = liveMoments(held, now, matchups, ctx(now.pts, []));
+    expect(events).toEqual([]);
+    expect(state.pts.w).toBe(12.1);
+  });
+
+  it('keeps a big unexplained loss without a play, to cancel a score taken back', () => {
+    const now = { t: 1180, pts: { q: 10, w: -2, r: 8, BUF: 0 } };
+    const { events } = liveMoments(prev, now, matchups, ctx(now.pts, []));
+    expect(events).toEqual([{ matchupId: 1, event: expect.objectContaining({ desc: null, players: [{ side: 'a', name: 'D. Moore', pts: -7, id: 'w' }] }) }]);
+  });
+
+  it("puts a defense's points on its game's play", () => {
+    const now = { t: 1180, pts: { q: 10, w: 5, r: 8, BUF: 6 } };
+    const plays = [{ t: 1100, text: 'L.Jackson pass intercepted by T.Bernard, returned for a TOUCHDOWN.', scoring: true }];
+    const { events } = liveMoments(prev, now, matchups, ctx(now.pts, plays));
+    expect(events[0].event).toMatchObject({ t: 1100, players: [{ name: 'Buffalo Bills', pts: 6 }] });
   });
 
   it('drops a score that was taken back, and the take-back', () => {

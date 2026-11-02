@@ -7,7 +7,6 @@ import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, TeamStats } from '@/lib/types';
 import { allowedPoints, liveWinOdds, scoreSpread, type LiveGame } from '@/lib/analyze/live';
 import { saveSnapshot } from '@/lib/liveHistory';
-import { matchPlay } from '@/lib/winHistory';
 import { gamePlays, liveMatchups, scoreboard } from '@/lib/liveData';
 import { allowedScoring, fetchJson, starterProjections } from '@/lib/liveProjections';
 
@@ -65,16 +64,30 @@ export async function saveLiveOdds(
           const p = projections[id];
           return p ? (p.position === 'DEF' ? p.name : p.name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ')) : id;
         },
-        // The play behind a big moment, from ESPN's play-by-play of the moving player's game
-        describe: async (event, since) => {
-          const top = [...event.players].sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts))[0];
-          const p = top?.id ? projections[top.id] : undefined;
-          const espnId = p?.team ? games[p.team]?.espnId : undefined;
-          if (!p || p.position === 'DEF' || !espnId) return null;
-          const lastName = p.name.split(' ').filter((w) => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(w)).pop() ?? '';
-          const play = matchPlay(event, await gamePlays(espnId), lastName, since);
-          const opponent = games[p.team!]?.opponent;
-          return play && { ...play, teams: opponent ? [p.team!, opponent] : [p.team!] };
+        teamOf: (id: string) => projections[id]?.team ?? (/^[A-Z]{2,3}$/.test(id) ? id : null),
+        // Each game's plays straight from ESPN, so a play that just happened is there to match
+        plays: async (teams: string[]) => {
+          const ids = [...new Set(teams.map((t) => games[t]?.espnId).filter((x): x is string => !!x))];
+          const fetched = new Map(await Promise.all(ids.map(async (id) => [id, await gamePlays(id, false)] as const)));
+          return Object.fromEntries(
+            teams.flatMap((t) => {
+              const g = games[t];
+              const plays = g?.espnId ? fetched.get(g.espnId) : undefined;
+              return plays ? [[t, { plays, teams: g.opponent ? [t, g.opponent] : [t] }]] : [];
+            })
+          );
+        },
+        // The odds with some starters' points taken away, for each moment's swing
+        oddsWithout: (points: Record<string, number>) => {
+          const adjusted = matchups.map((m) => {
+            const moved = (m.starters ?? []).filter((id) => points[id]);
+            if (!moved.length) return m;
+            const players_points = { ...m.players_points };
+            for (const id of moved) players_points[id] = (players_points[id] ?? 0) - points[id];
+            return { ...m, players_points, points: (m.points ?? 0) - moved.reduce((s, id) => s + points[id], 0) };
+          });
+          const o = liveWinOdds(adjusted, projections, games, spread, { allowed, allowedScoring: allowedScoring(scoring) });
+          return Object.fromEntries(o.map((x) => [x.matchupId, x.aWinOdds]));
         },
       },
     };

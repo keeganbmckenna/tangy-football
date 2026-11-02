@@ -146,39 +146,129 @@ export function cleanPlay(desc: string): string {
 /** What a live save sees: each starter's points and each matchup's odds at a moment */
 export interface LiveState {
   t: number;
+  /** Each starter's points as far as big moments have accounted for them (a gain still waiting for its play stays out) */
   pts: Record<string, number>;
   odds: Record<number, number>;
   /** The time of each starter's latest play given to a big moment (live saves) */
   played?: Record<string, number>;
+  /** Starters with a gain still waiting for its play: when it was first seen, and the save before */
+  pending?: Record<string, { first: number; since: number }>;
 }
 
+/** A gain whose play isn't in ESPN's play-by-play yet is looked for again for this long */
+export const PENDING_SECONDS = 5 * 60;
+
+/** The plays of a team's game, and its two teams */
+export type GamePlays = Record<string, { plays: Array<{ t: number; text: string; scoring: boolean }>; teams: string[] }>;
+
+const isTeam = (id: string) => /^[A-Z]{2,3}$/.test(id);
+const lastNameOf = (name: string) => name.split(' ').filter((w) => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(w)).pop() ?? '';
+
 /**
- * Big moments between two live saves, per matchup: live saves don't see plays, only each
- * starter's points every 30 seconds or so, so an event is everything that changed in between
- * (desc null), kept when it's big (isBigPlay)
+ * Big moments between two live saves, one per play: each starter whose points moved is matched to
+ * his play in his game's play-by-play (matchPlay), starters named in the same play share it, and a
+ * defense joins a play in its game (or its game's latest scoring play). Each moment's odds swing
+ * takes away the points of it and of every later moment from the current points
+ * (oddsWithout: each matchup's a odds with those points taken away). A gain without its play yet
+ * is held back (not counted as seen) and looked for again for PENDING_SECONDS; after that, or for
+ * a loss, it gets no moment, except a loss big enough to be a score taken back, which is kept
+ * without a play (desc null) so dropRetractions can cancel the score. Returns the moments worth
+ * keeping (isBigPlay, or desc null) and the state to measure the next save from.
  */
-export function liveEvents(
+export function liveMoments(
   prev: LiveState,
-  now: LiveState,
+  now: { t: number; pts: Record<string, number> },
   matchups: Array<{ matchupId: number; a: string[]; b: string[] }>,
-  nameOf: (id: string) => string
-): Array<{ matchupId: number; event: PlayEvent }> {
-  const out: Array<{ matchupId: number; event: PlayEvent }> = [];
-  for (const m of matchups) {
-    const before = prev.odds[m.matchupId];
-    const after = now.odds[m.matchupId];
-    if (before === undefined || after === undefined) continue;
-    const players: PlayEvent['players'] = [];
-    for (const [side, ids] of [['a', m.a], ['b', m.b]] as const) {
-      for (const id of ids) {
-        const pts = Math.round(((now.pts[id] ?? 0) - (prev.pts[id] ?? 0)) * 10) / 10;
-        if (Math.abs(pts) >= 0.1) players.push({ side, name: nameOf(id), pts, id });
-      }
-    }
-    const event: PlayEvent = { t: now.t, desc: null, players, before, after };
-    if (players.length && isBigPlay(event)) out.push({ matchupId: m.matchupId, event });
+  ctx: {
+    nameOf: (id: string) => string;
+    teamOf: (id: string) => string | null;
+    plays: GamePlays;
+    oddsWithout: (points: Record<string, number>) => Record<number, number>;
   }
-  return out;
+): { events: Array<{ matchupId: number; event: PlayEvent }>; state: LiveState } {
+  const ids = [...new Set(matchups.flatMap((m) => [...m.a, ...m.b]))];
+  const pts: Record<string, number> = {};
+  const played = { ...prev.played };
+  const pending: NonNullable<LiveState['pending']> = {};
+  // Points to take away for each play (by key), and those no play accounts for
+  const byPlay = new Map<string, { t: number; text: string; teams: string[]; points: Record<string, number> }>();
+  const unexplained: Record<string, number> = {};
+  const give = (play: { t: number; text: string }, teams: string[], id: string, delta: number) => {
+    const key = `${play.t}|${play.text}`;
+    const entry = byPlay.get(key) ?? { t: play.t, text: play.text, teams, points: {} };
+    entry.points[id] = delta;
+    byPlay.set(key, entry);
+  };
+  const defenses: string[] = [];
+  for (const id of ids) {
+    const delta = Math.round(((now.pts[id] ?? 0) - (prev.pts[id] ?? 0)) * 10) / 10;
+    pts[id] = now.pts[id] ?? 0;
+    if (Math.abs(delta) < 0.1) continue;
+    if (isTeam(id)) {
+      defenses.push(id);
+      continue;
+    }
+    const game = ctx.plays[ctx.teamOf(id) ?? ''];
+    const held = prev.pending?.[id];
+    const since = Math.max((held?.since ?? prev.t) - PLAY_LOOKBACK_SECONDS, (played[id] ?? -Infinity) + 1);
+    const name = ctx.nameOf(id);
+    const play = game && matchPlay({ t: now.t, desc: null, players: [{ side: 'a', name, pts: delta }], before: 0, after: 0 }, game.plays, lastNameOf(name), since);
+    if (play) {
+      give(play, game.teams, id, delta);
+      played[id] = play.t;
+    } else if (delta > 0 && now.t - (held?.first ?? now.t) < PENDING_SECONDS) {
+      // Not in the play-by-play yet: next save looks again, from the same points
+      pts[id] = prev.pts[id] ?? 0;
+      pending[id] = held ?? { first: now.t, since: prev.t };
+    } else {
+      unexplained[id] = delta;
+    }
+  }
+  // A defense: with a play in its game this save, or else its game's latest scoring play
+  for (const id of defenses) {
+    const delta = Math.round(((now.pts[id] ?? 0) - (prev.pts[id] ?? 0)) * 10) / 10;
+    const inGame = [...byPlay.values()].filter((p) => p.teams.includes(id)).sort((x, y) => y.t - x.t)[0];
+    const game = ctx.plays[id];
+    const scored = game?.plays.filter((p) => p.scoring && p.t > prev.t - PLAY_LOOKBACK_SECONDS && p.t <= now.t && !/no play/i.test(p.text)).pop();
+    if (inGame) inGame.points[id] = delta;
+    else if (scored && game) give(scored, game.teams, id, delta);
+    else unexplained[id] = delta;
+  }
+
+  const plays = [...byPlay.values()].sort((x, y) => x.t - y.t);
+  // Points still to take away from now: what no play accounts for, and gains held for their play
+  const base: Record<string, number> = { ...unexplained };
+  for (const id of Object.keys(pending)) base[id] = (now.pts[id] ?? 0) - (prev.pts[id] ?? 0);
+  const without = (from: number) => {
+    const points = { ...base };
+    for (const p of plays.slice(from)) for (const [id, d] of Object.entries(p.points)) points[id] = (points[id] ?? 0) + d;
+    return ctx.oddsWithout(points);
+  };
+  const odds = plays.map((_, k) => without(k));
+  const after = [...odds.slice(1), without(plays.length)];
+  const current = ctx.oddsWithout({});
+
+  const events: Array<{ matchupId: number; event: PlayEvent }> = [];
+  for (const m of matchups) {
+    const side = (id: string) => (m.a.includes(id) ? 'a' : m.b.includes(id) ? 'b' : null);
+    plays.forEach((p, k) => {
+      const players: PlayEvent['players'] = [];
+      for (const [id, d] of Object.entries(p.points)) {
+        const s = side(id);
+        if (s) players.push({ side: s, name: ctx.nameOf(id), pts: d, id });
+      }
+      if (!players.length || odds[k][m.matchupId] === undefined) return;
+      const event: PlayEvent = { t: p.t, desc: cleanPlay(p.text), players, before: odds[k][m.matchupId], after: after[k][m.matchupId], teams: p.teams };
+      if (isBigPlay(event)) events.push({ matchupId: m.matchupId, event });
+    });
+    // A loss that may be a score taken back: kept without a play, only to cancel the score
+    const lost: PlayEvent['players'] = Object.entries(unexplained)
+      .filter(([id, d]) => d <= -RETRACTED_POINTS && side(id))
+      .map(([id, d]) => ({ side: side(id)!, name: ctx.nameOf(id), pts: d, id }));
+    const o = current[m.matchupId];
+    if (lost.length && o !== undefined) events.push({ matchupId: m.matchupId, event: { t: now.t, desc: null, players: lost, before: o, after: o } });
+  }
+  return { events, state: { t: now.t, pts, odds: current, played, pending } };
 }
 
 /** A loss this big can be a score taken back */

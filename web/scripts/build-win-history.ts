@@ -92,7 +92,16 @@ async function kickoffs(season: string, week: number): Promise<Map<string, numbe
   );
 }
 
-async function buildWeek(league: SleeperLeague, week: number, scoring: Record<string, number>, inProgress = false): Promise<WinHistory | null> {
+/**
+ * A week's win history, and the starters whose games it plays to the end (by ID and by name as
+ * the charts show it), which live saves after it can't count again
+ */
+async function buildWeek(
+  league: SleeperLeague,
+  week: number,
+  scoring: Record<string, number>,
+  inProgress = false
+): Promise<{ history: WinHistory; finished: string[] } | null> {
   const path = join(TIMELINES, league.season, `${week}.json`);
   if (!existsSync(path)) {
     console.log(`${league.season} week ${week}: no timeline (run scripts/build_play_timelines.py), skipped`);
@@ -255,11 +264,18 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
       JSON.stringify({ matchups: [...series.entries()].map(([id, s]) => ({ id, a: s.a, b: s.b, rows: diag.get(id) ?? [] })) })
     );
   }
+  const finished = starterIds.filter((id) => {
+    const g = teamGame.get(teamOf(id) ?? '');
+    return g && g.snaps[g.snaps.length - 1][0] < until;
+  });
   return {
-    season: league.season,
-    week,
-    times: sampled,
-    matchups: [...series.entries()].map(([matchupId, s]) => ({ matchupId, ...s })),
+    history: {
+      season: league.season,
+      week,
+      times: sampled,
+      matchups: [...series.entries()].map(([matchupId, s]) => ({ matchupId, ...s })),
+    },
+    finished: [...finished, ...finished.map(nameOf)],
   };
 }
 
@@ -277,18 +293,18 @@ async function main() {
     const last = league.settings?.last_scored_leg ?? 0;
     if (current) {
       const week = league.settings?.leg ?? 0;
-      const history = week > last ? await buildWeek(league, week, scoring, true) : null;
-      if (!history) {
+      const built = week > last ? await buildWeek(league, week, scoring, true) : null;
+      if (!built) {
         console.log(`${season}: no week in progress`);
         continue;
       }
-      const saved = await replaceSnapshots(history);
-      console.log(`${season} week ${week} (in progress): ${history.times.length} points ${saved ? 'saved to Redis' : 'NOT saved (no Redis credentials?)'}`);
+      const saved = await replaceSnapshots(built.history, built.finished);
+      console.log(`${season} week ${week} (in progress): ${built.history.times.length} points ${saved ? 'saved to Redis' : 'NOT saved (no Redis credentials?)'}`);
       continue;
     }
     const all = Array.from({ length: last }, (_, k) => k + 1);
     for (const week of onlyWeeks ?? (recent ? all.slice(-recent) : all)) {
-      const history = await buildWeek(league, week, scoring);
+      const history = (await buildWeek(league, week, scoring))?.history;
       if (!history) continue;
       mkdirSync(join(OUT, season), { recursive: true });
       writeFileSync(join(OUT, season, `${week}.json`), JSON.stringify(history));

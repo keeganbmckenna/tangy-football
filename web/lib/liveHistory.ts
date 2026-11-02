@@ -10,7 +10,7 @@
  */
 
 import type { LiveMatchupOdds } from '@/lib/analyze/live';
-import { BIG_PLAYS_KEPT, biggestPlays, cleanPlay, dropRetractions, liveEvents, PLAY_LOOKBACK_SECONDS, playersInPlay, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
+import { BIG_PLAYS_KEPT, biggestPlays, cleanPlay, dropRetractions, liveMoments, playersInPlay, type GamePlays, type LiveState, type PlayEvent, type WinHistory } from '@/lib/winHistory';
 
 /** At most one snapshot per this many seconds (a big moment covers what changed in between) */
 const EVERY_SECONDS = 30;
@@ -63,8 +63,12 @@ export interface SaveInput {
     pts: Record<string, number>;
     starters: MatchupStarters[];
     nameOf: (id: string) => string;
-    /** The play behind a big moment, from its game's play-by-play (matchPlay), when it can be found */
-    describe?: (event: PlayEvent, since: number) => Promise<{ t: number; text: string; teams?: string[] } | null>;
+    /** A starter's NFL team (a defense's is its ID) */
+    teamOf: (id: string) => string | null;
+    /** The play-by-play of these teams' games so far, by team */
+    plays: (teams: string[]) => Promise<GamePlays>;
+    /** Each matchup's a odds with these starters' points taken away from now */
+    oddsWithout: (points: Record<string, number>) => Record<number, number>;
   };
 }
 
@@ -94,30 +98,17 @@ export async function saveSnapshot(season: string, week: number, input: SaveInpu
   ];
   if (live) {
     const prev = typeof lock[1] === 'string' ? (JSON.parse(lock[1]) as LiveState) : null;
-    const now: LiveState = {
-      t,
-      pts: live.pts,
-      odds: Object.fromEntries(odds.map((o) => [o.matchupId, Math.round(o.aWinOdds * 1000) / 1000])),
-      played: { ...prev?.played },
-    };
-    const events = prev ? liveEvents(prev, now, live.starters, live.nameOf) : [];
-    // Each big moment's play, when its game's play-by-play has it: its text and time. The search
-    // starts after the player's last play already given to a moment, so one play isn't given twice.
-    if (prev && live.describe) {
-      await Promise.all(
-        events.map(async ({ event }) => {
-          const top = [...event.players].sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts))[0];
-          const after = top?.id ? prev.played?.[top.id] : undefined;
-          const since = Math.max(prev.t - PLAY_LOOKBACK_SECONDS, after === undefined ? -Infinity : after + 1);
-          const play = await live.describe!(event, since).catch(() => null);
-          if (!play) return;
-          Object.assign(event, playersInPlay({ ...event, t: play.t, desc: cleanPlay(play.text), teams: play.teams }));
-          if (top.id) now.played![top.id] = Math.max(now.played![top.id] ?? 0, play.t);
-        })
-      );
+    let state: LiveState = { t, pts: live.pts, odds: live.oddsWithout({}), played: {} };
+    let events: Array<{ matchupId: number; event: PlayEvent }> = [];
+    if (prev) {
+      // Only the games of starters whose points moved
+      const moved = Object.keys(live.pts).filter((id) => Math.abs(live.pts[id] - (prev.pts[id] ?? 0)) >= 0.1);
+      const teams = [...new Set(moved.map(live.teamOf).filter((x): x is string => !!x))];
+      const plays = await live.plays(teams).catch(() => ({}));
+      ({ events, state } = liveMoments(prev, { t, pts: live.pts }, live.starters, { nameOf: live.nameOf, teamOf: live.teamOf, plays, oddsWithout: live.oddsWithout }));
     }
     if (events.length) commands.push(['RPUSH', `${k}:events`, ...events.map((e) => JSON.stringify(e))], ['EXPIRE', `${k}:events`, KEEP_SECONDS]);
-    commands.push(['SET', `${k}:state`, JSON.stringify(now), 'EX', KEEP_SECONDS]);
+    commands.push(['SET', `${k}:state`, JSON.stringify(state), 'EX', KEEP_SECONDS]);
   }
   return !!(await redis(commands));
 }
@@ -154,16 +145,20 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
       matchups.set(matchupId, m);
     }
   });
-  for (const m of matchups.values()) m.events = biggestPlays(dropRetractions(events.get(m.matchupId) ?? []), BIG_PLAYS_KEPT);
+  // Only moments with their play: one without (a score taken back, or saved before plays were
+  // matched one by one) says nothing about what happened
+  for (const m of matchups.values()) m.events = biggestPlays(dropRetractions(events.get(m.matchupId) ?? []).filter((e) => e.desc), BIG_PLAYS_KEPT);
   return { season, week, times: snapshots.map((s) => s.t), matchups: [...matchups.values()] };
 }
 
 /**
  * Replace the week's saved snapshots up to the end of a replay with the replay's own points
  * (scripts/build-win-history.ts --current): the week in progress, rebuilt from the play-by-play
- * for the games played so far. Snapshots saved live after the replay's last point are kept.
+ * for the games played so far. Snapshots saved live after the replay's last point are kept, and
+ * their big moments unless one counts a starter whose game the replay finished (finished: IDs
+ * and names), whose points it already has.
  */
-export async function replaceSnapshots(history: WinHistory): Promise<boolean> {
+export async function replaceSnapshots(history: WinHistory, finished: string[] = []): Promise<boolean> {
   const k = key(history.season, history.week);
   const end = history.times[history.times.length - 1] ?? 0;
   // A whole week in one write: more time than a live save gets
@@ -174,7 +169,14 @@ export async function replaceSnapshots(history: WinHistory): Promise<boolean> {
   // Without the saved points, replacing them could drop the live ones after the replay's end
   if (!res) return false;
   const later = ((res?.[0] as string[] | undefined) ?? []).filter((r) => (JSON.parse(r) as Snapshot).t > end);
-  const laterEvents = ((res?.[1] as string[] | undefined) ?? []).filter((r) => (JSON.parse(r) as { event: PlayEvent }).event.t > end);
+  // The first live save after the replay measured its moments from a save the replay replaces,
+  // so they repeat the replay's plays: kept only from the save after it on
+  const firstLater = Math.min(...later.map((r) => (JSON.parse(r) as Snapshot).t));
+  const done = new Set(finished);
+  const laterEvents = ((res?.[1] as string[] | undefined) ?? []).filter((r) => {
+    const { event } = JSON.parse(r) as { event: PlayEvent };
+    return event.t > firstLater && !event.players.some((p) => done.has(p.id ?? '') || done.has(p.name));
+  });
   const replayed = history.times.map((t, i) =>
     JSON.stringify({ t, m: history.matchups.map((m) => [m.matchupId, m.a, m.b, m.odds[i], m.scores[i][0], m.scores[i][1]]) } satisfies Snapshot)
   );
