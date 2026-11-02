@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
 import { percent } from '@/lib/format';
 import type { DefenseContext, LiveGame, LiveProjection, MatchupModel } from '@/lib/analyze/live';
@@ -14,6 +15,17 @@ import {
   type SideKey,
 } from '@/lib/analyze/whatItTakes';
 import type { SleeperMatchup } from '@/lib/types';
+
+/** Remembers, per viewer, whether the panel is collapsed */
+const OPEN_KEY = 'tangy-football:what-it-takes-open';
+
+const readOpen = () => {
+  try {
+    return window.localStorage.getItem(OPEN_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+};
 
 /** Players listed under "Who swings it" */
 const SWINGS_SHOWN = 6;
@@ -50,6 +62,16 @@ interface Props {
 export default function WhatItTakes({ model, leftRosterId, names, matchups, projections, games, slots, defense }: Props) {
   const left: SideKey = model.a.s.rosterId === leftRosterId ? 'a' : 'b';
   const sides: SideKey[] = [left, left === 'a' ? 'b' : 'a'];
+  // Open unless this viewer collapsed it
+  const [open, setOpen] = useState(readOpen);
+  const toggle = (next: boolean) => {
+    setOpen(next);
+    try {
+      window.localStorage.setItem(OPEN_KEY, String(next));
+    } catch {
+      // Not remembered (private browsing): it still toggles
+    }
+  };
   if (sides.every((k) => playersLeft(model[k]) === 0)) return null;
   const sideOdds = (k: SideKey) => (k === 'a' ? model.aWinOdds : 1 - model.aWinOdds);
   const name = (k: SideKey) => names.get(model[k].s.rosterId) ?? `Team ${model[k].s.rosterId}`;
@@ -58,12 +80,27 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
     const game = p?.team ? games[p.team] : undefined;
     return { name: p?.name ?? id, position: p?.position ?? '', team: p?.team ?? '', game };
   };
+  const heading = (
+    <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold uppercase tracking-wider text-[var(--muted)] [&::-webkit-details-marker]:hidden">
+      What it takes
+      <span aria-hidden className={`inline-block text-sm transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
+    </summary>
+  );
+  const box = 'mx-1.5 mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm';
+  // Collapsed: just the heading, without working anything out
+  if (!open) {
+    return (
+      <details className={box} aria-label="What it takes" open={false} onToggle={(e) => e.currentTarget.open && toggle(true)}>
+        {heading}
+      </details>
+    );
+  }
   const swings = playerSwings(model).filter((s) => Math.abs(s.aSwing) >= 0.005).slice(0, SWINGS_SHOWN);
   const openSwaps = sides.map((k) => ({ k, list: swaps(model, k, matchups, projections, games, slots, defense).slice(0, SWAPS_SHOWN) }));
 
   return (
-    <section className="mx-1.5 mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm" aria-label="What it takes">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">What it takes</h3>
+    <details className={box} aria-label="What it takes" open onToggle={(e) => !e.currentTarget.open && toggle(false)}>
+      {heading}
 
       <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {sides.map((k) => {
@@ -181,6 +218,6 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
         (about a third of the time a player adds nothing more); swings are the win odds with a good rest of the game against a bad one.
         {openSwaps.some((x) => x.list.length > 0) && ' Swaps are for players whose games haven’t started, and mostly follow the projections.'}
       </p>
-    </section>
+    </details>
   );
 }
