@@ -1,8 +1,10 @@
 # While NFL games are on, loads the site's Live data every 5 minutes so each matchup's win odds
 # are saved for the week's win-probability chart (web/lib/liveHistory.ts) even when nobody has
-# the Live tab open. /api/live saves at most one snapshot every 2 minutes, and only while a game
+# the Live tab open. /api/live saves at most one snapshot every 30 seconds, and only while a game
 # is in progress, so a ping outside the games does nothing. Times are UTC and cover both
-# daylight and standard time; GitHub can run scheduled jobs late or skip them when busy.
+# daylight and standard time; GitHub can run scheduled jobs late or skip them when busy, and does
+# for this one, so this is the backup: the main ping is an Upstash QStash schedule that pings every 3 minutes while games are on
+# (scripts/live_ping_schedule.sh).
 name: Live ping
 
 on:

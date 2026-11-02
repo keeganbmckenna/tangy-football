@@ -12,8 +12,11 @@ import type { SleeperMatchup } from './types';
 // falls back, and the next poll tries again)
 export const UPSTREAM_TIMEOUT_MS = 5000;
 
-const fetchJson = async <T,>(url: string, revalidate: number): Promise<T> => {
-  const response = await fetch(url, { next: { revalidate }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+// revalidate false: straight from upstream. A cached copy past its time is served once more while
+// it refreshes, so with minutes between requests it is minutes old
+const fetchJson = async <T,>(url: string, revalidate: number | false): Promise<T> => {
+  const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
+  const response = await fetch(url, revalidate === false ? { cache: 'no-store', signal } : { next: { revalidate }, signal });
   if (!response.ok) throw new Error(`Request failed (${response.status}): ${url}`);
   return response.json() as Promise<T>;
 };
@@ -34,7 +37,7 @@ const kickoff = (iso?: string) =>
   iso ? `${new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }).replace(',', '')} ET` : '';
 
 // ESPN's codes that differ from Sleeper's
-const ESPN_TEAM: Record<string, string> = { WSH: 'WAS' };
+export const ESPN_TEAM: Record<string, string> = { WSH: 'WAS' };
 
 /** A play from ESPN's play-by-play: its wall-clock time (Unix seconds), text, and whether it scored */
 export interface EspnPlay {
@@ -67,7 +70,7 @@ interface EspnRawPlay {
 }
 
 /** Each NFL team's game this week from ESPN's public scoreboard (null if unavailable) */
-export async function scoreboard(season: string, week: number, revalidate = 5): Promise<Record<string, LiveGame> | null> {
+export async function scoreboard(season: string, week: number, revalidate: number | false = 5): Promise<Record<string, LiveGame> | null> {
   try {
     const { events } = await fetchJson<{ events: EspnEvent[] }>(
       `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${season}`,
@@ -114,18 +117,20 @@ export async function scoreboard(season: string, week: number, revalidate = 5): 
 
 /**
  * This week's matchups with points from Sleeper's live player stats (cached 30 seconds on
- * Sleeper's side, against 60 for matchup scores), or Sleeper's own points if stats fail.
+ * Sleeper's side, against 60 for matchup scores), or Sleeper's own points if stats fail. Fresh:
+ * uncached.
  */
 export async function liveMatchups(
   leagueId: string,
   season: string,
   week: number,
-  scoring: Record<string, number>
+  scoring: Record<string, number>,
+  fresh = false
 ): Promise<{ matchups: SleeperMatchup[]; allowed: Record<string, number>; stats: Record<string, StatLine> }> {
   const { baseUrl } = SLEEPER_CONFIG;
   const [matchups, stats] = await Promise.all([
-    fetchJson<SleeperMatchup[]>(`${baseUrl}/league/${leagueId}/matchups/${week}`, 20),
-    fetchJson<Record<string, Record<string, number>>>(`${baseUrl}/stats/nfl/regular/${season}/${week}`, 10).catch((error) => {
+    fetchJson<SleeperMatchup[]>(`${baseUrl}/league/${leagueId}/matchups/${week}`, fresh ? false : 20),
+    fetchJson<Record<string, Record<string, number>>>(`${baseUrl}/stats/nfl/regular/${season}/${week}`, fresh ? false : 10).catch((error) => {
       console.error('Live stats unavailable:', error);
       return null;
     }),

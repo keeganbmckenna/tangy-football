@@ -8,7 +8,7 @@ import type { SleeperLeague, SleeperMatchup, TeamStats } from '@/lib/types';
 import { allowedPoints, liveWinOdds, scoreSpread, type LiveGame } from '@/lib/analyze/live';
 import { saveSnapshot } from '@/lib/liveHistory';
 import { matchPlay } from '@/lib/winHistory';
-import { gamePlays } from '@/lib/liveData';
+import { gamePlays, liveMatchups, scoreboard } from '@/lib/liveData';
 import { allowedScoring, fetchJson, starterProjections } from '@/lib/liveProjections';
 
 /** The spread the Live tab's odds use: the season's week-to-week spread through the last scored week */
@@ -33,6 +33,14 @@ export async function saveLiveOdds(
   if (!games || week <= lastScoredWeek || !matchups.length || !Object.values(games).some((g) => g.state === 'in')) return;
   await saveSnapshot(league.season, week, async () => {
     const scoring = league.scoring_settings ?? {};
+    // The save's own uncached scores and clocks: what the route answered with can be a cached copy
+    // from the request before, minutes old when the only requests are the scheduled pings
+    const [current, games] = await Promise.all([
+      liveMatchups(SLEEPER_CONFIG.leagueId, league.season, week, scoring, true),
+      scoreboard(league.season, week, false),
+    ]);
+    if (!games) return null;
+    const { matchups, allowed } = current;
     const [projections, spread] = await Promise.all([
       starterProjections(league.season, week, lastScoredWeek, matchups, games, scoring),
       seasonSpread(SLEEPER_CONFIG.baseUrl, SLEEPER_CONFIG.leagueId, lastScoredWeek),

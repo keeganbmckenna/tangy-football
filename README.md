@@ -227,7 +227,7 @@ From `web/`: `npx tsc --noEmit` type-checks, `npm run lint` lints, `npx vitest r
 | [CI](.github/workflows/ci.yml) | Every push to `main` and every pull request | Type check, lint, tests and build of the web app; Python compile check |
 | [Prediction log](.github/workflows/prediction-log.yml) | Wednesdays, and before Thursday, Sunday and Monday kickoffs | Saves the site's odds and every player's injury status to the `prediction-log` branch for the 2026 evaluation |
 | [Archive seasons](.github/workflows/archive-seasons.yml) | Every March 15 | Adds the newly completed season to `data/sleeper/` |
-| [Live ping](.github/workflows/live-ping.yml) | Every 5 minutes during NFL game windows, September to January | Loads `/api/live` so each matchup's win odds are saved to Redis for the in-progress week's chart |
+| [Live ping](.github/workflows/live-ping.yml) | Every 5 minutes during NFL game windows, September to January | Backup for the QStash schedule ([scripts/live_ping_schedule.sh](scripts/live_ping_schedule.sh)): once a day `/api/live/plan` reads the day's kickoffs from ESPN and queues a ping of `/api/live` every 3 minutes only while games can be on, so each matchup's win odds are saved to Redis for the in-progress week's chart; GitHub runs this one late or skips it |
 | [Win history](.github/workflows/win-history.yml) | Tuesdays, Wednesdays and Fridays, September to January | Replays the latest two scored weeks play by play into `web/public/data/win-history/` (each matchup's win odds through the week) |
 
 ## Deployment

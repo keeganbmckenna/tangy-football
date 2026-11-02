@@ -25,6 +25,7 @@ import { allowedPoints, gameRemaining, liveWinOdds, scoreSpread, type LiveGame }
 import { allowedScoring, starterProjections } from '../lib/liveProjections';
 import { replaceSnapshots } from '../lib/liveHistory';
 import { teamsPlaying } from '../lib/oddsData';
+import { ESPN_TEAM } from '../lib/liveData';
 import { BIG_PLAYS_KEPT, biggestPlays, cleanPlay, type PlayEvent, type WinHistory } from '../lib/winHistory';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -81,7 +82,17 @@ function at<T extends [number, ...unknown[]]>(series: T[] | undefined, t: number
   return series[lo];
 }
 
-async function buildWeek(league: SleeperLeague, week: number, scoring: Record<string, number>): Promise<WinHistory | null> {
+/** Each team's kickoff (Unix seconds) in a week, from ESPN's scoreboard */
+async function kickoffs(season: string, week: number): Promise<Map<string, number>> {
+  const { events } = await getJson<{ events: Array<{ date: string; competitions: Array<{ competitors: Array<{ team: { abbreviation: string } }> }> }> }>(
+    `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${season}`
+  );
+  return new Map(
+    events.flatMap((e) => (e.competitions[0]?.competitors ?? []).map((c) => [ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation, Date.parse(e.date) / 1000] as const))
+  );
+}
+
+async function buildWeek(league: SleeperLeague, week: number, scoring: Record<string, number>, inProgress = false): Promise<WinHistory | null> {
   const path = join(TIMELINES, league.season, `${week}.json`);
   if (!existsSync(path)) {
     console.log(`${league.season} week ${week}: no timeline (run scripts/build_play_timelines.py), skipped`);
@@ -121,7 +132,11 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     for (let t = start; t < end; t += STEP) times.add(Math.round(t / STEP) * STEP);
     times.add(end);
   }
-  const sampled = [...times].sort((a, b) => a - b);
+  // The week in progress: only up to the first kickoff the play-by-play doesn't have yet, since
+  // the replay would show that game as not started (the live snapshots after it are kept)
+  const kicked = inProgress ? await kickoffs(league.season, week) : new Map<string, number>();
+  const until = Math.min(...unplayed.map((t) => kicked.get(t) ?? Infinity));
+  const sampled = [...times].filter((t) => t < until).sort((a, b) => a - b);
 
   const gameAt = (team: string, t: number): LiveGame | null => {
     const g = teamGame.get(team);
@@ -204,7 +219,7 @@ async function buildWeek(league: SleeperLeague, week: number, scoring: Record<st
     const name = projections[id]?.name ?? id;
     return projections[id]?.position === 'DEF' ? name : name.replace(/^(\S)\S*\s+(?=\S)/, '$1. ');
   };
-  for (const [t, desc, home, away] of tl.plays ?? []) {
+  for (const [t, desc, home, away] of (tl.plays ?? []).filter(([t]) => t < until)) {
     // Only this play's game (another game's play at the same second isn't part of it), and a player
     // only if the play names him (two plays in one game can share a second); defenses go unnamed
     const text = desc.toLowerCase();
@@ -262,7 +277,7 @@ async function main() {
     const last = league.settings?.last_scored_leg ?? 0;
     if (current) {
       const week = league.settings?.leg ?? 0;
-      const history = week > last ? await buildWeek(league, week, scoring) : null;
+      const history = week > last ? await buildWeek(league, week, scoring, true) : null;
       if (!history) {
         console.log(`${season}: no week in progress`);
         continue;

@@ -51,3 +51,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch live data from Sleeper API' }, { status: 500 });
   }
 }
+
+// QStash's scheduled pings (lib/livePing.ts) may arrive as POSTs
+export const POST = GET;
