@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { biggestSwing, firstSide, leadChanges, oriented, type ShareMatchup } from '../shareData';
-import { imageType } from '../shareImage';
+import { imageType, oddsSegments } from '../shareImage';
 import { readLinkTarget } from '../urlState';
 import type { WinHistoryMatchup } from '../winHistory';
 
@@ -75,5 +75,14 @@ describe('share cards', () => {
     expect(firstSide('3')).toBe(3);
     expect(firstSide(null)).toBeNull();
     expect(firstSide('x')).toBeNull();
+  });
+
+  it("splits the odds line where it crosses 50%, so each piece takes one team's color", () => {
+    // 0.7 -> 0.3 crosses halfway between the two samples
+    const pieces = oddsSegments([0.7, 0.3, 0.2], 100, 100);
+    expect(pieces.map(([, above]) => above)).toEqual([true, false]);
+    expect(pieces[0][0]).toBe('0.0,30.0 25.0,50.0');
+    expect(pieces[1][0]).toBe('25.0,50.0 50.0,70.0 100.0,80.0');
+    expect(oddsSegments([0.6, 0.8], 10, 10)).toHaveLength(1);
   });
 });

@@ -20,7 +20,33 @@ const C = {
   win: '#22c55e',
   loss: '#ef4444',
   live: '#ef4444',
+  // Each team's color on the odds line, as the site's chart: left (a) while favored, right (b) while it is
+  teamA: '#3b82f6',
+  teamB: '#f59e0b',
 };
+
+/**
+ * a's odds as line pieces, each wholly above or below 50% (split where the line crosses it), so each
+ * can take its team's color: [points, above] in the chart's pixels
+ */
+export function oddsSegments(odds: number[], width: number, height: number): Array<[string, boolean]> {
+  const x = (i: number) => (i / Math.max(odds.length - 1, 1)) * width;
+  const y = (p: number) => (1 - p) * height;
+  const out: Array<[Array<[number, number]>, boolean]> = [];
+  odds.forEach((p, i) => {
+    const above = p >= 0.5;
+    const last = out[out.length - 1];
+    if (last && last[1] !== above && i > 0) {
+      // Where the line crosses 50% between the two samples: both pieces end there
+      const q = odds[i - 1];
+      const cross = [x(i - 1) + ((0.5 - q) / (p - q)) * (x(i) - x(i - 1)), y(0.5)] as [number, number];
+      last[0].push(cross);
+      out.push([[cross], above]);
+    } else if (!last) out.push([[], above]);
+    out[out.length - 1][0].push([x(i), y(p)]);
+  });
+  return out.map(([pts, above]) => [pts.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' '), above]);
+}
 
 const pct = (p: number) => (p >= 1 ? '100%' : p <= 0 ? '0%' : p > 0.995 ? '>99%' : p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`);
 const ordinal = (n: number) => {
@@ -145,24 +171,23 @@ function TeamBlock({ t, src, right, won, odds }: { t: ShareTeam; src: string | n
   );
 }
 
-/** a's chance to win through the week as a line: above the dashed 50% line, a is favored */
-function OddsLine({ odds, a, width, height }: { odds: number[]; a: string; width: number; height: number }) {
-  const n = odds.length;
-  const last = odds[n - 1];
+/** a's chance to win through the week: above the dashed 50% line in a's color (a favored), below in b's */
+function OddsLine({ odds, a, b, width, height }: { odds: number[]; a: string; b: string; width: number; height: number }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', color: C.muted, fontSize: 20, letterSpacing: 1.5 }}>{`${clip(a, 30).toUpperCase()}'S CHANCE TO WIN THROUGH THE WEEK`}</div>
+      <div style={{ display: 'flex', color: C.muted, fontSize: 20, letterSpacing: 1.5 }}>
+        WIN ODDS THROUGH THE WEEK:
+        <span style={{ color: C.teamA, fontWeight: 700, marginLeft: 12 }}>{clip(a, 22).toUpperCase()}</span>
+        <span style={{ margin: '0 8px' }}>ABOVE 50%,</span>
+        <span style={{ color: C.teamB, fontWeight: 700 }}>{clip(b, 22).toUpperCase()}</span>
+        <span style={{ marginLeft: 8 }}>BELOW</span>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
         <svg width={width - 70} height={height} viewBox={`0 0 ${width - 70} ${height}`}>
           <line x1="0" y1={height / 2} x2={width - 70} y2={height / 2} stroke={C.border} strokeWidth="2" strokeDasharray="8 8" />
-          <polyline
-            points={odds.map((p, i) => `${((i / Math.max(n - 1, 1)) * (width - 70)).toFixed(1)},${((1 - p) * height).toFixed(1)}`).join(' ')}
-            fill="none"
-            stroke={last >= 0.5 ? C.win : C.loss}
-            strokeWidth="5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          {oddsSegments(odds, width - 70, height).map(([pts, above], i) => (
+            <polyline key={i} points={pts} fill="none" stroke={above ? C.teamA : C.teamB} strokeWidth="5" strokeLinejoin="round" strokeLinecap="round" />
+          ))}
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height, marginLeft: 12, color: C.muted, fontSize: 18 }}>
           <div style={{ display: 'flex' }}>100%</div>
@@ -192,7 +217,7 @@ export async function matchupImage(m: ShareMatchup): Promise<ImageResponse> {
           <TeamBlock t={m.a} src={pa} right={false} won={final && m.a.score > m.b.score} odds={!final && now !== null ? now : null} />
           <TeamBlock t={m.b} src={pb} right won={final && m.b.score > m.a.score} odds={!final && now !== null ? 1 - now : null} />
         </div>
-        {m.odds && m.odds.length > 1 ? <OddsLine odds={m.odds} a={m.a.name} width={1088} height={m.swing ? 80 : 140} /> : <div style={{ display: 'flex' }} />}
+        {m.odds && m.odds.length > 1 ? <OddsLine odds={m.odds} a={m.a.name} b={m.b.name} width={1088} height={m.swing ? 80 : 140} /> : <div style={{ display: 'flex' }} />}
         {m.swing ? <Swing swing={m.swing} /> : <div style={{ display: 'flex' }} />}
       </div>
     ),

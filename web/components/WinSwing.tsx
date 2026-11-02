@@ -4,7 +4,6 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Area, AreaChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fetchFirst, useSharedFetch } from '@/hooks/useSharedFetch';
-import { RESULT_DOT_COLORS } from '@/lib/constants';
 import { biggestPlays, cleanPlay, type WinHistory } from '@/lib/winHistory';
 import { percent } from '@/lib/format';
 
@@ -162,8 +161,8 @@ export default function WinSwing(props: WinSwingProps) {
     const last = plays[g[g.length - 1]];
     return last.after !== first.before ? last.after > first.before : first.helpsLeft;
   };
-  const markerColor = (helpsLeft: boolean) =>
-    view === 'score' ? (helpsLeft ? A_COLOR : B_COLOR) : helpsLeft ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L;
+  // Each team's color in both views: a play for the left team is blue, for the right amber
+  const markerColor = (helpsLeft: boolean) => (helpsLeft ? A_COLOR : B_COLOR);
   // The big-play group under the pointer: its lines plus 8px either side, the closest if two overlap
   const groupAt = (e: MouseEvent<HTMLDivElement>): number | null => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -286,12 +285,17 @@ export default function WinSwing(props: WinSwingProps) {
           ) : (
             <AreaChart data={points} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
               <defs>
-                {/* In the chart's own pixels (80 high, 2 of top margin), so the split sits on the 50% line */}
+                {/* In the chart's own pixels (2 of top margin), so the split sits on the 50% line: the
+                    left team's color while it's favored, the right team's while it is */}
                 <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2={chartHeight}>
-                  <stop offset="0%" stopColor={RESULT_DOT_COLORS.W} stopOpacity={0.45} />
-                  <stop offset="50%" stopColor={RESULT_DOT_COLORS.W} stopOpacity={0.08} />
-                  <stop offset="50%" stopColor={RESULT_DOT_COLORS.L} stopOpacity={0.08} />
-                  <stop offset="100%" stopColor={RESULT_DOT_COLORS.L} stopOpacity={0.45} />
+                  <stop offset="0%" stopColor={A_COLOR} stopOpacity={0.4} />
+                  <stop offset="50%" stopColor={A_COLOR} stopOpacity={0.06} />
+                  <stop offset="50%" stopColor={B_COLOR} stopOpacity={0.06} />
+                  <stop offset="100%" stopColor={B_COLOR} stopOpacity={0.4} />
+                </linearGradient>
+                <linearGradient id={`${id}-line`} gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2={chartHeight}>
+                  <stop offset="50%" stopColor={A_COLOR} />
+                  <stop offset="50%" stopColor={B_COLOR} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="i" type="number" domain={[0, points.length - 1]} hide />
@@ -299,7 +303,7 @@ export default function WinSwing(props: WinSwingProps) {
               <ReferenceLine y={50} stroke="var(--border)" strokeDasharray="3 3" />
               {dayLines}
               <Tooltip isAnimationActive={false} cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }} content={tooltip} />
-              <Area type="monotone" dataKey="p" stroke="var(--foreground)" strokeWidth={1.25} fill={`url(#${id})`} baseValue={50} isAnimationActive={false} />
+              <Area type="monotone" dataKey="p" stroke={`url(#${id}-line)`} strokeWidth={1.75} fill={`url(#${id})`} baseValue={50} isAnimationActive={false} />
             </AreaChart>
           )}
         </ResponsiveContainer>
@@ -362,8 +366,8 @@ export default function WinSwing(props: WinSwingProps) {
           </>
         ) : (
           <>
-            <span className="truncate">↑ {a.name}</span>
-            <span className="truncate">↓ {b.name}</span>
+            <span className="truncate" style={{ color: A_COLOR }}>↑ {a.name}</span>
+            <span className="truncate" style={{ color: B_COLOR }}>↓ {b.name}</span>
           </>
         )}
       </div>
