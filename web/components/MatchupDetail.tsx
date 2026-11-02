@@ -224,11 +224,13 @@ interface Props {
   footnote?: ReactNode;
   /** Shown above the lineups, e.g. how the win odds swung */
   chart?: ReactNode;
+  /** Shown under the chart, e.g. what it takes to win */
+  panel?: ReactNode;
   onClose: () => void;
 }
 
 /** Both lineups of a matchup, slot by slot (and the benches, when given), in a dialog */
-export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, onClose }: Props) {
+export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, panel, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -298,6 +300,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
         </div>
         <div className="overflow-y-auto px-1 pb-4 sm:px-3">
           {chart}
+          {panel}
           <table className="w-full table-fixed">
             <colgroup>
               <col />

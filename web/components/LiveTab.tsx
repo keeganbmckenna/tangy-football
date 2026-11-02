@@ -9,6 +9,7 @@ import TeamAvatar from '@/components/ui/TeamAvatar';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import WinSwing from '@/components/WinSwing';
+import WhatItTakes, { needText } from '@/components/WhatItTakes';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
@@ -22,7 +23,7 @@ import {
   liveMatchupStatus,
   livePlayAll,
   liveLineup,
-  liveWinOdds,
+  matchupModels,
   gameMatchup,
   isRuledOut,
   scoreSpread,
@@ -30,6 +31,7 @@ import {
   liveTeamStats,
   liveWeekNumber,
   type LiveMatchupOdds,
+  type MatchupModel,
   type LiveScoresData,
   type LiveSide,
   type LiveWeekData,
@@ -37,6 +39,7 @@ import {
 } from '@/lib/analyze/live';
 import type { LeagueData, TeamStats } from '@/lib/types';
 import { percent } from '@/lib/format';
+import { needLine } from '@/lib/analyze/whatItTakes';
 
 // While a week is in progress and the tab is visible: scores and game clocks every 10
 // seconds while an NFL game is being played (once a minute between games), and the rest
@@ -92,10 +95,13 @@ function LiveMatchups({
   names,
   username,
   avatar,
+  models,
   myRosterId,
   onOpen,
 }: {
   odds: LiveMatchupOdds[];
+  /** The model behind each matchup's odds, by matchup, for what the side behind needs */
+  models: Map<number, MatchupModel>;
   names: Map<number, string>;
   username: (rosterId: number) => string;
   avatar: (rosterId: number) => string | null;
@@ -109,6 +115,8 @@ function LiveMatchups({
         const a = m.aWinOdds;
         // The bar keeps a sliver of each side (the numbers stay exact), so the favorite shows at >99%
         const bar = Math.min(Math.max(a, MIN_BAR_SHARE), 1 - MIN_BAR_SHARE);
+        const model = models.get(m.matchupId);
+        const need = model && needLine(model);
         return (
           <button
             type="button"
@@ -129,6 +137,9 @@ function LiveMatchups({
               </div>
               <span className="w-9 text-right" style={{ color: a <= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(1 - a)}</span>
             </div>
+            {need && model && (
+              <div className="mt-1.5 text-center text-xs text-[var(--foreground)]">{needText(need, names.get(model[need.side].s.rosterId) ?? `Team ${model[need.side].s.rosterId}`)}</div>
+            )}
             <div className="mt-1.5 text-center text-[11px] text-[var(--muted)]">Tap for lineups</div>
           </button>
         );
@@ -244,11 +255,13 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       ])
     );
     // My matchup first, with me on the left (in its lineups too)
-    const odds = live.projections && live.games
-      ? myLiveMatchupFirst(liveWinOdds(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek), { allowed: live.allowed, allowedScoring: live.allowedScoring }), me.rosterId)
+    const models = live.projections && live.games
+      ? matchupModels(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek), { allowed: live.allowed, allowedScoring: live.allowedScoring })
       : null;
+    const odds = models ? myLiveMatchupFirst(models.map(({ matchupId, a, b, aWinOdds, sd }) => ({ matchupId, a: a.s, b: b.s, aWinOdds, sd })), me.rosterId) : null;
     return {
       odds,
+      models: new Map((models ?? []).map((m) => [m.matchupId, m])),
       playAll: livePlayAll(teams, week),
       standings,
       annotations,
@@ -370,12 +383,14 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       };
       const a = m && side(m.a, m.aWinOdds);
       const b = m && side(m.b, 1 - m.aWinOdds);
+      const model = view.models.get(openMatchup);
+      const slots = (leagueData.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR');
       return a && b ? (
         <MatchupDetail
           title={`${a.name} vs ${b.name}`}
           a={a}
           b={b}
-          slots={(leagueData.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
+          slots={slots}
           footnote="Projected finals are points so far plus each player's projection for the share of his game left; for a finished game, his projection from before it. Bench players don't count toward the score. Injury statuses from Sleeper."
           chart={
             <WinSwing
@@ -388,6 +403,20 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
               now={{ odds: m.aWinOdds, sa: m.a.score, sb: m.b.score }}
             />
           }
+          panel={
+            model && (
+              <WhatItTakes
+                model={model}
+                leftRosterId={m.a.rosterId}
+                names={view.names}
+                matchups={live.matchups}
+                projections={projections}
+                games={games}
+                slots={slots}
+                defense={defense}
+              />
+            )
+          }
           onClose={closeMatchup}
         />
       ) : null;
@@ -399,7 +428,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       <div>
         <div className="px-4 pt-4 sm:px-6">{statusBar}</div>
         {view.odds ? (
-          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
+          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} models={view.models} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
         ) : (
           <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
         )}
@@ -426,7 +455,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       >
         <div className="px-6 pt-4">{statusBar}</div>
         {view.odds ? (
-          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
+          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} models={view.models} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
         ) : (
           <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
         )}

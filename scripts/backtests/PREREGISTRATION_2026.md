@@ -292,3 +292,63 @@ made pivotal end-game moments worse in 4 of 6 seasons, 2020-2025).
   10): the blend must improve on scale 1.0 alone by >= 0.01 with an interval excluding 0, and not
   worsen the primary score by more than 0.0005. Any part that fails is removed for 2027.
 - Reported whatever the result, in LOG.md and FINDINGS.md.
+
+## Addendum (2026-11-01): test 8, game state in a player's remaining-points range, set before it runs
+
+For the Live tab's "What it takes" panel, which shows each remaining player's range of points
+still to come (the 25th-75th percentile of the shipped player tables, remainingPoints.json). The
+exploration (live_state.py) found receivers' remaining points move strongly with the score (a WR
+up 17+ in the 3rd quarter scores 0.57 of his remaining projection, down 9-16 1.32). Game state
+failed for the matchup odds (rung 4, 0 of 8); this asks only whether it sharpens one player's
+range. It does not touch the 2026 odds, which stay frozen for the season-end confirmation.
+- **Baseline (shipped L6 tables).** 64 quantiles of r = points from then on / (half-PPR projection
+  x share left), by position (QB, RB, WR, TE, K), projection bin (under 8, 8-14, 14+) and share-left
+  bin (the shipped 6), as live_sim.py builds them.
+- **Candidate (G).** The same with a fifth dimension while the game is on (share left under 0.95):
+  his team's score margin, in 5 buckets (-17 or worse, -16 to -9, -8 to +8, +9 to +16, +17 or
+  better). A cell with under 200 moments falls back to the baseline's cell. Share left already
+  stands for the quarter. Nothing else changes.
+- **Fit and data.** live_state.parquet, the same filters as live_sim.py. Tables fitted on 2020-2025
+  leaving the scored season out (2018 and 2019 are scored with tables from all of 2020-2025), as the
+  site's tables are.
+- **Score.** Quantile (pinball) loss averaged over the 64 levels with live_sim.py's weights (a CRPS),
+  in points: each quantile x projection x share left against the points actually scored from then
+  on, over in-game moments (share left 0.02-0.95), averaged per player-game, then over player-games.
+  95% interval by resampling player-games (1,000 draws).
+- **Rule.** G is better if the pooled 2020-2025 loss falls by at least 1% with an interval
+  excluding 0, and it is lower in at least 6 of the 8 seasons. Also reported: coverage of the 25-75
+  range (target 50%) and the 10-90 range (target 80%), overall and for receivers with the score
+  9+ either way, for both.
+- **If G passes**, it becomes a candidate for the 2027 live model (the odds and the panel together,
+  so they never disagree), tested then on the matchup odds; in 2026 the panel shows the shipped
+  model's ranges with a game-script note. If it fails, the note stays and G is dropped.
+  Test 8 result (2026-11-01): **G fails, narrowly.** Lower loss in 8 of 8 seasons (2018 -0.43%,
+  2019 -0.71%, 2020-2025 -0.80% to -1.17%), but pooled 2020-2025 -0.98% [-1.09%, -0.88%], short of
+  the 1% bar. Dropped as written; the panel keeps the shipped ranges and a game-script note. The
+  same margin buckets can be proposed again for 2027's live ladder, scored on the matchup odds.
+
+## Addendum (2026-11-01, later): test 9, finer projection bins in the player tables, set before it runs
+
+Found while building the panel: the shipped tables' lowest projection bin (under 8 half-PPR)
+mixes players projected 1 point with ones projected 7.5. Before kickoff, 2020-2025, a WR projected
+6.5-8 scored half a point or less 7% of the time; the table gives 33% (TE 7% vs 31%, RB 5% vs
+22%), and its median is 0.57 of the projection against 0.79 actual. Overall calibration (the
+randomized PIT above) hid it, because the bins' errors cancel.
+- **Candidate (F).** The same tables with projection bins at 2, 4, 6, 8, 11, 14 and 18 half-PPR
+  points (8 bins) instead of 8 and 14; a cell with under 200 moments falls back to the shipped
+  cell. Nothing else changes.
+- **Score and data.** As test 8 (pinball loss over the 64 quantiles per player-game, tables fitted
+  on 2020-2025 leaving the scored season out, 1,000 player-game resamples), over every moment with
+  share left 0.02 or more (before kickoff included, since that is where the bins matter most). Also
+  reported: P(half a point or less) by projection band, table against actual.
+- **Rule for the panel.** F replaces the panel's player ranges if pooled 2020-2025 loss falls by
+  at least 1% with an interval excluding 0 and it is lower in at least 6 of 8 seasons.
+- **The odds.** The one-sided odds use the same tables, and they are frozen for the season-end
+  confirmation. A pass is reported to the owner, who decides whether the odds take F now (a logged
+  deviation, as for the hybrid) or in 2027; until then the panel's ranges and the odds would use
+  different tables, and the panel says so.
+  Test 9 result (2026-11-01): **F fails the bar, narrowly, while fixing what prompted it.** Lower
+  loss in 8 of 8 seasons (2018 -0.20%, 2019 -0.37%, 2020-2025 -0.46% to -0.95%); pooled 2020-2025
+  -0.79% [-0.86%, -0.71%], short of 1%. WRs projected 6-8 before kickoff scoring half a point or
+  less: actual 7-12% (2020-2025), shipped tables 31-33%, F 10.9%. Not adopted as written; the
+  panel and the odds keep the shipped tables, and the choice of a logged deviation is the owner's.

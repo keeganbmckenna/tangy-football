@@ -426,64 +426,139 @@ export function liveWinOdds(
   spread: number,
   defense: DefenseContext = {}
 ): LiveMatchupOdds[] {
-  const starters = (m: SleeperMatchup) =>
-    (m.starters ?? [])
-      .filter((id) => id !== '0' && projections[id])
-      .map((id) => ({ id, p: projections[id], g: projections[id].team ? games[projections[id].team!] : undefined }));
+  return matchupModels(matchups, projections, games, spread, defense).map(({ matchupId, a, b, aWinOdds, sd }) => ({ matchupId, a: a.s, b: b.s, aWinOdds, sd }));
+}
 
+/** A starter still to play, as the live model counts him */
+export interface PlayerTerm {
+  id: string;
+  /** Points he's still expected to add (a defense's can be negative) */
+  add: number;
+  /** His share of the margin's variance */
+  variance: number;
+  /** Share of his game left */
+  remaining: number;
+  /** His entry in the one-sided distributions: a player's or a defense's */
+  player?: RemainingPlayer;
+  defense?: RemainingDefense;
+}
+
+/** One side of a matchup as the live model sees it */
+export interface SideModel {
+  s: LiveSide;
+  /** Variance of its points still to come */
+  variance: number;
+  players: RemainingPlayer[];
+  defenses: RemainingDefense[];
+  terms: PlayerTerm[];
+}
+
+/** A matchup as the live model sees it: both sides, the weight on the one-sided distributions and a's odds */
+export interface MatchupModel {
+  matchupId: number;
+  a: SideModel;
+  b: SideModel;
+  /** Weight on remainingPointsOdds (simulationWeight) */
+  weight: number;
+  aWinOdds: number;
+  sd: number;
+  /** The variance scale shared by every lineup this week (for trying other lineups) */
+  scale: number;
+}
+
+type Starter = { id: string; p: LiveProjection; g: LiveGame | undefined };
+
+const startersOf = (m: SleeperMatchup, projections: Record<string, LiveProjection>, games: Record<string, LiveGame>): Starter[] =>
+  (m.starters ?? [])
+    .filter((id) => id !== '0' && projections[id])
+    .map((id) => ({ id, p: projections[id], g: projections[id].team ? games[projections[id].team!] : undefined }));
+
+/** One side: what its starters still to play are expected to add and how much it could swing */
+export function sideModel(
+  m: SleeperMatchup,
+  sign: 1 | -1,
+  projections: Record<string, LiveProjection>,
+  games: Record<string, LiveGame>,
+  scale: number,
+  defense: DefenseContext
+): SideModel {
+  let left = 0;
+  let variance = 0;
+  let toPlay = 0;
+  let playing = 0;
+  // Its starters still to play, for the one-sided case (remainingPointsOdds)
+  const players: RemainingPlayer[] = [];
+  const defenses: RemainingDefense[] = [];
+  const terms: PlayerTerm[] = [];
+  for (const { id, p, g } of startersOf(m, projections, games)) {
+    const remaining = g ? g.remaining : 0;
+    const add = expectedAdd(id, p, m.players_points?.[id] ?? 0, g, defense);
+    const v = scale * (p.spreadRatio * p.points) ** 2 * remaining;
+    left += add;
+    variance += v;
+    if (g?.state === 'pre') toPlay++;
+    else if (g?.state === 'in') playing++;
+    if (remaining <= 0) continue;
+    const term: PlayerTerm = { id, add, variance: v, remaining };
+    if (p.defense && defense.allowedScoring) defenses.push((term.defense = { mean: add, sd: Math.sqrt(v), sign }));
+    else players.push((term.player = { position: p.position, projection: p.original ?? p.points, expected: p.points * remaining, remaining, sign }));
+    terms.push(term);
+  }
+  const score = m.points ?? 0;
+  return { s: { rosterId: m.roster_id, score, projected: score + left, toPlay, playing }, variance, players, defenses, terms };
+}
+
+/** a's chance of winning from both sides' models (the normal margin, blended into the one-sided distributions) */
+export function modelOdds(a: SideModel, b: SideModel): { aWinOdds: number; sd: number; weight: number } {
+  const diff = a.s.projected - b.s.projected;
+  const sd = Math.sqrt(a.variance + b.variance);
+  let aWinOdds = sd > 0.01 ? normalCdf(diff / sd) : diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
+  // As one team runs out of players to play, a normal curve puts real odds on the other's
+  // players losing points, which almost never happens: blend into their real distributions
+  // (remainingPointsOdds) as the smaller side's share of the remaining variance falls from 5% to
+  // 1%, gradually, so the odds don't jump when it takes over
+  const weight = simulationWeight(Math.min(a.variance, b.variance) / Math.max(a.variance + b.variance, 1e-9));
+  if (weight > 0) {
+    const lead = a.s.score - b.s.score;
+    aWinOdds = weight * remainingPointsOdds(lead, [...a.players, ...b.players], [...a.defenses, ...b.defenses]) + (1 - weight) * aWinOdds;
+  }
+  // Certain only once nobody is left to play: a huge lead with players still to go is >99%, not 100%
+  const left = a.s.toPlay + a.s.playing + b.s.toPlay + b.s.playing;
+  if (left > 0) aWinOdds = Math.min(1 - 1e-6, Math.max(1e-6, aWinOdds));
+  return { aWinOdds, sd, weight };
+}
+
+/**
+ * Each real matchup as the live model sees it (liveWinOdds' odds, with the parts behind them).
+ * Each starter still to play adds his projection times the share of his NFL game left (overtime
+ * included), and his own boom-or-bust spread over that share. Player spreads are scaled so an
+ * average lineup before kickoff has the model's single-week spread.
+ */
+export function matchupModels(
+  matchups: SleeperMatchup[],
+  projections: Record<string, LiveProjection>,
+  games: Record<string, LiveGame>,
+  spread: number,
+  defense: DefenseContext = {}
+): MatchupModel[] {
   // Calibrate: the average lineup's whole-game variance should match the model's spread
   const fullVariance = (spread * LIVE_SPREAD_SCALE) ** 2;
-  const lineupVariance = matchups.map((m) => starters(m).reduce((v, { p }) => v + (p.spreadRatio * p.points) ** 2, 0)).filter((v) => v > 0);
+  const lineupVariance = matchups
+    .map((m) => startersOf(m, projections, games).reduce((v, { p }) => v + (p.spreadRatio * p.points) ** 2, 0))
+    .filter((v) => v > 0);
   const scale = lineupVariance.length ? fullVariance / (lineupVariance.reduce((a, b) => a + b, 0) / lineupVariance.length) : 1;
 
-  const side = (m: SleeperMatchup, sign: 1 | -1) => {
-    let left = 0;
-    let variance = 0;
-    let toPlay = 0;
-    let playing = 0;
-    // Its starters still to play, for the one-sided case (remainingPointsOdds)
-    const players: RemainingPlayer[] = [];
-    const defenses: RemainingDefense[] = [];
-    for (const { id, p, g } of starters(m)) {
-      const remaining = g ? g.remaining : 0;
-      const add = expectedAdd(id, p, m.players_points?.[id] ?? 0, g, defense);
-      const v = scale * (p.spreadRatio * p.points) ** 2 * remaining;
-      left += add;
-      variance += v;
-      if (g?.state === 'pre') toPlay++;
-      else if (g?.state === 'in') playing++;
-      if (remaining <= 0) continue;
-      if (p.defense && defense.allowedScoring) defenses.push({ mean: add, sd: Math.sqrt(v), sign });
-      else players.push({ position: p.position, projection: p.original ?? p.points, expected: p.points * remaining, remaining, sign });
-    }
-    const score = m.points ?? 0;
-    return { s: { rosterId: m.roster_id, score, projected: score + left, toPlay, playing }, variance, players, defenses };
-  };
   const byId = new Map<number, SleeperMatchup[]>();
   for (const m of matchups) {
     if (m.matchup_id == null) continue;
     byId.set(m.matchup_id, [...(byId.get(m.matchup_id) ?? []), m]);
   }
-  const out: LiveMatchupOdds[] = [];
+  const out: MatchupModel[] = [];
   for (const [matchupId, pair] of byId) {
     if (pair.length !== 2) continue;
-    const [a, b] = [side(pair[0], 1), side(pair[1], -1)];
-    const diff = a.s.projected - b.s.projected;
-    const sd = Math.sqrt(a.variance + b.variance);
-    let aWinOdds = sd > 0.01 ? normalCdf(diff / sd) : diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
-    // As one team runs out of players to play, a normal curve puts real odds on the other's
-    // players losing points, which almost never happens: blend into their real distributions
-    // (remainingPointsOdds) as the smaller side's share of the remaining variance falls from 5% to
-    // 1%, gradually, so the odds don't jump when it takes over
-    const weight = simulationWeight(Math.min(a.variance, b.variance) / Math.max(a.variance + b.variance, 1e-9));
-    if (weight > 0) {
-      const lead = a.s.score - b.s.score;
-      aWinOdds = weight * remainingPointsOdds(lead, [...a.players, ...b.players], [...a.defenses, ...b.defenses]) + (1 - weight) * aWinOdds;
-    }
-    // Certain only once nobody is left to play: a huge lead with players still to go is >99%, not 100%
-    const left = a.s.toPlay + a.s.playing + b.s.toPlay + b.s.playing;
-    if (left > 0) aWinOdds = Math.min(1 - 1e-6, Math.max(1e-6, aWinOdds));
-    out.push({ matchupId, a: a.s, b: b.s, aWinOdds, sd });
+    const a = sideModel(pair[0], 1, projections, games, scale, defense);
+    const b = sideModel(pair[1], -1, projections, games, scale, defense);
+    out.push({ matchupId, a, b, scale, ...modelOdds(a, b) });
   }
   return out.sort((x, y) => x.matchupId - y.matchupId);
 }
@@ -514,10 +589,29 @@ export interface RemainingDefense {
   sign: 1 | -1;
 }
 
-const RP_STEP = 0.5;
+export const RP_STEP = 0.5;
 const RP = remainingPointsTables as { positions: string[]; projEdges: number[]; remEdges: number[]; weights: number[]; quantiles: number[][][][] };
 /** Edges at or below v (numpy's searchsorted, side right) */
 const binOf = (edges: number[], v: number) => edges.filter((e) => e <= v).length;
+
+/** The probability each table quantile stands for: the middle of its weight */
+const RP_LEVELS = RP.weights.map((w, i) => RP.weights.slice(0, i).reduce((t, x) => t + x, 0) + w / 2);
+
+/**
+ * A player's points still to come at this probability (0.25: a bad game, 0.75: a good one) from
+ * the same tables (remainingPoints.json), interpolated between quantiles; null for a position
+ * the tables don't cover. Held out by season, half of players land between the 0.25 and 0.75
+ * points and 80% between 0.1 and 0.9 (LOG.md, 2026-11-01).
+ */
+export function playerRemainingQuantile(pl: RemainingPlayer, prob: number): number | null {
+  const pi = RP.positions.indexOf(pl.position);
+  if (pi < 0) return null;
+  if (pl.expected <= 0 || pl.remaining <= 0) return 0;
+  const q = RP.quantiles[pi][binOf(RP.projEdges, pl.projection)][binOf(RP.remEdges, pl.remaining)];
+  const k = RP_LEVELS.findIndex((l) => l >= prob);
+  const r = k <= 0 ? q[k < 0 ? q.length - 1 : 0] : q[k - 1] + ((q[k] - q[k - 1]) * (prob - RP_LEVELS[k - 1])) / (RP_LEVELS[k] - RP_LEVELS[k - 1]);
+  return r * pl.expected;
+}
 
 /**
  * Team a's chance of winning from each starter's real distribution of points still to come,
@@ -531,6 +625,13 @@ const binOf = (edges: number[], v: number) => edges.filter((e) => e <= v).length
  * season, and 7-14% more accurate in one-sided close moments (live addendum test 7).
  */
 export function remainingPointsOdds(current: number, players: RemainingPlayer[], defenses: RemainingDefense[]): number {
+  let odds = 0;
+  for (const [b, p] of remainingDistribution(players, defenses)) odds += p * normalCdf((current + b * RP_STEP) / (RP_STEP / 2));
+  return odds;
+}
+
+/** The remaining margin's distribution (remainingPointsOdds): probability by half-point step from 0 */
+export function remainingDistribution(players: RemainingPlayer[], defenses: RemainingDefense[]): Map<number, number> {
   let dist = new Map<number, number>([[0, 1]]);
   const combine = (values: number[], weights: number[]) => {
     const out = new Map<number, number>();
@@ -568,9 +669,7 @@ export function remainingPointsOdds(current: number, players: RemainingPlayer[],
     const total = weights.reduce((a, w) => a + w, 0);
     combine(values, weights.map((w) => w / total));
   }
-  let odds = 0;
-  for (const [b, p] of dist) odds += p * normalCdf((current + b * RP_STEP) / (RP_STEP / 2));
-  return odds;
+  return dist;
 }
 
 /**

@@ -1,0 +1,186 @@
+'use client';
+
+import { RESULT_DOT_COLORS } from '@/lib/constants';
+import { percent } from '@/lib/format';
+import type { DefenseContext, LiveGame, LiveProjection, MatchupModel } from '@/lib/analyze/live';
+import {
+  expectedLeft,
+  gameScriptNote,
+  outcomes,
+  playerSwings,
+  playersLeft,
+  swaps,
+  target,
+  type SideKey,
+} from '@/lib/analyze/whatItTakes';
+import type { SleeperMatchup } from '@/lib/types';
+
+/** Players listed under "Who swings it" */
+const SWINGS_SHOWN = 6;
+/** Open swaps listed per team */
+const SWAPS_SHOWN = 3;
+
+const pts = (v: number) => v.toFixed(1);
+const players = (n: number) => `${n} player${n === 1 ? '' : 's'}`;
+
+/** The card's line: what the side with work to do needs (null when there's nothing to say) */
+export function needText(line: { need: number; players: number; expected: number; exact: boolean }, name: string): string {
+  return line.exact
+    ? `${name} needs ${pts(line.need)} from ${players(line.players)} (proj ${pts(line.expected)})`
+    : `${name} needs about ${pts(line.need)} from ${players(line.players)} to be favored (proj ${pts(line.expected)})`;
+}
+
+interface Props {
+  model: MatchupModel;
+  /** The team shown on the left (the dialog puts mine there) */
+  leftRosterId: number;
+  names: Map<number, string>;
+  matchups: SleeperMatchup[];
+  projections: Record<string, LiveProjection>;
+  games: Record<string, LiveGame>;
+  slots: string[];
+  defense: DefenseContext;
+}
+
+/**
+ * The Live matchup dialog's "What it takes": each team's target and its odds on a bad, typical
+ * or great rest of the week, the players who swing it most, and lineup swaps still open. All from
+ * the same model as the win odds (lib/analyze/whatItTakes.ts).
+ */
+export default function WhatItTakes({ model, leftRosterId, names, matchups, projections, games, slots, defense }: Props) {
+  const left: SideKey = model.a.s.rosterId === leftRosterId ? 'a' : 'b';
+  const sides: SideKey[] = [left, left === 'a' ? 'b' : 'a'];
+  if (sides.every((k) => playersLeft(model[k]) === 0)) return null;
+  const sideOdds = (k: SideKey) => (k === 'a' ? model.aWinOdds : 1 - model.aWinOdds);
+  const name = (k: SideKey) => names.get(model[k].s.rosterId) ?? `Team ${model[k].s.rosterId}`;
+  const player = (id: string) => {
+    const p = projections[id];
+    const game = p?.team ? games[p.team] : undefined;
+    return { name: p?.name ?? id, position: p?.position ?? '', team: p?.team ?? '', game };
+  };
+  const swings = playerSwings(model).filter((s) => Math.abs(s.aSwing) >= 0.005).slice(0, SWINGS_SHOWN);
+  const openSwaps = sides.map((k) => ({ k, list: swaps(model, k, matchups, projections, games, slots, defense).slice(0, SWAPS_SHOWN) }));
+
+  return (
+    <section className="mx-1.5 mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm" aria-label="What it takes">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">What it takes</h3>
+
+      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {sides.map((k) => {
+          const s = model[k];
+          const n = playersLeft(s);
+          if (n === 0) {
+            return (
+              <div key={k} className="min-w-0">
+                <div className="truncate font-semibold text-[var(--foreground)]">{name(k)}</div>
+                <p className="text-xs text-[var(--muted)]">Done: {pts(s.s.score)}</p>
+              </div>
+            );
+          }
+          const t = target(model, k)!;
+          return (
+            <div key={k} className="min-w-0">
+              <div className="truncate font-semibold text-[var(--foreground)]">{name(k)}</div>
+              <p className="text-[var(--foreground)]">
+                {t.exact ? (
+                  t.favored < 0 ? <>Already ahead: wins unless its players lose {pts(-t.favored)}</> : <>Needs <b>{pts(t.favored)}</b> to win</>
+                ) : t.favored <= 0 ? (
+                  <>Favored even if its players add nothing more</>
+                ) : (
+                  <>
+                    Needs about <b>{pts(t.favored)}</b> to be favored
+                    <span className="text-[var(--muted)]"> ({pts(Math.max(0, t.low))}–{pts(t.high)}, depending on the other side)</span>
+                  </>
+                )}
+              </p>
+              <p className="text-xs text-[var(--muted)]">from {players(n)} · projected to add {pts(expectedLeft(s))}</p>
+              {t.exact ? (
+                // The other side is done: the odds are just the chance of getting there
+                <p className="mt-1.5 text-xs tabular-nums text-[var(--muted)]">
+                  Chance of getting there:{' '}
+                  <span className="font-semibold" style={{ color: sideOdds(k) >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--foreground)' }}>{percent(sideOdds(k))}</span>
+                  {' '}(typical +{pts(outcomes(model, k)[1].adds)}, great day +{pts(outcomes(model, k)[2].adds)})
+                </p>
+              ) : (
+              <table className="mt-1.5 w-full text-xs tabular-nums">
+                <tbody>
+                  {outcomes(model, k).map((o) => (
+                    <tr key={o.label}>
+                      <td className="py-0.5 text-[var(--muted)]">{o.label}</td>
+                      <td className="py-0.5 text-right text-[var(--foreground)]">+{pts(o.adds)}</td>
+                      <td className="w-14 py-0.5 text-right font-semibold" style={{ color: o.odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>
+                        {percent(o.odds)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {swings.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-xs font-semibold text-[var(--muted)]">Who swings it most</h4>
+          <ul className="mt-1 divide-y divide-[var(--border)]">
+            {swings.map((s) => {
+              const p = player(s.id);
+              const note = gameScriptNote(p.position, p.game);
+              const swing = Math.abs(s.aSwing);
+              return (
+                <li key={s.id} className="py-1.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="font-medium text-[var(--foreground)]">{p.name}</span>{' '}
+                      <span className="text-xs text-[var(--muted)]">
+                        {p.position} · {name(s.side)}
+                        {p.game && ` · ${p.game.label}`}
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold tabular-nums text-[var(--foreground)]" title="Win odds with a good rest of the game against a bad one">
+                      ±{Math.round(swing * 100)}%
+                    </span>
+                  </div>
+                  <div className="text-xs tabular-nums text-[var(--muted)]">
+                    +{pts(s.expected)} expected, usually {pts(s.low)}–{pts(s.high)}
+                  </div>
+                  {note && <div className="text-xs italic text-[var(--warning-text)]">{note}</div>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {openSwaps.some((x) => x.list.length > 0) && (
+        <div className="mt-4">
+          <h4 className="text-xs font-semibold text-[var(--muted)]">Lineup swaps still open</h4>
+          <ul className="mt-1 space-y-1">
+            {openSwaps.flatMap(({ k, list }) =>
+              list.map((sw) => (
+                <li key={`${k}${sw.slot}${sw.in}`} className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 text-[var(--foreground)]">
+                    {name(k)}: start <b>{player(sw.in).name}</b>
+                    {sw.out !== '0' ? <> for {player(sw.out).name}</> : <> in the empty {slots[sw.slot]} slot</>}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums">
+                    <span className="text-[var(--muted)]">{percent(sw.before)} → </span>
+                    <span className="font-semibold" style={{ color: RESULT_DOT_COLORS.W }}>{percent(sw.after)}</span>
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-[var(--muted)]">
+        From the same model as the win odds. Ranges are each player&apos;s middle half of outcomes from 2020-2025&apos;s play by play
+        (about a third of the time a player adds nothing more); swings are the win odds with a good rest of the game against a bad one.
+        {openSwaps.some((x) => x.list.length > 0) && ' Swaps are for players whose games haven’t started, and mostly follow the projections.'}
+      </p>
+    </section>
+  );
+}
