@@ -62,7 +62,7 @@ let rememberedFilter = 'all';
 const COLLAPSED_TRADES = 5;
 
 /** Completed seasons are pre-built; the season in progress is built live */
-async function loadSeason(season: string, complete: boolean) {
+export async function loadSeason(season: string, complete: boolean) {
   if (complete) {
     const res = await fetch(`/data/trades/${season}.json`).catch(() => null);
     if (res?.ok) return (await res.json()) as TradeHistoryResponse;

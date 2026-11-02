@@ -82,6 +82,7 @@ Then, for any season:
 - **Draft Results:** grades by points per available week, spending, $ per point and best pick.
 
 ## 🏛️ History (every season, whichever one is selected)
+- **Manager pages:** tap any manager (the row of photos at the top, or a name in Champions or All-Time Standings) for their page: career record, points per game, titles, finals, playoffs and toilet bowl losses with where each ranks in the league; every season's team name, record, rank and finish; their record against every other manager (tap one for every meeting), their favorite opponent and nemesis; their best and worst games, biggest win and toughest loss; and their trades, best and worst in hindsight. The address bar keeps the page, so links and the back button work.
 - **Champions:** every season's champion, runner-up and toilet bowl loser (top three before Sleeper).
 - **All-Time Standings:** per manager:
   - seasons, record and win %;

@@ -11,6 +11,7 @@ import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
+import ManagerPage from '@/components/ManagerPage';
 import { getHeatmapColorByRatio } from '@/lib/constants';
 import { signed } from '@/lib/format';
 import {
@@ -58,7 +59,13 @@ function Avatar({ m, size = 8 }: { m?: HistoryManager; size?: number }) {
   );
 }
 
-export default function HistoryTab() {
+interface HistoryTabProps {
+  /** A manager whose page is open (?manager=), and how to open or close one */
+  manager?: string | null;
+  onManager?: (userId: string | null) => void;
+}
+
+export default function HistoryTab({ manager = null, onManager }: HistoryTabProps) {
   const [data, setData] = useState<HistoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the fetch
@@ -110,6 +117,15 @@ export default function HistoryTab() {
   }
   if (!data || !derived) return <LoadingSpinner message="Loading every season..." />;
 
+  // A manager's page in place of the league's history
+  const openManager = (id: string | null) => {
+    onManager?.(id);
+    window.scrollTo({ top: 0 });
+  };
+  if (manager && data.managers.some((m) => m.userId === manager)) {
+    return <ManagerPage data={data} userId={manager} postseason={postseason} onBack={() => openManager(null)} onManager={openManager} />;
+  }
+
   const managers = new Map(data.managers.map((m) => [m.userId, m]));
   const current = new Set(data.seasons[0]?.teams.map((t) => t.userId) ?? []);
   const nameOf = (id: string | null) => (id ? managers.get(id)?.name ?? 'Unknown' : '—');
@@ -129,7 +145,13 @@ export default function HistoryTab() {
       <div className="flex min-w-0 items-center gap-2">
         <Avatar m={team ? { ...m!, avatarUrl: team.avatarUrl ?? m?.avatarUrl ?? null } : m} />
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[var(--foreground)]">{nameOf(id)}</div>
+          {id && onManager ? (
+            <button type="button" onClick={() => openManager(id)} className="block max-w-full truncate text-left text-sm font-semibold text-[var(--foreground)] hover:underline">
+              {nameOf(id)}
+            </button>
+          ) : (
+            <div className="truncate text-sm font-semibold text-[var(--foreground)]">{nameOf(id)}</div>
+          )}
           {team && <div className="truncate text-xs text-[var(--muted)]">{team.teamName}</div>}
         </div>
       </div>
@@ -221,8 +243,24 @@ export default function HistoryTab() {
     })[key]
   );
 
+  // Every manager's page, current managers first (by all-time standing)
+  const pickable = [...standings].sort((a, b) => Number(current.has(b.userId)) - Number(current.has(a.userId))).map((r) => r.userId);
+
   return (
     <div className="space-y-6">
+      <nav aria-label="Manager pages" className="space-y-2">
+        <h2 className="text-sm font-semibold text-[var(--muted)]">Managers</h2>
+        <ul className="flex gap-3 overflow-x-auto pb-1">
+          {pickable.map((id) => (
+            <li key={id} className="shrink-0">
+              <button type="button" onClick={() => openManager(id)} className="flex w-16 flex-col items-center gap-1 text-center" title={`${nameOf(id)}: see their page`}>
+                <Avatar m={managers.get(id)} />
+                <span className="w-full truncate text-[11px] text-[var(--foreground)]">{nameOf(id)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
       <SectionCard
         title="Champions"
         subtitle="Every season's champion, runner-up and toilet bowl loser (top three before Sleeper, when the toilet bowl wasn't recorded)"
@@ -332,9 +370,14 @@ export default function HistoryTab() {
                       <span className="hidden sm:block">
                         <Avatar m={managers.get(r.userId)} size={6} />
                       </span>
-                      <span className="max-w-[6.5rem] truncate font-medium text-[var(--foreground)] sm:max-w-none" title={nameOf(r.userId)}>
+                      <button
+                        type="button"
+                        onClick={() => openManager(r.userId)}
+                        className="max-w-[6.5rem] truncate text-left font-medium text-[var(--foreground)] hover:underline sm:max-w-none"
+                        title={`${nameOf(r.userId)}: see their page`}
+                      >
                         {nameOf(r.userId)}
-                      </span>
+                      </button>
                       {managers.get(r.userId)?.firstName && managers.get(r.userId)!.firstName !== nameOf(r.userId) && (
                         <span className="hidden text-xs text-[var(--muted)] sm:inline">{managers.get(r.userId)!.firstName}</span>
                       )}

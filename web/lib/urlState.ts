@@ -25,11 +25,18 @@ export function readUrlState(search: string): { tab: string | null; season: stri
   };
 }
 
-/** The query string for a view ('' for the default one) */
-export function urlSearchFor(tab: string, season: string, currentSeason: string): string {
+/** A manager page in the History tab (?tab=history&manager=<Sleeper user ID>) */
+export function readManager(search: string): string | null {
+  const id = new URLSearchParams(search).get('manager');
+  return id && /^\d{1,24}$/.test(id) ? id : null;
+}
+
+/** The query string for a view ('' for the default one); a manager page only on the History tab */
+export function urlSearchFor(tab: string, season: string, currentSeason: string, manager: string | null = null): string {
   const params = new URLSearchParams();
   if (tab !== 'overview') params.set('tab', tab);
   if (season && season !== currentSeason) params.set('season', season);
+  if (tab === 'history' && manager) params.set('manager', manager);
   const s = params.toString();
   return s ? `?${s}` : '';
 }

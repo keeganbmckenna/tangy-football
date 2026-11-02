@@ -21,7 +21,7 @@ import HistoryTab from '@/components/HistoryTab';
 import RostersTab from '@/components/RostersTab';
 import LegacySeasonOverview from '@/components/LegacySeasonOverview';
 import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
-import { readLinkTarget, readUrlState, urlSearchFor } from '@/lib/urlState';
+import { readLinkTarget, readManager, readUrlState, urlSearchFor } from '@/lib/urlState';
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import PlayoffPicture from '@/components/PlayoffPicture';
@@ -86,6 +86,8 @@ export default function Home() {
   const [selectedSeason, setSelectedSeason] = useState('');
   // A share link's week and matchup (?week=8&matchup=2), opened once in Weekly Matchups
   const [linkTarget, setLinkTarget] = useState<ReturnType<typeof readLinkTarget>>(null);
+  // The History tab's open manager page, if any (?manager=)
+  const [historyManager, setHistoryManager] = useState<string | null>(null);
   const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
   // Where View Transitions aren't used, the new tab fades in instead (set after mount)
   const [fadeTabs, setFadeTabs] = useState(false);
@@ -209,6 +211,7 @@ export default function Home() {
     const { tab, season } = readUrlState(window.location.search);
     if (tab) setActiveTab(tab);
     setLinkTarget(readLinkTarget(window.location.search));
+    setHistoryManager(readManager(window.location.search));
     setMyUserId(readMyTeam());
     setFadeTabs(!canViewTransition());
     (async () => {
@@ -220,6 +223,8 @@ export default function Home() {
   // Keep the address bar in step: a new history entry per change, so back/forward work
   // Tabs crossfade with View Transitions where they work well (and motion is welcome)
   const switchTab = (id: string) => {
+    // A tab button always opens the tab itself (History: the league's history, not a manager page)
+    setHistoryManager(null);
     const doc = document as Document & { startViewTransition?: (update: () => void) => unknown };
     if (id === activeTab || !doc.startViewTransition || !canViewTransition() || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setActiveTab(id);
@@ -250,7 +255,7 @@ export default function Home() {
   useEffect(() => {
     if (!leagueData || loading) return;
     const current = availableSeasons[0] ?? leagueData.league.season;
-    const search = urlSearchFor(activeTab, selectedSeason || leagueData.league.season, current);
+    const search = urlSearchFor(activeTab, selectedSeason || leagueData.league.season, current, historyManager);
     if (search !== window.location.search) {
       const url = `${window.location.pathname}${search}${window.location.hash}`;
       if (fromHistory.current || !urlSynced.current) window.history.replaceState(null, '', url);
@@ -258,13 +263,14 @@ export default function Home() {
     }
     fromHistory.current = false;
     urlSynced.current = true;
-  }, [activeTab, selectedSeason, leagueData, availableSeasons, loading]);
+  }, [activeTab, selectedSeason, leagueData, availableSeasons, loading, historyManager]);
 
   useEffect(() => {
     const onPop = () => {
       const { tab, season } = readUrlState(window.location.search);
       fromHistory.current = true;
       setActiveTab(tab ?? 'overview');
+      setHistoryManager(readManager(window.location.search));
       const target = season ?? availableSeasons[0];
       if (target) changeSeason(target);
     };
@@ -655,7 +661,7 @@ export default function Home() {
         {activeTab === 'history' && (
           <ErrorBoundary>
             <section>
-              <HistoryTab />
+              <HistoryTab manager={historyManager} onManager={setHistoryManager} />
             </section>
           </ErrorBoundary>
         )}
