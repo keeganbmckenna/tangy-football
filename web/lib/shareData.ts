@@ -143,15 +143,32 @@ async function weekGames(data: LeagueData, origin: string, season: string, week:
   return { status, games, history };
 }
 
+/** The roster a share link puts first (?me=, the sharer's team), or null */
+export const firstSide = (me: string | null | undefined): number | null => (me && /^\d{1,2}$/.test(me) ? Number(me) : null);
+
+/** The same matchup from b's side: teams swapped, odds as b's */
+const flipped = (m: ShareMatchup): ShareMatchup => ({ ...m, a: m.b, b: m.a, odds: m.odds && m.odds.map((p) => 1 - p) });
+
+/**
+ * Who's on the left: the sharer's team when it's in the game (as the site puts "You" first),
+ * otherwise the winner of a finished game, otherwise Sleeper's order (roster ID)
+ */
+export function oriented(m: ShareMatchup, first: number | null): ShareMatchup {
+  if (first === m.b.rosterId) return flipped(m);
+  if (first === m.a.rosterId) return m;
+  return m.status === 'final' && m.b.score > m.a.score ? flipped(m) : m;
+}
+
 const validWeek = (season: string, week: number) => /^\d{4}$/.test(season) && Number.isInteger(week) && week >= 1 && week <= 18;
 
-/** One matchup's card (null if there's no such matchup or it hasn't started) */
-export async function shareMatchup(origin: string, season: string, week: number, matchupId: number): Promise<ShareMatchup | null> {
+/** One matchup's card, with this roster first if it's in it (null if there's no such matchup or it hasn't started) */
+export async function shareMatchup(origin: string, season: string, week: number, matchupId: number, first: number | null = null): Promise<ShareMatchup | null> {
   if (!validWeek(season, week)) return null;
   const data = await loadLeagueData(season);
   if (!data) return null;
   const w = await weekGames(data, origin, season, week);
-  return w?.games.find((g) => g.matchupId === matchupId) ?? null;
+  const m = w?.games.find((g) => g.matchupId === matchupId);
+  return m ? oriented(m, first) : null;
 }
 
 /** A week's card (null for a week that hasn't started) */

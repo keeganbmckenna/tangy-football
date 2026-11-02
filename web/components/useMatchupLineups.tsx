@@ -5,6 +5,7 @@ import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/component
 import WinSwing from '@/components/WinSwing';
 import type { MatchupPlayersData } from '@/app/api/matchup-players/route';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
+import { useMyTeam } from '@/hooks/useMyTeam';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import type { LeagueData } from '@/lib/types';
 
@@ -38,6 +39,9 @@ export function useMatchupLineups(leagueData: LeagueData | null | undefined) {
   // `${week}:${rosterId}` of the game whose lineups are loading
   const [loading, setLoading] = useState<string | null>(null);
   const close = useCallback(() => setOpen(null), []);
+  // Shared from my own game: my team first on its card
+  const me = useMyTeam();
+  const mine = (g: LineupGame) => me.rosterId !== null && (g.a.rosterId === me.rosterId || g.b.rosterId === me.rosterId);
   const season = leagueData?.league.season;
 
   const openLineups = async (game: LineupGame) => {
@@ -93,7 +97,7 @@ export function useMatchupLineups(leagueData: LeagueData | null | undefined) {
         b={b}
         slots={(leagueData?.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
         footnote="Final points, with each player's Sleeper projection from before the games."
-        sharePath={season && open.matchupId !== undefined ? `/share/${season}/${open.week}/${open.matchupId}` : undefined}
+        sharePath={season && open.matchupId !== undefined ? `/share/${season}/${open.week}/${open.matchupId}${mine(open) ? `?me=${me.rosterId}` : ''}` : undefined}
         chart={season ? <WinSwing season={season} week={open.week} a={{ rosterId: open.a.rosterId, name: a.name }} b={{ rosterId: open.b.rosterId, name: b.name }} /> : null}
         onClose={close}
       />

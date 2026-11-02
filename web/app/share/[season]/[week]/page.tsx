@@ -25,12 +25,13 @@ export async function generateMetadata(props: Params): Promise<Metadata> {
   const w = await load(props);
   if (!w) return { title: 'Tangy Football' };
   const description = lines(w).slice(0, 3).join(' · ');
-  return { title: `${title(w)} · Tangy Football`, description, openGraph: { title: title(w), description, type: 'article' }, twitter: { card: 'summary_large_image' } };
+  const image = { url: `${originOf(await headers())}/share/${w.season}/${w.week}/image`, width: 1200, height: 630, alt: title(w) };
+  return { title: `${title(w)} · Tangy Football`, description, openGraph: { title: title(w), description, type: 'article', images: [image] }, twitter: { card: 'summary_large_image', images: [image.url] } };
 }
 
 /** A week's share link: its recap (or, while it's being played, every matchup's score) */
 export default async function WeekShare(props: Params) {
   const w = await load(props);
   if (!w) notFound();
-  return <SharePage title={title(w)} lines={lines(w)} image={`/share/${w.season}/${w.week}/opengraph-image`} href={`/?season=${w.season}&week=${w.week}`} />;
+  return <SharePage title={title(w)} lines={lines(w)} image={`/share/${w.season}/${w.week}/image`} href={`/?season=${w.season}&week=${w.week}`} />;
 }

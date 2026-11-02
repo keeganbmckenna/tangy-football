@@ -2,14 +2,18 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import SharePage from '@/components/SharePage';
-import { originOf, shareMatchup, type ShareMatchup } from '@/lib/shareData';
+import { firstSide, originOf, shareMatchup, type ShareMatchup } from '@/lib/shareData';
 
-type Params = { params: Promise<{ season: string; week: string; matchup: string }> };
+type Params = { params: Promise<{ season: string; week: string; matchup: string }>; searchParams: Promise<{ me?: string }> };
 
-const load = async ({ params }: Params) => {
+const load = async ({ params, searchParams }: Params) => {
   const { season, week, matchup } = await params;
-  return shareMatchup(originOf(await headers()), season, Number(week), Number(matchup));
+  const { me } = await searchParams;
+  return shareMatchup(originOf(await headers()), season, Number(week), Number(matchup), firstSide(me));
 };
+
+/** The picture's path, with the same team first */
+const imagePath = (m: ShareMatchup) => `/share/${m.season}/${m.week}/${m.matchupId}/image?me=${m.a.rosterId}`;
 
 const title = (m: ShareMatchup) => `${m.a.name} ${m.a.score.toFixed(2)} - ${m.b.score.toFixed(2)} ${m.b.name}`;
 
@@ -27,7 +31,8 @@ export async function generateMetadata(props: Params): Promise<Metadata> {
   const m = await load(props);
   if (!m) return { title: 'Tangy Football' };
   const description = lines(m).join(' · ');
-  return { title: `${title(m)} · Tangy Football`, description, openGraph: { title: title(m), description, type: 'article' }, twitter: { card: 'summary_large_image' } };
+  const image = { url: `${originOf(await headers())}${imagePath(m)}`, width: 1200, height: 630, alt: title(m) };
+  return { title: `${title(m)} · Tangy Football`, description, openGraph: { title: title(m), description, type: 'article', images: [image] }, twitter: { card: 'summary_large_image', images: [image.url] } };
 }
 
 /** A matchup's share link */
@@ -38,7 +43,7 @@ export default async function MatchupShare(props: Params) {
     <SharePage
       title={title(m)}
       lines={lines(m)}
-      image={`/share/${m.season}/${m.week}/${m.matchupId}/opengraph-image`}
+      image={imagePath(m)}
       href={`/?season=${m.season}&week=${m.week}&matchup=${m.matchupId}`}
     />
   );

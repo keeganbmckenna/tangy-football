@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { biggestSwing, leadChanges } from '../shareData';
+import { biggestSwing, firstSide, leadChanges, oriented, type ShareMatchup } from '../shareData';
 import { imageType } from '../shareImage';
 import { readLinkTarget } from '../urlState';
 import type { WinHistoryMatchup } from '../winHistory';
@@ -45,5 +45,35 @@ describe('share cards', () => {
     expect(readLinkTarget('?week=8')).toEqual({ week: 8, matchup: null });
     expect(readLinkTarget('?tab=stats')).toBeNull();
     expect(readLinkTarget('?week=40')).toBeNull();
+  });
+
+  const game = (status: 'final' | 'live', sa: number, sb: number): ShareMatchup => ({
+    season: '2026',
+    week: 8,
+    matchupId: 2,
+    status,
+    a: { rosterId: 1, name: 'A', username: 'a', avatarUrl: null, score: sa },
+    b: { rosterId: 2, name: 'B', username: 'b', avatarUrl: null, score: sb },
+    odds: [0.5, 0.8],
+    swing: null,
+    leadChanges: 0,
+  });
+
+  it("puts the sharer's team first, else a finished game's winner, else Sleeper's order", () => {
+    const sharerB = oriented(game('live', 90, 80), 2);
+    expect([sharerB.a.rosterId, sharerB.b.rosterId]).toEqual([2, 1]);
+    // The odds line turns with it
+    expect(sharerB.odds![1]).toBeCloseTo(0.2);
+    expect(oriented(game('final', 80, 90), 1).a.rosterId).toBe(1);
+    expect(oriented(game('final', 80, 90), null).a.rosterId).toBe(2);
+    // Someone else's team, or a live game with nobody named: as Sleeper lists it
+    expect(oriented(game('final', 90, 80), 7).a.rosterId).toBe(1);
+    expect(oriented(game('live', 80, 90), null).a.rosterId).toBe(1);
+  });
+
+  it("reads the sharer's roster from the link", () => {
+    expect(firstSide('3')).toBe(3);
+    expect(firstSide(null)).toBeNull();
+    expect(firstSide('x')).toBeNull();
   });
 });

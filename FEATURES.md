@@ -104,7 +104,7 @@ A switch counts the three sections above either with playoff and toilet bowl gam
 - **Sortable tables:** tap a column header to sort (best first, then reversed, then back to the default order, or use ↺ Default order).
 - **Your team:** highlighted in every table and chart, and pre-selected in the trade and waiver tools.
 - **Shareable links:** the address bar keeps the tab and season, so refresh, back and shared links land on the same view.
-- **Share cards:** **Share** on any matchup's lineups, or **Share week** on Weekly Matchups, gives a link that previews in group chats as a picture: a matchup's score, its win-odds line through the week and the play that swung it most, or the week's awards (every matchup's score and odds while it's being played) and its biggest swing. The link's page has **Open in Tangy Football**, which lands on that week with the matchup open.
+- **Share cards:** **Share** on any matchup's lineups, or **Share week** on Weekly Matchups, gives a link that previews in group chats as a picture: a matchup's score, its win-odds line through the week and the play that swung it most, or the week's awards (every matchup's score and odds while it's being played) and its biggest swing. Sharing your own game puts your team on the left for everyone who opens it; otherwise a finished game's winner goes first. The link's page has **Open in Tangy Football**, which lands on that week with the matchup open.
 - **Definitions:** dotted-underlined terms (GB, PB, Core/wk, luck factor…) explain themselves on hover or tap.
 - **Phones:**
   - the tab row scrolls sideways;
