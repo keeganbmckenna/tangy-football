@@ -7,6 +7,7 @@
 
 import { ImageResponse } from 'next/og';
 import type { ShareMatchup, ShareSwing, ShareTeam, ShareWeek } from '@/lib/shareData';
+import type { ManagerProfile } from '@/lib/analyze/managerProfile';
 
 export const SIZE = { width: 1200, height: 630 };
 
@@ -22,6 +23,11 @@ const C = {
 };
 
 const pct = (p: number) => (p >= 1 ? '100%' : p <= 0 ? '0%' : p > 0.995 ? '>99%' : p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`);
+const ordinal = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+};
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 3).trimEnd()}...` : s);
 
 /** An image's real format from its first bytes (Sleeper serves JPEGs labelled image/png); null for others */
@@ -213,5 +219,68 @@ export async function weekImage(w: ShareWeek): Promise<ImageResponse> {
       </div>
     ),
     { ...SIZE, fonts: await fonts(), headers: cacheHeaders(w.status) }
+  );
+}
+
+/** A manager's card: career record, titles, scoring and every season's finish (lib/analyze/managerProfile.ts) */
+export async function managerImage(p: ManagerProfile, name: string, avatarUrl: string | null): Promise<ImageResponse> {
+  const src = await photo(avatarUrl);
+  const titles = p.seasons.filter((s) => s.champion).map((s) => s.season);
+  const tiles: Array<[string, string, string?]> = [
+    ['RECORD', `${p.totals.wins}-${p.totals.losses}${p.totals.ties ? `-${p.totals.ties}` : ''}`, `${(p.totals.winPct * 100).toFixed(1)}%, ${ordinal(p.ranks.winPct)} of ${p.ranks.of}`],
+    ['TITLES', String(titles.length), titles.join(', ') || undefined],
+    ['POINTS PER GAME', p.totals.scoredGames ? p.totals.pointsPerGame.toFixed(1) : '-', p.totals.scoredGames ? `${ordinal(p.ranks.pointsPerGame)} in the league` : undefined],
+    ['BEST FINISH', p.totals.bestFinish ? ordinal(p.totals.bestFinish) : '-', `${p.totals.finals} final${p.totals.finals === 1 ? '' : 's'}`],
+  ];
+  return new ImageResponse(
+    (
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: C.bg, padding: '44px 56px', fontFamily: 'Geist, sans-serif' }}>
+        <div style={{ display: 'flex', color: C.muted, fontSize: 24, letterSpacing: 2 }}>{`TANGY FOOTBALL  ·  LEAGUE HISTORY`}</div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Avatar src={src} name={name} size={120} />
+          <div style={{ display: 'flex', flexDirection: 'column', marginLeft: 28 }}>
+            <div style={{ display: 'flex', color: C.text, fontSize: 64, fontWeight: 700 }}>{clip(name, 22)}</div>
+            <div style={{ display: 'flex', color: C.muted, fontSize: 28 }}>{`${p.seasons.length} seasons · ${clip(p.seasons[0]?.teamName ?? '', 30)}`}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          {tiles.map(([label, value, sub]) => (
+            <div key={label} style={{ display: 'flex', flexDirection: 'column', width: 256, background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '16px 20px' }}>
+              <div style={{ display: 'flex', color: C.muted, fontSize: 18, letterSpacing: 1.5 }}>{label}</div>
+              <div style={{ display: 'flex', color: C.text, fontSize: 44, fontWeight: 700 }}>{value}</div>
+              <div style={{ display: 'flex', color: C.muted, fontSize: 20 }}>{clip(sub ?? ' ', 24)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+    { ...SIZE, fonts: await fonts(), headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' } }
+  );
+}
+
+/** The league's card, for a plain link: its photo, name, the week and the standings' top teams */
+export async function leagueImage(league: { name: string; season: string; week: string; avatarUrl: string | null }, top: Array<{ name: string; record: string; points: number }>): Promise<ImageResponse> {
+  const src = await photo(league.avatarUrl);
+  return new ImageResponse(
+    (
+      <div style={{ width: '100%', height: '100%', display: 'flex', background: C.bg, padding: '56px', fontFamily: 'Geist, sans-serif' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', width: 520 }}>
+          <Avatar src={src} name={league.name} size={150} />
+          <div style={{ display: 'flex', color: C.text, fontSize: 64, fontWeight: 700, marginTop: 28 }}>Tangy Football</div>
+          <div style={{ display: 'flex', color: C.muted, fontSize: 28, marginTop: 6 }}>{`${league.season} · ${league.week}`}</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1 }}>
+          <div style={{ display: 'flex', color: C.muted, fontSize: 22, letterSpacing: 2, marginBottom: 10 }}>STANDINGS</div>
+          {top.map((t, i) => (
+            <div key={t.name} style={{ display: 'flex', alignItems: 'center', fontSize: 30, color: C.text, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', width: 44, color: C.muted }}>{String(i + 1)}</div>
+              <div style={{ display: 'flex', flex: 1 }}>{clip(t.name, 22)}</div>
+              <div style={{ display: 'flex', fontWeight: 700 }}>{t.record}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+    { ...SIZE, fonts: await fonts(), headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' } }
   );
 }

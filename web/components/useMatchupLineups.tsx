@@ -97,7 +97,7 @@ export function useMatchupLineups(leagueData: LeagueData | null | undefined) {
         b={b}
         slots={(leagueData?.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
         footnote="Final points, with each player's Sleeper projection from before the games."
-        sharePath={season && open.matchupId !== undefined ? `/share/${season}/${open.week}/${open.matchupId}${mine(open) ? `?me=${me.rosterId}` : ''}` : undefined}
+        sharePath={season && open.matchupId !== undefined ? `/?season=${season}&week=${open.week}&matchup=${open.matchupId}${mine(open) ? `&me=${me.rosterId}` : ''}` : undefined}
         chart={season ? <WinSwing season={season} week={open.week} a={{ rosterId: open.a.rosterId, name: a.name }} b={{ rosterId: open.b.rosterId, name: b.name }} /> : null}
         onClose={close}
       />

@@ -227,7 +227,7 @@ interface Props {
   chart?: ReactNode;
   /** Shown under the chart, e.g. what it takes to win */
   panel?: ReactNode;
-  /** This matchup's share page (/share/season/week/matchup), for a Share button */
+  /** This matchup's address in the site (?season=&week=&matchup=), for a Share button */
   sharePath?: string;
   onClose: () => void;
 }

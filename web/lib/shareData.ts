@@ -1,5 +1,5 @@
 /**
- * What the share cards show (app/share): one matchup's teams, scores, win-odds line and the play
+ * What the share cards show (link previews, lib/sharePreview.ts and app/preview): one matchup's teams, scores, win-odds line and the play
  * that swung it most, or a week's awards and its biggest swing. From the same sources as the site:
  * Sleeper's league data, and the week's win history (the pre-built file once the week's replay is
  * built, the live saves before that).

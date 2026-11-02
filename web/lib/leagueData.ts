@@ -1,7 +1,7 @@
 /**
  * A season's league data from Sleeper (the shape /api/league returns): the league, users,
  * rosters, every week's matchups so far and the playoff brackets. Shared by /api/league and the
- * share pages (app/share), which build their cards on the server.
+ * link previews (lib/sharePreview.ts), which build their cards on the server.
  */
 
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';

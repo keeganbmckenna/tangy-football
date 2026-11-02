@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import TeamAvatar from '@/components/ui/TeamAvatar';
+import ShareButton from '@/components/ui/ShareButton';
 import { loadSeason } from '@/components/TradeHistory';
 import { useSharedFetch } from '@/hooks/useSharedFetch';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
@@ -135,9 +136,10 @@ export default function ManagerPage({ data, userId, postseason, onBack, onManage
         <div className="space-y-5 p-4 sm:p-6">
           <div className="flex items-center gap-3">
             <TeamAvatar url={latestAvatar} name={nameOf(userId)} size="h-14 w-14" />
-            <div className="min-w-0 text-sm text-[var(--muted)]">
+            <div className="min-w-0 flex-1 text-sm text-[var(--muted)]">
               {totals.seasons} season{totals.seasons === 1 ? '' : 's'} · {seasons[seasons.length - 1]?.season}–{seasons[0]?.season}
             </div>
+            <ShareButton icon path={`/?tab=history&manager=${userId}`} title={`${nameOf(userId)} in the league's history`} className="shrink-0 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Tile label="Record" value={record(totals.wins, totals.losses, totals.ties)} sub={`${(totals.winPct * 100).toFixed(1)}% · ${ordinal(ranks.winPct)} of ${ranks.of}${seasons[0] && !seasons[0].complete ? ` · incl. ${seasons[0].season}` : ''}`} />

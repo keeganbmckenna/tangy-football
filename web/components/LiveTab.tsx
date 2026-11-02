@@ -422,7 +422,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
               />
             )
           }
-          sharePath={`/share/${live.season}/${live.week}/${m.matchupId}${me.rosterId !== null && (m.a.rosterId === me.rosterId || m.b.rosterId === me.rosterId) ? `?me=${me.rosterId}` : ''}`}
+          sharePath={`/?season=${live.season}&week=${live.week}&matchup=${m.matchupId}${me.rosterId !== null && (m.a.rosterId === me.rosterId || m.b.rosterId === me.rosterId) ? `&me=${me.rosterId}` : ''}`}
           onClose={closeMatchup}
         />
       ) : null;

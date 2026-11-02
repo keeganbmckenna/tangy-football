@@ -5,6 +5,7 @@
  * seasons before Sleeper (standings and top three only).
  */
 
+import { unstable_cache } from 'next/cache';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import { buildLeagueChain } from '@/lib/sleeper';
 import { fetchJson } from '@/lib/oddsData';
@@ -86,6 +87,22 @@ async function seasonHistory(league: SleeperLeague) {
       : {},
   };
   return { season, games, users };
+}
+
+// Bump when the response shape changes: cached results outlive deploys
+const CACHE_VERSION = 'v3';
+
+/**
+ * The league's history, cached: rebuilt as soon as a new week is scored (or the season ends), and
+ * at most every CACHE_CONFIG.leagueData seconds otherwise. Used by /api/history and link previews.
+ */
+export async function cachedHistory(): Promise<HistoryData> {
+  const { leagueId, baseUrl } = SLEEPER_CONFIG;
+  const league = await fetchJson<SleeperLeague>(`${baseUrl}/league/${leagueId}`, CACHE_CONFIG.leagueData);
+  const lastScored = league.settings?.last_scored_leg ?? 0;
+  return unstable_cache(buildHistory, ['history', CACHE_VERSION, league.league_id, String(lastScored), league.status], {
+    revalidate: CACHE_CONFIG.leagueData,
+  })();
 }
 
 export async function buildHistory(): Promise<HistoryData> {

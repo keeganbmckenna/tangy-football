@@ -42,7 +42,7 @@ export function urlSearchFor(tab: string, season: string, currentSeason: string,
 }
 
 /**
- * A share link's way in (app/share): the week to show in Overview's Weekly Matchups and the
+ * A shared link's way in (?season=&week=&matchup=): the week to show in Overview's Weekly Matchups and the
  * matchup to open (?week=8&matchup=2). Read once on first load; the address bar then drops them.
  */
 export function readLinkTarget(search: string): { week: number; matchup: number | null } | null {

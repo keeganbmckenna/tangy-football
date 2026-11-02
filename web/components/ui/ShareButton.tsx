@@ -3,8 +3,8 @@
 import { useState } from 'react';
 
 /**
- * Shares a link to one of the share pages (app/share): the phone's share sheet where there is one,
- * otherwise the link copied
+ * Shares an address of the site (which previews as its card in chat apps, lib/sharePreview.ts): the
+ * phone's share sheet where there is one, otherwise the link copied
  */
 export default function ShareButton({ path, title, label = 'Share', icon = false, className = '' }: { path: string; title: string; label?: string; icon?: boolean; className?: string }) {
   const [copied, setCopied] = useState(false);

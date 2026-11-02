@@ -84,7 +84,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
           <h2 className="text-xl font-bold text-white sm:text-2xl">Weekly Matchups</h2>
           {leagueData && (
             <ShareButton
-              path={`/share/${leagueData.league.season}/${selectedWeek}`}
+              path={`/?season=${leagueData.league.season}&week=${selectedWeek}`}
               title={`Week ${selectedWeek} ${showLive ? 'so far' : 'recap'}`}
               label="Share week"
               className="bg-white/15 text-white hover:bg-white/25"
