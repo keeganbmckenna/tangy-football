@@ -43,8 +43,8 @@ export default async function Icon() {
             <img
               src={avatarUrl}
               alt="League Avatar"
-              width="32"
-              height="32"
+              width={32}
+              height={32}
               style={{
                 borderRadius: '50%',
               }}

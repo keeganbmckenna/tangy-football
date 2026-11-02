@@ -247,7 +247,7 @@ overwrites injury statuses, so they can't be recovered later).
 
 ## Technologies
 
-- **Next.js 15** (App Router) and **React 19**
+- **Next.js 16** (App Router) and **React 19**
 - **TypeScript 5**
 - **Tailwind CSS 4**
 - **Recharts 3** for charts

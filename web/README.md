@@ -49,4 +49,4 @@ The ID is in the league's Sleeper URL: `https://sleeper.com/leagues/YOUR_LEAGUE_
 
 ## Stack
 
-Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 4, Recharts 3 and Vitest, with data from the Sleeper API.
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Recharts 3 and Vitest, with data from the Sleeper API.
