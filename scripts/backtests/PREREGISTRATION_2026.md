@@ -363,3 +363,26 @@ randomized PIT above) hid it, because the bins' errors cancel.
   +0.013, 2019 +0.006). Small and below the usual bars; worse in the weak-projection seasons, as
   the hybrid was. **The season-end 2026 confirmation's candidate is now the shipped model with
   these tables** (commit after e631b3e); its rules are unchanged, and F comes out if it fails.
+
+## Addendum (2026-11-02): test 10, each player's own boom-or-bust in his range, set before it runs
+
+Asked by the owner: should a player's range use his own volatility? The tables (since test 9)
+know position, projection and time left, not the player; the normal model uses each player's
+spread ratio (playerSpreadRatio: his weekly scores' spread over their mean this season, shrunk to
+his position's typical ratio with 4 games' weight).
+- **Candidate (I).** Test 9's tables with a fourth dimension: the player's spread ratio from his
+  earlier weeks of the same season (half-PPR totals from live_state.parquet, the site's formula
+  and position priors), in three bands cut at the training seasons' terciles within his position.
+  A cell with under 200 moments falls back to the shipped cell.
+- **Score, data and rule.** As test 9: pinball loss over the 64 quantiles per player-game, every
+  moment with 2%+ of the game left, tables fitted on 2020-2025 leaving the scored season out,
+  1,000 player-game resamples. I replaces the tables if pooled 2020-2025 loss falls by at least 1%
+  with an interval excluding 0 and it is lower in at least 6 of 8 seasons. Also reported: for WRs
+  projected 14+ before kickoff, P(scoring 1.6x the projection or more) by band, actual vs I.
+- If I passes, it goes to the owner as test 9 did (the odds are frozen; a change is a logged
+  deviation, judged on the one-sided replay as well).
+  Test 10 result (2026-11-02): **I fails.** Higher loss in 8 of 8 seasons (2018-2025 +0.09% to
+  +0.20%; pooled 2020-2025 +0.16% [+0.10%, +0.21%]): a player's own spread ratio from earlier weeks
+  adds noise, not information, beyond position, projection and time left. WRs projected 14+ before
+  kickoff reaching 1.6x their projection: 9-15% actual by season (2020-2025), tables 13-15%, with
+  no consistent difference between bands. The ranges stay as they are.
