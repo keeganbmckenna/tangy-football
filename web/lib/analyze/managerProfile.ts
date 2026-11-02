@@ -26,6 +26,10 @@ export interface ProfileSeason {
   toiletLoser: boolean;
   playoffs: boolean;
   complete: boolean;
+  /** Before Sleeper: only the top three are known, not the playoff field or the rest of the finish */
+  legacy: boolean;
+  /** Third place (recorded before Sleeper; Sleeper seasons have it in placement) */
+  third: boolean;
 }
 
 export interface ProfileOpponent {
@@ -139,6 +143,8 @@ export function managerProfile(data: HistoryData, userId: string, opts: RecordOp
       toiletLoser: s.toiletLoser === userId,
       playoffs: s.playoffTeams.includes(userId),
       complete: s.complete,
+      legacy: !!s.legacy,
+      third: s.thirdPlace === userId || s.placements[userId] === 3,
     });
   }
 

@@ -46,7 +46,7 @@ describe('managerProfile', () => {
     expect(p.seasons[0].pointsPerGame).toBeCloseTo(125);
     expect(p.seasons[1]).toMatchObject({ wins: 0, losses: 2, regularRank: 3, toiletLoser: true, playoffs: false });
     // Before Sleeper: the final standings, no points
-    expect(p.seasons[2]).toMatchObject({ teamName: 'old team', wins: 9, losses: 4, regularRank: 2, pointsPerGame: null });
+    expect(p.seasons[2]).toMatchObject({ teamName: 'old team', wins: 9, losses: 4, regularRank: 2, pointsPerGame: null, legacy: true, playoffs: false });
   });
 
   it('records each opponent from its side, never placement games', () => {

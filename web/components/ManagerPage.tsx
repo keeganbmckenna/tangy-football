@@ -46,6 +46,9 @@ function finish(s: ProfileSeason): { text: string; tone: 'win' | 'loss' | null }
   if (s.runnerUp) return { text: 'Runner-up', tone: 'win' };
   if (s.toiletLoser) return { text: '💩 Lost the toilet bowl', tone: 'loss' };
   if (!s.complete) return { text: 'In progress', tone: null };
+  if (s.third) return { text: '3rd place', tone: null };
+  // Before Sleeper only the top three were recorded: no playoff field, no other finishes
+  if (s.legacy) return { text: '', tone: null };
   if (s.placement) return { text: `${ordinal(s.placement)} place`, tone: null };
   return { text: s.playoffs ? 'Playoffs' : 'Missed playoffs', tone: null };
 }
@@ -168,7 +171,7 @@ export default function ManagerPage({ data, userId, postseason, onBack, onManage
                     <td className="px-4 py-2 font-semibold text-[var(--foreground)]">{s.season}</td>
                     <td className="max-w-[11rem] px-4 py-2 sm:max-w-none">
                       <div className="truncate text-[var(--foreground)]" title={s.teamName}>{s.teamName}</div>
-                      <div className="truncate text-xs" style={{ color: f.tone === 'win' ? RESULT_DOT_COLORS.W : f.tone === 'loss' ? RESULT_DOT_COLORS.L : 'var(--muted)' }}>{f.text}</div>
+                      {f.text && <div className="truncate text-xs" style={{ color: f.tone === 'win' ? RESULT_DOT_COLORS.W : f.tone === 'loss' ? RESULT_DOT_COLORS.L : 'var(--muted)' }}>{f.text}</div>}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-center tabular-nums text-[var(--foreground)]">
                       {record(s.wins, s.losses, s.ties)}
