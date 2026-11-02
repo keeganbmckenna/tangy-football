@@ -291,18 +291,19 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
         <div className="flex items-start gap-3 border-b border-[var(--border)] p-4">
           {head(a, false)}
           {head(b, true)}
-          {sharePath && (
-            <ShareButton icon path={sharePath} title={title} className="-mt-1 shrink-0 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />
-          )}
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="-mr-1 -mt-1 shrink-0 rounded-md px-2 py-1 text-lg leading-none text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-          >
-            ✕
-          </button>
+          {/* Close, with Share under it: one narrow column, so the team names keep their room */}
+          <div className="-mr-1 -mt-1 flex shrink-0 flex-col items-center gap-1">
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="rounded-md px-2 py-1 text-lg leading-none text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+            >
+              ✕
+            </button>
+            {sharePath && <ShareButton icon path={sharePath} title={title} className="text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />}
+          </div>
         </div>
         <div className="overflow-y-auto px-1 pb-4 sm:px-3">
           {chart}
