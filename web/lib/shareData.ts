@@ -11,6 +11,7 @@ import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { loadLeagueData } from '@/lib/leagueData';
 import { readSnapshots } from '@/lib/liveHistory';
 import { liveOddsNow } from '@/lib/liveSave';
+import { weekProjections } from '@/lib/oddsData';
 import { cleanPlay, type PlayEvent, type WinHistory, type WinHistoryMatchup } from '@/lib/winHistory';
 import type { LeagueData, SleeperMatchup } from '@/lib/types';
 
@@ -20,6 +21,8 @@ export interface ShareTeam {
   username: string;
   avatarUrl: string | null;
   score: number;
+  /** Projected final: live, the score plus what's still expected (the Live tab's); final, the starters' pregame projections */
+  projected: number | null;
 }
 
 /** The play that moved a matchup's odds most, from the side it helped */
@@ -105,13 +108,19 @@ export function biggestSwing(h: WinHistoryMatchup, nameOf: (rosterId: number) =>
   };
 }
 
-function team(data: LeagueData, rosterId: number, score: number): ShareTeam {
+function team(data: LeagueData, rosterId: number, score: number, projected: number | null): ShareTeam {
   const { name, username } = getTeamName(rosterId, data);
-  return { rosterId, name: name.trim(), username, avatarUrl: teamAvatarUrl(data, rosterId), score };
+  return { rosterId, name, username, avatarUrl: teamAvatarUrl(data, rosterId), score, projected };
 }
 
 /** The week's matchups as cards, in matchup order (null for a week that hasn't started) */
-async function weekGames(data: LeagueData, origin: string, season: string, week: number): Promise<{ status: 'final' | 'live'; games: ShareMatchup[]; history: WinHistory | null } | null> {
+async function weekGames(
+  data: LeagueData,
+  origin: string,
+  season: string,
+  week: number,
+  withProjections = false
+): Promise<{ status: 'final' | 'live'; games: ShareMatchup[]; history: WinHistory | null } | null> {
   const sleeper = data.matchups[week];
   if (!sleeper?.length) return null;
   const status = week <= data.lastScoredWeek ? 'final' : 'live';
@@ -119,10 +128,14 @@ async function weekGames(data: LeagueData, origin: string, season: string, week:
   if (status === 'live' && !sleeper.some((m) => (m.points ?? 0) > 0)) return null;
   // A week in progress: the odds and scores right now, as the Live tab has them (the last save can
   // be hours old between games)
-  const [history, now] = await Promise.all([
+  // A finished week's projections (every player's: a big download, so only for a picture)
+  const [history, now, pregame] = await Promise.all([
     winHistory(origin, season, week),
     status === 'live' ? liveOddsNow(data.league, week).catch(() => null) : Promise.resolve(null),
+    status === 'final' && withProjections ? weekProjections(season, week).catch(() => null) : Promise.resolve(null),
   ]);
+  const pregameTotal = (m: SleeperMatchup) =>
+    pregame ? Math.round((m.starters ?? []).reduce((t, id) => t + (pregame[id]?.points ?? 0), 0) * 10) / 10 : null;
   const pairs = new Map<number, SleeperMatchup[]>();
   for (const m of sleeper) if (m.matchup_id != null) pairs.set(m.matchup_id, [...(pairs.get(m.matchup_id) ?? []), m]);
   const nameOf = (rosterId: number) => getTeamName(rosterId, data).name.trim();
@@ -134,7 +147,9 @@ async function weekGames(data: LeagueData, origin: string, season: string, week:
     const [ma, mb] = h && h.a === pair[1].roster_id ? [pair[1], pair[0]] : pair;
     // Live: the scores and odds now, ending the saved line; final: Sleeper's official scores
     const o = now?.find((x) => x.matchupId === matchupId);
-    const aNow = o && (o.a.rosterId === ma.roster_id ? { odds: o.aWinOdds, sa: o.a.score, sb: o.b.score } : { odds: 1 - o.aWinOdds, sa: o.b.score, sb: o.a.score });
+    const aNow = o && (o.a.rosterId === ma.roster_id
+      ? { odds: o.aWinOdds, sa: o.a.score, sb: o.b.score, pa: o.a.projected, pb: o.b.projected }
+      : { odds: 1 - o.aWinOdds, sa: o.b.score, sb: o.a.score, pa: o.b.projected, pb: o.a.projected });
     const last = h && status === 'live' ? h.scores[h.scores.length - 1] : null;
     const odds = [...(h?.odds ?? []), ...(aNow ? [aNow.odds] : [])];
     games.push({
@@ -142,8 +157,8 @@ async function weekGames(data: LeagueData, origin: string, season: string, week:
       week,
       matchupId,
       status,
-      a: team(data, ma.roster_id, aNow ? aNow.sa : last ? last[0] : ma.points ?? 0),
-      b: team(data, mb.roster_id, aNow ? aNow.sb : last ? last[1] : mb.points ?? 0),
+      a: team(data, ma.roster_id, aNow ? aNow.sa : last ? last[0] : ma.points ?? 0, aNow ? aNow.pa : pregameTotal(ma)),
+      b: team(data, mb.roster_id, aNow ? aNow.sb : last ? last[1] : mb.points ?? 0, aNow ? aNow.pb : pregameTotal(mb)),
       odds: odds.length ? odds : null,
       swing: h ? biggestSwing(h, nameOf) : null,
       leadChanges: leadChanges(odds),
@@ -171,11 +186,11 @@ export function oriented(m: ShareMatchup, first: number | null): ShareMatchup {
 const validWeek = (season: string, week: number) => /^\d{4}$/.test(season) && Number.isInteger(week) && week >= 1 && week <= 18;
 
 /** One matchup's card, with this roster first if it's in it (null if there's no such matchup or it hasn't started) */
-export async function shareMatchup(origin: string, season: string, week: number, matchupId: number, first: number | null = null): Promise<ShareMatchup | null> {
+export async function shareMatchup(origin: string, season: string, week: number, matchupId: number, first: number | null = null, withProjections = false): Promise<ShareMatchup | null> {
   if (!validWeek(season, week)) return null;
   const data = await loadLeagueData(season);
   if (!data) return null;
-  const w = await weekGames(data, origin, season, week);
+  const w = await weekGames(data, origin, season, week, withProjections);
   const m = w?.games.find((g) => g.matchupId === matchupId);
   return m ? oriented(m, first) : null;
 }

@@ -47,7 +47,7 @@ export function weekLines(w: ShareWeek): string[] {
   return [
     ...(w.awards.length
       ? w.awards.map((a) => `${a.label}: ${a.who} (${a.detail})`)
-      : w.games.map((g) => `${g.a.name} ${g.a.score.toFixed(1)} - ${g.b.score.toFixed(1)} ${g.b.name}`)),
+      : w.games.map((g) => `${g.a.name} ${g.a.score.toFixed(2)} - ${g.b.score.toFixed(2)} ${g.b.name}`)),
     ...(w.swing ? [`Biggest swing (${w.swing.matchup}): ${w.swing.desc}`] : []),
   ];
 }

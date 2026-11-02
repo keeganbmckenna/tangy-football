@@ -122,7 +122,8 @@ function Swing({ swing, matchup }: { swing: ShareSwing; matchup?: string }) {
   );
 }
 
-function TeamBlock({ t, src, right, won }: { t: ShareTeam; src: string | null; right: boolean; won: boolean }) {
+/** A team as the matchup card shows it: photo, name, score, then its projection and (live) its chance to win */
+function TeamBlock({ t, src, right, won, odds }: { t: ShareTeam; src: string | null; right: boolean; won: boolean; odds: number | null }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: right ? 'flex-end' : 'flex-start', width: 520 }}>
       <div style={{ display: 'flex', alignItems: 'center', flexDirection: right ? 'row-reverse' : 'row' }}>
@@ -132,27 +133,43 @@ function TeamBlock({ t, src, right, won }: { t: ShareTeam; src: string | null; r
           <div style={{ display: 'flex', color: C.muted, fontSize: 22 }}>{`@${clip(t.username, 24)}`}</div>
         </div>
       </div>
-      <div style={{ display: 'flex', color: won ? C.win : C.text, fontSize: 84, fontWeight: 700, marginTop: 8 }}>{t.score.toFixed(2)}</div>
+      <div style={{ display: 'flex', color: won ? C.win : C.text, fontSize: 84, fontWeight: 700, marginTop: 4, lineHeight: 1.05 }}>{t.score.toFixed(2)}</div>
+      {(t.projected !== null || odds !== null) && (
+        <div style={{ display: 'flex', fontSize: 28, color: C.muted }}>
+          {t.projected !== null && `proj ${t.projected.toFixed(1)}`}
+          {t.projected !== null && odds !== null && <span style={{ margin: '0 10px' }}>·</span>}
+          {odds !== null && <span style={{ color: odds >= 0.5 ? C.win : C.muted, fontWeight: 700 }}>{pct(odds)}</span>}
+        </div>
+      )}
     </div>
   );
 }
 
-/** a's odds through the week as a line, 100% at the top, with the 50% line */
-function OddsLine({ odds, a, b, width, height }: { odds: number[]; a: string; b: string; width: number; height: number }) {
+/** a's chance to win through the week as a line: above the dashed 50% line, a is favored */
+function OddsLine({ odds, a, width, height }: { odds: number[]; a: string; width: number; height: number }) {
   const n = odds.length;
-  const pts = odds.map((p, i) => `${((i / Math.max(n - 1, 1)) * width).toFixed(1)},${((1 - p) * height).toFixed(1)}`).join(' ');
   const last = odds[n - 1];
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted, fontSize: 20 }}>
-        <div style={{ display: 'flex' }}>{`${clip(a, 30)} 100%`}</div>
-        <div style={{ display: 'flex' }}>{`now ${pct(last)}`}</div>
+      <div style={{ display: 'flex', color: C.muted, fontSize: 20, letterSpacing: 1.5 }}>{`${clip(a, 30).toUpperCase()}'S CHANCE TO WIN THROUGH THE WEEK`}</div>
+      <div style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
+        <svg width={width - 70} height={height} viewBox={`0 0 ${width - 70} ${height}`}>
+          <line x1="0" y1={height / 2} x2={width - 70} y2={height / 2} stroke={C.border} strokeWidth="2" strokeDasharray="8 8" />
+          <polyline
+            points={odds.map((p, i) => `${((i / Math.max(n - 1, 1)) * (width - 70)).toFixed(1)},${((1 - p) * height).toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke={last >= 0.5 ? C.win : C.loss}
+            strokeWidth="5"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </svg>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height, marginLeft: 12, color: C.muted, fontSize: 18 }}>
+          <div style={{ display: 'flex' }}>100%</div>
+          <div style={{ display: 'flex' }}>50%</div>
+          <div style={{ display: 'flex' }}>0%</div>
+        </div>
       </div>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ marginTop: 6, marginBottom: 6 }}>
-        <line x1="0" y1={height / 2} x2={width} y2={height / 2} stroke={C.border} strokeWidth="2" strokeDasharray="8 8" />
-        <polyline points={pts} fill="none" stroke={last >= 0.5 ? C.win : C.loss} strokeWidth="5" strokeLinejoin="round" strokeLinecap="round" />
-      </svg>
-      <div style={{ display: 'flex', color: C.muted, fontSize: 20 }}>{`${clip(b, 30)} 100%`}</div>
     </div>
   );
 }
@@ -165,15 +182,17 @@ const cacheHeaders = (status: 'final' | 'live') => ({
 export async function matchupImage(m: ShareMatchup): Promise<ImageResponse> {
   const [pa, pb] = await Promise.all([photo(m.a.avatarUrl), photo(m.b.avatarUrl)]);
   const final = m.status === 'final';
+  // a's chance to win now (live cards show each side's under its score)
+  const now = m.odds?.length ? m.odds[m.odds.length - 1] : null;
   return new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: C.bg, padding: '44px 56px', fontFamily: 'Geist, sans-serif' }}>
         <Header season={m.season} week={m.week} status={m.status} label={m.leadChanges ? `${m.leadChanges} LEAD CHANGE${m.leadChanges === 1 ? '' : 'S'}` : undefined} />
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <TeamBlock t={m.a} src={pa} right={false} won={final && m.a.score > m.b.score} />
-          <TeamBlock t={m.b} src={pb} right won={final && m.b.score > m.a.score} />
+          <TeamBlock t={m.a} src={pa} right={false} won={final && m.a.score > m.b.score} odds={!final && now !== null ? now : null} />
+          <TeamBlock t={m.b} src={pb} right won={final && m.b.score > m.a.score} odds={!final && now !== null ? 1 - now : null} />
         </div>
-        {m.odds && m.odds.length > 1 ? <OddsLine odds={m.odds} a={m.a.name} b={m.b.name} width={1088} height={m.swing ? 90 : 150} /> : <div style={{ display: 'flex' }} />}
+        {m.odds && m.odds.length > 1 ? <OddsLine odds={m.odds} a={m.a.name} width={1088} height={m.swing ? 80 : 140} /> : <div style={{ display: 'flex' }} />}
         {m.swing ? <Swing swing={m.swing} /> : <div style={{ display: 'flex' }} />}
       </div>
     ),
@@ -207,7 +226,7 @@ export async function weekImage(w: ShareWeek): Promise<ImageResponse> {
                 <div key={g.matchupId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 26, color: C.text, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
                   <div style={{ display: 'flex', width: 70, color: p !== null && p >= 0.5 ? C.win : C.muted, fontSize: 22 }}>{p !== null ? pct(p) : ''}</div>
                   <div style={{ display: 'flex', width: 320 }}>{clip(g.a.name, 20)}</div>
-                  <div style={{ display: 'flex', width: 260, justifyContent: 'center', fontWeight: 700 }}>{`${g.a.score.toFixed(1)}  -  ${g.b.score.toFixed(1)}`}</div>
+                  <div style={{ display: 'flex', width: 260, justifyContent: 'center', fontWeight: 700 }}>{`${g.a.score.toFixed(2)}  -  ${g.b.score.toFixed(2)}`}</div>
                   <div style={{ display: 'flex', width: 320, justifyContent: 'flex-end' }}>{clip(g.b.name, 20)}</div>
                   <div style={{ display: 'flex', width: 70, justifyContent: 'flex-end', color: p !== null && p < 0.5 ? C.win : C.muted, fontSize: 22 }}>{p !== null ? pct(1 - p) : ''}</div>
                 </div>

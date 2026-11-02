@@ -25,6 +25,8 @@ export async function GET() {
       return { name: getCustomTeamName(u, u?.display_name ?? `Team ${r.roster_id}`).trim(), record: `${r.settings.wins}-${r.settings.losses}`, points: points(r) };
     });
   const scored = league.settings?.last_scored_leg ?? 0;
-  const week = league.status === 'complete' ? 'Final standings' : scored > 0 ? `Through week ${scored}` : 'Before kickoff';
+  const leg = league.settings?.leg ?? 0;
+  const week =
+    league.status === 'complete' ? 'Final standings' : leg > scored && scored > 0 ? `Week ${leg} in progress` : scored > 0 ? `Through week ${scored}` : 'Before kickoff';
   return leagueImage({ name: league.name, season: league.season, week, avatarUrl: league.avatar ? `https://sleepercdn.com/avatars/${league.avatar}` : null }, top);
 }
