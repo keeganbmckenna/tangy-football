@@ -197,6 +197,17 @@ export async function shareWeek(origin: string, season: string, week: number): P
   return { season, week, status: w.status, awards, swing, games: w.games };
 }
 
+/** How long a live card's picture address stays the same: a new one after that, so no one keeps an old copy */
+const LIVE_IMAGE_SECONDS = 120;
+
+/** A card picture's path, with a time bucket for a live one */
+export function picturePath(base: string, status: 'final' | 'live', query: Record<string, string | number> = {}): string {
+  const q = new URLSearchParams(Object.entries(query).map(([k, v]) => [k, String(v)]));
+  if (status === 'live') q.set('t', String(Math.floor(Date.now() / 1000 / LIVE_IMAGE_SECONDS)));
+  const s = q.toString();
+  return s ? `${base}?${s}` : base;
+}
+
 /** The site's own address for a share request (works locally and on Vercel) */
 export function originOf(headers: Headers): string {
   const host = headers.get('x-forwarded-host') ?? headers.get('host') ?? 'tangy-football.vercel.app';

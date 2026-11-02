@@ -82,6 +82,9 @@ function Avatar({ src, name, size }: { src: string | null; name: string; size: n
   );
 }
 
+/** When a live card was made, e.g. "1:42 AM ET" */
+const madeAt = () => `${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })} ET`;
+
 function Header({ season, week, status, label }: { season: string; week: number; status: 'final' | 'live'; label?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: C.muted, fontSize: 24, letterSpacing: 2 }}>
@@ -89,7 +92,7 @@ function Header({ season, week, status, label }: { season: string; week: number;
       {status === 'live' ? (
         <div style={{ display: 'flex', alignItems: 'center', color: C.live, fontWeight: 700 }}>
           <div style={{ width: 14, height: 14, borderRadius: 7, background: C.live, marginRight: 10 }} />
-          LIVE
+          {`LIVE  ·  ${madeAt()}`}
         </div>
       ) : (
         <div style={{ display: 'flex', fontWeight: 700 }}>FINAL</div>

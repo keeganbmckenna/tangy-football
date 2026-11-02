@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import SharePage from '@/components/SharePage';
-import { firstSide, originOf, shareMatchup, type ShareMatchup } from '@/lib/shareData';
+import { firstSide, originOf, picturePath, shareMatchup, type ShareMatchup } from '@/lib/shareData';
 
 type Params = { params: Promise<{ season: string; week: string; matchup: string }>; searchParams: Promise<{ me?: string }> };
 
@@ -13,7 +13,7 @@ const load = async ({ params, searchParams }: Params) => {
 };
 
 /** The picture's path, with the same team first */
-const imagePath = (m: ShareMatchup) => `/share/${m.season}/${m.week}/${m.matchupId}/image?me=${m.a.rosterId}`;
+const imagePath = (m: ShareMatchup) => picturePath(`/share/${m.season}/${m.week}/${m.matchupId}/image`, m.status, { me: m.a.rosterId });
 
 const title = (m: ShareMatchup) => `${m.a.name} ${m.a.score.toFixed(2)} - ${m.b.score.toFixed(2)} ${m.b.name}`;
 
@@ -45,6 +45,7 @@ export default async function MatchupShare(props: Params) {
       lines={lines(m)}
       image={imagePath(m)}
       href={`/?season=${m.season}&week=${m.week}&matchup=${m.matchupId}`}
+      live={m.status === 'live'}
     />
   );
 }

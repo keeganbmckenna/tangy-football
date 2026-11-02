@@ -4,6 +4,7 @@
  */
 
 import Link from 'next/link';
+import OpenLive from '@/components/OpenLive';
 
 interface Props {
   title: string;
@@ -12,11 +13,15 @@ interface Props {
   image: string;
   /** Where "Open in Tangy Football" goes */
   href: string;
+  /** A week being played: go straight on to the live view */
+  live?: boolean;
 }
 
-export default function SharePage({ title, lines, image, href }: Props) {
+export default function SharePage({ title, lines, image, href, live = false }: Props) {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 px-4 py-8 sm:py-12">
+      {live && <OpenLive href={href} />}
+      {live && <p className="text-sm text-[var(--muted)]">Opening the live scores…</p>}
       <p className="text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">Tangy Football</p>
       <h1 className="text-2xl font-bold text-[var(--foreground)] sm:text-3xl">{title}</h1>
       {/* eslint-disable-next-line @next/next/no-img-element */}
