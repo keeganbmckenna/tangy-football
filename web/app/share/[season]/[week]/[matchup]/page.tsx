@@ -17,7 +17,7 @@ const imagePath = (m: ShareMatchup) => picturePath(`/share/${m.season}/${m.week}
 
 const title = (m: ShareMatchup) => `${m.a.name} ${m.a.score.toFixed(2)} - ${m.b.score.toFixed(2)} ${m.b.name}`;
 
-/** What it says in words: where it stands and the play that swung it most */
+/** The link preview's description: where it stands and the play that swung it most */
 const lines = (m: ShareMatchup) => {
   const p = m.odds?.[m.odds.length - 1];
   return [
@@ -42,7 +42,6 @@ export default async function MatchupShare(props: Params) {
   return (
     <SharePage
       title={title(m)}
-      lines={lines(m)}
       image={imagePath(m)}
       href={`/?season=${m.season}&week=${m.week}&matchup=${m.matchupId}`}
       live={m.status === 'live'}

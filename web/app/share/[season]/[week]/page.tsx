@@ -13,7 +13,7 @@ const load = async ({ params }: Params) => {
 
 const title = (w: ShareWeek) => `Week ${w.week} ${w.status === 'final' ? 'recap' : 'so far'}, ${w.season}`;
 
-/** What it says in words: the awards (or the live scores) and the biggest swing */
+/** The link preview's description: the awards (or the live scores) and the biggest swing */
 const lines = (w: ShareWeek) => [
   ...(w.awards.length
     ? w.awards.map((a) => `${a.label}: ${a.who} (${a.detail})`)
@@ -36,7 +36,6 @@ export default async function WeekShare(props: Params) {
   return (
     <SharePage
       title={title(w)}
-      lines={lines(w)}
       image={picturePath(`/share/${w.season}/${w.week}/image`, w.status)}
       href={`/?season=${w.season}&week=${w.week}`}
       live={w.status === 'live'}
