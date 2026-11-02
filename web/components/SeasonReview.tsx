@@ -49,7 +49,7 @@ function Tile({ label, children, sub, wide = false }: { label: string; children:
 export default function SeasonReview({ season, leagueData, teamStats, playEveryone, matchups, regularSeasonEnd }: SeasonReviewProps) {
   const me = useMyTeam();
   const [picked, setPicked] = useState<number | null>(null);
-  const { data: insights } = useSeasonInsights(season);
+  const { data: insights } = useSeasonInsights(season, true);
   const { data: history } = useOddsHistory(season, true);
   const { data: trades } = useSharedFetch<TradeHistoryResponse>(`trades:${season}`, () =>
     fetchFirst([`/data/trades/${season}.json`, `/api/trades/${season}`], `${season} trades`)

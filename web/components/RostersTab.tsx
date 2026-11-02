@@ -17,6 +17,8 @@ interface RostersTabProps {
   season: string;
   teamStats: TeamStats[];
   rosterPositions: string[];
+  /** A finished season, read from its pre-built file */
+  complete?: boolean;
   /** The trade and waiver tools, shown first while the regular season is on */
   tools?: ReactNode;
 }
@@ -25,17 +27,17 @@ interface RostersTabProps {
  * Everything about who's on each roster: during the regular season the trade and waiver tools
  * first, then who teams start, pick up and score with, from the season's insights
  */
-export default function RostersTab({ season, teamStats, rosterPositions, tools }: RostersTabProps) {
+export default function RostersTab({ season, teamStats, rosterPositions, complete, tools }: RostersTabProps) {
   return (
     <>
       {tools}
-      <SeasonRosters season={season} teamStats={teamStats} rosterPositions={rosterPositions} />
+      <SeasonRosters season={season} teamStats={teamStats} rosterPositions={rosterPositions} complete={complete} />
     </>
   );
 }
 
-function SeasonRosters({ season, teamStats, rosterPositions }: Omit<RostersTabProps, 'tools'>) {
-  const { data, error, retry } = useSeasonInsights(season);
+function SeasonRosters({ season, teamStats, rosterPositions, complete }: Omit<RostersTabProps, 'tools'>) {
+  const { data, error, retry } = useSeasonInsights(season, complete);
   if (error) {
     return (
       <SectionCard title="Rosters" gradientType="primary">

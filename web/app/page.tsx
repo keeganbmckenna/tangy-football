@@ -642,6 +642,7 @@ export default function Home() {
             season={selectedSeason || leagueData.league.season}
             teamStats={teamStats}
             rosterPositions={leagueData.league.roster_positions ?? []}
+            complete={leagueData.league.status === 'complete'}
             tools={showTradeTools ? <TradesTab teamStats={teamStats} /> : null}
           />
         )}

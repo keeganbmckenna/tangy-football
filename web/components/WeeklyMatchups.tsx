@@ -35,7 +35,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
   const currentMatchups = myWeekMatchupFirst(matchups[selectedWeek] || [], me.rosterId);
 
   // The week's awards; the lineup and projection ones once the season's insights load
-  const { data: insights } = useSeasonInsights(leagueData?.league.season);
+  const { data: insights } = useSeasonInsights(leagueData?.league.season, leagueData?.league.status === 'complete');
   const awards = useMemo(() => {
     const teamWeeks = insights
       ? new Map(Object.entries(insights.teams).flatMap(([rid, list]) => list.filter((w) => w.week === selectedWeek).map((w) => [Number(rid), w] as const)))
@@ -105,7 +105,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
           </ul>
         </div>
       )}
-      {!showLive && <div className="grid gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
+      {!showLive && <div className="grid grid-cols-1 gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
         {currentMatchups.length === 0 ? (
           <p className="col-span-full text-center text-[var(--muted)] py-8">
             No matchups available for this week

@@ -4,7 +4,7 @@
 # is in progress, so a ping outside the games does nothing. Times are UTC and cover both
 # daylight and standard time; GitHub can run scheduled jobs late or skip them when busy, and does
 # for this one, so this is the backup: the main ping is an Upstash QStash schedule that pings every 3 minutes while games are on
-# (scripts/live_ping_schedule.sh).
+# (scripts/live_ping_schedule.sh). It also checks the odds are being saved while a game is on.
 name: Live ping
 
 on:
@@ -22,7 +22,18 @@ permissions: {}
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Load the Live data
-        run: curl -fsS -o /dev/null --max-time 60 https://tangy-football.vercel.app/api/live
+        run: curl -fsS -o live.json --max-time 60 https://tangy-football.vercel.app/api/live
+      # Fails the run (GitHub emails the owner) when a game is on but the odds haven't been saved
+      # in 10 minutes: Redis, the save or the QStash pings are broken
+      - name: Check the odds are being saved
+        run: |
+          jq -e '[.games[] | select(.state == "in")] | length > 0' live.json > /dev/null || { echo "No game in progress"; exit 0; }
+          sleep 15  # the save runs after the response
+          url="https://tangy-football.vercel.app/api/live/history?season=$(jq -r .season live.json)&week=$(jq -r .week live.json)&v=$RANDOM"
+          last=$(curl -fsS --max-time 30 "$url" | jq '.times[-1] // 0') || last=0
+          age=$(( $(date +%s) - last ))
+          echo "Last save ${age}s ago"
+          [ "$age" -lt 600 ] || { echo "::error::No live odds saved for ${age}s while a game is on"; exit 1; }
