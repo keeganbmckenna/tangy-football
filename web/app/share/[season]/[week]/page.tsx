@@ -36,9 +36,7 @@ export default async function WeekShare(props: Params) {
   return (
     <SharePage
       title={title(w)}
-      image={picturePath(`/share/${w.season}/${w.week}/image`, w.status)}
       href={`/?season=${w.season}&week=${w.week}`}
-      live={w.status === 'live'}
     />
   );
 }

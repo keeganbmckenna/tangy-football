@@ -42,9 +42,7 @@ export default async function MatchupShare(props: Params) {
   return (
     <SharePage
       title={title(m)}
-      image={imagePath(m)}
       href={`/?season=${m.season}&week=${m.week}&matchup=${m.matchupId}`}
-      live={m.status === 'live'}
     />
   );
 }
