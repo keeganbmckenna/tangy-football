@@ -7,6 +7,7 @@ import { RESULT_DOT_COLORS } from '@/lib/constants';
 import type { Drive } from '@/lib/analyze/live';
 import LiveScore from '@/components/ui/LiveScore';
 import TeamAvatar from '@/components/ui/TeamAvatar';
+import ShareButton from '@/components/ui/ShareButton';
 
 export interface MatchupPlayer {
   playerId: string;
@@ -226,11 +227,13 @@ interface Props {
   chart?: ReactNode;
   /** Shown under the chart, e.g. what it takes to win */
   panel?: ReactNode;
+  /** This matchup's share page (/share/season/week/matchup), for a Share button */
+  sharePath?: string;
   onClose: () => void;
 }
 
 /** Both lineups of a matchup, slot by slot (and the benches, when given), in a dialog */
-export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, panel, onClose }: Props) {
+export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, panel, sharePath, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -288,6 +291,9 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
         <div className="flex items-start gap-3 border-b border-[var(--border)] p-4">
           {head(a, false)}
           {head(b, true)}
+          {sharePath && (
+            <ShareButton path={sharePath} title={title} className="-mt-1 shrink-0 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />
+          )}
           <button
             ref={closeRef}
             type="button"

@@ -33,3 +33,15 @@ export function urlSearchFor(tab: string, season: string, currentSeason: string)
   const s = params.toString();
   return s ? `?${s}` : '';
 }
+
+/**
+ * A share link's way in (app/share): the week to show in Overview's Weekly Matchups and the
+ * matchup to open (?week=8&matchup=2). Read once on first load; the address bar then drops them.
+ */
+export function readLinkTarget(search: string): { week: number; matchup: number | null } | null {
+  const params = new URLSearchParams(search);
+  const week = Number(params.get('week'));
+  if (!Number.isInteger(week) || week < 1 || week > 18) return null;
+  const matchup = Number(params.get('matchup'));
+  return { week, matchup: Number.isInteger(matchup) && matchup > 0 ? matchup : null };
+}

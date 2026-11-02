@@ -20,6 +20,8 @@ export interface LineupGame {
   b: LineupTeam;
   /** Shown in the dialog's title, e.g. "Semifinal" */
   label?: string;
+  /** Its matchup ID, for a Share button (regular-season weeks) */
+  matchupId?: number;
 }
 
 // Defenses' IDs are their team codes (one on bye has no projection to name it)
@@ -91,6 +93,7 @@ export function useMatchupLineups(leagueData: LeagueData | null | undefined) {
         b={b}
         slots={(leagueData?.league.roster_positions ?? []).filter((s) => s !== 'BN' && s !== 'IR')}
         footnote="Final points, with each player's Sleeper projection from before the games."
+        sharePath={season && open.matchupId !== undefined ? `/share/${season}/${open.week}/${open.matchupId}` : undefined}
         chart={season ? <WinSwing season={season} week={open.week} a={{ rosterId: open.a.rosterId, name: a.name }} b={{ rosterId: open.b.rosterId, name: b.name }} /> : null}
         onClose={close}
       />

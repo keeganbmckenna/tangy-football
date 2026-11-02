@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import LiveTab from '@/components/LiveTab';
 import { useMatchupLineups } from '@/components/useMatchupLineups';
 import TeamAvatar from '@/components/ui/TeamAvatar';
+import ShareButton from '@/components/ui/ShareButton';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { myWeekMatchupFirst } from '@/lib/analyze/myMatchup';
 import { useMyTeam } from '@/hooks/useMyTeam';
@@ -18,9 +19,11 @@ interface WeeklyMatchupsProps {
   leagueData?: LeagueData | null;
   /** The week being played, shown live (the Live tab's matchups and lineups) and picked first */
   live?: { week: number; regularSeasonEnd: number; playoffTeams: number; hasDivisions: boolean } | null;
+  /** A share link's week, and the matchup to open in it */
+  linkTarget?: { week: number; matchup: number | null } | null;
 }
 
-export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, live }: WeeklyMatchupsProps) {
+export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, live, linkTarget }: WeeklyMatchupsProps) {
   const weeks = Object.keys(matchups)
     .map(Number)
     // Only show completed weeks: the current unscored week's matchups are 0-0 "ties"
@@ -47,14 +50,44 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
   const lineups = useMatchupLineups(leagueData);
   const game = (m: WeekMatchup) => ({
     week: m.week,
+    matchupId: m.matchupId,
     a: { rosterId: m.team1.rosterId, name: m.team1.name, points: m.team1.points },
     b: { rosterId: m.team2.rosterId, name: m.team2.name, points: m.team2.points },
   });
 
+  // A share link: its week, with its matchup open (the live lineups for the week being played)
+  const [liveLink, setLiveLink] = useState<number | null>(null);
+  const linked = useRef(false);
+  useEffect(() => {
+    if (linked.current || !linkTarget || !leagueData) return;
+    const isLive = live?.week === linkTarget.week;
+    if (!isLive && !weeks.includes(linkTarget.week)) return;
+    linked.current = true;
+    setSelectedWeek(linkTarget.week);
+    if (linkTarget.matchup === null) return;
+    if (isLive) setLiveLink(linkTarget.matchup);
+    else {
+      const m = (matchups[linkTarget.week] ?? []).find((x) => x.matchupId === linkTarget.matchup);
+      if (m) lineups.openLineups(game(m));
+    }
+    // Once (linked): later renders that change these don't reopen it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkTarget, leagueData, live?.week, weeks.length, matchups]);
+
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow-lg overflow-hidden border border-[var(--border)]">
       <div className="section-header bg-gradient-to-r from-green-600 to-green-800 px-4 py-3 sm:px-6 sm:py-4" data-tone="green">
-        <h2 className="text-xl font-bold text-white mb-3 sm:text-2xl">Weekly Matchups</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold text-white sm:text-2xl">Weekly Matchups</h2>
+          {leagueData && (
+            <ShareButton
+              path={`/share/${leagueData.league.season}/${selectedWeek}`}
+              title={`Week ${selectedWeek} ${showLive ? 'so far' : 'recap'}`}
+              label="Share week"
+              className="bg-white/15 text-white hover:bg-white/25"
+            />
+          )}
+        </div>
         <div className="flex gap-1 flex-wrap">
           {weeks.map((week) => (
             <button
@@ -86,7 +119,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
         </div>
       </div>
       {showLive && leagueData && live && (
-        <LiveTab compact leagueData={leagueData} regularSeasonEnd={live.regularSeasonEnd} playoffTeams={live.playoffTeams} hasDivisions={live.hasDivisions} />
+        <LiveTab compact initialMatchup={liveLink} leagueData={leagueData} regularSeasonEnd={live.regularSeasonEnd} playoffTeams={live.playoffTeams} hasDivisions={live.hasDivisions} />
       )}
       {!showLive && awards.length > 0 && (
         <div className="border-b border-[var(--border)] py-3">

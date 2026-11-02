@@ -21,7 +21,7 @@ import HistoryTab from '@/components/HistoryTab';
 import RostersTab from '@/components/RostersTab';
 import LegacySeasonOverview from '@/components/LegacySeasonOverview';
 import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
-import { readUrlState, urlSearchFor } from '@/lib/urlState';
+import { readLinkTarget, readUrlState, urlSearchFor } from '@/lib/urlState';
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import PlayoffPicture from '@/components/PlayoffPicture';
@@ -84,6 +84,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('overview');
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState('');
+  // A share link's week and matchup (?week=8&matchup=2), opened once in Weekly Matchups
+  const [linkTarget, setLinkTarget] = useState<ReturnType<typeof readLinkTarget>>(null);
   const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
   // Where View Transitions aren't used, the new tab fades in instead (set after mount)
   const [fadeTabs, setFadeTabs] = useState(false);
@@ -206,6 +208,7 @@ export default function Home() {
   useEffect(() => {
     const { tab, season } = readUrlState(window.location.search);
     if (tab) setActiveTab(tab);
+    setLinkTarget(readLinkTarget(window.location.search));
     setMyUserId(readMyTeam());
     setFadeTabs(!canViewTransition());
     (async () => {
@@ -505,6 +508,7 @@ export default function Home() {
             <ErrorBoundary>
               <section>
                 <WeeklyMatchups
+                  linkTarget={linkTarget}
                   matchups={matchups}
                   lastScoredWeek={leagueData?.lastScoredWeek}
                   leagueData={leagueData}

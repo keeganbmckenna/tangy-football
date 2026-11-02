@@ -55,6 +55,8 @@ interface LiveTabProps {
   hasDivisions: boolean;
   /** Just the week's matchups (and their lineups), for the Overview */
   compact?: boolean;
+  /** A matchup to open (a share link's) */
+  initialMatchup?: number | null;
 }
 
 function isIn(status: PlayoffStatus) {
@@ -153,7 +155,7 @@ function secondsAgo(iso: string, now: number) {
   return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`;
 }
 
-export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, hasDivisions, compact = false }: LiveTabProps) {
+export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, hasDivisions, compact = false, initialMatchup = null }: LiveTabProps) {
   const [live, setLive] = useState<LiveWeekData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -161,6 +163,9 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   // The matchup whose lineups are open (it stays live through refreshes)
   const [openMatchup, setOpenMatchup] = useState<number | null>(null);
   const closeMatchup = useCallback(() => setOpenMatchup(null), []);
+  useEffect(() => {
+    if (initialMatchup !== null) setOpenMatchup(initialMatchup);
+  }, [initialMatchup]);
   // Kept across the minute-by-minute refreshes
   const sort = useTableSort('livePlayAll');
   const me = useMyTeam();
@@ -417,6 +422,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
               />
             )
           }
+          sharePath={`/share/${live.season}/${live.week}/${m.matchupId}`}
           onClose={closeMatchup}
         />
       ) : null;
