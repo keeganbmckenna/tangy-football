@@ -24,6 +24,7 @@ import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
 import { readLinkTarget, readManager, readUrlState, urlSearchFor } from '@/lib/urlState';
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
+import { usePageTitleBase } from '@/hooks/usePageTitle';
 import PlayoffPicture from '@/components/PlayoffPicture';
 import PowerRankings from '@/components/PowerRankings';
 import SeasonReview from '@/components/SeasonReview';
@@ -291,6 +292,9 @@ export default function App() {
     .filter((tab) => tab.id !== 'live' || isCurrentSeason)
     .filter((tab) => !isLegacySeason || tab.id === 'overview' || tab.id === 'history');
   const tabIds = tabs.map((t) => t.id).join();
+  // The browser tab: "Stats · Tangy Football", with the season when it isn't the current one
+  const shownSeason = selectedSeason || leagueData?.league.season || '';
+  usePageTitleBase([tabs.find((t) => t.id === activeTab)?.name, shownSeason && shownSeason !== availableSeasons[0] ? shownSeason : null]);
 
   // A tab that doesn't apply to this season (a link, or a season switch) falls back to Overview
   useEffect(() => {

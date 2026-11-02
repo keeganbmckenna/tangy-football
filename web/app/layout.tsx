@@ -15,13 +15,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tangy Football - Fantasy Football Analytics",
+  title: "Tangy Football",
   description: "Advanced fantasy football analytics and insights powered by Sleeper. Track standings, analyze weekly performance, and discover season trends.",
   keywords: ["fantasy football", "sleeper", "analytics", "statistics", "football"],
   authors: [{ name: "Fantasy Football Analytics" }],
   appleWebApp: { capable: true, title: "Tangy Football", statusBarStyle: "black" },
   openGraph: {
-    title: "Tangy Football - Fantasy Football Analytics",
+    title: "Tangy Football",
     description: "Advanced fantasy football analytics and insights",
     type: "website",
   },

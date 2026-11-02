@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import ShareButton from '@/components/ui/ShareButton';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { loadSeason } from '@/components/TradeHistory';
 import { useSharedFetch } from '@/hooks/useSharedFetch';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
@@ -61,6 +62,7 @@ function finish(s: ProfileSeason): { text: string; tone: 'win' | 'loss' | null }
 export default function ManagerPage({ data, userId, postseason, onBack, onManager }: Props) {
   const managers = useMemo(() => new Map(data.managers.map((m) => [m.userId, m])), [data]);
   const nameOf = (id: string) => managers.get(id)?.name ?? 'Unknown';
+  usePageTitle([managers.get(userId)?.name]);
   const profile = useMemo(() => managerProfile(data, userId, { postseason }), [data, userId, postseason]);
   // The opponent whose meetings are open
   const [open, setOpen] = useState<string | null>(null);

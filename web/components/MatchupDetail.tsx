@@ -8,6 +8,7 @@ import type { Drive } from '@/lib/analyze/live';
 import LiveScore from '@/components/ui/LiveScore';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import ShareButton from '@/components/ui/ShareButton';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export interface MatchupPlayer {
   playerId: string;
@@ -235,6 +236,7 @@ interface Props {
 /** Both lineups of a matchup, slot by slot (and the benches, when given), in a dialog */
 export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, panel, sharePath, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  usePageTitle([title]);
 
   useEffect(() => {
     closeRef.current?.focus();
