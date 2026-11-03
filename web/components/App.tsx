@@ -26,6 +26,7 @@ import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import { usePageTitleBase } from '@/hooks/usePageTitle';
 import { backToCloseActive } from '@/hooks/useBackToClose';
+import { restoreScroll, savedScroll, useScrollMemory } from '@/hooks/useScrollMemory';
 import { ManagerLinkContext } from '@/hooks/useManagerLink';
 import PlayoffPicture from '@/components/PlayoffPicture';
 import PowerRankings from '@/components/PowerRankings';
@@ -91,6 +92,7 @@ export default function App() {
   const [linkTarget, setLinkTarget] = useState<ReturnType<typeof readLinkTarget>>(null);
   // The History tab's open manager page, if any (?manager=)
   const [historyManager, setHistoryManager] = useState<string | null>(null);
+  useScrollMemory();
   const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
   // Where View Transitions aren't used, the new tab fades in instead (set after mount)
   const [fadeTabs, setFadeTabs] = useState(false);
@@ -273,6 +275,8 @@ export default function App() {
     const onPop = () => {
       // A back press that closes a matchup's lineups, not a change of view
       if (backToCloseActive()) return;
+      // Where this view was scrolled, once it's back
+      restoreScroll(savedScroll());
       const { tab, season } = readUrlState(window.location.search);
       fromHistory.current = true;
       setActiveTab(tab ?? 'overview');

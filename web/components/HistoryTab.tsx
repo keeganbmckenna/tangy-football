@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
+import { restoreScroll } from '@/hooks/useScrollMemory';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -29,6 +30,9 @@ import {
 } from '@/lib/analyze/history';
 
 const MIN_SERIES = 4;
+
+// Where the league's history was scrolled when a manager's page was opened from it
+let listScroll = 0;
 
 // Whether records count playoff and toilet bowl games, for this visit
 let rememberedPostseason = true;
@@ -123,8 +127,11 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
 
   // A manager's page in place of the league's history
   const openManager = (id: string | null) => {
+    // Opening a page from the league's history remembers where it was; "← League history" goes back there
+    if (id && !manager) listScroll = window.scrollY;
     onManager?.(id);
-    window.scrollTo({ top: 0 });
+    if (id) window.scrollTo({ top: 0 });
+    else restoreScroll(listScroll);
   };
   if (manager && data.managers.some((m) => m.userId === manager)) {
     return <ManagerPage data={data} userId={manager} postseason={postseason} luck={luck} onBack={() => openManager(null)} onManager={openManager} />;

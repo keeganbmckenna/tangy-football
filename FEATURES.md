@@ -107,7 +107,7 @@ A switch counts the three sections above either with playoff and toilet bowl gam
 - **Back closes:** with a matchup's lineups open, the back button (or a phone's back swipe) closes them instead of leaving the page.
 - **Sortable tables:** tap a column header to sort (best first, then reversed, then back to the default order, or use ↺ Default order).
 - **Your team:** highlighted in every table and chart, and pre-selected in the trade and waiver tools.
-- **Shareable links:** the address bar keeps the tab and season, so refresh, back and shared links land on the same view.
+- **Shareable links:** the address bar keeps the tab and season, so refresh, back and shared links land on the same view. Back, forward (or a swipe) and refresh also return to where each view was scrolled.
 - **Link previews:** links to the site preview as a picture in group chats and on social sites: a matchup (its score, win-odds line and the play that swung it most), a week (its awards, or every matchup's score and odds while it's being played, and its biggest swing), a manager's page (record, titles, points per game, best finish), or the league itself (its photo and the standings' top six). Any address copied from the browser works; **Share** on a matchup's lineups, **Share week** on Weekly Matchups and the share icon on a manager page give the same links, from your phone's share sheet or copied. Sharing your own game puts your team on the left for everyone; otherwise a finished game's winner goes first. Opening a link goes straight to that view.
 - **Definitions:** dotted-underlined terms (GB, PB, Core/wk, luck factor…) explain themselves on hover or tap.
 - **Phones:**
