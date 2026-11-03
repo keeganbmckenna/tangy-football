@@ -30,15 +30,20 @@ interface Props {
 
 /** One manager's lifetime win totals over the shuffled schedules, their real total highlighted */
 function Distribution({ row }: { row: LifetimeLuckRow }) {
-  const data = row.outcomes.map((o) => ({ ...o, actual: o.wins === row.wins }));
+  // Totals under 1 schedule in 1,000 are left off, so the axis is the part with bars
+  const data = row.outcomes.filter((o) => o.frequency >= 0.001 || o.wins === row.wins).map((o) => ({ ...o, actual: o.wins === row.wins }));
   if (!data.some((d) => d.actual)) data.push({ wins: row.wins, frequency: 0, actual: true });
   data.sort((a, b) => a.wins - b.wins);
+  const lo = Math.floor(data[0].wins);
+  const hi = Math.ceil(data[data.length - 1].wins);
+  const step = hi - lo > 20 ? 4 : 2;
+  const ticks = Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
   return (
     <div className="h-56">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} vertical={false} />
-          <XAxis dataKey="wins" type="number" domain={['dataMin - 0.5', 'dataMax + 0.5']} allowDecimals={false} tickFormatter={wins} tick={{ fill: CHART_THEME.tick }} axisLine={{ stroke: CHART_THEME.axis }} tickLine={{ stroke: CHART_THEME.axis }} style={{ fontSize: '11px' }} />
+          <XAxis dataKey="wins" type="number" domain={[lo - 0.5, hi + 0.5]} ticks={ticks} allowDecimals={false} tickFormatter={wins} tick={{ fill: CHART_THEME.tick }} axisLine={{ stroke: CHART_THEME.axis }} tickLine={{ stroke: CHART_THEME.axis }} style={{ fontSize: '11px' }} />
           <YAxis tickFormatter={pct} tick={{ fill: CHART_THEME.tick }} axisLine={{ stroke: CHART_THEME.axis }} tickLine={{ stroke: CHART_THEME.axis }} width={40} style={{ fontSize: '11px' }} />
           <ReferenceLine x={row.expected} stroke={CHART_THEME.axis} strokeDasharray="4 3" />
           <Tooltip
@@ -191,14 +196,26 @@ export default function LifetimeLuck({ luck, nameOf, onManager }: Props) {
                             Close games (under {CLOSE_GAME_MARGIN} points): {record(r.close)}.
                           </p>
                           <Distribution row={r} />
-                          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted)]">
-                            {r.seasons.map((s) => (
-                              <li key={s.season}>
-                                {s.season}: <span className="text-[var(--foreground)]">{wins(s.wins)}</span> wins, expected {s.expected.toFixed(1)}{' '}
-                                <span className="font-semibold text-[var(--foreground)]">({signed(s.luck)})</span>
-                              </li>
-                            ))}
-                          </ul>
+                          <table className="w-full max-w-sm text-xs tabular-nums">
+                            <thead className="text-[var(--muted)]">
+                              <tr>
+                                <th className="py-1 pr-3 text-left font-medium">Season</th>
+                                <th className="px-3 py-1 text-right font-medium">Wins</th>
+                                <th className="px-3 py-1 text-right font-medium">Expected</th>
+                                <th className="py-1 pl-3 text-right font-medium">Luck</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--border)] text-[var(--foreground)]">
+                              {r.seasons.map((s) => (
+                                <tr key={s.season}>
+                                  <td className="py-1 pr-3">{s.season}{s.season === luck.inProgress ? <span className="text-[var(--muted)]"> (so far)</span> : null}</td>
+                                  <td className="px-3 py-1 text-right">{wins(s.wins)}</td>
+                                  <td className="px-3 py-1 text-right">{s.expected.toFixed(1)}</td>
+                                  <td className="py-1 pl-3 text-right font-semibold">{signed(s.luck)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </td>
                     </tr>
