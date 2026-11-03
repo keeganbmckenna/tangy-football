@@ -13,6 +13,7 @@ import type { HistoryData, HistoryGame } from '@/lib/analyze/history';
 import { managerProfile, type ProfileGame, type ProfileSeason } from '@/lib/analyze/managerProfile';
 import { netHindsight, tradeLeaders, type SeasonTrade } from '@/lib/analyze/tradeLeaders';
 import type { TradeHistoryResponse } from '@/lib/analyze/trade';
+import type { LifetimeLuck } from '@/lib/analyze/lifetimeLuck';
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -27,6 +28,8 @@ interface Props {
   userId: string;
   /** Count playoff and toilet bowl games in records (the History tab's switch) */
   postseason: boolean;
+  /** Every manager's lifetime schedule luck (the History tab's) */
+  luck?: LifetimeLuck | null;
   onBack: () => void;
   /** Open another manager's page */
   onManager: (userId: string) => void;
@@ -59,7 +62,7 @@ function finish(s: ProfileSeason): { text: string; tone: 'win' | 'loss' | null }
  * One manager's page in the History tab (lib/analyze/managerProfile.ts): career totals and their
  * league ranks, every season, the record against each manager, best and worst games, and trades.
  */
-export default function ManagerPage({ data, userId, postseason, onBack, onManager }: Props) {
+export default function ManagerPage({ data, userId, postseason, luck, onBack, onManager }: Props) {
   const managers = useMemo(() => new Map(data.managers.map((m) => [m.userId, m])), [data]);
   const nameOf = (id: string) => managers.get(id)?.name ?? 'Unknown';
   usePageTitle([managers.get(userId)?.name]);
@@ -109,6 +112,9 @@ export default function ManagerPage({ data, userId, postseason, onBack, onManage
   }
 
   const m = managers.get(userId);
+  const myLuck = luck?.rows.find((r) => r.userId === userId) ?? null;
+  const luckIn = new Map(myLuck?.seasons.map((s) => [s.season, s.luck]) ?? []);
+  const luckText = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(1)}`;
   const { totals, ranks, seasons } = profile;
   const titles = seasons.filter((s) => s.champion).map((s) => s.season);
   const toilets = seasons.filter((s) => s.toiletLoser).map((s) => s.season);
@@ -153,10 +159,17 @@ export default function ManagerPage({ data, userId, postseason, onBack, onManage
             <Tile label="Toilet bowl losses" value={toilets.length ? `💩 ${toilets.length}` : '0'} sub={toilets.length ? toilets.join(', ') : undefined} />
             <Tile label="Trades" value={trades ? String(trades.count) : '…'} sub={trades?.leader?.topPartner ? `Most with ${nameOf(trades.leader.topPartner.userId)} (${trades.leader.topPartner.trades})` : undefined} />
           </div>
+          {myLuck && (
+            <p className="text-sm text-[var(--muted)]">
+              <span className="font-semibold text-[var(--foreground)]">Schedule luck: {luckText(myLuck.luck)} wins</span> over {myLuck.seasons.length} Sleeper season
+              {myLuck.seasons.length === 1 ? '' : 's'} ({myLuck.wins % 1 ? myLuck.wins.toFixed(1) : myLuck.wins} regular-season wins, {myLuck.expected.toFixed(1)} expected from their scoring),
+              luckier than {Math.round(myLuck.percentile * 100)}% of possible schedules.
+            </p>
+          )}
         </div>
       </SectionCard>
 
-      <SectionCard title="Season by Season" subtitle="Regular-season record and points per game, then where the season ended" gradientType="info">
+      <SectionCard title="Season by Season" subtitle={`Regular-season record and points per game${myLuck ? ', wins over what that scoring would win on an average schedule,' : ''} then where the season ended`} gradientType="info">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-[var(--border)] text-sm">
             <thead className="bg-[var(--surface)] text-xs uppercase tracking-wider text-[var(--muted)]">
@@ -165,6 +178,11 @@ export default function ManagerPage({ data, userId, postseason, onBack, onManage
                 <th className="px-4 py-2 text-left font-medium">Team and finish</th>
                 <th className="px-4 py-2 text-center font-medium">Record</th>
                 <th className="px-4 py-2 text-right font-medium">PPG</th>
+                {myLuck && (
+                  <th className="px-4 py-2 text-right font-medium" title="Regular-season wins over what their scoring would have won on shuffled schedules">
+                    Luck
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -182,6 +200,7 @@ export default function ManagerPage({ data, userId, postseason, onBack, onManage
                       {s.regularRank && <span className="block text-xs text-[var(--muted)]">{ordinal(s.regularRank)} of {s.teams > 1 ? s.teams : '—'}</span>}
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums text-[var(--foreground)]">{s.pointsPerGame !== null ? s.pointsPerGame.toFixed(1) : '—'}</td>
+                    {myLuck && <td className="px-4 py-2 text-right tabular-nums text-[var(--foreground)]">{luckIn.has(s.season) ? luckText(luckIn.get(s.season)!) : '—'}</td>}
                   </tr>
                 );
               })}

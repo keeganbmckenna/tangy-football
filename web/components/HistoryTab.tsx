@@ -12,6 +12,8 @@ import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
 import ManagerPage from '@/components/ManagerPage';
+import LifetimeLuck from '@/components/LifetimeLuck';
+import { lifetimeLuck } from '@/lib/analyze/lifetimeLuck';
 import { getHeatmapColorByRatio } from '@/lib/constants';
 import { signed } from '@/lib/format';
 import {
@@ -99,6 +101,8 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
     const standings = allTimeStandings(data, opts);
     return { standings, h2h: headToHead(data, opts), rivals: rivalries(data, opts), records: recordBook(data) };
   }, [data, postseason]);
+  // Regular season only, so the postseason switch doesn't change it
+  const luck = useMemo(() => (data ? lifetimeLuck(data) : null), [data]);
 
   if (error) {
     return (
@@ -123,7 +127,7 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
     window.scrollTo({ top: 0 });
   };
   if (manager && data.managers.some((m) => m.userId === manager)) {
-    return <ManagerPage data={data} userId={manager} postseason={postseason} onBack={() => openManager(null)} onManager={openManager} />;
+    return <ManagerPage data={data} userId={manager} postseason={postseason} luck={luck} onBack={() => openManager(null)} onManager={openManager} />;
   }
 
   const managers = new Map(data.managers.map((m) => [m.userId, m]));
@@ -486,6 +490,12 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
           {rivalList('Closest', closest)}
         </div>
       </SectionCard>
+
+      {luck && (
+        <ErrorBoundary>
+          <LifetimeLuck luck={luck} nameOf={nameOf} onManager={onManager ? openManager : undefined} />
+        </ErrorBoundary>
+      )}
 
       <ErrorBoundary>
         <TradeHistory history={data} />

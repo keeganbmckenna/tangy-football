@@ -38,7 +38,10 @@ const buildRoundRobinSchedule = (teamIds: number[]): number[][][] => {
   return weeks;
 };
 
-const getActualWins = (team: TeamStats) => team.wins + (team.ties || 0) * 0.5;
+/** What the simulation needs of a team: its weekly scores and its real record */
+export type ScheduleLuckTeam = Pick<TeamStats, 'username' | 'teamName' | 'wins' | 'ties' | 'weeklyScores'>;
+
+const getActualWins = (team: ScheduleLuckTeam) => team.wins + (team.ties || 0) * 0.5;
 
 const buildSimulationSchedule = (baseSchedule: number[][][], totalWeeks: number) => {
   if (totalWeeks <= baseSchedule.length) {
@@ -61,9 +64,10 @@ const buildSimulationSchedule = (baseSchedule: number[][][], totalWeeks: number)
  * Uses a round-robin schedule, then repeats early weeks if needed.
  */
 export function simulateScheduleLuck(
-  teams: TeamStats[],
+  teams: ScheduleLuckTeam[],
   simulations: number = 5000,
-  maxWeek?: number
+  maxWeek?: number,
+  random: () => number = Math.random
 ): ScheduleLuckSimulation {
   if (teams.length === 0) {
     return { simulations, weeksSimulated: 0, teams: [] };
@@ -76,7 +80,7 @@ export function simulateScheduleLuck(
   const distributions = teamIds.map(() => new Map<number, number>());
 
   for (let sim = 0; sim < simulations; sim++) {
-    const shuffledTeams = shuffleArray(teamIds);
+    const shuffledTeams = shuffleArray(teamIds, random);
     const baseSchedule = buildRoundRobinSchedule(shuffledTeams);
     const schedule = buildSimulationSchedule(baseSchedule, numWeeks);
     const wins = new Array(teamIds.length).fill(0);
