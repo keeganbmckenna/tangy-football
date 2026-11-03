@@ -326,3 +326,8 @@ select { background-color: var(--solid-surface) !important; }
   main table :is(.text-xs), main :is(th, td).text-xs { font-size: 0.6875rem; line-height: 1rem; }
   main table .tracking-wider { letter-spacing: 0.02em; }
 }
+
+/* A phone on its side: too short to keep the header pinned, so it scrolls away with the page */
+@media (max-height: 560px) {
+  .site-header { position: relative; }
+}
