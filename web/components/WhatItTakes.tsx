@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
-import { percent } from '@/lib/format';
+import { percent, signed } from '@/lib/format';
 import type { DefenseContext, LiveGame, LiveProjection, MatchupModel } from '@/lib/analyze/live';
 import {
   expectedLeft,
@@ -137,7 +137,7 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
                 <p className="mt-1.5 text-xs tabular-nums text-[var(--muted)]">
                   Chance of getting there:{' '}
                   <span className="font-semibold" style={{ color: sideOdds(k) >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--foreground)' }}>{percent(sideOdds(k))}</span>
-                  {' '}(typical +{pts(outcomes(model, k)[1].adds)}, great day +{pts(outcomes(model, k)[2].adds)})
+                  {' '}(typical {signed(outcomes(model, k)[1].adds)}, great day {signed(outcomes(model, k)[2].adds)})
                 </p>
               ) : (
               <table className="mt-1.5 w-full text-xs tabular-nums">
@@ -145,7 +145,7 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
                   {outcomes(model, k).map((o) => (
                     <tr key={o.label}>
                       <td className="py-0.5 text-[var(--muted)]">{o.label}</td>
-                      <td className="py-0.5 text-right text-[var(--foreground)]">+{pts(o.adds)}</td>
+                      <td className="py-0.5 text-right text-[var(--foreground)]">{signed(o.adds)}</td>
                       <td className="w-14 py-0.5 text-right font-semibold" style={{ color: o.odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>
                         {percent(o.odds)}
                       </td>
@@ -182,7 +182,7 @@ export default function WhatItTakes({ model, leftRosterId, names, matchups, proj
                     </span>
                   </div>
                   <div className="text-xs tabular-nums text-[var(--muted)]">
-                    +{pts(s.expected)} expected, usually {pts(s.low)}–{pts(s.high)}
+                    {signed(s.expected)} expected, usually {signed(s.low)} to {signed(s.high)}
                   </div>
                   {note && <div className="text-xs italic text-[var(--warning-text)]">{note}</div>}
                 </li>
