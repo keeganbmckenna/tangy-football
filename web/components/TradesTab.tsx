@@ -28,10 +28,30 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
   // A trade from the finder, loaded into a fresh analyzer
   const [preset, setPreset] = useState<{ key: number; trade: TradePreset } | null>(null);
   const analyzerRef = useRef<HTMLElement | null>(null);
+  const loaded = useRef(false);
 
   useEffect(() => {
     if (preset) analyzerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [preset]);
+
+  // Reload while the page is open, keeping what's shown meanwhile: every minute once the week has
+  // kicked off (its games' live odds, and who has played), otherwise for roster moves and injury news
+  const live = !!data?.model.live;
+  const inSeason = !!data && data.remaining.length > 0;
+  useEffect(() => {
+    if (!inSeason) return;
+    const every = live ? 60_000 : 15 * 60_000;
+    const loadedAt = Date.now();
+    const check = () => {
+      if (document.visibilityState === 'visible' && Date.now() - loadedAt >= every) setAttempt((a) => a + 1);
+    };
+    const id = window.setInterval(check, 10_000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [inSeason, live, data]);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,11 +61,17 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
         return res.json() as Promise<TradeDataResponse>;
       })
       .then((json) => !cancelled && setData(json))
-      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : 'Failed to load the trade analyzer'));
+      .catch((e) => {
+        // A failed reload keeps what's shown; the next one tries again
+        if (!cancelled && !loaded.current) setError(e instanceof Error ? e.message : 'Failed to load the trade analyzer');
+      });
     return () => {
       cancelled = true;
     };
   }, [attempt]);
+  useEffect(() => {
+    loaded.current = data !== null;
+  }, [data]);
 
   return (
     <div className="space-y-6">

@@ -30,7 +30,13 @@ export function useSharedFetch<T>(
     }
     request
       .then((data) => !cancelled && setState({ key, data, error: null }))
-      .catch((err) => !cancelled && setState({ key, data: null, error: err instanceof Error ? err.message : 'Failed to load' }));
+      .catch((err) => {
+        if (cancelled) return;
+        // A failed refresh keeps showing what was there
+        setState((prev) =>
+          keepWhile && prev?.data && prev.key.startsWith(keepWhile) ? prev : { key, data: null, error: err instanceof Error ? err.message : 'Failed to load' }
+        );
+      });
     return () => {
       cancelled = true;
     };
@@ -40,6 +46,11 @@ export function useSharedFetch<T>(
 
   const current = state?.key === key ? state : keepWhile && state?.data && state.key.startsWith(keepWhile) ? { ...state, error: null } : null;
   return { data: current?.data ?? null, error: current?.error ?? null, retry: () => setAttempt((a) => a + 1) };
+}
+
+/** Drop the shared responses whose keys start with prefix, except keep's */
+export function forgetShared(prefix: string, keep: string) {
+  for (const key of [...requests.keys()]) if (key.startsWith(prefix) && key !== keep) requests.delete(key);
 }
 
 /** JSON from the first URL that answers (a pre-built file, then the API) */
