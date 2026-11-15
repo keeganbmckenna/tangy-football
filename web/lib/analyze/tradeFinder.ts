@@ -4,7 +4,9 @@
  *
  * Sizes: 1-for-1, 1-for-2 and 2-for-1, 2-for-2, 3-for-1 and 1-for-3, 3-for-2
  * and 2-for-3, from each roster's most valuable players, or every player in a
- * deep search (kickers, defenses and players in IR slots aren't traded here). Three stages, each narrowing the field:
+ * deep search (kickers, defenses and players in IR slots aren't traded here; a deep search also
+ * keeps at every stage the trades the quick one would, so it finds at least as much). Three
+ * stages, each narrowing the field:
  *
  *  1. Screen every trade with each player's average expected points: both
  *     teams' best lineups before and after (microseconds per trade).
@@ -175,11 +177,24 @@ export function findTrades(
     avg[p] = { position, points: regular.reduce((s, w) => s + (inputs.projections[p]?.[w] ?? 0), 0) / Math.max(regular.length, 1) };
   }
   const lineup = (players: string[]) => bestLineup(players, avg, inputs.rosterPositions).total;
-  const pool = (id: number) =>
+  const fullPool = (id: number) =>
     (inputs.rosters[id] ?? [])
       .filter((p) => avg[p] && !NOT_TRADED.has(avg[p].position) && !(inputs.reserve?.[id] ?? []).includes(p) && !(id === me && keep.includes(p)))
-      .sort((a, b) => avg[b].points - avg[a].points)
-      .slice(0, options.deep ? undefined : POOL_SIZE);
+      .sort((a, b) => avg[b].points - avg[a].points);
+  const pool = (id: number) => fullPool(id).slice(0, options.deep ? undefined : POOL_SIZE);
+  // The quick search's players: a deep search keeps every trade the quick one would consider at
+  // each stage, so it finds at least what the quick one does (more trades that only screen well
+  // could otherwise crowd them out of the shortlist and the finalists)
+  const quickPool = new Map([me, ...data.teams.map((t) => t.rosterId)].map((id) => [id, new Set(fullPool(id).slice(0, POOL_SIZE))]));
+  const isQuick = (c: { partner: number; gives: string[]; gets: string[] }) =>
+    c.gives.every((p) => quickPool.get(me)!.has(p)) && c.gets.every((p) => quickPool.get(c.partner)!.has(p));
+  /** The deep search's picks plus the quick search's own (in rank order, no repeats) */
+  const withQuick = <T extends { partner: number; gives: string[]; gets: string[] }>(pick: (list: T[]) => T[], list: T[]): T[] => {
+    if (!options.deep) return pick(list);
+    const key = (c: T) => `${c.partner}|${c.gives.join(',')}|${c.gets.join(',')}`;
+    const chosen = new Set([...pick(list), ...pick(list.filter(isQuick))].map(key));
+    return list.filter((c) => chosen.has(key(c)));
+  };
   const packages = (players: string[]) => Object.fromEntries([1, 2, 3].map((k) => [k, combos(players, k)])) as Record<number, string[][]>;
 
   const partners = data.teams.map((t) => t.rosterId).filter((id) => id !== me && (options.partner == null || id === options.partner));
@@ -219,16 +234,18 @@ export function findTrades(
 
   // Stage 2: week by week, with forced roster moves and expected wins
   // Best screened trades, at most a fifth of the shortlist from any one partner
-  const perPartner = new Map<number, number>();
-  const shortlist = screened
-    .sort((a, b) => b.rank - a.rank)
-    .filter((c) => {
-      const n = perPartner.get(c.partner) ?? 0;
-      if (!onePartner && n >= (SHORTLIST * pages) / 5) return false;
-      perPartner.set(c.partner, n + 1);
-      return true;
-    })
-    .slice(0, SHORTLIST * pages);
+  const shortlistOf = (list: Screened[]) => {
+    const perPartner = new Map<number, number>();
+    return list
+      .filter((c) => {
+        const n = perPartner.get(c.partner) ?? 0;
+        if (!onePartner && n >= (SHORTLIST * pages) / 5) return false;
+        perPartner.set(c.partner, n + 1);
+        return true;
+      })
+      .slice(0, SHORTLIST * pages);
+  };
+  const shortlist = withQuick(shortlistOf, screened.sort((a, b) => b.rank - a.rank));
   const expectedWins = (id: number, m: TradeModel) => expectedWinsFor(id, data.remaining, m);
   const avgLineup = (players: string[]) => {
     const byWeek = regular.map((w) => {
@@ -271,19 +288,21 @@ export function findTrades(
 
   // One trade per pairing of key players (drop near-duplicates that only differ
   // by throw-ins), and a few per manager
-  const seen = new Set<string>();
-  const finalistsPer = new Map<number, number>();
-  const distinct = rescored
-    .sort((a, b) => b.winGain - a.winGain)
-    .filter((c) => {
-      const key = `${c.partner}:${c.gives[0]}:${c.gets[0]}`;
-      const n = finalistsPer.get(c.partner) ?? 0;
-      if (seen.has(key) || (!onePartner && n >= (finalistCount / FINALISTS) * FINALISTS_PER_PARTNER)) return false;
-      seen.add(key);
-      finalistsPer.set(c.partner, n + 1);
-      return true;
-    })
-    .slice(0, finalistCount);
+  const distinctOf = (list: Rescored[]) => {
+    const seen = new Set<string>();
+    const finalistsPer = new Map<number, number>();
+    return list
+      .filter((c) => {
+        const key = `${c.partner}:${c.gives[0]}:${c.gets[0]}`;
+        const n = finalistsPer.get(c.partner) ?? 0;
+        if (seen.has(key) || (!onePartner && n >= (finalistCount / FINALISTS) * FINALISTS_PER_PARTNER)) return false;
+        seen.add(key);
+        finalistsPer.set(c.partner, n + 1);
+        return true;
+      })
+      .slice(0, finalistCount);
+  };
+  const distinct = withQuick(distinctOf, rescored.sort((a, b) => b.winGain - a.winGain));
 
   // Stage 3: simulate the finalists on the same draws as the baseline
   const simulate = (m: TradeModel, n: number) =>
