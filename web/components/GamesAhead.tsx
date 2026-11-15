@@ -11,6 +11,8 @@ import { percent } from '@/lib/format';
 
 interface GamesAheadProps {
   gameOdds: NonNullable<PlayoffOddsResponse['gameOdds']>;
+  /** The week being played once it has kicked off (its odds are the live ones) */
+  liveWeek?: number | null;
   teams: PlayoffOddsResponse['teams'];
   teamStats: TeamStats[];
 }
@@ -23,7 +25,7 @@ const cellColor = (p: number) => getHeatmapColorByRatio((p - 0.2) / 0.6);
  * single-game model (the trade tools' weekly odds), with its expected wins (defaults to your
  * team); or every team's at once as a grid, easiest remaining schedule first.
  */
-export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadProps) {
+export default function GamesAhead({ gameOdds, liveWeek = null, teams, teamStats }: GamesAheadProps) {
   const me = useMyTeam();
   const [picked, setPicked] = useState<number | null>(null);
   const [view, setView] = useState<'team' | 'all'>('team');
@@ -58,8 +60,10 @@ export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadPro
         <span>
           Each game&apos;s odds come from a model fitted for a single week&apos;s score (the one the trade tools use): next
           week leans on that week&apos;s projected lineups, so byes and injuries count; later weeks lean more on points per
-          game. Tested on 1.1 million games in other leagues, it beat the earlier weekly odds out of sample. This
-          week&apos;s odds are from before kickoff; the Live tab follows them as the games go.
+          game. Tested on 1.1 million games in other leagues, it beat the earlier weekly odds out of sample.{' '}
+          {liveWeek !== null
+            ? `Week ${liveWeek} has kicked off, so its odds are the Live tab's, with the points already scored.`
+            : 'Once a week kicks off, its odds switch to the Live tab’s.'}
         </span>
       }
     >
@@ -108,7 +112,10 @@ export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadPro
                 <tr className="text-[var(--muted)]">
                   <th className="sticky left-0 z-[1] bg-[var(--surface-elevated)] pr-2 text-left font-medium">Team</th>
                   {weeks.map((w) => (
-                    <th key={w} className="min-w-[2.25rem] font-medium">W{w}</th>
+                    <th key={w} className="min-w-[2.25rem] font-medium" title={w === liveWeek ? 'Live odds' : undefined}>
+                      W{w}
+                      {w === liveWeek && <span className="text-[var(--danger-text)]">•</span>}
+                    </th>
                   ))}
                   <th className="min-w-[2.75rem] pl-1 font-medium" title="Expected wins over the remaining games">Exp. W</th>
                 </tr>
@@ -160,7 +167,10 @@ export default function GamesAhead({ gameOdds, teams, teamStats }: GamesAheadPro
                       <div className="truncate text-sm font-medium text-[var(--foreground)]" title={name(g.opponent)}>
                         vs {name(g.opponent)}
                       </div>
-                      <div className="text-xs text-[var(--muted)]">{records.get(g.opponent)}</div>
+                      <div className="text-xs text-[var(--muted)]">
+                        {records.get(g.opponent)}
+                        {g.week === liveWeek && <span className="ml-1.5 font-semibold text-[var(--danger-text)]">· Live</span>}
+                      </div>
                     </div>
                     <div className="w-20 shrink-0 sm:w-32">
                       <div className="text-right text-sm font-semibold tabular-nums" style={{ color }}>

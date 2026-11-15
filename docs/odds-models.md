@@ -162,6 +162,15 @@ come from nflverse. During the week, the odds the site computes live are saved i
   realistic), run in the browser
   against the same random draws without the picks.
 - **Games Ahead**: the single-game model's win odds for every remaining game.
+- **The week being played** (`lib/liveWeek.ts`): once its first NFL game kicks off, its games
+  use the Live tab's odds everywhere above and in the trade tools. `simulatePlayoffOdds` takes
+  them as `live` (each game's projected finals, margin spread and win chance): a's share of the
+  runs is its live chance (the margin drawn around the z that gives it), and points around the
+  projected finals. `/api/playoff-odds` returns that run as `live`, leaving `odds` and `gameOdds`
+  as the before-kickoff models the 2026 evaluation logs. In the trade tools (`model.live` from
+  `/api/trade-data`), a trade or pickup moves a team's projected final by its lineup change among
+  players still to play (`liveLineupChange`): a player whose game has started stays on his team,
+  with his points, until next week (Sleeper's rule), and started players in a lineup stay in it.
 
 ## Tested and not used
 

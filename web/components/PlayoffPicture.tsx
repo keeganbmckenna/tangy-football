@@ -79,7 +79,11 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
   const record = (t: OddsTeam) => formatRecord(t.wins, t.losses, t.ties);
   const seedOf = new Map(data.seeds.map((id, i) => [id, i + 1]));
   const divisionWinners = new Set(data.divisionWinners);
-  const odds = data.odds?.teams ?? {};
+  // Once the week being played has kicked off, its games count at their live odds (the Live tab's)
+  const liveOdds = data.live ?? null;
+  const shownOdds = liveOdds?.odds ?? data.odds;
+  const gameOdds = liveOdds?.gameOdds ?? data.gameOdds;
+  const odds = shownOdds?.teams ?? {};
   const ranked = [...data.teams].sort(
     (a, b) => (odds[b.rosterId]?.playoffs ?? 0) - (odds[a.rosterId]?.playoffs ?? 0) || (seedOf.get(a.rosterId) ?? 99) - (seedOf.get(b.rosterId) ?? 99)
   );
@@ -142,7 +146,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     if (o && o.ifWin !== null && o.ifLoss !== null && !sc.clinchedPlayoffs) {
       // Biggest rooting interest among other games this week
       let best: { text: string; swing: number } | null = null;
-      for (const g of data.odds!.nextWeekGames) {
+      for (const g of shownOdds!.nextWeekGames) {
         if (g.a === id || g.b === id) continue;
         const swing = g.ifAWins[id] - g.ifBWins[id];
         if (Math.abs(swing) >= 0.03 && (!best || Math.abs(swing) > best.swing)) {
@@ -164,7 +168,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
   const thisWeekTable = (id: number) => {
     const o = odds[id];
     if (!o || !o.ifWin || !o.ifLoss) return null;
-    const game = data.odds!.nextWeekGames.find((g) => g.a === id || g.b === id);
+    const game = shownOdds!.nextWeekGames.find((g) => g.a === id || g.b === id);
     const opp = game ? (game.a === id ? game.b : game.a) : null;
     const rows: { label: string; now: number; win: number; loss: number; bad?: boolean }[] = [
       { label: 'Playoffs', now: o.playoffs, win: o.ifWin.playoffs, loss: o.ifLoss.playoffs },
@@ -326,10 +330,10 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
         </SectionCard>
       )}
 
-      {data.odds && (
+      {shownOdds && (
         <SectionCard
           title="Playoff Odds"
-          subtitle={`${data.odds.sims.toLocaleString()} simulations of the remaining ${weeksLeft} week${weeksLeft === 1 ? '' : 's'} on the real schedule`}
+          subtitle={`${shownOdds.sims.toLocaleString()} simulations of the remaining ${weeksLeft} week${weeksLeft === 1 ? '' : 's'} on the real schedule`}
           gradientType="info"
           footer={
             <span>
@@ -342,6 +346,10 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
               (teams given 30% made the playoffs 31% of the time, 50% made it 50%, 88% made it 87%) and beat the earlier model
               at every week of the season. Bye and title odds are rougher: a single game swings them. The win/loss column shows
               the selected odds after a win or a loss this week.
+              {liveOdds && (
+                <> Week {liveOdds.week} has kicked off, so its games count at the Live tab&apos;s odds: points so far plus what each
+                  side&apos;s players still to play are expected to add (as of {new Date(liveOdds.fetchedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}).</>
+              )}
               {hasTitle && (
                 <> Title odds play out the playoff bracket (weeks {data.playoffWeekStart}–{data.playoffWeekStart + 2}, higher score
                   advances) with the same model.</>
@@ -458,7 +466,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
         </SectionCard>
       )}
 
-      {data.gameOdds && <GamesAhead gameOdds={data.gameOdds} teams={data.teams} teamStats={teamStats} />}
+      {gameOdds && <GamesAhead gameOdds={gameOdds} liveWeek={liveOdds?.week ?? null} teams={data.teams} teamStats={teamStats} />}
 
       <OddsHistoryChart season={data.season} teamStats={teamStats} liveOdds={data.odds} lastScoredWeek={data.lastScoredWeek} />
 

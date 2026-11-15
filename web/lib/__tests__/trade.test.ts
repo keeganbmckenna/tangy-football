@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   earlierTradeModel,
   expectedWins,
+  gameWinProbability,
+  liveLineupChange,
+  lockedMoves,
   lineupByWeek,
   meansAfterTrade,
   normalCdf,
@@ -12,6 +15,7 @@ import {
   weeklyOutlook,
   weeklyWinProbability,
   type TradeInputs,
+  type LiveWeek,
   type TradeModel,
 } from '../analyze/trade';
 import type { SleeperMatchup, SleeperTransaction } from '../types';
@@ -262,5 +266,61 @@ describe('past trades', () => {
     };
     expect(starterPoints(['p2'], 1, matchups, 3, 5)).toEqual({ points: 19.5, starts: 2, byPlayer: { p2: 19.5 } });
     expect(starterPoints(['p2'], 1, matchups, 4, 4)).toEqual({ points: 0, starts: 0, byPlayer: {} });
+  });
+});
+
+describe('a trade while the week is being played', () => {
+  const means = { 7: { 1: 100, 2: 100 }, 8: { 1: 100, 2: 100 } };
+  const live = (locked: string[]): LiveWeek => ({
+    week: 7,
+    games: [{ week: 7, a: 2, b: 1, aMean: 90, bMean: 100, sd: 20, aWins: 0.3 }],
+    locked,
+    starters: { 1: ['qb1', 'rb1', 'wr1', 'rb2'], 2: ['qb2', 'rb3', 'wr4', 'wr5'] },
+  });
+  const modelWith = (l: LiveWeek): TradeModel => ({ ...earlierTradeModel(means, 20, 6, [7, 8]), live: l });
+  // Team 1 sends wr1 (14) for wr4 (16)
+  const trade = (inp: TradeInputs) => [
+    rosterAfterTrade(inp, { rosterId: 1, sends: ['wr1'], receives: ['wr4'] }),
+    rosterAfterTrade(inp, { rosterId: 2, sends: ['wr4'], receives: ['wr1'] }),
+  ];
+
+  it('uses the live odds for that week, and the model for the rest', () => {
+    const model = modelWith(live([]));
+    expect(gameWinProbability(model, 7, 1, 2)).toBeCloseTo(0.7, 9);
+    expect(weeklyOutlook(1, [{ week: 7, a: 1, b: 2 }, { week: 8, a: 2, b: 1 }], model).map((o) => o.winProbability)).toEqual([
+      expect.closeTo(0.7, 9),
+      expect.closeTo(0.5, 6),
+    ]);
+  });
+
+  it('moves players still to play this week, and keeps players who have played until next week', () => {
+    const inp = inputs();
+    const [a, b] = trade(inp);
+    const free = live([]);
+    expect(liveLineupChange(inp, free, a)).toBeCloseTo(2, 9);
+    expect(liveLineupChange(inp, free, b)).toBeCloseTo(-2, 9);
+    const after = meansAfterTrade(modelWith(free), inp, [a, b]).model;
+    // Team 1 gains 2 and team 2 loses 2: a 4-point swing at sd 20
+    expect(gameWinProbability(after, 7, 1, 2)).toBeCloseTo(normalCdf(0.5244 + 0.2), 3);
+    // wr1 has played: he stays with team 1 (in its lineup) this week, while wr4, still to play,
+    // arrives now: team 1 starts both (+6: wr4 for rb2), team 2 has neither (-9: te1 in the flex)
+    const playedWr1 = live(['wr1']);
+    expect(liveLineupChange(inp, playedWr1, a)).toBeCloseTo(6, 9);
+    expect(liveLineupChange(inp, playedWr1, b)).toBeCloseTo(-9, 9);
+    expect(lockedMoves(playedWr1, ['wr1', 'wr4'])).toEqual(['wr1']);
+    expect(gameWinProbability(meansAfterTrade(modelWith(live(['wr1', 'wr4'])), inp, [a, b]).model, 7, 1, 2)).toBeCloseTo(0.7, 9);
+  });
+
+  it("keeps a started player in his lineup and can't start one who's sat out", () => {
+    const inp = inputs();
+    // rb2 (10) started in team 1's flex and has played; team 1 sends rb1 (15), gets rb3 (12)
+    const a = rosterAfterTrade(inp, { rosterId: 1, sends: ['rb1'], receives: ['rb3'] });
+    const l = { ...live(['rb2']), starters: { 1: ['qb1', 'rb1', 'wr1', 'rb2'] } };
+    expect(liveLineupChange(inp, l, a)).toBeCloseTo(-3, 9);
+    // wr2 (8) sat on the bench and his game is done: with wr1 gone and no free agents, wr3 (3) has to start
+    const noFas = inputs({ freeAgents: [] });
+    const out = rosterAfterTrade(noFas, { rosterId: 1, sends: ['wr1'], receives: [] });
+    expect(liveLineupChange(noFas, live([]), out)).toBeCloseTo(-6, 9);
+    expect(liveLineupChange(noFas, { ...live(['wr2']), starters: { 1: ['qb1', 'rb1', 'wr1', 'rb2'] } }, out)).toBeCloseTo(-11, 9);
   });
 });

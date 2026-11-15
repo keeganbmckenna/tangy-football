@@ -26,6 +26,14 @@ async function seasonSpread(baseUrl: string, leagueId: string, lastScoredWeek: n
  * still move with injury news). Null without the scoreboard or projections.
  */
 export async function liveOddsNow(league: SleeperLeague, week: number): Promise<LiveMatchupOdds[] | null> {
+  return (await liveWeekNow(league, week))?.odds ?? null;
+}
+
+/** The week in progress right now as the Live tab works it out: its odds, NFL game clocks and matchups */
+export async function liveWeekNow(
+  league: SleeperLeague,
+  week: number
+): Promise<{ odds: LiveMatchupOdds[]; games: Record<string, LiveGame>; matchups: SleeperMatchup[] } | null> {
   const lastScoredWeek = league.settings?.last_scored_leg ?? 0;
   if (week <= lastScoredWeek) return null;
   const scoring = league.scoring_settings ?? {};
@@ -35,7 +43,8 @@ export async function liveOddsNow(league: SleeperLeague, week: number): Promise<
     starterProjections(league.season, week, lastScoredWeek, matchups, games, scoring),
     seasonSpread(SLEEPER_CONFIG.baseUrl, SLEEPER_CONFIG.leagueId, lastScoredWeek),
   ]);
-  return projections ? liveWinOdds(matchups, projections, games, spread, { allowed, allowedScoring: allowedScoring(scoring) }) : null;
+  if (!projections) return null;
+  return { odds: liveWinOdds(matchups, projections, games, spread, { allowed, allowedScoring: allowedScoring(scoring) }), games, matchups };
 }
 
 /** Save the odds now while any game is on (at most once per save interval, across all requests) */

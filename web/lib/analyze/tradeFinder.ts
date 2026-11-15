@@ -287,7 +287,7 @@ export function findTrades(
 
   // Stage 3: simulate the finalists on the same draws as the baseline
   const simulate = (m: TradeModel, n: number) =>
-    simulatePlayoffOdds(data.teams, data.remaining, data.format, m.season.meanByWeek, m.season.spread, n, seed, data.playoffWeekStart, data.hasToiletBowl, m.season.teamSpread);
+    simulatePlayoffOdds(data.teams, data.remaining, data.format, m.season.meanByWeek, m.season.spread, n, seed, data.playoffWeekStart, data.hasToiletBowl, m.season.teamSpread, undefined, m.live?.games);
   const base = simulate(data.model, sims);
   const notHurt = (b: OddsLine, a: OddsLine) =>
     a.playoffs >= b.playoffs - ODDS_TOLERANCE &&

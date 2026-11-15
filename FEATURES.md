@@ -44,6 +44,7 @@ While the regular season is in progress:
 - **What Each Team Needs:** each team's odds now, with a win and with a loss. Also clinched and eliminated, win-and-in scenarios in the last weeks, points races, and the team's biggest rooting interest this week.
 - **Odds Week by Week:** a chart of how every team's odds moved from the draft to now. Pick what to follow: making the playoffs, a bye, the division, the title, a toilet bowl bye or losing the toilet bowl. Each point is what the model would have said at the time. Finished seasons show it too.
 - **What If:** pick winners of any remaining games and see everyone's playoff, bye and division odds with those results fixed, against the same simulation without the picks, and each picked team's record with them ("2-4 → 5-4").
+- **During a week's games:** once the week's first NFL game kicks off, its games count at the Live tab's odds in the playoff odds, Games Ahead and What If (finished games can't be picked the other way), and in the trade and waiver tools.
 
 After the regular season, and for past seasons: the **Playoff Bracket** (with placement games) and the **Toilet Bowl** bracket. Tap a game that's been played to see both lineups.
 
@@ -65,7 +66,8 @@ During the current regular season, the trade and waiver tools come first:
   - lineup changes and forced roster moves;
   - both teams' full lineups and benches before and after, for any remaining week;
   - each player's FantasyCalc market value;
-  - which other teams' odds move.
+  - which other teams' odds move;
+  - during a week's games, which players have already played: Sleeper keeps them (and their points) on the old team until next week, while players still to play move right away.
 - **Trade Finder:** pick your team and it searches 1-for-1 up to 3-for-2 trades with every manager. It keeps the ones that help you without hurting the other manager, optionally only market-fair ones, each with an "Open in analyzer" button. Filters: one manager, trade size (1-for-1, up to 2 or 3 a side), how much it must help you and how much it must help them (playoff or title odds up 0.5 to 5 points, for trades that help both sides), positions to get back, and players you won't trade (or drop). Load more searches deeper for the next 8.
 - **Waiver Finder:** the free agents who would help you most, for the rest of the season or for one specific week (to cover a bye), each with the player it would drop. Filters: positions, hide injured (out, doubtful, IR, suspended), and players you won't drop.
 

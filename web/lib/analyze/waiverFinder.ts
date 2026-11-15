@@ -18,7 +18,7 @@ import {
   meansAfterTrade,
   type TradeModel,
   rosterAfterTrade,
-  weeklyWinProbability,
+  gameWinProbability,
   type TradeDataResponse,
 } from './trade';
 
@@ -92,7 +92,7 @@ export function findPickups(
   const opponent = game ? (game.a === me ? game.b : game.a) : null;
   const winOdds = (m: TradeModel) =>
     game && opponent !== null
-      ? weeklyWinProbability(m.games.meanByWeek[game.week]?.[me] ?? 0, m.games.meanByWeek[game.week]?.[opponent] ?? 0, m.games.spreadByWeek[game.week] ?? 25)
+      ? gameWinProbability(m, game.week, me, opponent)
       : 0;
 
   const baseWins = expectedWins(me, data.remaining, data.model);
@@ -138,7 +138,7 @@ export function findPickups(
     })
     .slice(0, FINALISTS);
   const simulate = (m: TradeModel) =>
-    simulatePlayoffOdds(data.teams, data.remaining, data.format, m.season.meanByWeek, m.season.spread, sims, seed, data.playoffWeekStart, data.hasToiletBowl, m.season.teamSpread);
+    simulatePlayoffOdds(data.teams, data.remaining, data.format, m.season.meanByWeek, m.season.spread, sims, seed, data.playoffWeekStart, data.hasToiletBowl, m.season.teamSpread, undefined, m.live?.games);
   const base = simulate(data.model);
   const results = finalists.map((c, i) => {
     const after = simulate(c.means);

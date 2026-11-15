@@ -11,6 +11,9 @@ import {
   singleGameWeights,
   simulatePlayoffOdds,
   pickedScores,
+  liveGameFor,
+  shiftedLiveGame,
+  normalCdf,
   strengthRanks,
   rankTau,
   statusFor,
@@ -256,6 +259,34 @@ describe('simulatePlayoffOdds', () => {
     expect(picked.teams[6].expectedWins).toBe(2);
     expect(picked.teams[5].expectedWins).toBeLessThan(plain.teams[5].expectedWins);
     expect(picked.teams[6].playoffs).toBeGreaterThan(plain.teams[6].playoffs);
+  });
+
+  it('plays the week being played at its live odds, leaving every other game alone', () => {
+    const plain = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 20000, 7);
+    // Team 1 (the favorite before kickoff) trails live: 20% to win, given with the teams the other way round
+    const live = [{ week: 5, a: 2, b: 1, aMean: 120, bMean: 105, sd: 15, aWins: 0.8 }];
+    const withLive = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 20000, 7, undefined, true, 0, undefined, live);
+    const lost = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 20000, 7, undefined, true, 0, { 0: 2 });
+    // The week-6 draws line up, so the difference is how often team 1 won its live game
+    expect(withLive.teams[1].expectedWins - lost.teams[1].expectedWins).toBeCloseTo(0.2, 1);
+    for (const id of [3, 4, 5, 6]) expect(withLive.teams[id].expectedWins).toBe(plain.teams[id].expectedWins);
+    expect(withLive.teams[1].playoffs).toBeLessThan(plain.teams[1].playoffs);
+    // A finished game is always its real result
+    const final = [{ week: 5, a: 1, b: 2, aMean: 98, bMean: 104, sd: 0, aWins: 0 }];
+    const done = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7, undefined, true, 0, undefined, final);
+    const forced = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7, undefined, true, 0, { 0: 2 });
+    for (const id of [1, 2, 3, 4, 5, 6]) expect(done.teams[id].expectedWins).toBe(forced.teams[id].expectedWins);
+  });
+
+  it('finds and moves live games', () => {
+    const g = { week: 5, a: 2, b: 1, aMean: 120, bMean: 105, sd: 15, aWins: 0.8 };
+    expect(liveGameFor([g], 5, 1, 2)).toMatchObject({ a: 1, b: 2, aMean: 105, bMean: 120, aWins: expect.closeTo(0.2, 9) });
+    expect(liveGameFor([g], 6, 1, 2)).toBeNull();
+    // 6 more points for a, at sd 15, moves its z by 0.4
+    const moved = shiftedLiveGame(g, 6, 0);
+    expect(moved.aMean).toBe(126);
+    expect(moved.aWins).toBeCloseTo(normalCdf(0.8416 + 0.4), 3);
+    expect(shiftedLiveGame(g, 0, 0)).toBe(g);
   });
 
   it('reports how this week changes the odds', () => {

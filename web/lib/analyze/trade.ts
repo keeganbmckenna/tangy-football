@@ -20,9 +20,13 @@
 
 import {
   bestLineup,
+  liveGameFor,
+  normalCdf,
+  shiftedLiveGame,
   PROJECTION_WEIGHT,
   simulatePlayoffOdds,
   type GameModel,
+  type LiveGameOdds,
   type OddsResult,
   type OddsTeam,
   type PlayoffFormat,
@@ -152,7 +156,47 @@ export interface TradeModel {
   season: { meanByWeek: Means; spread: number; teamSpread: number; lineupWeight: number };
   /** Single games: expected margin per week, spread per week, weight on that week's lineup change */
   games: GameModel;
+  /** The week being played, once its games have started: its games' odds come from the Live tab's */
+  live?: LiveWeek;
 }
+
+/** The week being played, for the trade tools (the trade-data route adds it once its first game kicks off) */
+export interface LiveWeek {
+  week: number;
+  /** Its games as the Live tab sees them */
+  games: LiveGameOdds[];
+  /**
+   * Players whose NFL game this week has started. Sleeper keeps one on the team he was on, with
+   * his points, until the next week; a player still to play moves (and can be started) right away.
+   */
+  locked: string[];
+  /** rosterId -> its starters this week */
+  starters: Record<number, string[]>;
+}
+
+/**
+ * A roster change's projected lineup change in the week being played. A player whose game has
+ * started stays where he was until next week, and a team's started players in its lineup stay in
+ * it; the rest of the lineup is the best of the players still to play. A player's value is the
+ * odds model's for the week, at full weight like the Live tab's projections.
+ */
+export function liveLineupChange(inputs: TradeInputs, live: LiveWeek, c: RosterChange): number {
+  const locked = new Set(live.locked);
+  const starters = new Set(live.starters[c.rosterId] ?? []);
+  const after = [...c.before.filter((p) => locked.has(p) || c.after.includes(p)), ...c.after.filter((p) => !c.before.includes(p) && !locked.has(p))];
+  // Started players in the lineup are held there (the offset cancels between the two lineups)
+  const PIN = 1000;
+  const total = (players: string[]) => {
+    const usable = players.filter((p) => !locked.has(p) || starters.has(p));
+    const projections = weekProjections(inputs, live.week, usable);
+    for (const p of usable) if (locked.has(p) && projections[p]) projections[p] = { ...projections[p], points: projections[p].points + PIN };
+    return bestLineup(usable, projections, inputs.rosterPositions).total;
+  };
+  return total(after) - total(c.before);
+}
+
+/** A roster's moving players who have already played this week, so stay put until next week */
+export const lockedMoves = (live: LiveWeek | undefined, players: string[]) => (live ? players.filter((p) => live.locked.includes(p)) : []);
 
 /** The earlier trade model (75% of each week's lineup change, 0.8x / 2x spreads), for when there are no projections */
 export function earlierTradeModel(meanByWeek: Means, spread: number, lastScoredWeek: number, regularWeeks: number[]): TradeModel {
@@ -203,19 +247,28 @@ export function meansAfterTrade(
       if (games[w][c.rosterId] !== undefined) games[w][c.rosterId] += model.games.lineupWeightByWeek[w] * (delta[w] ?? 0);
     }
   }
-  return { model: { season: { ...model.season, meanByWeek: season }, games: { ...model.games, meanByWeek: games } }, lineupDelta };
+  // The week being played: each changed team's projected final moves by what the change does to
+  // the players it can still start this week
+  const live = model.live && {
+    ...model.live,
+    games: model.live.games.map((g) => {
+      const shift = (id: number) => {
+        const c = changes.find((x) => x.rosterId === id);
+        return c ? liveLineupChange(inputs, model.live!, c) : 0;
+      };
+      return shiftedLiveGame(g, shift(g.a), shift(g.b));
+    }),
+  };
+  return {
+    model: { season: { ...model.season, meanByWeek: season }, games: { ...model.games, meanByWeek: games }, ...(live && { live }) },
+    lineupDelta,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Weekly win odds
 
-/** Standard normal CDF (Abramowitz & Stegun 7.1.26, error < 1.5e-7) */
-export function normalCdf(z: number): number {
-  const x = Math.abs(z) / Math.SQRT2;
-  const t = 1 / (1 + 0.3275911 * x);
-  const erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
-  return z >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
-}
+export { normalCdf };
 
 /** The earlier model's spread multiplier for one game's win odds, by weeks ahead (earlierTradeModel) */
 export const winOddsSpreadScale = (weeksAhead: number) => (weeksAhead <= 1 ? 0.8 : 2);
@@ -225,15 +278,19 @@ export function weeklyWinProbability(mean: number, oppMean: number, spread: numb
   return normalCdf((mean - oppMean) / (spread * Math.SQRT2));
 }
 
-/** One remaining game's win odds for a team under the single-game model */
-const gameWinProbability = (games: GameModel, week: number, rosterId: number, opponent: number) =>
-  weeklyWinProbability(games.meanByWeek[week]?.[rosterId] ?? 0, games.meanByWeek[week]?.[opponent] ?? 0, games.spreadByWeek[week] ?? 25);
+/** One remaining game's win odds for a team: the live odds in the week being played, else the single-game model's */
+export function gameWinProbability(model: TradeModel, week: number, rosterId: number, opponent: number): number {
+  const live = liveGameFor(model.live?.games, week, rosterId, opponent);
+  if (live) return live.aWins;
+  const { games } = model;
+  return weeklyWinProbability(games.meanByWeek[week]?.[rosterId] ?? 0, games.meanByWeek[week]?.[opponent] ?? 0, games.spreadByWeek[week] ?? 25);
+}
 
 /** Expected wins over a team's remaining games: the sum of its single-game win odds */
 export function expectedWins(rosterId: number, remaining: RemainingGame[], model: TradeModel): number {
   return remaining
     .filter((g) => g.a === rosterId || g.b === rosterId)
-    .reduce((s, g) => s + gameWinProbability(model.games, g.week, rosterId, g.a === rosterId ? g.b : g.a), 0);
+    .reduce((s, g) => s + gameWinProbability(model, g.week, rosterId, g.a === rosterId ? g.b : g.a), 0);
 }
 
 export interface WeekOutlook {
@@ -249,7 +306,7 @@ export function weeklyOutlook(rosterId: number, remaining: RemainingGame[], mode
     .sort((x, y) => x.week - y.week)
     .map((g) => {
       const opponent = g.a === rosterId ? g.b : g.a;
-      return { week: g.week, opponent, winProbability: gameWinProbability(model.games, g.week, rosterId, opponent) };
+      return { week: g.week, opponent, winProbability: gameWinProbability(model, g.week, rosterId, opponent) };
     });
 }
 
@@ -277,7 +334,7 @@ export function tradeSeasonOdds(
   seed = 2026
 ): TradeOdds {
   const run = (m: TradeModel) =>
-    simulatePlayoffOdds(teams, remaining, format, m.season.meanByWeek, m.season.spread, sims, seed, playoffWeekStart, toiletBowl, m.season.teamSpread);
+    simulatePlayoffOdds(teams, remaining, format, m.season.meanByWeek, m.season.spread, sims, seed, playoffWeekStart, toiletBowl, m.season.teamSpread, undefined, m.live?.games);
   return { before: run(before), after: run(after) };
 }
 

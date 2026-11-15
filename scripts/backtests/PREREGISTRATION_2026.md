@@ -183,6 +183,13 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
   Trade tools and stored trade grades only (rebuilt 2022-2025); the playoff odds under test (P1)
   don't use it. The same run rejected measuring trades against each roster's best waiver moves.
   No 2026 data used.
+- 2026-11-15: **once a week's first NFL game kicks off, the odds shown use that week's live
+  odds for its games** (the Live tab's model, unchanged): the playoff odds, What If, Games Ahead
+  and the trade tools. Conditioning on results already in, not a model change: nothing fitted or
+  tuned. The logged predictions are untouched: `/api/playoff-odds` keeps `odds`, `previousModel`
+  and `gameOdds` as the before-kickoff models (P1, P2 score them as before) and adds the live
+  version as a separate `live` field; `/api/trade-data` keeps `model.games` and `meanByWeek` (P2)
+  and adds `model.live`. No 2026 data used.
 
 ## Addendum (2026-10-26): further live-odds tests, set before their data is examined
 

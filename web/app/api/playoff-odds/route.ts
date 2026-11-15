@@ -13,8 +13,10 @@ import {
   simulatePlayoffOdds,
   strengthRanks,
   rankTau,
+  liveGameFor,
   type PlayoffOddsResponse,
 } from '@/lib/analyze/playoffOdds';
+import { liveWeekOdds } from '@/lib/liveWeek';
 import { weeklyWinProbability } from '@/lib/analyze/trade';
 
 export const dynamic = 'force-dynamic';
@@ -77,6 +79,28 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
   };
 }
 
+/** The odds with the week being played's games at their live odds, once one has kicked off */
+async function withLive(league: SleeperLeague, base: PlayoffOddsResponse): Promise<PlayoffOddsResponse['live']> {
+  const model = base.model;
+  const live = model ? await liveWeekOdds(league) : null;
+  if (!model || !live || !model.remaining.some((g) => g.week === live.week)) return null;
+  const run = unstable_cache(
+    async () =>
+      simulatePlayoffOdds(base.teams, model.remaining, base.format, model.meanByWeek, model.spread, 20000, 2026, base.playoffWeekStart, base.toiletBracket.length > 0, model.teamSpread, undefined, live.games),
+    ['playoff-odds-live', CACHE_VERSION, league.league_id, String(live.week), live.fetchedAt]
+  );
+  return {
+    week: live.week,
+    games: live.games,
+    odds: await run(),
+    gameOdds: base.gameOdds?.map((g) => {
+      const l = g.week === live.week ? liveGameFor(live.games, g.week, g.a, g.b) : null;
+      return l ? { ...g, aWins: l.aWins } : g;
+    }) ?? null,
+    fetchedAt: live.fetchedAt,
+  };
+}
+
 /**
  * Playoff picture for the current season's regular season: seeds if it ended
  * now, simulated odds over the remaining schedule, and exact clinch /
@@ -91,7 +115,8 @@ export async function GET() {
     const cached = unstable_cache(() => build(league), ['playoff-odds', CACHE_VERSION, league.league_id, String(lastScored)], {
       revalidate: CACHE_CONFIG.playoffOdds,
     });
-    return NextResponse.json(await cached());
+    const base = await cached();
+    return NextResponse.json({ ...base, live: base.status === 'in_progress' ? await withLive(league, base) : null });
   } catch (error) {
     console.error('Error building playoff odds:', error);
     return NextResponse.json({ error: 'Failed to build playoff odds' }, { status: 500 });

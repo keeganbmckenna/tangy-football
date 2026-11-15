@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
 import type { SleeperLeague } from '@/lib/types';
 import { fetchJson, loadOddsInputs, teamsPlaying } from '@/lib/oddsData';
+import { liveWeekOdds } from '@/lib/liveWeek';
 import { earlierTradeModel, type TradeDataResponse, type TradeInputs, type TradePlayerInfo } from '@/lib/analyze/trade';
 
 export const dynamic = 'force-dynamic';
@@ -158,7 +159,16 @@ export async function GET() {
     const cached = unstable_cache(() => build(league), ['trade-data', CACHE_VERSION, league.league_id, String(lastScored)], {
       revalidate: CACHE_CONFIG.tradeData,
     });
-    return NextResponse.json(await cached());
+    const data = await cached();
+    // The week being played, once it has kicked off: its games at the live odds, and which players
+    // have played (they stay on their team until next week)
+    const live = data.open || data.remaining.length ? await liveWeekOdds(league) : null;
+    if (!live || !data.remaining.some((g) => g.week === live.week)) return NextResponse.json(data);
+    const started = new Set(live.started);
+    const locked = Object.values(data.players)
+      .filter((p) => started.has(p.position === 'DEF' ? p.id : p.team ?? ''))
+      .map((p) => p.id);
+    return NextResponse.json({ ...data, model: { ...data.model, live: { week: live.week, games: live.games, locked, starters: live.starters } } });
   } catch (error) {
     console.error('Error building trade data:', error);
     return NextResponse.json({ error: 'Failed to build trade data' }, { status: 500 });

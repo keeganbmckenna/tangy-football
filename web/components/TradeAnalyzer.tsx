@@ -15,6 +15,7 @@ import {
   type TradeModel,
   rosterAfterTrade,
   weeklyOutlook,
+  lockedMoves,
   type RosterChange,
   type TradeDataResponse,
   type TradePlayerInfo,
@@ -74,7 +75,7 @@ function useOddsSimulator() {
       return new Promise((resolve) =>
         setTimeout(() => {
           const r = request;
-          resolve(simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl, r.teamSpread));
+          resolve(simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl, r.teamSpread, undefined, r.live));
         }, 0)
       );
     }
@@ -367,6 +368,8 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
     id === null ? [] : (inputs.rosters[id] ?? []).map((p) => data.players[p]).filter((p): p is TradePlayerInfo => !!p);
   const hasDivisions = data.format.hasDivisions;
   const firstWeek = data.remaining.reduce((m, g) => Math.min(m, g.week), Infinity);
+  // The week being played, once it has kicked off
+  const live = data.model.live;
 
   const request = (model: TradeModel) =>
     simulate({
@@ -380,6 +383,7 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
       seed: SEED,
       playoffWeekStart: data.playoffWeekStart,
       toiletBowl: data.hasToiletBowl,
+      live: model.live?.games,
     });
 
   // Odds without a trade (the Playoffs tab's numbers), once
@@ -573,6 +577,39 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
                 Clear
               </button>
             </div>
+
+            {live && (() => {
+              // Sleeper's rule mid-week: a player who has played stays put (with his points) until next week
+              const lockedA = lockedMoves(live, sendA);
+              const lockedB = lockedMoves(live, sendB);
+              const free = [...sendA, ...sendB].filter((p) => !live.locked.includes(p));
+              const list = (ids: string[]) => {
+                const names = ids.map(playerName);
+                return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+              };
+              return (
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--neutral-bg)] p-3 text-sm text-[var(--foreground)]">
+                  <p>
+                    <strong>Week {live.week} is under way.</strong> Its games use the live odds, with the points already scored.
+                  </p>
+                  {lockedA.length + lockedB.length > 0 && (
+                    <p className="mt-1">
+                      {[lockedA.length ? `${list(lockedA)} (to ${nameB})` : '', lockedB.length ? `${list(lockedB)} (to ${nameA})` : '']
+                        .filter(Boolean)
+                        .join(' and ')}{' '}
+                      {lockedA.length + lockedB.length === 1 ? 'has' : 'have'} already played this week, so Sleeper keeps{' '}
+                      {lockedA.length + lockedB.length === 1 ? 'him' : 'them'} and the points on the old team until week {live.week + 1}.
+                    </p>
+                  )}
+                  {free.length > 0 && (
+                    <p className="mt-1">
+                      {list(free)} {free.length === 1 ? "hasn't" : "haven't"} played yet, so{' '}
+                      {free.length === 1 ? 'he moves' : 'they move'} right away and can start for the new team this week.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             <div>
               <h3 className="text-lg font-semibold text-[var(--foreground)]">Win odds each week</h3>
@@ -808,6 +845,15 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
                   pickups are already in it) and later weeks lean more on points per game, each with that week&apos;s spread. On
                   over a million games in other leagues it beat the earlier weekly odds, next week and further out.
                 </p>
+                {live && (
+                  <p>
+                    Week {live.week} is being played, so its games use the Live tab&apos;s odds (points so far plus what each side&apos;s
+                    players still to play are expected to add) in the weekly and season odds alike. With the trade, each team&apos;s
+                    projected final moves by what it does to the lineup it can still set this week: players who have already
+                    played stay where they were until week {live.week + 1}, as Sleeper handles it, and players still to play can
+                    start for their new team.
+                  </p>
+                )}
                 <p>
                   Trades that leave a roster over the limit drop the player who costs the lineup least; trades that open a spot
                   pick up the free agent who helps the lineup most. Draft picks and FAAB aren&apos;t part of the analyzer.

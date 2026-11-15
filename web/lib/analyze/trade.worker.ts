@@ -2,7 +2,7 @@
  * Runs the season simulation off the main thread so the Trades tab stays
  * responsive (20,000 seasons take about 0.4s).
  */
-import { simulatePlayoffOdds, type OddsTeam, type PlayoffFormat, type RemainingGame } from './playoffOdds';
+import { simulatePlayoffOdds, type LiveGameOdds, type OddsTeam, type PlayoffFormat, type RemainingGame } from './playoffOdds';
 
 export interface OddsRequest {
   id: number;
@@ -17,6 +17,8 @@ export interface OddsRequest {
   seed: number;
   playoffWeekStart: number;
   toiletBowl: boolean;
+  /** Games in the week being played (simulatePlayoffOdds live) */
+  live?: LiveGameOdds[];
 }
 
 // The worker global, without pulling the WebWorker lib into the app's DOM types
@@ -27,6 +29,6 @@ const ctx = self as unknown as {
 
 ctx.onmessage = (event) => {
   const r = event.data;
-  const result = simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl, r.teamSpread);
+  const result = simulatePlayoffOdds(r.teams, r.remaining, r.format, r.meanByWeek, r.spread, r.sims, r.seed, r.playoffWeekStart, r.toiletBowl, r.teamSpread, undefined, r.live);
   ctx.postMessage({ id: r.id, result });
 };

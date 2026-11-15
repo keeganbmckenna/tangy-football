@@ -419,6 +419,60 @@ function rng(seed: number) {
   };
 }
 
+/** Standard normal CDF (Abramowitz & Stegun 7.1.26, error < 1.5e-7) */
+export function normalCdf(z: number): number {
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return z >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
+}
+
+/** The z with normalCdf(z) = p (bisection, clamped to ±6) */
+export function normalQuantile(p: number): number {
+  let lo = -6;
+  let hi = 6;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    if (normalCdf(mid) < p) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * A game in the week being played, as the Live tab sees it: each side's projected final (points
+ * so far plus what its starters still to play are expected to add), the spread of the final
+ * margin, and a's chance (the Live tab's odds, which near the end lean on each side's real
+ * distribution rather than the normal margin). Once a week's games have started, the odds tools
+ * use these for its games instead of the before-kickoff models.
+ */
+export interface LiveGameOdds {
+  week: number;
+  a: number;
+  b: number;
+  aMean: number;
+  bMean: number;
+  sd: number;
+  aWins: number;
+}
+
+/**
+ * A live game with each side's projected final moved (a trade or pickup changing who can still
+ * play this week): a's chance moves as the normal margin says, from where the Live tab has it
+ */
+export function shiftedLiveGame(g: LiveGameOdds, aShift: number, bShift: number): LiveGameOdds {
+  if (!aShift && !bShift) return g;
+  const aWins = g.sd > 0.01 ? normalCdf(normalQuantile(g.aWins) + (aShift - bShift) / g.sd) : g.aWins;
+  return { ...g, aMean: g.aMean + aShift, bMean: g.bMean + bShift, aWins };
+}
+
+/** The live game between two teams in a week, oriented so `a` is the first team (null if none) */
+export function liveGameFor(live: LiveGameOdds[] | undefined, week: number, a: number, b: number): LiveGameOdds | null {
+  const g = live?.find((x) => x.week === week && ((x.a === a && x.b === b) || (x.a === b && x.b === a)));
+  if (!g) return null;
+  return g.a === a ? g : { ...g, a: g.b, b: g.a, aMean: g.bMean, bMean: g.aMean, aWins: 1 - g.aWins };
+}
+
 /** Redraws for a picked result before falling back to swapping the scores (pickedScores) */
 const FORCED_REDRAWS = 50;
 
@@ -537,7 +591,13 @@ export function simulatePlayoffOdds(
    * Results to hold fixed (the what-if picker): remaining-game index -> the roster that wins it.
    * Both teams still score from the model, given the picked result (pickedScores).
    */
-  forced?: Record<number, number>
+  forced?: Record<number, number>,
+  /**
+   * Games in the week being played (LiveGameOdds): drawn from the live odds instead of the model,
+   * so a's share of the runs is its live chance, and each side's points are around its projected
+   * final (the margin and the total each with the live spread)
+   */
+  live?: LiveGameOdds[]
 ): OddsResult {
   const normal = rng(seed);
   const ids = teams.map((t) => t.rosterId);
@@ -556,6 +616,20 @@ export function simulatePlayoffOdds(
   // A picked result's redraws come from their own stream, so every other draw lines up with the
   // same run without picks (the what-if picker compares the two)
   const redrawNoise = rng(seed + 1);
+  // Each live game by its index in remaining, with its chance as a shift on the margin's z
+  const liveAt = remaining.map((g) => {
+    const l = liveGameFor(live, g.week, g.a, g.b);
+    return l && { ...l, z: normalQuantile(l.aWins) };
+  });
+  const liveScores = (l: NonNullable<(typeof liveAt)[number]>, noise: () => number): [number, number] => {
+    // The same two draws as a modelled game, so every other game's draws line up across runs
+    const zMargin = noise();
+    const zTotal = noise();
+    if (l.sd <= 0.01) return l.aWins >= 0.5 ? [Math.max(l.aMean, l.bMean + 0.01), l.bMean] : [l.aMean, Math.max(l.bMean, l.aMean + 0.01)];
+    const margin = l.sd * (l.z + zMargin);
+    const total = l.aMean + l.bMean + l.sd * zTotal;
+    return [(total + margin) / 2, (total - margin) / 2];
+  };
   const lastPlace = new Map(ids.map((id) => [id, 0]));
   const champion = new Map(ids.map((id) => [id, 0]));
   const toiletBye = new Map(ids.map((id) => [id, 0]));
@@ -592,9 +666,11 @@ export function simulatePlayoffOdds(
       const b = byId.get(g.b);
       if (!a || !b) continue;
       const winner = forced?.[gi];
-      const first: [number, number] = [score(g.week, g.a), score(g.week, g.b)];
+      const l = liveAt[gi];
+      const first: [number, number] = l ? liveScores(l, normal) : [score(g.week, g.a), score(g.week, g.b)];
       let draws = 0;
-      const draw = (): [number, number] => (draws++ === 0 ? first : [score(g.week, g.a, redrawNoise), score(g.week, g.b, redrawNoise)]);
+      const draw = (): [number, number] =>
+        draws++ === 0 ? first : l ? liveScores(l, redrawNoise) : [score(g.week, g.a, redrawNoise), score(g.week, g.b, redrawNoise)];
       const [drawnA, sb] = winner === undefined ? first : pickedScores(draw, winner === g.a);
       // A tie goes to b below: a picked winner wins it
       const sa = winner === g.a && drawnA === sb ? drawnA + 0.01 : drawnA;
@@ -979,6 +1055,18 @@ export interface PlayoffOddsResponse {
    * the trade tools' weekly odds): aWins is a's chance. Null without projections.
    */
   gameOdds: Array<{ week: number; a: number; b: number; aWins: number }> | null;
+  /**
+   * Once a game of the week being played has kicked off: its games' live odds (the Live tab's), the
+   * season odds and every remaining game's odds with them, as shown. `odds` and `gameOdds` stay
+   * the before-kickoff models' (what the 2026 evaluation logs and scores).
+   */
+  live?: {
+    week: number;
+    games: LiveGameOdds[];
+    odds: OddsResult;
+    gameOdds: NonNullable<PlayoffOddsResponse['gameOdds']> | null;
+    fetchedAt: string;
+  } | null;
   /** Power rankings from the fitted model (strengthRanks); null without projections */
   strength: Record<number, TeamStrength> | null;
   /**
