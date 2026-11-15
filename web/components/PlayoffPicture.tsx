@@ -147,7 +147,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       // Biggest rooting interest among other games this week
       let best: { text: string; swing: number } | null = null;
       for (const g of shownOdds!.nextWeekGames) {
-        if (g.a === id || g.b === id) continue;
+        if (g.a === id || g.b === id || g.settled) continue;
         const swing = g.ifAWins[id] - g.ifBWins[id];
         if (Math.abs(swing) >= 0.03 && (!best || Math.abs(swing) > best.swing)) {
           const [fav, other] = swing > 0 ? [g.a, g.b] : [g.b, g.a];

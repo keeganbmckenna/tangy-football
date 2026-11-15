@@ -276,6 +276,11 @@ describe('simulatePlayoffOdds', () => {
     const done = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7, undefined, true, 0, undefined, final);
     const forced = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 2000, 7, undefined, true, 0, { 0: 2 });
     for (const id of [1, 2, 3, 4, 5, 6]) expect(done.teams[id].expectedWins).toBe(forced.teams[id].expectedWins);
+    // A decided game has no win/loss split to report, so it can't be a rooting interest
+    expect(done.nextWeekGames[0].settled).toBe(true);
+    expect(done.nextWeekGames[1].settled).toBe(false);
+    expect(done.teams[1].ifWin).toBeNull();
+    expect(done.teams[3].ifWin).not.toBeNull();
   });
 
   it('finds and moves live games', () => {

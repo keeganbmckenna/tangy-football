@@ -563,7 +563,15 @@ export interface GameImpact {
   /** For each roster: playoff odds if a wins, if b wins */
   ifAWins: Record<number, number>;
   ifBWins: Record<number, number>;
+  /**
+   * One result came up in too few runs to say what it does (MIN_BRANCH_SHARE): a game all but
+   * decided, live, or a huge mismatch. Its ifAWins / ifBWins aren't meaningful.
+   */
+  settled: boolean;
 }
+
+/** A next-week result needs this share of the runs before the odds given it are reported */
+const MIN_BRANCH_SHARE = 0.005;
 
 export interface OddsResult {
   teams: Record<number, TeamOdds>;
@@ -740,7 +748,7 @@ export function simulatePlayoffOdds(
       ifAWins[id] = branchN[gi][0] ? branch[gi][0].playoffs.get(id)! / branchN[gi][0] : 0;
       ifBWins[id] = branchN[gi][1] ? branch[gi][1].playoffs.get(id)! / branchN[gi][1] : 0;
     });
-    return { week: g.week, a: g.a, b: g.b, ifAWins, ifBWins };
+    return { week: g.week, a: g.a, b: g.b, ifAWins, ifBWins, settled: Math.min(...branchN[gi]) < MIN_BRANCH_SHARE * sims };
   });
 
   // Every outcome's odds for a roster in one branch of a next-week game
@@ -760,7 +768,8 @@ export function simulatePlayoffOdds(
   const result: Record<number, TeamOdds> = {};
   for (const id of ids) {
     const gi = nextGames.findIndex((g) => g.a === id || g.b === id);
-    const own = gi >= 0 ? nextGames[gi] : null;
+    // A result too rare to measure leaves no win/loss split
+    const own = gi >= 0 && Math.min(...branchN[gi]) >= MIN_BRANCH_SHARE * sims ? nextGames[gi] : null;
     result[id] = {
       rosterId: id,
       playoffs: playoffs.get(id)! / sims,
