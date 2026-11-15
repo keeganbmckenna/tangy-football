@@ -75,6 +75,21 @@ describe('injured players coming back', () => {
     expect(values[7].lamar.points).toBeCloseTo(22 * (1 - 0.34 * 0.56));
   });
 
+  it("starts from next week for a player hurt in this week's game", () => {
+    // Played weeks 1-5 and this week (6), ruled out during it; Sleeper still projects 15 every week
+    const values: Record<number, Record<string, { position: string; points: number }>> = {};
+    const players: Record<number, Record<string, ProjectedPlayer>> = {};
+    for (const w of [6, 7, 8]) {
+      values[w] = { bowers: { position: 'TE', points: 15 } };
+      players[w] = { bowers: { ...player('Out', 'KC'), position: 'TE' } };
+    }
+    const production: SeasonProduction = { points: {}, games: {}, playedWeeks: { bowers: [1, 2, 3, 4, 5] } };
+    discountInjured(values, players, production, schedule, 5, [6, 7, 8], new Set(['bowers']));
+    expect(values[6].bowers.points).toBe(15);
+    expect(values[7].bowers.points).toBeCloseTo(15 * 0.66);
+    expect(values[8].bowers.points).toBeCloseTo(15 * (1 - 0.34 * 0.56));
+  });
+
   it('leaves a known timeline alone: Sleeper already has him out past next week', () => {
     const values: Record<number, Record<string, { position: string; points: number }>> = {};
     const players: Record<number, Record<string, ProjectedPlayer>> = {};

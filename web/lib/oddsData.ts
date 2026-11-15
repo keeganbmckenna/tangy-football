@@ -207,7 +207,9 @@ export function discountInjured(
   production: SeasonProduction,
   schedule: Record<number, Set<string>>,
   lastScoredWeek: number,
-  weeks: number[]
+  weeks: number[],
+  /** Players who have already scored this week: he's played this week's game, so it isn't in doubt */
+  playedNow: Set<string> = new Set()
 ): void {
   const current = lastScoredWeek + 1;
   const now = players[current] ?? players[weeks[0]];
@@ -222,6 +224,12 @@ export function discountInjured(
     if (plays(current) && (values[current]?.[id]?.points ?? 0) === 0) {
       // Sleeper already has him out this week: that's one more game missed
       missed += 1;
+      games = weeks.filter((w) => w > current && plays(w));
+    } else if (playedNow.has(id)) {
+      // Hurt in this week's game (Brock Bowers, week 10 of 2026): it counts as played, and his
+      // team's next game is the first he may miss (a doubtful one is left alone, as one who's been playing)
+      if (p.injury === 'Doubtful') continue;
+      missed = 1;
       games = weeks.filter((w) => w > current && plays(w));
     } else if (p.injury === 'Doubtful') {
       // He may well play this week: only the weeks after are in doubt
@@ -312,7 +320,11 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     players[w] = week;
     values[w] = weekValues(week, production);
   });
-  if (schedule) discountInjured(values, players, production, schedule, lastScoredWeek, strengthWeeks);
+  // Who has already scored in the week being played
+  const playedNow = new Set(
+    (matchups[lastScoredWeek] ?? []).flatMap((m) => Object.entries(m.players_points ?? {}).filter(([, pts]) => pts !== 0).map(([pid]) => pid))
+  );
+  if (schedule) discountInjured(values, players, production, schedule, lastScoredWeek, strengthWeeks, playedNow);
   for (const w of Object.keys(values).map(Number)) {
     lineups[w] = Object.fromEntries(
       rosters.map((r) => [r.roster_id, bestLineupPoints(r.players ?? [], values[w], rosterPositions)])

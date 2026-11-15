@@ -190,6 +190,12 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
   and `gameOdds` as the before-kickoff models (P1, P2 score them as before) and adds the live
   version as a separate `live` field; `/api/trade-data` keeps `model.games` and `meanByWeek` (P2)
   and adds `model.live`. No 2026 data used.
+- 2026-11-15: **a player ruled out after playing in the week being played** (Brock Bowers, hurt
+  in week 10's game) is discounted from his team's next game on, as having missed none yet, using
+  the measured return rates unchanged. Before, the discount treated the game he'd played as one in
+  doubt, so next week counted as his second game out (back by then 81% instead of 66%). A bug fix
+  in applying the injury rule, not a model change: nothing fitted or tuned. Past odds history and
+  trade grades don't use injury statuses, so nothing is rebuilt. No 2026 data used.
 
 ## Addendum (2026-10-26): further live-odds tests, set before their data is examined
 
