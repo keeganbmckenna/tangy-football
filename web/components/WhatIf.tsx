@@ -107,7 +107,8 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
         <div className="flex flex-wrap items-center gap-2">
           <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label="Week">
             {weeks.map((w) => {
-              const n = model.remaining.filter((g, i) => g.week === w && activePicks[i] !== undefined).length;
+              // Games with a winner: picks and finished games, as highlighted below
+              const n = model.remaining.filter((g, i) => g.week === w && (activePicks[i] !== undefined || finals[i] !== undefined)).length;
               return (
                 <button
                   key={w}
