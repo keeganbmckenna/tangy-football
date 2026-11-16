@@ -35,14 +35,30 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
   const stats = new Map(teamStats.map((t) => [t.rosterId, t]));
   const name = (id: number) => stats.get(id)?.teamName ?? `Team ${id}`;
 
+  // Finished games this week (game index -> winner): the odds already count them, so they can't be picked
+  const finals = useMemo(() => {
+    const out: Record<number, number> = {};
+    const live = data.live;
+    if (!live || !model) return out;
+    model.remaining.forEach((g, i) => {
+      const odds = live.gameOdds?.[i]?.aWins;
+      if (g.week === live.week && (odds === 0 || odds === 1)) out[i] = odds === 1 ? g.a : g.b;
+    });
+    return out;
+  }, [data, model]);
+  // A pick made before its game finished no longer counts
+  const activePicks = useMemo(() => Object.fromEntries(Object.entries(picks).filter(([i]) => finals[Number(i)] === undefined)), [picks, finals]);
   const base = useMemo(() => simulate(data, {}), [data]);
-  const picked = useMemo(() => simulate(data, picks), [data, picks]);
+  const picked = useMemo(() => simulate(data, activePicks), [data, activePicks]);
   if (!model || !weeks.length) return null;
 
   const shownWeek = week ?? weeks[0];
-  // Each picked team's wins and losses from the picks
+  // The week being played counts at its live odds once it has kicked off
+  const gameOdds = data.live?.gameOdds ?? data.gameOdds ?? [];
+  const liveWeek = data.live?.week ?? null;
+  // Each team's wins and losses from the picks and this week's finished games
   const pickedRecord = new Map<number, { wins: number; losses: number }>();
-  for (const [index, winner] of Object.entries(picks)) {
+  for (const [index, winner] of Object.entries({ ...activePicks, ...finals })) {
     const g = model.remaining[Number(index)];
     if (!g) continue;
     for (const id of [g.a, g.b]) {
@@ -52,11 +68,8 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
       pickedRecord.set(id, r);
     }
   }
-  const pickCount = Object.keys(picks).length;
+  const pickCount = Object.keys(activePicks).length;
   const games = model.remaining.map((g, i) => ({ ...g, index: i })).filter((g) => g.week === shownWeek);
-  // The week being played counts at its live odds once it has kicked off
-  const gameOdds = data.live?.gameOdds ?? data.gameOdds ?? [];
-  const liveWeek = data.live?.week ?? null;
   const rows = [...data.teams].sort((a, b) => (picked[b.rosterId]?.playoffs ?? 0) - (picked[a.rosterId]?.playoffs ?? 0) || (picked[b.rosterId]?.bye ?? 0) - (picked[a.rosterId]?.bye ?? 0));
   const toggle = (index: number, winner: number) =>
     setPicks((p) => {
@@ -84,7 +97,7 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
       footer={
         <span>
           Games you don&apos;t pick are simulated as in the playoff odds ({SIMS.toLocaleString()} runs here)
-          {liveWeek !== null && <>, week {liveWeek}&apos;s at the Live tab&apos;s odds now that it has kicked off</>}. A picked team still scores
+          {liveWeek !== null && <>, week {liveWeek}&apos;s at the Live tab&apos;s odds now that it has kicked off (a finished game shows its result, counted in the odds and the records below)</>}. A picked team still scores
           what the model expects, so points tiebreakers stay realistic. Changes are in percentage points against the same
           simulation without your picks.
         </span>
@@ -94,7 +107,7 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
         <div className="flex flex-wrap items-center gap-2">
           <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label="Week">
             {weeks.map((w) => {
-              const n = model.remaining.filter((g, i) => g.week === w && picks[i] !== undefined).length;
+              const n = model.remaining.filter((g, i) => g.week === w && activePicks[i] !== undefined).length;
               return (
                 <button
                   key={w}
@@ -124,12 +137,12 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
         <ul className="grid gap-2 sm:grid-cols-2">
           {games.map((g) => {
             const odds = gameOdds[g.index]?.aWins;
-            // A finished game can't be picked the other way
-            const decided = g.week === liveWeek && odds !== undefined && (odds === 0 || odds === 1);
+            const winner = finals[g.index] ?? null;
+            const decided = winner !== null;
             return (
               <li key={g.index} className="flex gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
                 {[g.a, g.b].map((id) => {
-                  const on = picks[g.index] === id;
+                  const on = decided ? winner === id : picks[g.index] === id;
                   const p = odds === undefined ? null : id === g.a ? odds : 1 - odds;
                   return (
                     <button
@@ -138,14 +151,15 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
                       onClick={() => toggle(g.index, id)}
                       disabled={decided}
                       aria-pressed={on}
+                      title={decided ? 'Final: the odds already count this result' : undefined}
                       className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-left text-xs transition-colors sm:text-sm ${
-                        on ? 'bg-[var(--success-bg)] text-[var(--success-text)]' : 'text-[var(--foreground)] hover:bg-[var(--neutral-bg)]'
-                      } ${picks[g.index] !== undefined && !on ? 'opacity-50' : ''}`}
+                        on ? 'bg-[var(--success-bg)] text-[var(--success-text)]' : `text-[var(--foreground)] ${decided ? '' : 'hover:bg-[var(--neutral-bg)]'}`
+                      } ${(decided || picks[g.index] !== undefined) && !on ? 'opacity-50' : ''} ${decided ? 'cursor-default' : ''}`}
                     >
                       <div className="truncate font-medium">{name(id)}</div>
                       {p !== null && (
                         <div className="text-[10px] text-[var(--muted)] sm:text-xs">
-                          {decided ? (p === 1 ? 'Won' : 'Lost') : `${formatOdds(p)} to win`}
+                          {decided ? (on ? 'Won · final' : 'Lost · final') : `${formatOdds(p)} to win`}
                         </div>
                       )}
                     </button>
