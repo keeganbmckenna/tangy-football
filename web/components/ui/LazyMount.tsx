@@ -8,6 +8,13 @@ let queue: Promise<void> = Promise.resolve();
 const afterNextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
 /**
+ * How far below (and above) the screen a chart starts building: about two phone screens. iPhone
+ * Safari tells the page late during a flick (often only once it stops), so a short lookahead
+ * left charts blank until they were near the top.
+ */
+const LOOKAHEAD_PX = 1600;
+
+/**
  * Renders its children only once they come near the screen, holding their height
  * until then. Charts are the slow part of a tab switch, so a tab only builds the
  * ones you can see and the rest as you scroll to them.
@@ -34,7 +41,7 @@ export default function LazyMount({ height, children }: { height: number; childr
           return afterNextFrame();
         });
       },
-      { rootMargin: '300px 0px' }
+      { rootMargin: `${LOOKAHEAD_PX}px 0px` }
     );
     io.observe(el);
     return () => {
