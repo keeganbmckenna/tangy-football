@@ -415,6 +415,38 @@ export default function App() {
       : [];
   const seasonOptions = [...sleeperSeasons, ...legacySeasons.filter((s) => !sleeperSeasons.includes(s))];
 
+  // Overview's standings and the week's matchups (their order depends on the season: see below)
+  const overviewStandings = (
+    <ErrorBoundary>
+      <section>
+        <PlayoffRace
+          divisions={divisions}
+          wildCard={wildCard}
+          standings={teamStats}
+          playoffTeams={leagueSettings?.playoffTeams ?? teamStats.length}
+          divisionAvatars={leagueData?.divisionAvatars}
+        />
+      </section>
+    </ErrorBoundary>
+  );
+  const overviewMatchups = (
+    <ErrorBoundary>
+      <section>
+        <WeeklyMatchups
+          linkTarget={linkTarget}
+          matchups={matchups}
+          lastScoredWeek={leagueData?.lastScoredWeek}
+          leagueData={leagueData}
+          live={
+            isCurrentSeason && leagueData && leagueSettings && liveWeek !== null
+              ? { week: liveWeek, regularSeasonEnd: leagueSettings.regularSeasonEnd, playoffTeams: leagueSettings.playoffTeams, hasDivisions: leagueSettings.divisions > 0 }
+              : null
+          }
+        />
+      </section>
+    </ErrorBoundary>
+  );
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <Chalkboard />
@@ -565,32 +597,18 @@ export default function App() {
               </ErrorBoundary>
             )}
             {leagueData && leagueSettings && <DataThrough leagueData={leagueData} regularSeasonEnd={leagueSettings.regularSeasonEnd} />}
-            <ErrorBoundary>
-              <section>
-                <PlayoffRace
-                  divisions={divisions}
-                  wildCard={wildCard}
-                  standings={teamStats}
-                  playoffTeams={leagueSettings?.playoffTeams ?? teamStats.length}
-                  divisionAvatars={leagueData?.divisionAvatars}
-                />
-              </section>
-            </ErrorBoundary>
-            <ErrorBoundary>
-              <section>
-                <WeeklyMatchups
-                  linkTarget={linkTarget}
-                  matchups={matchups}
-                  lastScoredWeek={leagueData?.lastScoredWeek}
-                  leagueData={leagueData}
-                  live={
-                    isCurrentSeason && leagueData && leagueSettings && liveWeek !== null
-                      ? { week: liveWeek, regularSeasonEnd: leagueSettings.regularSeasonEnd, playoffTeams: leagueSettings.playoffTeams, hasDivisions: leagueSettings.divisions > 0 }
-                      : null
-                  }
-                />
-              </section>
-            </ErrorBoundary>
+            {/* In season the week's matchups come first (your matchup leads them); otherwise the standings */}
+            {regularSeasonInProgress ? (
+              <>
+                {overviewMatchups}
+                {overviewStandings}
+              </>
+            ) : (
+              <>
+                {overviewStandings}
+                {overviewMatchups}
+              </>
+            )}
             {regularSeasonInProgress && leagueData && (
               <ErrorBoundary>
                 <section>

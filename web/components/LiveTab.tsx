@@ -75,10 +75,13 @@ function TeamCell({ team }: { team: TeamStats }) {
 
 const oddsText = (p: number) => percent(p);
 
+/** Nobody in the matchup has played yet: the projections are the story, not 0.00 to 0.00 */
+const isPregame = (m: { a: LiveSide; b: LiveSide }) => m.a.score === 0 && m.b.score === 0 && !m.a.playing && !m.b.playing && m.a.toPlay + m.b.toPlay > 0;
+
 /** Whether a response was made before the one shown */
 const isOlder = (fetchedAt: string, shown: string) => Date.parse(fetchedAt) < Date.parse(shown);
 
-function SideSummary({ side, name, username, avatarUrl, align }: { side: LiveSide; name: string; username: string; avatarUrl: string | null; align: 'left' | 'right' }) {
+function SideSummary({ side, name, username, avatarUrl, align, pregame = false }: { side: LiveSide; name: string; username: string; avatarUrl: string | null; align: 'left' | 'right'; pregame?: boolean }) {
   const left = [side.playing && `${side.playing} playing`, side.toPlay && `${side.toPlay} to play`].filter(Boolean).join(' · ') || 'done';
   return (
     <div className={`min-w-0 flex-1 ${align === 'right' ? 'text-right' : ''}`}>
@@ -87,8 +90,19 @@ function SideSummary({ side, name, username, avatarUrl, align }: { side: LiveSid
         <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={name}>{name}</div>
       </div>
       <div className="truncate text-xs text-[var(--muted)]">@{username}</div>
-      <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={side.score} align={align} /></div>
-      <div className="text-xs tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
+      {pregame ? (
+        <>
+          <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">
+            {side.projected.toFixed(1)} <span className="text-xs font-semibold text-[var(--muted)]">proj</span>
+          </div>
+          <div className="text-xs tabular-nums text-[var(--muted)]">0.00 so far</div>
+        </>
+      ) : (
+        <>
+          <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={side.score} align={align} /></div>
+          <div className="text-xs tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
+        </>
+      )}
       <div className="whitespace-nowrap text-xs text-[var(--muted)]">{left}</div>
     </div>
   );
@@ -134,8 +148,8 @@ function LiveMatchups({
             className={`rounded-lg border p-3 text-left transition-colors hover:bg-[var(--hover)] ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
           >
             <div className="flex items-start gap-3">
-              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} username={username(m.a.rosterId)} avatarUrl={avatar(m.a.rosterId)} align="left" />
-              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} username={username(m.b.rosterId)} avatarUrl={avatar(m.b.rosterId)} align="right" />
+              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} username={username(m.a.rosterId)} avatarUrl={avatar(m.a.rosterId)} align="left" pregame={isPregame(m)} />
+              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} username={username(m.b.rosterId)} avatarUrl={avatar(m.b.rosterId)} align="right" pregame={isPregame(m)} />
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs font-semibold tabular-nums">
               <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>
@@ -380,9 +394,11 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           username: getTeamName(s.rosterId, leagueData).username,
           avatarUrl: teamAvatarUrl(leagueData, s.rosterId),
           score: s.score,
+          projected: s.projected,
+          // Before kickoff the projection is already the big number: just the odds under it
           sub: (
             <>
-              proj {s.projected.toFixed(1)} ·{' '}
+              {m && isPregame(m) ? '0.00 so far · ' : `proj ${s.projected.toFixed(1)} · `}
               <span className="font-semibold" style={{ color: odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(odds)}</span>
             </>
           ),
@@ -403,6 +419,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           a={a}
           b={b}
           slots={slots}
+          status={isPregame(m) ? 'pregame' : 'live'}
           footnote="Projected finals are points so far plus each player's projection for the share of his game left; for a finished game, his projection from before it. Bench players don't count toward the score. Injury statuses from Sleeper."
           chart={
             <WinSwing

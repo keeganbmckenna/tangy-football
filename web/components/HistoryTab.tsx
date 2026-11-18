@@ -169,12 +169,12 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
     .sort((a, b) => Number(current.has(b.userId)) - Number(current.has(a.userId)))
     .map((r) => r.userId);
 
-  const person = (id: string | null, season?: string) => {
+  const person = (id: string | null, season?: string, compact = false) => {
     const m = id ? managers.get(id) : undefined;
     const team = season ? teamIn(season, id) : undefined;
     return (
-      <div className="flex min-w-0 items-center gap-2">
-        <Avatar m={team ? { ...m!, avatarUrl: team.avatarUrl ?? m?.avatarUrl ?? null } : m} />
+      <div className={`flex min-w-0 items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
+        <Avatar m={team ? { ...m!, avatarUrl: team.avatarUrl ?? m?.avatarUrl ?? null } : m} size={compact ? 6 : 8} />
         <div className="min-w-0">
           {id && onManager ? (
             <button type="button" onClick={() => openManager(id)} className="block max-w-full truncate text-left text-sm font-semibold text-[var(--foreground)] hover:underline">
@@ -294,45 +294,59 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
       </nav>
       <SectionCard
         title="Champions"
-        subtitle="Every season's champion, runner-up and toilet bowl loser (top three before Sleeper, when the toilet bowl wasn't recorded)"
+        subtitle="Every season's champion, runner-up and toilet bowl loser (third place 🥉 before Sleeper, when the toilet bowl wasn't recorded)"
         gradientType="warning"
       >
-        <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
-          {data.seasons.map((s) => (
-            <div key={s.season} className="rounded-lg border border-[var(--border)] p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-lg font-bold text-[var(--foreground)]">{s.season}</span>
-                {!s.complete && <span className="whitespace-nowrap rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">In progress</span>}
-                {s.legacy && <span className="whitespace-nowrap rounded-full bg-[var(--neutral-bg)] px-2 py-0.5 text-xs text-[var(--neutral-text)]">Before Sleeper</span>}
-              </div>
-              {s.complete ? (
-                <div className="space-y-3">
-                  <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">🏆 Champion</div>
-                    {person(s.champion, s.season)}
-                  </div>
-                  <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">🥈 Runner-up</div>
-                    {person(s.runnerUp, s.season)}
-                  </div>
-                  {s.thirdPlace && (
-                    <div>
-                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">🥉 Third place</div>
-                      {person(s.thirdPlace, s.season)}
-                    </div>
+        {/* One row a season: champion, runner-up, and the toilet bowl loser (third place before Sleeper) */}
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-11 sm:w-20" />
+              <col />
+              <col />
+              <col />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-[var(--border)] text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                <th className="px-2 py-2 sm:px-4">Year</th>
+                <th className="px-1 py-2">🏆 Champion</th>
+                <th className="px-1 py-2">🥈 Runner-up</th>
+                <th className="px-1 py-2 sm:pr-4">💩 Toilet bowl</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {data.seasons.map((s) => (
+                <tr key={s.season} className="align-middle">
+                  <td className="px-2 py-2.5 font-bold text-[var(--foreground)] sm:px-4">
+                    {s.season}
+                    {s.legacy && <div className="text-[10px] font-normal text-[var(--muted)]">Pre-Sleeper</div>}
+                  </td>
+                  {s.complete ? (
+                    <>
+                      <td className="px-1 py-2.5">{person(s.champion, s.season, true)}</td>
+                      <td className="px-1 py-2.5">{person(s.runnerUp, s.season, true)}</td>
+                      <td className="px-1 py-2.5 sm:pr-4">
+                        {s.toiletLoser ? (
+                          person(s.toiletLoser, s.season, true)
+                        ) : s.thirdPlace ? (
+                          <div className="flex items-center gap-1">
+                            <span title="Third place (the toilet bowl wasn't recorded before Sleeper)">🥉</span>
+                            <div className="min-w-0 flex-1">{person(s.thirdPlace, s.season, true)}</div>
+                          </div>
+                        ) : (
+                          <span className="text-[var(--muted)]">—</span>
+                        )}
+                      </td>
+                    </>
+                  ) : (
+                    <td colSpan={3} className="px-1 py-2.5 text-[var(--muted)]">
+                      In progress: champion to be decided.
+                    </td>
                   )}
-                  {s.toiletLoser && (
-                    <div>
-                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">💩 Lost the toilet bowl</div>
-                      {person(s.toiletLoser, s.season)}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-[var(--muted)]">Champion to be decided.</p>
-              )}
-            </div>
-          ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </SectionCard>
 

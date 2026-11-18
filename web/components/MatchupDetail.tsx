@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
 import type { Drive } from '@/lib/analyze/live';
 import LiveScore from '@/components/ui/LiveScore';
+import HowItWorks from '@/components/ui/HowItWorks';
 import TeamAvatar from '@/components/ui/TeamAvatar';
 import ShareButton from '@/components/ui/ShareButton';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -39,6 +40,8 @@ export interface MatchupSide {
   /** The team's photo */
   avatarUrl?: string | null;
   score: number;
+  /** Projected points: the big number before kickoff (with status 'pregame') */
+  projected?: number;
   /** Under the score, e.g. projected final and win odds */
   sub?: ReactNode;
   starters: Array<MatchupPlayer | null>;
@@ -232,10 +235,12 @@ interface Props {
   /** This matchup's address in the site (?season=&week=&matchup=), for a Share button */
   sharePath?: string;
   onClose: () => void;
+  /** Before kickoff (projections lead), live, or final (the winner marked; the bench folds) */
+  status?: 'pregame' | 'live' | 'final';
 }
 
 /** Both lineups of a matchup, slot by slot (and the benches, when given), in a dialog */
-export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, panel, sharePath, onClose }: Props) {
+export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', footnote, chart, panel, sharePath, status, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   usePageTitle([title]);
   useBackToClose(onClose);
@@ -252,17 +257,33 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
     };
   }, [onClose]);
 
-  const head = (s: MatchupSide, right: boolean) => (
-    <div className={`min-w-0 flex-1 ${right ? 'text-right' : ''}`}>
-      <div className={`flex items-center gap-2 ${right ? 'flex-row-reverse' : ''}`}>
-        <TeamAvatar url={s.avatarUrl} name={s.name} size="h-7 w-7" />
-        <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
+  // Before kickoff the projection is the number that matters; once final, the winner stands out
+  const pregame = status === 'pregame';
+  const final = status === 'final' && a.score !== b.score;
+  const head = (s: MatchupSide, right: boolean) => {
+    const other = s === a ? b : a;
+    const won = final && s.score > other.score;
+    return (
+      <div className={`min-w-0 flex-1 ${right ? 'text-right' : ''}`}>
+        <div className={`flex items-center gap-2 ${right ? 'flex-row-reverse' : ''}`}>
+          <TeamAvatar url={s.avatarUrl} name={s.name} size="h-7 w-7" />
+          <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
+        </div>
+        {s.username && <div className="truncate text-xs text-[var(--muted)]">@{s.username}</div>}
+        {pregame && s.projected !== undefined ? (
+          <div className="text-xl font-bold tabular-nums text-[var(--foreground)] sm:text-2xl">
+            {s.projected.toFixed(1)} <span className="text-xs font-semibold text-[var(--muted)]">proj</span>
+          </div>
+        ) : (
+          <div className={`flex items-baseline gap-1.5 text-xl font-bold tabular-nums sm:text-2xl ${right ? 'flex-row-reverse' : ''} ${final && !won ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'}`}>
+            <LiveScore value={s.score} align={right ? 'right' : 'left'} />
+            {won && <span className="rounded-full bg-[var(--success-bg)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--success-text)]">Won</span>}
+          </div>
+        )}
+        {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
       </div>
-      {s.username && <div className="truncate text-xs text-[var(--muted)]">@{s.username}</div>}
-      <div className="text-xl font-bold tabular-nums text-[var(--foreground)] sm:text-2xl"><LiveScore value={s.score} align={right ? 'right' : 'left'} /></div>
-      {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
-    </div>
-  );
+    );
+  };
   const rows = (key: string, left: Array<MatchupPlayer | null>, rightSide: Array<MatchupPlayer | null>, label: (i: number) => string) =>
     Array.from({ length: Math.max(left.length, rightSide.length) }, (_, i) => (
       // Each pair is its own group: the players, then their stat lines
@@ -282,6 +303,19 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
   const benchA = a.bench ?? [];
   const benchB = b.bench ?? [];
   const benchTotal = (bench: MatchupPlayer[]) => bench.reduce((t, p) => t + p.points, 0);
+  // Bench players who outscored a starter at their position (a missed start), so the folded bench still says so
+  const missed = (bench: MatchupPlayer[], starters: Array<MatchupPlayer | null>) =>
+    bench.filter((p) => starters.some((st) => st && st.position === p.position && p.points > st.points)).length;
+  const missedA = missed(benchA, a.starters);
+  const missedB = missed(benchB, b.starters);
+  // The bench matters while there are swaps to make; after that it folds away
+  const [benchOpen, setBenchOpen] = useState(status !== 'final');
+  const benchNote = (total: number, n: number) => (
+    <>
+      Bench {total.toFixed(2)}
+      {status === 'final' && n > 0 && <span className="font-normal text-[var(--warning-text)]"> · {n} outscored a starter</span>}
+    </>
+  );
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-6" onClick={onClose}>
@@ -322,17 +356,25 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
             {(benchA.length > 0 || benchB.length > 0) && (
               <>
                 <tbody className="border-t border-[var(--border)]">
-                  <tr>
-                    <td className="pb-1 pl-1.5 pt-4 text-xs font-semibold text-[var(--muted)]">Bench {benchTotal(benchA).toFixed(2)}</td>
-                    <td />
-                    <td className="pb-1 pr-1.5 pt-4 text-right text-xs font-semibold text-[var(--muted)]">Bench {benchTotal(benchB).toFixed(2)}</td>
+                  <tr className="cursor-pointer hover:bg-[var(--hover)]" onClick={() => setBenchOpen(!benchOpen)}>
+                    <td className="pb-2 pl-1.5 pt-4 text-xs font-semibold text-[var(--muted)]">{benchNote(benchTotal(benchA), missedA)}</td>
+                    <td className="pb-2 pt-4 text-center">
+                      <button type="button" aria-expanded={benchOpen} aria-label={benchOpen ? 'Hide the benches' : 'Show the benches'} className="text-sm text-[var(--muted)]">
+                        <span aria-hidden className={`inline-block transition-transform ${benchOpen ? 'rotate-90' : ''}`}>›</span>
+                      </button>
+                    </td>
+                    <td className="pb-2 pr-1.5 pt-4 text-right text-xs font-semibold text-[var(--muted)]">{benchNote(benchTotal(benchB), missedB)}</td>
                   </tr>
                 </tbody>
-                {rows('b', benchA, benchB, () => 'BN')}
+                {benchOpen && rows('b', benchA, benchB, () => 'BN')}
               </>
             )}
           </table>
-          {footnote && <p className="mt-3 text-xs text-[var(--muted)]">{footnote}</p>}
+          {footnote && (
+            <HowItWorks className="mt-3 px-1.5">
+              <p>{footnote}</p>
+            </HowItWorks>
+          )}
         </div>
       </div>
     </div>,

@@ -119,36 +119,71 @@ function SnakeBoard({ data, leagueData }: { data: DraftData; leagueData: LeagueD
 
 function AuctionBoard({ data, leagueData, core }: { data: DraftData; leagueData: LeagueData | null; core: TeamCore[] }) {
   const teams = buildAuctionBoardByTeam(data.picks, core);
+  // Each team's picks fold away (one line each), so the whole draft fits on a screen
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const keyOf = (rosterId: number | null) => String(rosterId ?? 'none');
+  const allOpen = open.size === teams.length;
+  const toggle = (k: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
 
   return (
-    <div className="space-y-6">
-      {teams.map((team) => (
-        <div key={team.rosterId ?? 'none'} className="overflow-x-auto">
-          <h3 className="px-3 pt-4 pb-2 text-sm sm:px-6 font-bold text-[var(--foreground)] uppercase tracking-wider">
-            {teamNameForRoster(leagueData, team.rosterId)}
-            <span className="ml-2 text-xs font-normal normal-case text-[var(--muted)]">
+    <div>
+      <div className="flex justify-end px-3 pt-3 sm:px-6">
+        <button
+          type="button"
+          onClick={() => setOpen(allOpen ? new Set() : new Set(teams.map((t) => keyOf(t.rosterId))))}
+          className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)]"
+        >
+          {allOpen ? 'Close all' : 'Open all'}
+        </button>
+      </div>
+      {teams.map((team) => {
+        const k = keyOf(team.rosterId);
+        const isOpen = open.has(k);
+        return (
+        <div key={k} className="border-b border-[var(--border)] last:border-b-0">
+          <button
+            type="button"
+            onClick={() => toggle(k)}
+            aria-expanded={isOpen}
+            className="flex w-full items-baseline gap-2 px-3 py-3 text-left hover:bg-[var(--hover)] sm:px-6"
+          >
+            <span aria-hidden className={`inline-block text-[var(--muted)] transition-transform ${isOpen ? 'rotate-90' : ''}`}>›</span>
+            <span className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">{teamNameForRoster(leagueData, team.rosterId)}</span>
+            <span className="text-xs text-[var(--muted)]">
               {team.picks.length} picks · ${team.spent} spent · {(team.core ?? 0).toFixed(1)}/wk core
             </span>
-          </h3>
-          <table className="min-w-full divide-y divide-[var(--border)]">
+          </button>
+          {isOpen && (
+          <table className="w-full table-fixed divide-y divide-[var(--border)]">
+            <colgroup>
+              <col className="w-12 sm:w-20" />
+              <col />
+              <col className="w-28 sm:w-64" />
+            </colgroup>
             <tbody className="divide-y divide-[var(--border)]">
               {team.picks.map((pick) => (
                 <tr key={pick.pick_no} className="hover:bg-[var(--hover)]">
                   <td className="px-3 py-2 whitespace-nowrap text-sm font-bold text-[var(--accent)] sm:w-16 sm:px-6">
                     ${pick.amount ?? '—'}
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
+                  <td className="truncate px-2 py-2 whitespace-nowrap sm:px-4" title={pick.name}>
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mr-2 ${positionBadgeClass(pick.position)}`}>
                       {pick.position}
                     </span>
                     <span className="text-sm font-medium text-[var(--foreground)]">{pick.name}</span>
                     <span className="text-xs text-[var(--muted)] ml-2">{pick.nfl_team}</span>
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-[var(--foreground)]">
+                  <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-[var(--foreground)] sm:px-4">
                     <span className="font-semibold">{ppwOf(pick).toFixed(1)}</span>
                     <span className="text-[var(--muted)]">/wk</span>
                     {/* The detail goes under on phones */}
-                    <span className="block text-xs text-[var(--muted)] sm:inline sm:text-sm">
+                    <span className="block whitespace-normal text-xs text-[var(--muted)] sm:inline sm:whitespace-nowrap sm:text-sm">
                       <span className="hidden sm:inline"> · </span>
                       {pick.median_ppg.toFixed(1)} healthy · {pick.games}g
                       {pick.available_weeks !== undefined && `/${pick.available_weeks}`}
@@ -158,8 +193,10 @@ function AuctionBoard({ data, leagueData, core }: { data: DraftData; leagueData:
               ))}
             </tbody>
           </table>
+          )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -373,28 +410,8 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
 
   return (
     <div className="space-y-8">
-      <SectionCard
-        title={`${data.season} Draft`}
-        subtitle={subtitle}
-        gradientType="warning"
-        footer={
-          <span>
-            <strong>/wk</strong> is half-PPR points per available week: total points divided by the weeks
-            the player could have played (weeks scored minus their bye), so games missed to injury,
-            suspension or benching count as zeros. <strong>Healthy</strong> is the median over games
-            actually played: how good they were on the field. Teams are ranked by{' '}
-            <strong>Core/wk</strong> (see Draft Core below).
-            {data.type === 'auction' && (
-              <> <strong>$/pt</strong> is dollars spent per Core/wk point (lower is better).</>
-            )}
-          </span>
-        }
-      >
-        {data.type === 'auction' ? (
-          <AuctionBoard data={data} leagueData={leagueData} core={core.teams} />
-        ) : (
-          <SnakeBoard data={data} leagueData={leagueData} />
-        )}
+      <SectionCard title="Draft Results" subtitle="Teams ranked by Core/wk" gradientType="info">
+        <TeamSummary data={data} leagueData={leagueData} core={core.teams} />
       </SectionCard>
 
       <SectionCard
@@ -416,8 +433,28 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
         <DraftCore data={data} leagueData={leagueData} core={core} />
       </SectionCard>
 
-      <SectionCard title="Draft Results" subtitle="Teams ranked by Core/wk" gradientType="info">
-        <TeamSummary data={data} leagueData={leagueData} core={core.teams} />
+      <SectionCard
+        title={`${data.season} Draft`}
+        subtitle={subtitle}
+        gradientType="warning"
+        footer={
+          <span>
+            <strong>/wk</strong> is half-PPR points per available week: total points divided by the weeks
+            the player could have played (weeks scored minus their bye), so games missed to injury,
+            suspension or benching count as zeros. <strong>Healthy</strong> is the median over games
+            actually played: how good they were on the field. Teams are ranked by{' '}
+            <strong>Core/wk</strong> (see Draft Core above).
+            {data.type === 'auction' && (
+              <> <strong>$/pt</strong> is dollars spent per Core/wk point (lower is better).</>
+            )}
+          </span>
+        }
+      >
+        {data.type === 'auction' ? (
+          <AuctionBoard data={data} leagueData={leagueData} core={core.teams} />
+        ) : (
+          <SnakeBoard data={data} leagueData={leagueData} />
+        )}
       </SectionCard>
     </div>
   );

@@ -302,44 +302,6 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
 
   return (
     <div className="space-y-8">
-      <SectionCard
-        title="If the Season Ended Now"
-        subtitle={`Seeds after week ${data.lastScoredWeek}: division winners first, then wild cards; ties go to points for`}
-        gradientType="primary"
-      >
-        <div className="p-6 space-y-6">
-          <BracketBoard
-            columns={projectedColumns(data.bracket, ['Round 1', 'Semifinal', 'Final'], data.seeds.slice(0, 2), (id) =>
-              odds[id]
-                ? `${pct(odds[id].playoffs)} to make it${odds[id].champion != null ? ` · ${pct(odds[id].champion!)} title` : ''}`
-                : null
-            )}
-          />
-          {firstOut.length > 0 && (
-            <div className="text-sm text-[var(--muted)]">
-              <span className="font-medium text-[var(--foreground)]">First out:</span>{' '}
-              {firstOut.map((t) => `${name(t.rosterId)} (${record(t)}, ${t.pointsFor.toFixed(1)} pts)`).join(' · ')}
-            </div>
-          )}
-        </div>
-      </SectionCard>
-
-      {hasToilet && (
-        <SectionCard
-          title="Toilet Bowl If the Season Ended Now"
-          subtitle="The six teams out of the playoffs, worst record first (ties go to fewer points for). The lower score advances, and the final's loser loses the toilet bowl."
-          gradientType="warning"
-        >
-          <div className="p-6">
-            <BracketBoard
-              columns={projectedColumns(data.toiletBracket, ['Round 1', 'Semifinal', 'Last-place game'], data.toiletSeeds.slice(0, 2), (id) =>
-                odds[id]?.lastPlace != null ? `${pct(odds[id].lastPlace!)} to lose it` : null
-              )}
-            />
-          </div>
-        </SectionCard>
-      )}
-
       {shownOdds && (
         <SectionCard
           title="Playoff Odds"
@@ -480,10 +442,6 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
         </SectionCard>
       )}
 
-      {gameOdds && <GamesAhead gameOdds={gameOdds} liveWeek={liveOdds?.week ?? null} teams={data.teams} teamStats={teamStats} />}
-
-      <OddsHistoryChart season={data.season} teamStats={teamStats} liveOdds={data.odds} lastScoredWeek={data.lastScoredWeek} />
-
       <SectionCard
         title="What Each Team Needs"
         subtitle={
@@ -500,19 +458,14 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           </span>
         }
       >
-        <div className="grid gap-4 p-6 md:grid-cols-2">
-          {ranked.map((t) => {
+        {(() => {
+          // Your team (or the top team) in full; every other team a row that opens to the same card
+          const featured = ranked.find((t) => t.rosterId === me.rosterId) ?? ranked[0];
+          const card = (t: OddsTeam) => {
             const lines = linesFor(t.rosterId);
             return (
-              <div key={t.rosterId} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>{teamLabel(t.rosterId)}</div>
-                  <div className="text-right text-sm">
-                    <div className="font-semibold text-[var(--foreground)]">{record(t)}</div>
-                    {odds[t.rosterId] && <div className="text-xs text-[var(--muted)]">{pct(odds[t.rosterId].playoffs)} playoffs</div>}
-                  </div>
-                </div>
-                <ul className="mt-3 space-y-1.5">
+              <>
+                <ul className="space-y-1.5">
                   {lines.length ? (
                     lines.map((l, i) => (
                       <li key={i} className="flex gap-2 text-sm text-[var(--foreground)]">
@@ -525,13 +478,100 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
                   )}
                 </ul>
                 {thisWeekTable(t.rosterId)}
-              </div>
+              </>
             );
-          })}
+          };
+          const header = (t: OddsTeam) => (
+            <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+              <div className="min-w-0">{teamLabel(t.rosterId)}</div>
+              <div className="shrink-0 text-right text-sm">
+                <div className="font-semibold text-[var(--foreground)]">{record(t)}</div>
+                {odds[t.rosterId] && <div className="text-xs text-[var(--muted)]">{pct(odds[t.rosterId].playoffs)} playoffs</div>}
+              </div>
+            </div>
+          );
+          return (
+            <div className="space-y-3 p-4 sm:p-6">
+              {featured && (
+                <div className="rounded-lg border border-[var(--accent)] bg-[var(--surface)] p-4">
+                  {header(featured)}
+                  <div className="mt-3">{card(featured)}</div>
+                </div>
+              )}
+              <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+                {ranked
+                  .filter((t) => t !== featured)
+                  .map((t) => {
+                    const top = linesFor(t.rosterId)[0];
+                    return (
+                      <li key={t.rosterId}>
+                        <details className="group">
+                          <summary className="flex cursor-pointer list-none items-start gap-2 px-4 py-3 hover:bg-[var(--hover)] [&::-webkit-details-marker]:hidden">
+                            <span aria-hidden className="mt-0.5 inline-block text-[var(--muted)] transition-transform group-open:rotate-90">›</span>
+                            <div className="min-w-0 flex-1">
+                              {header(t)}
+                              {top && (
+                                <div className="mt-1 flex gap-2 text-xs text-[var(--muted)] group-open:hidden">
+                                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: TONE_COLOR[top.tone] }} />
+                                  <span className="line-clamp-1">{top.text}</span>
+                                </div>
+                              )}
+                            </div>
+                          </summary>
+                          <div className="px-4 pb-4 pl-9">{card(t)}</div>
+                        </details>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+          );
+        })()}
+      </SectionCard>
+
+      {gameOdds && <GamesAhead gameOdds={gameOdds} liveWeek={liveOdds?.week ?? null} teams={data.teams} teamStats={teamStats} />}
+
+      <WhatIf data={data} teamStats={teamStats} />
+
+      <SectionCard
+        title="If the Season Ended Now"
+        subtitle={`Seeds after week ${data.lastScoredWeek}: division winners first, then wild cards; ties go to points for`}
+        gradientType="primary"
+      >
+        <div className="p-6 space-y-6">
+          <BracketBoard
+            columns={projectedColumns(data.bracket, ['Round 1', 'Semifinal', 'Final'], data.seeds.slice(0, 2), (id) =>
+              odds[id]
+                ? `${pct(odds[id].playoffs)} to make it${odds[id].champion != null ? ` · ${pct(odds[id].champion!)} title` : ''}`
+                : null
+            )}
+          />
+          {firstOut.length > 0 && (
+            <div className="text-sm text-[var(--muted)]">
+              <span className="font-medium text-[var(--foreground)]">First out:</span>{' '}
+              {firstOut.map((t) => `${name(t.rosterId)} (${record(t)}, ${t.pointsFor.toFixed(1)} pts)`).join(' · ')}
+            </div>
+          )}
         </div>
       </SectionCard>
 
-      <WhatIf data={data} teamStats={teamStats} />
+      {hasToilet && (
+        <SectionCard
+          title="Toilet Bowl If the Season Ended Now"
+          subtitle="The six teams out of the playoffs, worst record first (ties go to fewer points for). The lower score advances, and the final's loser loses the toilet bowl."
+          gradientType="warning"
+        >
+          <div className="p-6">
+            <BracketBoard
+              columns={projectedColumns(data.toiletBracket, ['Round 1', 'Semifinal', 'Last-place game'], data.toiletSeeds.slice(0, 2), (id) =>
+                odds[id]?.lastPlace != null ? `${pct(odds[id].lastPlace!)} to lose it` : null
+              )}
+            />
+          </div>
+        </SectionCard>
+      )}
+
+      <OddsHistoryChart season={data.season} teamStats={teamStats} liveOdds={data.odds} lastScoredWeek={data.lastScoredWeek} />
     </div>
   );
 }
