@@ -14,6 +14,9 @@ import type { TradeHistoryResponse } from '@/lib/analyze/trade';
 import type { LeagueData, PlayEveryoneStats, TeamStats, WeekMatchup } from '@/lib/types';
 import { signed } from '@/lib/format';
 import { netHindsight } from '@/lib/analyze/tradeLeaders';
+import type { DraftData } from '@/lib/analyze/draft';
+import { POINT_SOURCES, averageTeam, pointSources, slope, type PointSource } from '@/lib/analyze/pointSources';
+import Term from '@/components/ui/Term';
 
 interface SeasonReviewProps {
   season: string;
@@ -42,6 +45,26 @@ function Tile({ label, children, sub, wide = false }: { label: string; children:
   );
 }
 
+const SOURCE_LABEL: Record<PointSource, string> = { drafted: 'Drafted', pickups: 'Pickups', trades: 'Trades', other: 'Other' };
+
+/** One source's points against the average team, as a bar either side of the middle */
+function SourceRow({ label, diff, scale }: { label: string; diff: number; scale: number }) {
+  const width = `${(Math.min(Math.abs(diff), scale) / scale) * 50}%`;
+  return (
+    <li className="grid grid-cols-[4.5rem_1fr_3.5rem] items-center gap-2 text-sm">
+      <span className="text-[var(--muted)]">{label}</span>
+      <span className="relative h-3" aria-hidden>
+        <span className="absolute inset-y-0 left-1/2 w-px bg-[var(--border)]" />
+        <span
+          className={`absolute inset-y-0.5 rounded-sm ${diff >= 0 ? 'left-1/2 bg-[var(--success-text)]' : 'right-1/2 bg-[var(--danger-text)]'} opacity-70`}
+          style={{ width }}
+        />
+      </span>
+      <span className="text-right font-semibold tabular-nums text-[var(--foreground)]">{signed(diff, 0)}</span>
+    </li>
+  );
+}
+
 /**
  * A finished season, one manager at a time: where they finished, their best and worst weeks,
  * MVP, best pickup and trade, lineup decisions, luck, and how their playoff odds moved
@@ -54,10 +77,23 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
   const { data: trades } = useSharedFetch<TradeHistoryResponse>(`trades:${season}`, () =>
     fetchFirst([`/data/trades/${season}.json`, `/api/trades/${season}`], `${season} trades`)
   );
+  const { data: draft } = useSharedFetch<DraftData>(`draft:${season}`, () => fetchFirst([`/data/drafts/${season}.json`, `/api/draft/${season}`], `the ${season} draft`));
   const results = useMemo(() => bracketResults(leagueData.winnersBracket ?? null, leagueData.losersBracket ?? null), [leagueData]);
   const luck = useMemo(() => luckBreakdown(teamStats, playEveryone, matchups, regularSeasonEnd), [teamStats, playEveryone, matchups, regularSeasonEnd]);
   const lineups = useMemo(() => (insights ? lineupEfficiency(insights, leagueData.league.roster_positions ?? []) : null), [insights, leagueData]);
   const mvps = useMemo(() => (insights ? teamMvps(playerLeaders(insights).seasons) : null), [insights]);
+  // Where each team's lineup points came from, against the average team, and what a point is worth in wins
+  const sources = useMemo(() => {
+    if (!insights || !draft || !trades) return null;
+    const teams = pointSources(insights, draft.picks, trades.trades);
+    const avg = averageTeam(teams);
+    const expected = new Map(luck.map((l) => [l.rosterId, l.expectedWins]));
+    const scored = teams.filter((t) => expected.has(t.rosterId));
+    const winsPerPoint = slope(scored.map((t) => t.total), scored.map((t) => expected.get(t.rosterId)!));
+    // One scale for every team's bars, so they compare
+    const scale = Math.max(1, ...teams.flatMap((t) => POINT_SOURCES.map((k) => Math.abs(t.points[k] - avg.points[k]))));
+    return { teams, avg, winsPerPoint, scale };
+  }, [insights, draft, trades, luck]);
 
   const options = [...teamStats].sort((a, b) => a.teamName.localeCompare(b.teamName));
   const rosterId = picked ?? (me.rosterId !== null && teamStats.some((t) => t.rosterId === me.rosterId) ? me.rosterId : options[0]?.rosterId);
@@ -90,6 +126,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
         .map((s) => ({ t, s, net: netHindsight(t, s) }))
     )
     .sort((a, b) => b.net - a.net)[0];
+  const mySources = sources?.teams.find((t) => t.rosterId === rosterId);
   const odds = (history?.checkpoints ?? []).map((c) => ({ week: c.week, p: c.odds[rosterId]?.playoffs ?? 0 }));
   const low = odds.length ? odds.reduce((m, o) => (o.p < m.p ? o : m)) : null;
   const high = odds.length ? odds.reduce((m, o) => (o.p > m.p ? o : m)) : null;
@@ -144,6 +181,39 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
             <Tile label="Lineups" sub={`${myLineups.leftOnBench.toFixed(0)} left on bench${myLineups.flippedLosses ? ` · ${myLineups.flippedLosses} loss${myLineups.flippedLosses === 1 ? '' : 'es'} it cost` : ''}`}>
               {(myLineups.efficiency * 100).toFixed(1)}%{efficiencyRank && <span className="text-sm font-normal text-[var(--muted)]"> · {ordinal(efficiencyRank)}</span>}
             </Tile>
+          )}
+          {sources && mySources && (
+            <div className="col-span-2 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                <Term
+                  align="left"
+                  tip={`Each start counts for how the team got that player: drafted, picked up, or traded for (the latest before that week), against the league's average team. It shows where the points came from, not a grade: a team that rarely trades gets more from its draft and less from trades. Wins are what its scoring would win on an average schedule, against an average team's${
+                    sources.winsPerPoint > 0 ? ` (this season about ${Math.round(1 / sources.winsPerPoint)} points a win)` : ''
+                  }; luck is the rest, to its real record.`}
+                >
+                  Where the points came from
+                </Term>
+              </div>
+              <div className="mb-1.5 text-xs text-[var(--muted)]">Starting-lineup points by how each player was acquired, against the average team</div>
+              <ul className="space-y-1">
+                {POINT_SOURCES.filter((k) => k !== 'other' || mySources.points.other > 0 || sources.avg.points.other > 0).map((k) => (
+                  <SourceRow key={k} label={SOURCE_LABEL[k]} diff={mySources.points[k] - sources.avg.points[k]} scale={sources.scale} />
+                ))}
+              </ul>
+              <div className="mt-2 text-sm text-[var(--foreground)]">
+                <span className="font-semibold">{signed(mySources.total - sources.avg.total, 0)} pts</span>
+                {myLuck && (
+                  <>
+                    {' '}
+                    → <span className="font-semibold">{signed(myLuck.expectedWins - (myLuck.wins + myLuck.losses + myLuck.ties) / 2)} wins</span>
+                    <span className="text-[var(--muted)]">
+                      {' '}
+                      · luck {signed(myLuck.total)} → {formatRecord(myLuck.wins, myLuck.losses, myLuck.ties)}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           )}
           {myLuck && (
             <Tile label="Luck" sub={`Close games ${formatRecord(myLuck.close.wins, myLuck.close.losses, myLuck.close.ties)}`}>

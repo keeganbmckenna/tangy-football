@@ -11,7 +11,7 @@ The **You** picker highlights your team everywhere and puts your matchup first, 
 ---
 
 ## 📊 Overview
-- **Season in Review** (finished seasons): one manager at a time, defaulting to you. Finish, record and points rank, best and worst week, MVP, best pickup, best trade by net points, lineup efficiency, luck and close games, and a sparkline of their playoff odds from the draft on.
+- **Season in Review** (finished seasons): one manager at a time, defaulting to you. Finish, record and points rank, best and worst week, MVP, best pickup, best trade by net points, lineup efficiency, where its points came from (starting-lineup points from drafted players, pickups and trades against the average team, what they were worth in wins, and luck, adding up to its record), luck and close games, and a sparkline of their playoff odds from the draft on.
 - **Data through:** a line saying which weeks the stats cover ("Stats through week 5 of 14").
 - **Division standings:** one card per division with record, points, games back (GB) and points back (PB); the leader gets a 🥇.
 - **Wild Card Race:** the non-division leaders ranked for the remaining playoff spots, with the playoff cutoff line and each team's division.
