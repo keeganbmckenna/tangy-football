@@ -8,7 +8,7 @@ import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
-import { sortRows } from '@/lib/tableSort';
+import { sortKeys, sortRows } from '@/lib/tableSort';
 import { consistency } from '@/lib/analyze/consistency';
 import type { TeamStats } from '@/lib/types';
 
@@ -31,7 +31,7 @@ const SPREAD_COLUMNS: PickableColumn[] = [
 
 export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionProps) {
   const sort = useTableSort('scoreDistribution');
-  const cols = useColumnPicker('score-distribution', SPREAD_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('score-distribution', SPREAD_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
   const { teams: data, leagueQ1, leagueQ3 } = useMemo(() => consistency(teams, maxWeek), [teams, maxWeek]);
   if (!data.length || !data[0].scores.length) return null;

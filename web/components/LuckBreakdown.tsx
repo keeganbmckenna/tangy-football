@@ -12,7 +12,7 @@ import ColumnChips from '@/components/ui/ColumnChips';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { CHART_THEME, RESULT_DOT_COLORS } from '@/lib/constants';
-import { recordValue, sortRows } from '@/lib/tableSort';
+import { recordValue, sortKeys, sortRows } from '@/lib/tableSort';
 import { formatRecord } from '@/lib/analyze/playEveryone';
 import { CLOSE_GAME_MARGIN, luckBreakdown } from '@/lib/analyze/luck';
 import type { PlayEveryoneStats, TeamStats, WeekMatchup } from '@/lib/types';
@@ -46,7 +46,7 @@ function LuckTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
  */
 export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }: LuckBreakdownProps) {
   const sort = useTableSort('luckBreakdown');
-  const cols = useColumnPicker('luck-breakdown', LUCK_TABLE_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('luck-breakdown', LUCK_TABLE_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
   const tap = useTapTooltip()();
   const data = useMemo(() => luckBreakdown(teams, playEveryone, matchups, maxWeek), [teams, playEveryone, matchups, maxWeek]);

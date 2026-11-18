@@ -8,7 +8,7 @@ import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
-import { sortRows } from '@/lib/tableSort';
+import { sortKeys, sortRows } from '@/lib/tableSort';
 import { lineupEfficiency } from '@/lib/analyze/rosters';
 import { signed } from '@/lib/format';
 import { PlayerLabel, TD, TH, teamNames, type RostersCardProps } from './shared';
@@ -23,7 +23,7 @@ const LINEUP_COLUMNS: PickableColumn[] = [{ key: 'perfect', label: 'Perfect wks'
 
 export default function LineupEfficiency({ insights, teamStats, rosterPositions }: RostersCardProps & { rosterPositions: string[] }) {
   const sort = useTableSort('lineupEfficiency');
-  const cols = useColumnPicker('lineup-efficiency', LINEUP_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('lineup-efficiency', LINEUP_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
   const [open, setOpen] = useState<number | null>(null);
   const data = useMemo(() => lineupEfficiency(insights, rosterPositions), [insights, rosterPositions]);

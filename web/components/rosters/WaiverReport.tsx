@@ -8,7 +8,7 @@ import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
-import { sortRows } from '@/lib/tableSort';
+import { sortKeys, sortRows } from '@/lib/tableSort';
 import { bestPickups, closestBids, usedFaab, waiverTeams, worstBids } from '@/lib/analyze/rosters';
 import type { WaiverMove } from '@/lib/analyze/insights';
 import { PlayerLabel, TD, TH, teamNames, type RostersCardProps } from './shared';
@@ -24,7 +24,7 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
   const sort = useTableSort('waiverReport');
   const me = useMyTeam();
   const faab = usedFaab(insights);
-  const cols = useColumnPicker('waiver-report', faab ? WAIVER_COLUMNS : [], sort.state?.key);
+  const cols = useColumnPicker('waiver-report', faab ? WAIVER_COLUMNS : [], sortKeys(sort.state));
   const teams = useMemo(() => waiverTeams(insights), [insights]);
   const name = teamNames(teamStats);
   const users = new Map(teamStats.map((t) => [t.rosterId, t.username]));

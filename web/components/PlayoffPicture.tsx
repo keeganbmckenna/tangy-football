@@ -14,7 +14,7 @@ import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
-import { recordValue, sortRows } from '@/lib/tableSort';
+import { recordValue, sortKeys, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
 import { formatRecord } from '@/lib/analyze/playEveryone';
@@ -63,7 +63,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
   // Which outcome the "this week: win / loss" column shows
   const [swingOutcome, setSwingOutcome] = useState<keyof OutcomeOdds>('playoffs');
   const sort = useTableSort('playoffOdds');
-  const cols = useColumnPicker('playoff-odds', ODDS_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('playoff-odds', ODDS_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
 
   const { data, error, retry } = usePlayoffOdds();

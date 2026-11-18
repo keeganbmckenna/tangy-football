@@ -1,42 +1,76 @@
 /**
  * Sorting for data tables: a header click sorts best-first, a second click
- * reverses it, and a third goes back to the table's own order, which is
- * always kept (see components/ui/SortableTh.tsx).
+ * reverses it, and a third drops it, back to the sort before (or the table's
+ * own order, which is always kept: see components/ui/SortableTh.tsx). Earlier
+ * sorts break the ties of the latest.
  */
 
 export type SortDir = 'asc' | 'desc';
 
-export interface SortState {
+export interface SortKey {
   key: string;
   dir: SortDir;
   /** Column name, for "Sorted by ..." */
   label: string;
 }
 
+export interface SortState extends SortKey {
+  /** Earlier sorts, most recent first: they order the rows the latest one ties */
+  then?: SortKey[];
+}
+
+/** How many earlier sorts break ties */
+export const MAX_TIEBREAKS = 2;
+
 /** A sortable value: null or undefined (shown as "—") always sorts last */
 export type SortValue = number | string | null | undefined;
 
 /** Next state after clicking a column whose best-first direction is `best` */
 export function nextSort(state: SortState | null, key: string, best: SortDir, label: string): SortState | null {
-  if (!state || state.key !== key) return { key, dir: best, label };
-  if (state.dir === best) return { key, dir: best === 'desc' ? 'asc' : 'desc', label };
-  return null;
+  if (!state) return { key, dir: best, label };
+  const then = state.then ?? [];
+  if (state.key !== key) {
+    // The current sort (and those before it) now break this one's ties
+    const earlier = [{ key: state.key, dir: state.dir, label: state.label }, ...then].filter((k) => k.key !== key).slice(0, MAX_TIEBREAKS);
+    return { key, dir: best, label, then: earlier };
+  }
+  if (state.dir === best) return { key, dir: best === 'desc' ? 'asc' : 'desc', label, ...(then.length ? { then } : {}) };
+  // Dropped: back to the sort before it
+  if (!then.length) return null;
+  const [previous, ...rest] = then;
+  return { ...previous, ...(rest.length ? { then: rest } : {}) };
 }
 
-/** Rows in sorted order (a stable sort, so ties keep the table's own order); the input isn't changed */
+/** Every column the rows are sorted by, the latest first */
+export function sortKeys(state: SortState | null): string[] {
+  return state ? [state.key, ...(state.then ?? []).map((k) => k.key)] : [];
+}
+
+/**
+ * Rows in sorted order, by the latest sort and then the earlier ones (a stable sort, so
+ * remaining ties keep the table's own order); the input isn't changed
+ */
 export function sortRows<T>(rows: T[], state: SortState | null, value: (row: T, key: string) => SortValue): T[] {
   if (!state) return rows;
-  const sign = state.dir === 'asc' ? 1 : -1;
+  const keys = [state, ...(state.then ?? [])];
+  const blank = (v: SortValue) => v === null || v === undefined || (typeof v === 'number' && Number.isNaN(v));
   return rows
-    .map((row, i) => ({ row, i, v: value(row, state.key) }))
+    .map((row, i) => ({ row, i, v: keys.map((k) => value(row, k.key)) }))
     .sort((a, b) => {
-      const an = a.v === null || a.v === undefined || (typeof a.v === 'number' && Number.isNaN(a.v));
-      const bn = b.v === null || b.v === undefined || (typeof b.v === 'number' && Number.isNaN(b.v));
-      if (an || bn) return an === bn ? a.i - b.i : an ? 1 : -1;
-      const c = typeof a.v === 'string' || typeof b.v === 'string'
-        ? String(a.v).localeCompare(String(b.v))
-        : (a.v as number) - (b.v as number);
-      return c !== 0 ? sign * c : a.i - b.i;
+      for (let j = 0; j < keys.length; j++) {
+        const av = a.v[j];
+        const bv = b.v[j];
+        const an = blank(av);
+        const bn = blank(bv);
+        // Blanks last, whichever way
+        if (an || bn) {
+          if (an === bn) continue;
+          return an ? 1 : -1;
+        }
+        const c = typeof av === 'string' || typeof bv === 'string' ? String(av).localeCompare(String(bv)) : (av as number) - (bv as number);
+        if (c !== 0) return (keys[j].dir === 'asc' ? 1 : -1) * c;
+      }
+      return a.i - b.i;
     })
     .map((x) => x.row);
 }

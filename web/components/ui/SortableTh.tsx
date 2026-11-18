@@ -20,7 +20,7 @@ interface SortableThProps {
   children: ReactNode;
 }
 
-/** A table header that sorts its column: best-first, then reversed, then the table's own order */
+/** A table header that sorts its column: best-first, then reversed, then back to the sort before (earlier sorts break ties) */
 export default function SortableTh({ sort, col, best = 'desc', label, className = '', title, tip, tipAlign, children }: SortableThProps) {
   const active = sort.state?.key === col ? sort.state.dir : null;
   const name = label ?? (typeof children === 'string' ? children : col);
@@ -47,6 +47,11 @@ export default function SortableTh({ sort, col, best = 'desc', label, className 
   );
 }
 
+/** A sort's direction as the headers show it */
+const arrow = (dir: SortDir) => (
+  <span aria-label={dir === 'desc' ? 'high to low' : 'low to high'}>{dir === 'desc' ? '▼' : '▲'}</span>
+);
+
 /**
  * The line above a sortable table: a hint while it's in its own order, then
  * "Sorted by X · Default order". Always the same height, so sorting never
@@ -57,9 +62,21 @@ export function SortStatus({ sort, className = 'px-4 sm:px-6' }: { sort: TableSo
     <div className={`flex h-9 items-center justify-end gap-2 overflow-hidden whitespace-nowrap text-xs text-[var(--muted)] ${className}`}>
       {sort.state ? (
         <>
-          <span className="truncate">
+          {/* Up to two lines, within the same height */}
+          <span className="line-clamp-2 whitespace-normal text-right leading-4">
             Sorted by <span className="font-medium text-[var(--foreground)]">{sort.state.label}</span>{' '}
-            ({sort.state.dir === 'desc' ? 'high to low' : 'low to high'})
+            {sort.state.then?.length ? (
+              <>
+                {arrow(sort.state.dir)}
+                {sort.state.then.map((k) => (
+                  <span key={k.key}>
+                    , then <span className="font-medium text-[var(--foreground)]">{k.label}</span> {arrow(k.dir)}
+                  </span>
+                ))}
+              </>
+            ) : (
+              `(${sort.state.dir === 'desc' ? 'high to low' : 'low to high'})`
+            )}
           </span>
           <button
             type="button"

@@ -10,7 +10,7 @@ import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
 import { restoreScroll } from '@/hooks/useScrollMemory';
-import { recordValue, sortRows } from '@/lib/tableSort';
+import { recordValue, sortKeys, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
@@ -93,7 +93,7 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<[string, string] | null>(null);
   const standingsSort = useTableSort('allTimeStandings');
-  const standingsColumns = useColumnPicker('standings', STANDINGS_COLUMNS, standingsSort.state?.key);
+  const standingsColumns = useColumnPicker('standings', STANDINGS_COLUMNS, sortKeys(standingsSort.state));
   const col = standingsColumns.col;
   const [postseason, setPostseasonState] = useState(() => rememberedPostseason);
   const setPostseason = (on: boolean) => {

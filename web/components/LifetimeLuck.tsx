@@ -9,7 +9,7 @@ import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
-import { recordValue, sortRows } from '@/lib/tableSort';
+import { recordValue, sortKeys, sortRows } from '@/lib/tableSort';
 import { CHART_THEME } from '@/lib/constants';
 import { CLOSE_GAME_MARGIN } from '@/lib/analyze/luck';
 import type { LifetimeLuck as LifetimeLuckData, LifetimeLuckRow, LifetimeLuckSeason } from '@/lib/analyze/lifetimeLuck';
@@ -90,7 +90,7 @@ function Distribution({ row }: { row: LifetimeLuckRow }) {
  */
 export default function LifetimeLuck({ luck, nameOf, onManager }: Props) {
   const sort = useTableSort('lifetimeLuck');
-  const cols = useColumnPicker('lifetime-luck', LUCK_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('lifetime-luck', LUCK_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
   const [open, setOpen] = useState<string | null>(null);
   if (!luck.rows.length) return null;

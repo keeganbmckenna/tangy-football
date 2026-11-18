@@ -20,7 +20,7 @@ export interface ColumnPicker {
   /** Picked by the viewer (or a default they haven't removed) */
   isShown: (key: string) => boolean;
   toggle: (key: string) => void;
-  /** The column's visibility classes: always shown if picked or sorted by, else from its width */
+  /** The column's visibility classes: always shown if picked or sorted by (tiebreaks too), else from its width */
   col: (key: string) => string;
 }
 
@@ -38,10 +38,10 @@ function read(id: string, columns: PickableColumn[]): string[] {
 
 /**
  * Which of a table's columns a phone shows: the viewer picks them (ColumnChips), remembered per
- * device under `id`, and the column the table is sorted by always shows. Wider screens show
+ * device under `id`, and the columns the table is sorted by always show. Wider screens show
  * each column from its own width as before.
  */
-export function useColumnPicker(id: string, columns: PickableColumn[], sortKey?: string | null): ColumnPicker {
+export function useColumnPicker(id: string, columns: PickableColumn[], sortedBy: string[] = []): ColumnPicker {
   const [shown, setShown] = useState<string[]>(() => read(id, columns));
   const toggle = (key: string) =>
     setShown((cols) => {
@@ -56,7 +56,7 @@ export function useColumnPicker(id: string, columns: PickableColumn[], sortKey?:
   const col = (key: string) => {
     const column = columns.find((c) => c.key === key);
     if (!column) return '';
-    return shown.includes(key) || sortKey === key ? 'table-cell' : WIDE_FROM[column.from ?? 'sm'];
+    return shown.includes(key) || sortedBy.includes(key) ? 'table-cell' : WIDE_FROM[column.from ?? 'sm'];
   };
   return { columns, isShown: (key) => shown.includes(key), toggle, col };
 }

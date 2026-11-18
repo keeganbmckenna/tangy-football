@@ -46,8 +46,8 @@ describe('useColumnPicker', () => {
     expect(again.result.current.isShown('record')).toBe(false);
   });
 
-  it('always shows the column the table is sorted by, without picking it', () => {
-    const { result } = renderHook(() => useColumnPicker('t', COLUMNS, 'finals'));
+  it('always shows the columns the table is sorted by, tiebreaks too, without picking them', () => {
+    const { result } = renderHook(() => useColumnPicker('t', COLUMNS, ['record', 'finals']));
     expect(result.current.col('finals')).toBe('table-cell');
     expect(result.current.isShown('finals')).toBe(false);
   });

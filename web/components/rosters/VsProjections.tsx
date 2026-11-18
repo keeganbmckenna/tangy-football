@@ -15,7 +15,7 @@ import ColumnChips from '@/components/ui/ColumnChips';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { useTeamColors } from '@/hooks/useTeamColors';
 import { CHART_CONFIG, CHART_THEME } from '@/lib/constants';
-import { sortRows } from '@/lib/tableSort';
+import { sortKeys, sortRows } from '@/lib/tableSort';
 import { vsProjections } from '@/lib/analyze/rosters';
 import { PlayerLabel, signed, TD, TH, teamNames, type RostersCardProps } from './shared';
 
@@ -31,7 +31,7 @@ const PROJECTION_COLUMNS: PickableColumn[] = [
 
 export default function VsProjections({ insights, teamStats }: RostersCardProps) {
   const sort = useTableSort('vsProjections');
-  const cols = useColumnPicker('vs-projections', PROJECTION_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('vs-projections', PROJECTION_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
   const tap = useTapTooltip()();
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();

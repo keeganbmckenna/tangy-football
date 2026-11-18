@@ -16,7 +16,7 @@ import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
-import { sortRows } from '@/lib/tableSort';
+import { sortKeys, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { myLiveMatchupFirst } from '@/lib/analyze/myMatchup';
 import { getHeatmapColorByRatio, RESULT_DOT_COLORS } from '@/lib/constants';
@@ -173,7 +173,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   }, [initialMatchup]);
   // Kept across the minute-by-minute refreshes
   const sort = useTableSort('livePlayAll');
-  const cols = useColumnPicker('live-play-all', PLAY_ALL_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('live-play-all', PLAY_ALL_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
 
   const refresh = useCallback(async () => {

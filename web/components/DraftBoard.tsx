@@ -8,7 +8,7 @@ import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from '@/components/ui/ColumnChips';
-import { sortRows } from '@/lib/tableSort';
+import { sortKeys, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import {
   DraftData,
@@ -231,7 +231,7 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
   const summaries = summarizeDraftByTeam(data.picks, core);
   const isAuction = data.type === 'auction';
   const sort = useTableSort('draftResults');
-  const cols = useColumnPicker('draft-results', DRAFT_COLUMNS, sort.state?.key);
+  const cols = useColumnPicker('draft-results', DRAFT_COLUMNS, sortKeys(sort.state));
   const me = useMyTeam();
   const rows = sortRows(summaries, sort.state, (s, key) =>
     ({ spent: s.spent, perPoint: s.dollarsPerPoint, core: s.core, haul: s.haul })[key]
