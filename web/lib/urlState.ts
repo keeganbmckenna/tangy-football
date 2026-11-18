@@ -41,6 +41,11 @@ export function urlSearchFor(tab: string, season: string, currentSeason: string,
   return s ? `?${s}` : '';
 }
 
+/** A card a link opens and scrolls to (?tab=postseason&section=accuracy); read once on first load, like the link target below */
+export function readSection(search: string): 'accuracy' | null {
+  return new URLSearchParams(search).get('section') === 'accuracy' ? 'accuracy' : null;
+}
+
 /**
  * A shared link's way in (?season=&week=&matchup=): the week to show in Overview's Weekly Matchups and the
  * matchup to open (?week=8&matchup=2). Read once on first load; the address bar then drops them.

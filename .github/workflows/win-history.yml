@@ -40,10 +40,13 @@ jobs:
       - name: Win history
         working-directory: web
         run: npx tsx scripts/build-win-history.ts ${{ steps.season.outputs.season }} --recent 2
+      - name: Odds accuracy (the Playoffs tab's "How accurate are the odds?")
+        working-directory: web
+        run: npx tsx scripts/build-accuracy.ts
       - name: Commit and push
         run: |
           git config user.name 'win-history'
           git config user.email 'win-history@users.noreply.github.com'
-          git add web/public/data/win-history
+          git add web/public/data/win-history web/public/data/accuracy.json
           git commit -m "Win history: latest weeks of ${{ steps.season.outputs.season }}" || exit 0
           git push

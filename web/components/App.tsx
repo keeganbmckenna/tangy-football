@@ -21,7 +21,8 @@ import HistoryTab from '@/components/HistoryTab';
 import RostersTab from '@/components/RostersTab';
 import LegacySeasonOverview from '@/components/LegacySeasonOverview';
 import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
-import { readLinkTarget, readManager, readUrlState, urlSearchFor } from '@/lib/urlState';
+import { readLinkTarget, readManager, readSection, readUrlState, urlSearchFor } from '@/lib/urlState';
+import OddsAccuracy, { OPEN_ACCURACY_EVENT } from '@/components/OddsAccuracy';
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import { usePageTitleBase } from '@/hooks/usePageTitle';
@@ -90,6 +91,8 @@ export default function App() {
   const [selectedSeason, setSelectedSeason] = useState('');
   // A share link's week and matchup (?week=8&matchup=2), opened once in Weekly Matchups
   const [linkTarget, setLinkTarget] = useState<ReturnType<typeof readLinkTarget>>(null);
+  // Bumped when a link asks for the odds accuracy card: it opens and scrolls into view
+  const [accuracyFocus, setAccuracyFocus] = useState(0);
   // The History tab's open manager page, if any (?manager=)
   const [historyManager, setHistoryManager] = useState<string | null>(null);
   useScrollMemory();
@@ -216,6 +219,7 @@ export default function App() {
     const { tab, season } = readUrlState(window.location.search);
     if (tab) setActiveTab(tab);
     setLinkTarget(readLinkTarget(window.location.search));
+    if (readSection(window.location.search) === 'accuracy') setAccuracyFocus(1);
     setHistoryManager(readManager(window.location.search));
     setMyUserId(readMyTeam());
     setFadeTabs(!canViewTransition());
@@ -237,6 +241,20 @@ export default function App() {
     }
     doc.startViewTransition(() => flushSync(() => setActiveTab(id)));
   };
+
+  // "How accurate are these odds?" links (components/OddsAccuracy.tsx): to the Playoffs tab, that card open
+  const switchTabRef = useRef(switchTab);
+  useEffect(() => {
+    switchTabRef.current = switchTab;
+  });
+  useEffect(() => {
+    const open = () => {
+      switchTabRef.current('postseason');
+      setAccuracyFocus((f) => f + 1);
+    };
+    window.addEventListener(OPEN_ACCURACY_EVENT, open);
+    return () => window.removeEventListener(OPEN_ACCURACY_EVENT, open);
+  }, []);
 
   // The logo and name: back to Overview for the current season, at the top
   const goHome = () => {
@@ -617,6 +635,13 @@ export default function App() {
               <ErrorBoundary>
                 <section>
                   <OddsHistoryChart season={selectedSeason || leagueData.league.season} teamStats={teamStats} complete />
+                </section>
+              </ErrorBoundary>
+            )}
+            {leagueData && !isLegacySeason && (
+              <ErrorBoundary>
+                <section>
+                  <OddsAccuracy focus={accuracyFocus} />
                 </section>
               </ErrorBoundary>
             )}

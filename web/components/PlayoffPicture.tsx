@@ -10,6 +10,7 @@ import GamesAhead from '@/components/GamesAhead';
 import WhatIf from '@/components/WhatIf';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
+import { AccuracyLink } from '@/components/OddsAccuracy';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
@@ -370,7 +371,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
               {(hasTitle || hasToilet) && (
                 <> Tested on thousands of other leagues&apos; real brackets, these beat the earlier model and a coin flip, but a
                   title mostly comes down to a few single games, so they move a lot.</>
-              )}
+              )}{' '}
+              <AccuracyLink />
             </span>
           }
         >
