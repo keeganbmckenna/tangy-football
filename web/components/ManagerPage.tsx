@@ -52,9 +52,8 @@ function finish(s: ProfileSeason): { text: string; tone: 'win' | 'loss' | null }
   if (s.toiletLoser) return { text: '💩 Lost the toilet bowl', tone: 'loss' };
   if (!s.complete) return { text: 'In progress', tone: null };
   if (s.third) return { text: '3rd place', tone: null };
-  // Before Sleeper only the top three were recorded: no playoff field, no other finishes
-  if (s.legacy) return { text: '', tone: null };
-  if (s.placement) return { text: `${ordinal(s.placement)} place`, tone: null };
+  // Before Sleeper only the top three were recorded: no other placements
+  if (s.placement && !s.legacy) return { text: `${ordinal(s.placement)} place`, tone: null };
   return { text: s.playoffs ? 'Playoffs' : 'Missed playoffs', tone: null };
 }
 
@@ -118,7 +117,7 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
   const { totals, ranks, seasons } = profile;
   const titles = seasons.filter((s) => s.champion).map((s) => s.season);
   const toilets = seasons.filter((s) => s.toiletLoser).map((s) => s.season);
-  const sleeperCount = seasons.filter((s) => s.pointsPerGame !== null).length;
+  const finishedCount = seasons.filter((s) => s.complete).length;
   // Team names, newest first, each once
   const names = [...new Set(seasons.map((s) => s.teamName.trim()))];
   const latestAvatar = seasons.find((s) => s.avatarUrl)?.avatarUrl ?? m?.avatarUrl ?? null;
@@ -154,7 +153,7 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
             <Tile label="Points per game" value={totals.scoredGames ? totals.pointsPerGame.toFixed(1) : '—'} sub={totals.scoredGames ? `${ordinal(ranks.pointsPerGame)} · since Sleeper` : 'Sleeper seasons only'} />
             <Tile label="Titles" value={titles.length ? `🏆 ${titles.length}` : '0'} sub={titles.length ? titles.join(', ') : undefined} />
             <Tile label="Finals" value={String(totals.finals)} sub={totals.bestFinish ? `Best finish ${ordinal(totals.bestFinish)}` : undefined} />
-            <Tile label="Playoffs" value={`${totals.playoffs}`} sub={sleeperCount ? `of ${sleeperCount} Sleeper season${sleeperCount === 1 ? '' : 's'}` : undefined} />
+            <Tile label="Playoffs" value={`${totals.playoffs}`} sub={finishedCount ? `of ${finishedCount} finished season${finishedCount === 1 ? '' : 's'}` : undefined} />
             <Tile label="Playoff games" value={record(profile.playoffRecord.wins, profile.playoffRecord.losses)} />
             <Tile label="Toilet bowl losses" value={toilets.length ? `💩 ${toilets.length}` : '0'} sub={toilets.length ? toilets.join(', ') : undefined} />
             <Tile label="Trades" value={trades ? String(trades.count) : '…'} sub={trades?.leader?.topPartner ? `Most with ${nameOf(trades.leader.topPartner.userId)} (${trades.leader.topPartner.trades})` : undefined} />

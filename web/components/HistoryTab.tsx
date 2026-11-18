@@ -411,8 +411,9 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
         </div>
         <p className="px-4 py-3 text-xs text-[var(--muted)]">
           Records count {postseason ? 'regular season, playoff and toilet bowl games' : 'regular-season games only'} and go back to 2017 (before 2022 only regular-season records were kept);
-          ties count as half a win. Points per game cover the same games and, like playoff appearances and toilet bowl losses,
-          start in 2022 (earlier seasons only kept standings and the top three). Best finish is the
+          ties count as half a win. Points per game cover the same games and, like toilet bowl losses,
+          start in 2022 (earlier seasons only kept standings and the top three). Before 2022 playoff appearances are the
+          top six in the final standings, the league&apos;s playoff field every season. Best finish is the
           final place (1st–6th from Sleeper brackets, 1st–3rd before).
         </p>
       </SectionCard>

@@ -14,6 +14,9 @@ import { bracketResults, postseasonKind, type HistoryData, type HistoryGame, typ
 import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
 import type { LeagueData, SleeperBracketMatchup, SleeperLeague, SleeperMatchup, SleeperRoster, SleeperUser } from '@/lib/types';
 
+/** Playoff teams before Sleeper, which kept only the standings and the top three */
+const LEGACY_PLAYOFF_TEAMS = 6;
+
 async function seasonHistory(league: SleeperLeague) {
   const { baseUrl } = SLEEPER_CONFIG;
   const id = league.league_id;
@@ -81,7 +84,8 @@ async function seasonHistory(league: SleeperLeague) {
     champion: complete ? byRoster(results.champion) : null,
     runnerUp: complete ? byRoster(results.runnerUp) : null,
     toiletLoser: complete ? byRoster(results.toiletLoser) : null,
-    playoffTeams: results.playoffTeams.map(byRoster).filter((u): u is string => !!u),
+    // Sleeper fills the bracket from the standings during the season: only a finished regular season's counts
+    playoffTeams: complete || lastScored >= playoffWeekStart - 1 ? results.playoffTeams.map(byRoster).filter((u): u is string => !!u) : [],
     placements: complete
       ? Object.fromEntries(Object.entries(results.placements).map(([r, p]) => [byRoster(Number(r)), p]).filter(([u]) => u))
       : {},
@@ -142,7 +146,8 @@ export async function buildHistory(): Promise<HistoryData> {
       runnerUp: finisher(2),
       thirdPlace: finisher(3),
       toiletLoser: null,
-      playoffTeams: [],
+      // The league has always had a six-team playoff: the top six in the final standings
+      playoffTeams: ls.teams.filter((t) => t.rank <= LEGACY_PLAYOFF_TEAMS).map((t) => ownerId(t.owner)),
       placements: Object.fromEntries(ls.teams.filter((t) => t.finish).map((t) => [ownerId(t.owner), t.finish!])),
     };
   });
