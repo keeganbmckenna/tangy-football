@@ -6,6 +6,8 @@ import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { CHART_THEME } from '@/lib/constants';
@@ -29,6 +31,15 @@ interface Props {
 }
 
 /** One manager's lifetime win totals over the shuffled schedules, their real total highlighted */
+/** Columns a phone can add (wider screens show them from their own width) */
+const LUCK_COLUMNS: PickableColumn[] = [
+  { key: 'record', label: 'Record' },
+  { key: 'expected', label: 'Expected' },
+  { key: 'close', label: 'Close', from: 'md' },
+  { key: 'luckiest', label: 'Luckiest season', from: 'lg' },
+  { key: 'unluckiest', label: 'Unluckiest season', from: 'lg' },
+];
+
 function Distribution({ row }: { row: LifetimeLuckRow }) {
   // Totals under 1 schedule in 1,000 are left off, so the axis is the part with bars
   const data = row.outcomes.filter((o) => o.frequency >= 0.001 || o.wins === row.wins).map((o) => ({ ...o, actual: o.wins === row.wins }));
@@ -79,6 +90,7 @@ function Distribution({ row }: { row: LifetimeLuckRow }) {
  */
 export default function LifetimeLuck({ luck, nameOf, onManager }: Props) {
   const sort = useTableSort('lifetimeLuck');
+  const cols = useColumnPicker('lifetime-luck', LUCK_COLUMNS, sort.state?.key);
   const me = useMyTeam();
   const [open, setOpen] = useState<string | null>(null);
   if (!luck.rows.length) return null;
@@ -112,6 +124,7 @@ export default function LifetimeLuck({ luck, nameOf, onManager }: Props) {
       subtitle={`Regular-season wins against what each manager's scoring would have won on ${luck.simulations.toLocaleString()} shuffled schedules a season, ${years[0]}–${years[years.length - 1]}. Tap a row for the full range.`}
       gradientType="warning"
     >
+      <ColumnChips picker={cols} />
       <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
@@ -122,11 +135,11 @@ export default function LifetimeLuck({ luck, nameOf, onManager }: Props) {
                 <span className="whitespace-nowrap">Luck <span className="normal-case tracking-normal">(wins)</span></span>
               </SortableTh>
               <SortableTh sort={sort} col="percentile" label="Luckier than" tip="Share of shuffled schedules that would have given fewer wins" className={th}>Luckier than</SortableTh>
-              <SortableTh sort={sort} col="record" className={`hidden sm:table-cell ${th}`}>Record</SortableTh>
-              <SortableTh sort={sort} col="expected" label="Expected wins" className={`hidden sm:table-cell ${th}`}>Expected</SortableTh>
-              <SortableTh sort={sort} col="close" tip={`Record in games decided by under ${CLOSE_GAME_MARGIN} points: luck, not clutch`} className={`hidden md:table-cell ${th}`}>Close</SortableTh>
-              <th className={`hidden lg:table-cell ${th}`}>Luckiest season</th>
-              <th className={`hidden lg:table-cell ${th}`}>Unluckiest season</th>
+              <SortableTh sort={sort} col="record" className={`${cols.col('record')} ${th}`}>Record</SortableTh>
+              <SortableTh sort={sort} col="expected" label="Expected wins" className={`${cols.col('expected')} ${th}`}>Expected</SortableTh>
+              <SortableTh sort={sort} col="close" tip={`Record in games decided by under ${CLOSE_GAME_MARGIN} points: luck, not clutch`} className={`${cols.col('close')} ${th}`}>Close</SortableTh>
+              <th className={`${cols.col('luckiest')} ${th}`}>Luckiest season</th>
+              <th className={`${cols.col('unluckiest')} ${th}`}>Unluckiest season</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
@@ -180,11 +193,11 @@ export default function LifetimeLuck({ luck, nameOf, onManager }: Props) {
                       </button>
                     </td>
                     <td className="px-3 py-2 text-center tabular-nums text-[var(--foreground)]">{pct(r.percentile)}</td>
-                    <td className="hidden sm:table-cell px-3 py-2 text-center tabular-nums text-[var(--foreground)]">{record(r.record)}</td>
-                    <td className="hidden sm:table-cell px-3 py-2 text-center tabular-nums text-[var(--foreground)]">{r.expected.toFixed(1)}</td>
-                    <td className="hidden md:table-cell px-3 py-2 text-center tabular-nums text-[var(--foreground)]">{record(r.close)}</td>
-                    <td className="hidden lg:table-cell px-3 py-2 text-center tabular-nums text-[var(--foreground)]">{seasonLine(r.luckiest)}</td>
-                    <td className="hidden lg:table-cell px-3 py-2 text-center tabular-nums text-[var(--foreground)]">{seasonLine(r.unluckiest)}</td>
+                    <td className={`${cols.col('record')} px-3 py-2 text-center tabular-nums text-[var(--foreground)]`}>{record(r.record)}</td>
+                    <td className={`${cols.col('expected')} px-3 py-2 text-center tabular-nums text-[var(--foreground)]`}>{r.expected.toFixed(1)}</td>
+                    <td className={`${cols.col('close')} px-3 py-2 text-center tabular-nums text-[var(--foreground)]`}>{record(r.close)}</td>
+                    <td className={`${cols.col('luckiest')} px-3 py-2 text-center tabular-nums text-[var(--foreground)]`}>{seasonLine(r.luckiest)}</td>
+                    <td className={`${cols.col('unluckiest')} px-3 py-2 text-center tabular-nums text-[var(--foreground)]`}>{seasonLine(r.unluckiest)}</td>
                   </tr>
                   {isOpen && (
                     <tr>

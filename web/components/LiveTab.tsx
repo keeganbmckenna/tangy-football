@@ -12,8 +12,10 @@ import WinSwing from '@/components/WinSwing';
 import WhatItTakes, { needText } from '@/components/WhatItTakes';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { myLiveMatchupFirst } from '@/lib/analyze/myMatchup';
@@ -58,6 +60,9 @@ interface LiveTabProps {
   /** A matchup to open (a share link's) */
   initialMatchup?: number | null;
 }
+
+/** Columns a phone can add to the play-all table */
+const PLAY_ALL_COLUMNS: PickableColumn[] = [{ key: 'margin', label: 'Real matchup' }];
 
 function isIn(status: PlayoffStatus) {
   return status !== 'out';
@@ -168,6 +173,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   }, [initialMatchup]);
   // Kept across the minute-by-minute refreshes
   const sort = useTableSort('livePlayAll');
+  const cols = useColumnPicker('live-play-all', PLAY_ALL_COLUMNS, sort.state?.key);
   const me = useMyTeam();
 
   const refresh = useCallback(async () => {
@@ -503,6 +509,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
         {!view.started && (
           <p className="px-6 pt-3 text-sm text-[var(--muted)]">No points scored yet this week, so everyone is level.</p>
         )}
+        <ColumnChips picker={cols} />
         <SortStatus sort={sort} />
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-[var(--border)]">
@@ -511,7 +518,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                 <th className={`${PIN_TH} py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider bg-[var(--surface)]`}>Team</th>
                 <SortableTh sort={sort} col="score" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Score</SortableTh>
                 <SortableTh sort={sort} col="week" tip="This week’s record against every other team at the current scores" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">This week vs all</SortableTh>
-                <SortableTh sort={sort} col="margin" label="Real matchup margin" className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Real matchup</SortableTh>
+                <SortableTh sort={sort} col="margin" label="Real matchup margin" className={`${cols.col('margin')} px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider`}>Real matchup</SortableTh>
                 <SortableTh sort={sort} col="season" tip="Season play-all record, counting this week as if it ended now" tipAlign="right" className="px-4 py-3 text-center text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Season play-all</SortableTh>
               </tr>
             </thead>
@@ -536,7 +543,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
                         <ResultDot result={s?.result ?? null} live />
                       </div>
                     </td>
-                    <td className={`${WIDE_ONLY} px-4 py-3 whitespace-nowrap text-sm text-[var(--muted)]`}>
+                    <td className={`${cols.col('margin')} px-4 py-3 whitespace-nowrap text-sm text-[var(--muted)]`}>
                       {s && s.opponentRosterId !== null ? (
                         <>
                           vs {view.names.get(s.opponentRosterId) ?? `Team ${s.opponentRosterId}`}{' '}

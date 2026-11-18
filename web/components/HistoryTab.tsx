@@ -7,6 +7,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { restoreScroll } from '@/hooks/useScrollMemory';
 import { recordValue, sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -72,30 +74,17 @@ interface HistoryTabProps {
 }
 
 /** The All-Time Standings columns a phone can show (desktop shows them all) */
-const PHONE_COLUMNS = [
+const STANDINGS_COLUMNS: PickableColumn[] = [
   { key: 'seasons', label: 'Seasons' },
-  { key: 'record', label: 'Record' },
+  { key: 'record', label: 'Record', phoneDefault: true },
   { key: 'winPct', label: 'Win %' },
   { key: 'ppg', label: 'Pts/game' },
-  { key: 'playoffs', label: 'Playoffs' },
+  { key: 'playoffs', label: 'Playoffs', phoneDefault: true },
   { key: 'finals', label: 'Finals' },
-  { key: 'titles', label: '🏆 Titles' },
-  { key: 'toilet', label: '💩 Toilet bowl' },
+  { key: 'titles', label: '🏆 Titles', phoneDefault: true },
+  { key: 'toilet', label: '💩 Toilet bowl', phoneDefault: true },
   { key: 'best', label: 'Best finish' },
 ];
-const DEFAULT_PHONE_COLUMNS = ['record', 'playoffs', 'titles', 'toilet'];
-/** Remembers, per viewer, the columns picked for a phone */
-const PHONE_COLUMNS_KEY = 'tangy-football:standings-columns';
-
-const readPhoneColumns = (): string[] => {
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(PHONE_COLUMNS_KEY) ?? 'null');
-    if (Array.isArray(saved)) return saved.filter((k) => PHONE_COLUMNS.some((c) => c.key === k));
-  } catch {
-    // Not remembered (private browsing): the defaults
-  }
-  return DEFAULT_PHONE_COLUMNS;
-};
 
 export default function HistoryTab({ manager = null, onManager }: HistoryTabProps) {
   const [data, setData] = useState<HistoryData | null>(null);
@@ -104,20 +93,8 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<[string, string] | null>(null);
   const standingsSort = useTableSort('allTimeStandings');
-  const [phoneColumns, setPhoneColumns] = useState<string[]>(readPhoneColumns);
-  const togglePhoneColumn = (key: string) => {
-    setPhoneColumns((cols) => {
-      const next = cols.includes(key) ? cols.filter((k) => k !== key) : [...cols, key];
-      try {
-        window.localStorage.setItem(PHONE_COLUMNS_KEY, JSON.stringify(next));
-      } catch {
-        // Not remembered (private browsing): it still toggles
-      }
-      return next;
-    });
-  };
-  // On a phone: the picked columns, plus the one sorted by
-  const col = (key: string) => (phoneColumns.includes(key) || standingsSort.state?.key === key ? 'table-cell' : 'hidden sm:table-cell');
+  const standingsColumns = useColumnPicker('standings', STANDINGS_COLUMNS, standingsSort.state?.key);
+  const col = standingsColumns.col;
   const [postseason, setPostseasonState] = useState(() => rememberedPostseason);
   const setPostseason = (on: boolean) => {
     rememberedPostseason = on;
@@ -389,25 +366,7 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
         subtitle={postseason ? 'Records with playoff and toilet bowl games, plus postseason results, by manager' : 'Regular-season records plus postseason results, by manager'}
         gradientType="primary"
       >
-        <div className="flex items-center gap-1.5 overflow-x-auto px-4 pt-3 pb-1 sm:hidden" role="group" aria-label="Columns shown">
-          <span className="mr-1 shrink-0 text-xs text-[var(--muted)]">Columns</span>
-          {PHONE_COLUMNS.map((c) => {
-            const on = phoneColumns.includes(c.key);
-            return (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => togglePhoneColumn(c.key)}
-                aria-pressed={on}
-                className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                  on ? 'border-transparent bg-[var(--info-bg)] text-[var(--info-text)]' : 'border-[var(--border)] text-[var(--muted)]'
-                }`}
-              >
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
+        <ColumnChips picker={standingsColumns} />
         <SortStatus sort={standingsSort} />
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

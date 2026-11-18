@@ -6,6 +6,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import {
@@ -26,6 +28,12 @@ interface DraftBoardProps {
   season: string;
   leagueData: LeagueData | null;
 }
+
+/** Columns a phone can add to the draft results */
+const DRAFT_COLUMNS: PickableColumn[] = [
+  { key: 'haul', label: 'All picks/wk' },
+  { key: 'bestPick', label: 'Best pick' },
+];
 
 function teamNameForRoster(leagueData: LeagueData | null, rosterId: number | null): string {
   if (!leagueData || rosterId === null || rosterId === undefined) return '—';
@@ -223,6 +231,7 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
   const summaries = summarizeDraftByTeam(data.picks, core);
   const isAuction = data.type === 'auction';
   const sort = useTableSort('draftResults');
+  const cols = useColumnPicker('draft-results', DRAFT_COLUMNS, sort.state?.key);
   const me = useMyTeam();
   const rows = sortRows(summaries, sort.state, (s, key) =>
     ({ spent: s.spent, perPoint: s.dollarsPerPoint, core: s.core, haul: s.haul })[key]
@@ -230,6 +239,7 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
 
   return (
     <>
+      <ColumnChips picker={cols} />
       <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
@@ -245,10 +255,10 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
               <SortableTh sort={sort} col="core" tip="Core/wk: points per available week from the team’s intended starters (most expensive or earliest pick at each lineup slot)" className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                 Core/wk
               </SortableTh>
-              <SortableTh sort={sort} col="haul" tip="Points per available week from every player drafted, starters or not" className="hidden sm:table-cell px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+              <SortableTh sort={sort} col="haul" tip="Points per available week from every player drafted, starters or not" className={`${cols.col('haul')} px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider`}>
                 All picks/wk
               </SortableTh>
-              <th className="hidden px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider sm:table-cell">Best pick</th>
+              <th className={`${cols.col('bestPick')} px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider`}>Best pick</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
@@ -273,10 +283,10 @@ function TeamSummary({ data, leagueData, core }: { data: DraftData; leagueData: 
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-[var(--foreground)]">
                   {(s.core ?? 0).toFixed(1)}
                 </td>
-                <td className="hidden px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)] sm:table-cell">
+                <td className={`${cols.col('haul')} px-4 py-3 whitespace-nowrap text-sm text-right text-[var(--muted)]`}>
                   {s.haul.toFixed(1)}
                 </td>
-                <td className="hidden px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)] sm:table-cell">
+                <td className={`${cols.col('bestPick')} px-6 py-3 whitespace-nowrap text-sm text-[var(--muted)]`}>
                   {s.bestPick ? (
                     <>
                       {s.bestPick.name}

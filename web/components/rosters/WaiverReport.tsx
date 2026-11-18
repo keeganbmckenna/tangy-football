@@ -3,9 +3,11 @@
 import { useMemo } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { sortRows } from '@/lib/tableSort';
 import { bestPickups, closestBids, usedFaab, waiverTeams, worstBids } from '@/lib/analyze/rosters';
 import type { WaiverMove } from '@/lib/analyze/insights';
@@ -15,10 +17,14 @@ import { PlayerLabel, TD, TH, teamNames, type RostersCardProps } from './shared'
  * Who won the waiver wire: each team's pickups and what they scored in its starting lineup,
  * the best pickups, and (in FAAB seasons) spending, the costliest misses and the closest bids
  */
+/** Columns a phone can add (with FAAB) */
+const WAIVER_COLUMNS: PickableColumn[] = [{ key: 'perDollar', label: 'Pts / $' }];
+
 export default function WaiverReport({ insights, teamStats }: RostersCardProps) {
   const sort = useTableSort('waiverReport');
   const me = useMyTeam();
   const faab = usedFaab(insights);
+  const cols = useColumnPicker('waiver-report', faab ? WAIVER_COLUMNS : [], sort.state?.key);
   const teams = useMemo(() => waiverTeams(insights), [insights]);
   const name = teamNames(teamStats);
   const users = new Map(teamStats.map((t) => [t.rosterId, t.username]));
@@ -63,6 +69,7 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
         </span>
       }
     >
+      <ColumnChips picker={cols} />
       <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
@@ -72,7 +79,7 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
               <SortableTh sort={sort} col="moves" className={TH}>Pickups</SortableTh>
               {faab && <SortableTh sort={sort} col="spent" tip="FAAB spent this season, per Sleeper (FAAB can also change hands in trades)" className={TH}>Spent</SortableTh>}
               <SortableTh sort={sort} col="points" tip="Points its pickups scored in its starting lineup" className={TH}>Pickup pts</SortableTh>
-              {faab && <SortableTh sort={sort} col="perDollar" tip="Pickup points per FAAB dollar spent" tipAlign="right" className={`${TH} ${WIDE_ONLY}`}>Pts / $</SortableTh>}
+              {faab && <SortableTh sort={sort} col="perDollar" tip="Pickup points per FAAB dollar spent" tipAlign="right" className={`${TH} ${cols.col('perDollar')}`}>Pts / $</SortableTh>}
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
@@ -84,7 +91,7 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
                 <td className={TD}>{t.moves}</td>
                 {faab && <td className={TD}>${t.spent}</td>}
                 <td className={`${TD} font-semibold`}>{t.startedPoints.toFixed(1)}</td>
-                {faab && <td className={`${TD} ${WIDE_ONLY} text-[var(--muted)]`}>{t.spent > 0 ? (t.startedPoints / t.spent).toFixed(1) : '—'}</td>}
+                {faab && <td className={`${TD} ${cols.col('perDollar')} text-[var(--muted)]`}>{t.spent > 0 ? (t.startedPoints / t.spent).toFixed(1) : '—'}</td>}
               </tr>
             ))}
           </tbody>

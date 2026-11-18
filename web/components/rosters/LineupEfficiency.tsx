@@ -3,8 +3,10 @@
 import { Fragment, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { sortRows } from '@/lib/tableSort';
 import { lineupEfficiency } from '@/lib/analyze/rosters';
@@ -16,8 +18,12 @@ import { PlayerLabel, TD, TH, teamNames, type RostersCardProps } from './shared'
  * started each week, points left on the bench, and losses the best lineup would have won.
  * Tap a team for its costliest week and the start/sit calls behind it.
  */
+/** Columns a phone can add */
+const LINEUP_COLUMNS: PickableColumn[] = [{ key: 'perfect', label: 'Perfect wks' }];
+
 export default function LineupEfficiency({ insights, teamStats, rosterPositions }: RostersCardProps & { rosterPositions: string[] }) {
   const sort = useTableSort('lineupEfficiency');
+  const cols = useColumnPicker('lineup-efficiency', LINEUP_COLUMNS, sort.state?.key);
   const me = useMyTeam();
   const [open, setOpen] = useState<number | null>(null);
   const data = useMemo(() => lineupEfficiency(insights, rosterPositions), [insights, rosterPositions]);
@@ -52,6 +58,7 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
         </span>
       }
     >
+      <ColumnChips picker={cols} />
       <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
@@ -68,7 +75,7 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
                 </SortableTh>
               )}
               <SortableTh sort={sort} col="bench" best="asc" tip="Points the best lineups would have added over the season" className={TH}>Left on bench</SortableTh>
-              <SortableTh sort={sort} col="perfect" tip="Weeks it started the best possible lineup" className={`${TH} ${WIDE_ONLY}`}>Perfect wks</SortableTh>
+              <SortableTh sort={sort} col="perfect" tip="Weeks it started the best possible lineup" className={`${TH} ${cols.col('perfect')}`}>Perfect wks</SortableTh>
               <SortableTh sort={sort} col="flipped" best="asc" tip="Losses the best lineup would have won" tipAlign="right" className={TH}>Lost w/ better lineup</SortableTh>
             </tr>
           </thead>
@@ -102,7 +109,7 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
                       </td>
                     )}
                     <td className={TD}>{t.leftOnBench.toFixed(1)}</td>
-                    <td className={`${TD} ${WIDE_ONLY}`}>
+                    <td className={`${TD} ${cols.col('perfect')}`}>
                       {t.perfectWeeks}
                       <span className="text-[var(--muted)]">/{t.weeks}</span>
                     </td>

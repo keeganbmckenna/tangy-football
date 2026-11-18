@@ -6,10 +6,12 @@ import CustomTooltip from '@/components/CustomTooltip';
 import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useChartHover } from '@/hooks/useChartHover';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { useTeamColors } from '@/hooks/useTeamColors';
 import { CHART_CONFIG, CHART_THEME } from '@/lib/constants';
@@ -21,8 +23,15 @@ import { PlayerLabel, signed, TD, TH, teamNames, type RostersCardProps } from '.
  * Each team's starters against Sleeper's projections from before the games: the running
  * total through the season, and which of its players beat or missed them most
  */
+/** Columns a phone can add */
+const PROJECTION_COLUMNS: PickableColumn[] = [
+  { key: 'best', label: 'Best' },
+  { key: 'worst', label: 'Worst' },
+];
+
 export default function VsProjections({ insights, teamStats }: RostersCardProps) {
   const sort = useTableSort('vsProjections');
+  const cols = useColumnPicker('vs-projections', PROJECTION_COLUMNS, sort.state?.key);
   const me = useMyTeam();
   const tap = useTapTooltip()();
   const { setHoveredItem, clearHovered, isHovered, isOtherHovered } = useChartHover<string>();
@@ -94,6 +103,7 @@ export default function VsProjections({ insights, teamStats }: RostersCardProps)
           </ResponsiveContainer>
         </LazyMount>
       </div>
+      <ColumnChips picker={cols} />
       <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
@@ -103,8 +113,8 @@ export default function VsProjections({ insights, teamStats }: RostersCardProps)
               <SortableTh sort={sort} col="diff" tip="Starters' points minus their projections, season to date" className={TH}>+/−</SortableTh>
               <SortableTh sort={sort} col="points" className={TH}>Scored</SortableTh>
               <SortableTh sort={sort} col="projected" className={TH}>Projected</SortableTh>
-              <th className={`${TH} ${WIDE_ONLY} text-left`}>Best</th>
-              <th className={`${TH} ${WIDE_ONLY} text-left`}>Worst</th>
+              <th className={`${TH} ${cols.col('best')} text-left`}>Best</th>
+              <th className={`${TH} ${cols.col('worst')} text-left`}>Worst</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
@@ -120,14 +130,14 @@ export default function VsProjections({ insights, teamStats }: RostersCardProps)
                   <td className={`${TD} font-semibold ${diff >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}`}>{signed(diff)}</td>
                   <td className={TD}>{t.points.toFixed(1)}</td>
                   <td className={`${TD} text-[var(--muted)]`}>{t.projected.toFixed(1)}</td>
-                  <td className={`${TD} ${WIDE_ONLY} text-left`}>
+                  <td className={`${TD} ${cols.col('best')} text-left`}>
                     {best && (
                       <>
                         <PlayerLabel insights={insights} id={best.playerId} /> <span className="text-[var(--success-text)]">{signed(best.diff)}</span>
                       </>
                     )}
                   </td>
-                  <td className={`${TD} ${WIDE_ONLY} text-left`}>
+                  <td className={`${TD} ${cols.col('worst')} text-left`}>
                     {worst && worst !== best && (
                       <>
                         <PlayerLabel insights={insights} id={worst.playerId} /> <span className="text-[var(--danger-text)]">{signed(worst.diff)}</span>

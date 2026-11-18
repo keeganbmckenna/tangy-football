@@ -3,8 +3,10 @@
 import { useMemo } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
-import TeamName, { PIN_TD, PIN_TH, WIDE_ONLY } from '@/components/ui/TeamName';
+import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
+import { useColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from '@/components/ui/ColumnChips';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { sortRows } from '@/lib/tableSort';
 import { consistency } from '@/lib/analyze/consistency';
@@ -20,8 +22,16 @@ interface ScoreDistributionProps {
  * marked, then a table of spread, floor, ceiling, and boom and bust weeks
  * (lib/analyze/consistency.ts)
  */
+/** Columns a phone can add */
+const SPREAD_COLUMNS: PickableColumn[] = [
+  { key: 'median', label: 'Median' },
+  { key: 'floor', label: 'Floor' },
+  { key: 'ceiling', label: 'Ceiling' },
+];
+
 export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionProps) {
   const sort = useTableSort('scoreDistribution');
+  const cols = useColumnPicker('score-distribution', SPREAD_COLUMNS, sort.state?.key);
   const me = useMyTeam();
   const { teams: data, leagueQ1, leagueQ3 } = useMemo(() => consistency(teams, maxWeek), [teams, maxWeek]);
   if (!data.length || !data[0].scores.length) return null;
@@ -101,17 +111,18 @@ export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionP
           </div>
         </div>
       </div>
+      <ColumnChips picker={cols} />
       <SortStatus sort={sort} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
             <tr>
               <th className={`${PIN_TH} py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] bg-[var(--surface)]`}>Team</th>
-              <SortableTh sort={sort} col="median" className={`${th} ${WIDE_ONLY}`}>Median</SortableTh>
+              <SortableTh sort={sort} col="median" className={`${th} ${cols.col('median')}`}>Median</SortableTh>
               <SortableTh sort={sort} col="mean" className={th}>Avg</SortableTh>
               <SortableTh sort={sort} col="sd" best="asc" tip="How far its weekly scores landed from its average. Mostly chance: it barely carries over from one half of a season to the other" className={th}>SD</SortableTh>
-              <SortableTh sort={sort} col="floor" tip="Lowest score" className={`${th} ${WIDE_ONLY}`}>Floor</SortableTh>
-              <SortableTh sort={sort} col="ceiling" tip="Highest score" className={`${th} ${WIDE_ONLY}`}>Ceiling</SortableTh>
+              <SortableTh sort={sort} col="floor" tip="Lowest score" className={`${th} ${cols.col('floor')}`}>Floor</SortableTh>
+              <SortableTh sort={sort} col="ceiling" tip="Highest score" className={`${th} ${cols.col('ceiling')}`}>Ceiling</SortableTh>
               <SortableTh sort={sort} col="booms" tip="Weeks in the league's top quarter of scores (mostly a sign of a good team)" className={th}>Booms</SortableTh>
               <SortableTh sort={sort} col="busts" best="asc" tip="Weeks in the league's bottom quarter of scores" tipAlign="right" className={th}>Busts</SortableTh>
             </tr>
@@ -122,11 +133,11 @@ export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionP
                 <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>
                   <TeamName name={t.teamName} sub={`@${t.username}`} />
                 </td>
-                <td className={`${td} ${WIDE_ONLY}`}>{t.median.toFixed(1)}</td>
+                <td className={`${td} ${cols.col('median')}`}>{t.median.toFixed(1)}</td>
                 <td className={td}>{t.mean.toFixed(1)}</td>
                 <td className={td}>{t.sd.toFixed(1)}</td>
-                <td className={`${td} ${WIDE_ONLY}`}>{t.floor.toFixed(1)}</td>
-                <td className={`${td} ${WIDE_ONLY}`}>{t.ceiling.toFixed(1)}</td>
+                <td className={`${td} ${cols.col('floor')}`}>{t.floor.toFixed(1)}</td>
+                <td className={`${td} ${cols.col('ceiling')}`}>{t.ceiling.toFixed(1)}</td>
                 <td className={`${td} text-[var(--success-text)]`}>{t.booms}</td>
                 <td className={`${td} text-[var(--danger-text)]`}>{t.busts}</td>
               </tr>
