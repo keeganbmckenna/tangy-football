@@ -71,6 +71,32 @@ interface HistoryTabProps {
   onManager?: (userId: string | null) => void;
 }
 
+/** The All-Time Standings columns a phone can show (desktop shows them all) */
+const PHONE_COLUMNS = [
+  { key: 'seasons', label: 'Seasons' },
+  { key: 'record', label: 'Record' },
+  { key: 'winPct', label: 'Win %' },
+  { key: 'ppg', label: 'Pts/game' },
+  { key: 'playoffs', label: 'Playoffs' },
+  { key: 'finals', label: 'Finals' },
+  { key: 'titles', label: '🏆 Titles' },
+  { key: 'toilet', label: '💩 Toilet bowl' },
+  { key: 'best', label: 'Best finish' },
+];
+const DEFAULT_PHONE_COLUMNS = ['record', 'playoffs', 'titles', 'toilet'];
+/** Remembers, per viewer, the columns picked for a phone */
+const PHONE_COLUMNS_KEY = 'tangy-football:standings-columns';
+
+const readPhoneColumns = (): string[] => {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(PHONE_COLUMNS_KEY) ?? 'null');
+    if (Array.isArray(saved)) return saved.filter((k) => PHONE_COLUMNS.some((c) => c.key === k));
+  } catch {
+    // Not remembered (private browsing): the defaults
+  }
+  return DEFAULT_PHONE_COLUMNS;
+};
+
 export default function HistoryTab({ manager = null, onManager }: HistoryTabProps) {
   const [data, setData] = useState<HistoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +104,20 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<[string, string] | null>(null);
   const standingsSort = useTableSort('allTimeStandings');
+  const [phoneColumns, setPhoneColumns] = useState<string[]>(readPhoneColumns);
+  const togglePhoneColumn = (key: string) => {
+    setPhoneColumns((cols) => {
+      const next = cols.includes(key) ? cols.filter((k) => k !== key) : [...cols, key];
+      try {
+        window.localStorage.setItem(PHONE_COLUMNS_KEY, JSON.stringify(next));
+      } catch {
+        // Not remembered (private browsing): it still toggles
+      }
+      return next;
+    });
+  };
+  // On a phone: the picked columns, plus the one sorted by
+  const col = (key: string) => (phoneColumns.includes(key) || standingsSort.state?.key === key ? 'table-cell' : 'hidden sm:table-cell');
   const [postseason, setPostseasonState] = useState(() => rememberedPostseason);
   const setPostseason = (on: boolean) => {
     rememberedPostseason = on;
@@ -349,27 +389,46 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
         subtitle={postseason ? 'Records with playoff and toilet bowl games, plus postseason results, by manager' : 'Regular-season records plus postseason results, by manager'}
         gradientType="primary"
       >
+        <div className="flex items-center gap-1.5 overflow-x-auto px-4 pt-3 pb-1 sm:hidden" role="group" aria-label="Columns shown">
+          <span className="mr-1 shrink-0 text-xs text-[var(--muted)]">Columns</span>
+          {PHONE_COLUMNS.map((c) => {
+            const on = phoneColumns.includes(c.key);
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => togglePhoneColumn(c.key)}
+                aria-pressed={on}
+                className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  on ? 'border-transparent bg-[var(--info-bg)] text-[var(--info-text)]' : 'border-[var(--border)] text-[var(--muted)]'
+                }`}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
         <SortStatus sort={standingsSort} />
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
                 <th className={`${PIN_TH} py-3 font-medium bg-[var(--surface-elevated)]`}>Manager</th>
-                <SortableTh sort={standingsSort} col="seasons" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Seasons</SortableTh>
-                <SortableTh sort={standingsSort} col="record" className="px-3 py-3 text-center font-medium">Record</SortableTh>
-                <SortableTh sort={standingsSort} col="winPct" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Win %</SortableTh>
-                <SortableTh sort={standingsSort} col="ppg" label="Points per game" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Pts/game</SortableTh>
-                <SortableTh sort={standingsSort} col="playoffs" label="Playoff appearances" className="px-3 py-3 text-center font-medium">Playoffs</SortableTh>
-                <SortableTh sort={standingsSort} col="finals" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Finals</SortableTh>
-                <SortableTh sort={standingsSort} col="titles" label="Titles" className="px-3 py-3 text-center font-medium">
+                <SortableTh sort={standingsSort} col="seasons" className={`${col('seasons')} px-3 py-3 text-center font-medium`}>Seasons</SortableTh>
+                <SortableTh sort={standingsSort} col="record" className={`${col('record')} px-3 py-3 text-center font-medium`}>Record</SortableTh>
+                <SortableTh sort={standingsSort} col="winPct" className={`${col('winPct')} px-3 py-3 text-center font-medium`}>Win %</SortableTh>
+                <SortableTh sort={standingsSort} col="ppg" label="Points per game" className={`${col('ppg')} px-3 py-3 text-center font-medium`}>Pts/game</SortableTh>
+                <SortableTh sort={standingsSort} col="playoffs" label="Playoff appearances" className={`${col('playoffs')} px-3 py-3 text-center font-medium`}>Playoffs</SortableTh>
+                <SortableTh sort={standingsSort} col="finals" className={`${col('finals')} px-3 py-3 text-center font-medium`}>Finals</SortableTh>
+                <SortableTh sort={standingsSort} col="titles" label="Titles" className={`${col('titles')} px-3 py-3 text-center font-medium`}>
                   <span className="sm:hidden" aria-hidden>🏆</span>
                   <span className="sr-only sm:not-sr-only">Titles</span>
                 </SortableTh>
-                <SortableTh sort={standingsSort} col="toilet" best="asc" label="Toilet bowl losses" className="px-3 py-3 text-center font-medium">
+                <SortableTh sort={standingsSort} col="toilet" best="asc" label="Toilet bowl losses" className={`${col('toilet')} px-3 py-3 text-center font-medium`}>
                   <span className="sm:hidden" aria-hidden>💩</span>
                   <span className="sr-only sm:not-sr-only">Toilet bowl losses</span>
                 </SortableTh>
-                <SortableTh sort={standingsSort} col="best" tip="Highest final place in any season (1st–6th from Sleeper brackets, 1st–3rd before)" tipAlign="right" best="asc" className="hidden sm:table-cell px-3 py-3 text-center font-medium">Best finish</SortableTh>
+                <SortableTh sort={standingsSort} col="best" tip="Highest final place in any season (1st–6th from Sleeper brackets, 1st–3rd before)" tipAlign="right" best="asc" className={`${col('best')} px-3 py-3 text-center font-medium`}>Best finish</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -395,15 +454,15 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
                       {!current.has(r.userId) && <span className="hidden text-xs text-[var(--muted)] sm:inline">· former</span>}
                     </div>
                   </td>
-                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.seasons}</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{record(r.wins, r.losses, r.ties)}</td>
-                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{(r.winPct * 100).toFixed(1)}%</td>
-                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.scoredGames ? r.pointsPerGame.toFixed(1) : '—'}</td>
-                  <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.playoffs}</td>
-                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.finals}</td>
-                  <td className="px-3 py-2 text-center font-semibold text-[var(--foreground)]">{r.titles ? `🏆 ${r.titles}` : '0'}</td>
-                  <td className="px-3 py-2 text-center font-semibold text-[var(--foreground)]">{r.toiletLosses ? `💩 ${r.toiletLosses}` : '0'}</td>
-                  <td className="hidden sm:table-cell px-3 py-2 text-center text-[var(--foreground)]">{r.bestFinish ? ordinal(r.bestFinish) : '—'}</td>
+                  <td className={`${col('seasons')} px-3 py-2 text-center text-[var(--foreground)]`}>{r.seasons}</td>
+                  <td className={`${col('record')} px-3 py-2 text-center text-[var(--foreground)]`}>{record(r.wins, r.losses, r.ties)}</td>
+                  <td className={`${col('winPct')} px-3 py-2 text-center text-[var(--foreground)]`}>{(r.winPct * 100).toFixed(1)}%</td>
+                  <td className={`${col('ppg')} px-3 py-2 text-center text-[var(--foreground)]`}>{r.scoredGames ? r.pointsPerGame.toFixed(1) : '—'}</td>
+                  <td className={`${col('playoffs')} px-3 py-2 text-center text-[var(--foreground)]`}>{r.playoffs}</td>
+                  <td className={`${col('finals')} px-3 py-2 text-center text-[var(--foreground)]`}>{r.finals}</td>
+                  <td className={`${col('titles')} whitespace-nowrap px-3 py-2 text-center font-semibold text-[var(--foreground)]`}>{r.titles ? `🏆 ${r.titles}` : '0'}</td>
+                  <td className={`${col('toilet')} whitespace-nowrap px-3 py-2 text-center font-semibold text-[var(--foreground)]`}>{r.toiletLosses ? `💩 ${r.toiletLosses}` : '0'}</td>
+                  <td className={`${col('best')} px-3 py-2 text-center text-[var(--foreground)]`}>{r.bestFinish ? ordinal(r.bestFinish) : '—'}</td>
                 </tr>
               ))}
             </tbody>
