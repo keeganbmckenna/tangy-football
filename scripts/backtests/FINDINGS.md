@@ -414,3 +414,16 @@ were made just before those games, which would leak information.
   wins a season, active leagues), still well inside true skill's sd of about 0.5-0.6 wins
   (`manager_skill.py`): good managers are real and decisions find them better than records do,
   but the edge is around a win a season.
+- **Start/sit and adds, beyond correlation** (`manager_causes.py`, 2026-11-17, leagues where
+  every team stayed active). Against the same roster's projection-best lineup each week,
+  managers override it (a lineup projected 1+ point lower) in 31% of weeks and start someone
+  projected at 0 (on bye or out) in 10%. An override is projected to cost 2.9 points and
+  actually costs 1.6: managers know a little more than the projections on average (+1.3), but
+  who gains from overriding doesn't repeat (r 0.01). What repeats is the habit: how often a
+  manager overrides (0.26), how costly their overrides are (0.14) and how often they start
+  someone who won't play (0.18), each with a known cost in points. Adds: the same manager
+  does no better in seasons they add more (-0.05 wins a season per add a week, interval
+  across 0); adds forced by a hole in the lineup go with worse seasons (-0.17: a symptom of
+  injuries and byes), and chosen adds, made with a full lineup, with better ones (+0.20
+  [+0.07, +0.31] within a manager, +0.31 across managers). So being active isn't the cause;
+  proactive pickups and sound lineups are where good managers gain.

@@ -40,11 +40,24 @@ from multiprocessing import Pool
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
-from stats_audit import best
+from stats_audit import SLOTS, best
+
+
+def pick(players, slots, key):
+    """The greedy best lineup's indices (stats_audit.best's order: most restrictive slots first)"""
+    order = sorted(range(len(players)), key=lambda i: -players[i][key])
+    used = []
+    for s in sorted(slots, key=lambda s: len(SLOTS.get(s, (s,)))):
+        elig = SLOTS.get(s, (s,))
+        for i in order:
+            if i not in used and players[i]['pos'] in elig:
+                used.append(i); break
+    return used
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'cache', 'manager_decisions.parquet')
 LAST_WEEK = 14
+IDP_SLOTS = ['IDP_FLEX', 'DL', 'LB', 'DB', 'DE', 'DT', 'CB', 'S']
 MEASURES = ['startsit', 'hindsight', 'vs_proj', 'roster_proj', 'draft_proj', 'draft_value', 'pickups', 'trade_net', 'adds']
 
 
@@ -68,21 +81,24 @@ def season_rows(season):
                       filters=[('season', '=', season), ('playoff', '=', False)]).to_pandas()
     t = t[t.week <= LAST_WEEK]
     for c in ('slot', 'position', 'player_id', 'owner_id'): t[c] = t[c].astype(str)
-    t['points'] = t.points.fillna(0.0); t['proj'] = t.proj.fillna(0.0)
+    t['points'] = t.points.fillna(0.0); t['projected'] = t.proj.notna(); t['proj'] = t.proj.fillna(0.0)
     txs = transactions(season)
     rows = []
     for lid, lg in t.groupby('league_id', sort=False):
         weeks = sorted(lg.week.unique())
         if len(weeks) < LAST_WEEK or lg.roster_id.nunique() < 8: continue
+        # Leagues with defensive players: Sleeper doesn't project them (left out, as in the live-odds research)
+        if lg.slot.isin(IDP_SLOTS).any(): continue
         tx = txs.get(int(lid))
         if tx is None: continue
         # How each roster got each player: [(week, source)], latest at or before a week wins
         acq = defaultdict(list)
         adds = defaultdict(int)
+        adds_week = defaultdict(list)
         for w, typ, a, d in tx:
             for p, r in a.items():
                 acq[(r, p)].append((w, 'trade' if typ == 'trade' else 'pickup'))
-                if typ != 'trade' and w <= LAST_WEEK: adds[r] += 1
+                if typ != 'trade' and w <= LAST_WEEK: adds[r] += 1; adds_week[(r, w)].append(p)
         for k in acq: acq[k].sort()
         started = {(r.roster_id, r.player_id, r.week): r.points for r in lg[lg.started].itertuples()}
         # A player's points that season wherever he was rostered (for the draft class's value)
@@ -101,6 +117,24 @@ def season_rows(season):
             T['owner'] = g.owner_id.iloc[0]
             T['pts'] += pts; T['opt'] += opt; T['startsit'] += pts - proj_pick; T['vs_proj'] += (st.points - st.proj).sum()
             T['roster_proj'] += proj_best
+            # Start/sit: did it start the projection-best lineup, and when it didn't, what did that do
+            # (an override: a lineup projected 1+ point below the best; neglect: a starter projected at 0, on bye or out)
+            # A starter without a projection: this week's start/sit can't be judged
+            if not st.projected.all(): continue
+            T['weeks'] += 1
+            zero = int((st.proj <= 0).sum())
+            T['zero_starts'] += zero
+            if zero: T['neglect_weeks'] += 1
+            elif proj_best - st.proj.sum() >= 1.0:
+                T['judg_weeks'] += 1
+                T['judg_gain'] += pts - proj_pick
+                T['judg_proj_cost'] += proj_best - st.proj.sum()
+            # Adds this week: forced if, without them, the roster couldn't fill its lineup with players projected to play
+            new = set(adds_week.get((rid, w), []))
+            if new:
+                pre = [p for p, pid in zip(players, g.player_id) if pid not in new and p['proj'] > 0]
+                filled = len(pick(pre, slots, 'proj')) == len(slots)
+                T['chosen_adds' if filled else 'forced_adds'] += len(new)
             if w == weeks[0]:
                 T['draft_proj'] = proj_best
                 T['draft_value'] = float(season_pts.reindex(g.player_id).fillna(0).sum())
@@ -126,7 +160,11 @@ def season_rows(season):
             rows.append(dict(season=season, league=int(lid), roster=int(rid), owner=T['owner'], allplay=float(ap), ppg=T['pts'] / n,
                              startsit=T['startsit'] / n, hindsight=T['pts'] / max(T['opt'], 1e-9), vs_proj=T['vs_proj'] / n,
                              roster_proj=T['roster_proj'] / n, draft_proj=T.get('draft_proj', 0.0), draft_value=T.get('draft_value', 0.0) / n,
-                             pickups=T['pickups'] / n, trade_net=T['trade_net'] / n, adds=adds.get(rid, 0) / n))
+                             pickups=T['pickups'] / n, trade_net=T['trade_net'] / n, adds=adds.get(rid, 0) / n,
+                             forced_adds=T['forced_adds'] / n, chosen_adds=T['chosen_adds'] / n,
+                             neglect_rate=T['neglect_weeks'] / max(T['weeks'], 1), judg_rate=T['judg_weeks'] / max(T['weeks'], 1),
+                             judg_gain=T['judg_gain'] / T['judg_weeks'] if T['judg_weeks'] else np.nan,
+                             judg_proj_cost=T['judg_proj_cost'] / T['judg_weeks'] if T['judg_weeks'] else np.nan))
     return rows
 
 
