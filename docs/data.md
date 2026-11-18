@@ -22,7 +22,7 @@ The app's server routes fetch and cache all of it; durations are in `CACHE_CONFI
 | `web/public/data/drafts/{season}.json` | Pre-built draft boards for completed seasons | `scripts/build_draft_data.py` |
 | `web/public/data/trades/{season}.json` | Pre-built trade grades for completed seasons | `scripts/build_trade_history.py` |
 | `web/public/data/odds-history/{season}.json` | Pre-built week-by-week odds (and each team's model strength) for completed seasons | `scripts/build_odds_history.py` |
-| `web/public/data/season-insights/{season}.json` | Pre-built lineups (with the best possible lineup), starters' projections and waiver moves for completed seasons | `scripts/build_season_insights.py` |
+| `web/public/data/season-insights/{season}.json` | Pre-built lineups (with the best possible lineup and the projections' best lineup, its projected and actual points), every rostered player's projection (starters and bench, and which players Sleeper didn't project), the league's lineup slots and waiver moves for completed seasons | `scripts/build_season_insights.py` |
 | `web/public/data/win-history/{season}/{week}.json` | Each matchup's win odds every 3 minutes of game time, replayed from nflverse play-by-play | `scripts/build_play_timelines.py`, then `web/scripts/build-win-history.ts`; the `Win history` workflow adds new weeks |
 | `web/lib/analyze/strengthModel.json` | The fitted odds-model weights | `scripts/backtests/export_model.py` |
 | `prediction-log` branch | The site's odds and every player's injury status before kickoffs and on Wednesdays, for the 2026 evaluation (Sleeper overwrites injury statuses, so they can't be recovered later) | The `Prediction log` workflow (`scripts/snapshot_predictions.py`) |

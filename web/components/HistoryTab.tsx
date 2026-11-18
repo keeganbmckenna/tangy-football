@@ -71,6 +71,8 @@ interface HistoryTabProps {
   /** A manager whose page is open (?manager=), and how to open or close one */
   manager?: string | null;
   onManager?: (userId: string | null) => void;
+  /** Bumped when a link asks for the open manager's Decisions section */
+  decisionsFocus?: number;
 }
 
 /** The All-Time Standings columns a phone can show (desktop shows them all) */
@@ -86,7 +88,7 @@ const STANDINGS_COLUMNS: PickableColumn[] = [
   { key: 'best', label: 'Best finish' },
 ];
 
-export default function HistoryTab({ manager = null, onManager }: HistoryTabProps) {
+export default function HistoryTab({ manager = null, onManager, decisionsFocus = 0 }: HistoryTabProps) {
   const [data, setData] = useState<HistoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the fetch
@@ -151,7 +153,7 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
     else restoreScroll(listScroll);
   };
   if (manager && data.managers.some((m) => m.userId === manager)) {
-    return <ManagerPage data={data} userId={manager} postseason={postseason} luck={luck} onBack={() => openManager(null)} onManager={openManager} />;
+    return <ManagerPage data={data} userId={manager} postseason={postseason} luck={luck} onBack={() => openManager(null)} onManager={openManager} decisionsFocus={decisionsFocus} />;
   }
 
   const managers = new Map(data.managers.map((m) => [m.userId, m]));

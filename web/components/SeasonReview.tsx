@@ -17,6 +17,8 @@ import { netHindsight } from '@/lib/analyze/tradeLeaders';
 import type { DraftData } from '@/lib/analyze/draft';
 import { POINT_SOURCES, averageTeam, pointSources, slope, type PointSource } from '@/lib/analyze/pointSources';
 import Term from '@/components/ui/Term';
+import { teamSeasonDecisions } from '@/lib/analyze/decisions';
+import { OPEN_DECISIONS_EVENT, decisionsLink } from '@/components/ManagerDecisions';
 
 interface SeasonReviewProps {
   season: string;
@@ -127,6 +129,9 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
     )
     .sort((a, b) => b.net - a.net)[0];
   const mySources = sources?.teams.find((t) => t.rosterId === rosterId);
+  // Its start/sit against its projections' lineup, and a way to the manager's Decisions
+  const myDecisions = insights?.rosterPositions ? teamSeasonDecisions(insights).find((d) => d.rosterId === rosterId) : undefined;
+  const ownerId = leagueData.rosters.find((r) => r.roster_id === rosterId)?.owner_id ?? null;
   const odds = (history?.checkpoints ?? []).map((c) => ({ week: c.week, p: c.odds[rosterId]?.playoffs ?? 0 }));
   const low = odds.length ? odds.reduce((m, o) => (o.p < m.p ? o : m)) : null;
   const high = odds.length ? odds.reduce((m, o) => (o.p > m.p ? o : m)) : null;
@@ -178,7 +183,32 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
             </Tile>
           )}
           {myLineups && (
-            <Tile label="Lineups" sub={`${myLineups.leftOnBench.toFixed(0)} left on bench${myLineups.flippedLosses ? ` · ${myLineups.flippedLosses} loss${myLineups.flippedLosses === 1 ? '' : 'es'} it cost` : ''}`}>
+            <Tile
+              label="Lineups"
+              sub={
+                <>
+                  {myDecisions?.weeks
+                    ? `Projections' lineup ${myDecisions.projectionLineupWeeks} of ${myDecisions.weeks} wks${myDecisions.noShows.length ? ` · started ${myDecisions.noShows.length} who couldn't play` : ''}`
+                    : `${myLineups.leftOnBench.toFixed(0)} left on bench${myLineups.flippedLosses ? ` · ${myLineups.flippedLosses} loss${myLineups.flippedLosses === 1 ? '' : 'es'} it cost` : ''}`}
+                  {ownerId && (
+                    <>
+                      {' '}
+                      <a
+                        href={decisionsLink(ownerId)}
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                          e.preventDefault();
+                          window.dispatchEvent(new CustomEvent(OPEN_DECISIONS_EVENT, { detail: ownerId }));
+                        }}
+                        className="text-[var(--accent)] hover:underline"
+                      >
+                        Decisions →
+                      </a>
+                    </>
+                  )}
+                </>
+              }
+            >
               {(myLineups.efficiency * 100).toFixed(1)}%{efficiencyRank && <span className="text-sm font-normal text-[var(--muted)]"> · {ordinal(efficiencyRank)}</span>}
             </Tile>
           )}

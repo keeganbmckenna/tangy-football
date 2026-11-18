@@ -36,6 +36,15 @@ export interface TeamWeek {
   playerPoints: Record<string, number>;
   /** Each starter's projection from before the games */
   starterProjections: Record<string, number>;
+  /**
+   * Every other rostered player's projection (absent in files built before it was kept): with
+   * the starters', what the manager could have started, judged before kickoff
+   */
+  benchProjections?: Record<string, number>;
+  /** The projection-best lineup's projected points (projectedBest is what it actually scored; absent in older files) */
+  projectedBestProjected?: number | null;
+  /** Rostered players Sleeper had no projection for that week (a starter's 0 then means unknown, not out) */
+  unprojected?: string[];
 }
 
 export interface WaiverMove {
@@ -59,6 +68,8 @@ export interface SeasonInsights {
   /** Regular-season weeks covered (1..weeks) */
   weeks: number;
   complete: boolean;
+  /** The league's lineup slots (absent in files built before it was kept) */
+  rosterPositions?: string[];
   /** FAAB each team started with (null without FAAB) */
   faabBudget: number | null;
   /** rosterId -> FAAB spent */
@@ -94,11 +105,19 @@ export function teamWeeksFor(
     if (projections) for (const id of starters) starterProjections[id] = projections[id]?.points ?? 0;
     // The lineup the projections recommended, scored at what its players actually scored
     let projectedBest: number | null = null;
+    let projectedBestProjected: number | null = null;
+    const benchProjections: Record<string, number> = {};
+    const unprojected: string[] = [];
     if (projections) {
       const byProjection: Record<string, { position: string; points: number }> = {};
       for (const id of roster) if (positions[id]) byProjection[id] = { position: positions[id], points: projections[id]?.points ?? 0 };
-      const picks = bestLineup(roster, byProjection, rosterPositions).starters;
-      projectedBest = round2(picks.reduce((s, p) => s + (playerPoints[p.playerId] ?? 0), 0));
+      const best = bestLineup(roster, byProjection, rosterPositions);
+      projectedBest = round2(best.starters.reduce((s, p) => s + (playerPoints[p.playerId] ?? 0), 0));
+      projectedBestProjected = round2(best.total);
+      for (const id of roster) {
+        if (!projections[id]) unprojected.push(id);
+        else if (!starters.includes(id)) benchProjections[id] = round2(projections[id].points);
+      }
     }
     const opponent = m.matchup_id ? matchups.find((o) => o.matchup_id === m.matchup_id && o.roster_id !== m.roster_id) ?? null : null;
     out[m.roster_id] = {
@@ -113,6 +132,7 @@ export function teamWeeksFor(
       starters,
       playerPoints: Object.fromEntries(roster.filter((id) => playerPoints[id] !== undefined).map((id) => [id, playerPoints[id]])),
       starterProjections,
+      ...(projections ? { benchProjections, projectedBestProjected, unprojected } : {}),
     };
   }
   return out;

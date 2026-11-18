@@ -41,9 +41,13 @@ export function urlSearchFor(tab: string, season: string, currentSeason: string,
   return s ? `?${s}` : '';
 }
 
-/** A card a link opens and scrolls to (?tab=postseason&section=accuracy); read once on first load, like the link target below */
-export function readSection(search: string): 'accuracy' | null {
-  return new URLSearchParams(search).get('section') === 'accuracy' ? 'accuracy' : null;
+/**
+ * A section a link opens and scrolls to (?tab=postseason&section=accuracy, or a manager page's
+ * &section=decisions); read once on first load, like the link target below
+ */
+export function readSection(search: string): 'accuracy' | 'decisions' | null {
+  const section = new URLSearchParams(search).get('section');
+  return section === 'accuracy' || section === 'decisions' ? section : null;
 }
 
 /**

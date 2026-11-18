@@ -58,6 +58,7 @@ export async function buildSeasonInsights(league: SleeperLeague): Promise<Season
     regularSeasonEnd,
     weeks: lastScoredWeek,
     complete: lastScoredWeek >= regularSeasonEnd,
+    rosterPositions: league.roster_positions ?? [],
     faabBudget: budget > 0 ? budget : null,
     faabUsed: Object.fromEntries(rosters.map((r) => [r.roster_id, r.settings.waiver_budget_used ?? 0])),
     players: Object.fromEntries([...used].filter((pid) => players[pid]).map((pid) => [pid, players[pid]])),

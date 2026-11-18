@@ -23,6 +23,7 @@ import LegacySeasonOverview from '@/components/LegacySeasonOverview';
 import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
 import { readLinkTarget, readManager, readSection, readUrlState, urlSearchFor } from '@/lib/urlState';
 import OddsAccuracy, { OPEN_ACCURACY_EVENT } from '@/components/OddsAccuracy';
+import { OPEN_DECISIONS_EVENT } from '@/components/ManagerDecisions';
 import { resetTableSorts } from '@/hooks/useTableSort';
 import { MyTeamContext, readMyTeam, saveMyTeam } from '@/hooks/useMyTeam';
 import { usePageTitleBase } from '@/hooks/usePageTitle';
@@ -93,6 +94,8 @@ export default function App() {
   const [linkTarget, setLinkTarget] = useState<ReturnType<typeof readLinkTarget>>(null);
   // Bumped when a link asks for the odds accuracy card: it opens and scrolls into view
   const [accuracyFocus, setAccuracyFocus] = useState(0);
+  // The same for a manager page's Decisions section
+  const [decisionsFocus, setDecisionsFocus] = useState(0);
   // The History tab's open manager page, if any (?manager=)
   const [historyManager, setHistoryManager] = useState<string | null>(null);
   useScrollMemory();
@@ -219,7 +222,9 @@ export default function App() {
     const { tab, season } = readUrlState(window.location.search);
     if (tab) setActiveTab(tab);
     setLinkTarget(readLinkTarget(window.location.search));
-    if (readSection(window.location.search) === 'accuracy') setAccuracyFocus(1);
+    const section = readSection(window.location.search);
+    if (section === 'accuracy') setAccuracyFocus(1);
+    if (section === 'decisions') setDecisionsFocus(1);
     setHistoryManager(readManager(window.location.search));
     setMyUserId(readMyTeam());
     setFadeTabs(!canViewTransition());
@@ -252,8 +257,20 @@ export default function App() {
       switchTabRef.current('postseason');
       setAccuracyFocus((f) => f + 1);
     };
+    // Season in Review's link to a manager's Decisions (detail: their user ID)
+    const openDecisions = (e: Event) => {
+      const userId = (e as CustomEvent<string>).detail;
+      if (!userId) return;
+      switchTabRef.current('history');
+      setHistoryManager(userId);
+      setDecisionsFocus((f) => f + 1);
+    };
     window.addEventListener(OPEN_ACCURACY_EVENT, open);
-    return () => window.removeEventListener(OPEN_ACCURACY_EVENT, open);
+    window.addEventListener(OPEN_DECISIONS_EVENT, openDecisions);
+    return () => {
+      window.removeEventListener(OPEN_ACCURACY_EVENT, open);
+      window.removeEventListener(OPEN_DECISIONS_EVENT, openDecisions);
+    };
   }, []);
 
   // The logo and name: back to Overview for the current season, at the top
@@ -714,7 +731,7 @@ export default function App() {
         {activeTab === 'history' && (
           <ErrorBoundary>
             <section>
-              <HistoryTab manager={historyManager} onManager={setHistoryManager} />
+              <HistoryTab manager={historyManager} onManager={setHistoryManager} decisionsFocus={decisionsFocus} />
             </section>
           </ErrorBoundary>
         )}

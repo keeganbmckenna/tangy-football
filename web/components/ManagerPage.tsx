@@ -14,6 +14,8 @@ import { managerProfile, type ProfileGame, type ProfileSeason } from '@/lib/anal
 import { netHindsight, tradeLeaders, type SeasonTrade } from '@/lib/analyze/tradeLeaders';
 import type { TradeHistoryResponse } from '@/lib/analyze/trade';
 import type { LifetimeLuck } from '@/lib/analyze/lifetimeLuck';
+import ManagerDecisions from '@/components/ManagerDecisions';
+import LazyMount from '@/components/ui/LazyMount';
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -33,6 +35,8 @@ interface Props {
   onBack: () => void;
   /** Open another manager's page */
   onManager: (userId: string) => void;
+  /** Bumped when a link asks for the Decisions section */
+  decisionsFocus?: number;
 }
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -61,7 +65,7 @@ function finish(s: ProfileSeason): { text: string; tone: 'win' | 'loss' | null }
  * One manager's page in the History tab (lib/analyze/managerProfile.ts): career totals and their
  * league ranks, every season, the record against each manager, best and worst games, and trades.
  */
-export default function ManagerPage({ data, userId, postseason, luck, onBack, onManager }: Props) {
+export default function ManagerPage({ data, userId, postseason, luck, onBack, onManager, decisionsFocus = 0 }: Props) {
   const managers = useMemo(() => new Map(data.managers.map((m) => [m.userId, m])), [data]);
   const nameOf = (id: string) => managers.get(id)?.name ?? 'Unknown';
   usePageTitle([managers.get(userId)?.name]);
@@ -93,7 +97,7 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
     );
     const best = mine.length ? mine.reduce((b, t) => (t.net > b.net ? t : b)) : null;
     const worst = mine.length > 1 ? mine.reduce((w, t) => (t.net < w.net ? t : w)) : null;
-    return { leader, count: mine.length, best, worst };
+    return { leader, count: mine.length, best, worst, net: mine.reduce((s, t) => s + t.net, 0), seasons: new Set(mine.map((t) => t.season)).size };
   }, [tradeSeasons, sleeperSeasons, userId]);
 
   const back = (
@@ -167,6 +171,14 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
           )}
         </div>
       </SectionCard>
+
+      {decisionsFocus ? (
+        <ManagerDecisions data={data} userId={userId} trades={trades} focus={decisionsFocus} />
+      ) : (
+        <LazyMount height={520}>
+          <ManagerDecisions data={data} userId={userId} trades={trades} />
+        </LazyMount>
+      )}
 
       <SectionCard title="Season by Season" subtitle={`Regular-season record and points per game${myLuck ? ', wins over what that scoring would win on an average schedule,' : ''} then where the season ended`} gradientType="info">
         <div className="overflow-x-auto">
