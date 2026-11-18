@@ -78,6 +78,7 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
       subtitle={`Each week's scoring rank (1 = best, ${teams.length} = worst) and what it would have been against everyone`}
       gradientType="warning"
       footer={legend}
+      footerOpen
     >
       <SortStatus sort={sort} />
       <div className="overflow-x-auto">

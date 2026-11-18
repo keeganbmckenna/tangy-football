@@ -3,6 +3,7 @@
 import { Fragment, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
+import HowItWorks from '@/components/ui/HowItWorks';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { useTableSort } from '@/hooks/useTableSort';
@@ -239,14 +240,16 @@ export default function LifetimeLuck({ luck, nameOf, onManager }: Props) {
           </tbody>
         </table>
       </div>
-      <p className="px-4 py-3 text-xs text-[var(--muted)]">
+      <HowItWorks className="px-4 py-3">
+        <p>
         Each season keeps every team&apos;s real weekly scores and reshuffles who played whom, as the season&apos;s Schedule Luck chart does;
         a manager&apos;s seasons then add up. Bars share one scale ({`±${scale}`} wins); the line is expected.
         {spread !== null && ` Over ${luck.seasons.length} seasons, schedules alone swing a manager about ±${spread.toFixed(1)} wins on 80% of them.`}{' '}
         Before {years[0]} only final standings were kept, so those seasons can&apos;t be reshuffled
         {luck.inProgress && `; ${luck.inProgress} counts its finished weeks`}. Ties count as half a win.
         Luck doesn&apos;t carry over: a manager&apos;s luck one half of a season says nothing about the next.
-      </p>
+        </p>
+      </HowItWorks>
     </SectionCard>
   );
 }

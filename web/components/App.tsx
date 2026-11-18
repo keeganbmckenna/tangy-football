@@ -439,9 +439,11 @@ export default function App() {
                 {leagueData?.league?.name || 'Fantasy Football'}
               </h1>
             </HomeLink>
-            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-[var(--muted)] sm:text-base">
-              <span>Season</span>
+            {/* On phones one row: the year speaks for itself, so its label is for screen readers only there */}
+            <div className="mt-1 flex items-center justify-center gap-x-2 gap-y-2 text-sm text-[var(--muted)] sm:flex-wrap sm:gap-x-4 sm:text-base">
+              <span className="sr-only sm:not-sr-only">Season</span>
               <select
+                aria-label="Season"
                 value={selectedSeason || leagueData?.league?.season || ''}
                 onChange={handleSeasonChange}
                 className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-sm text-[var(--foreground)] shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"

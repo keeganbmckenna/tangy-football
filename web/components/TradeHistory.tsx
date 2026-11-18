@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import HowItWorks from '@/components/ui/HowItWorks';
 import RetryButton from '@/components/ui/RetryButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
@@ -342,10 +343,12 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                   </tbody>
                 </table>
               </div>
-              <p className="mt-2 text-xs text-[var(--muted)]">
+              <HowItWorks className="mt-2" label="What the columns mean">
+                <p>
                 Odds columns add up each trade&apos;s change in that manager&apos;s odds the week it went through, in percentage
                 points (pp). Starter points are what the players they got scored in their starting lineup afterward.
-              </p>
+                </p>
+              </HowItWorks>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -460,12 +463,14 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
           </>
         )}
 
-        <p className="text-xs text-[var(--muted)]">
+        <HowItWorks>
+          <p>
           At the time: the playoff odds model re-run the week the trade counted from, with that week&apos;s records, rosters and
           projections, without and with the trade (5,000 seasons each, on the same random draws). The projected lineup change
           is the raw difference if nothing else changed. Hindsight: points the players a team got scored in its starting
           lineup through the end of that regular season (or the latest week, for the season in progress).
-        </p>
+          </p>
+        </HowItWorks>
       </div>
     </SectionCard>
   );

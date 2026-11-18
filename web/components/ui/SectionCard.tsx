@@ -2,13 +2,16 @@
 
 import { ReactNode } from 'react';
 import { GRADIENT_STYLES } from '@/lib/constants';
+import HowItWorks from '@/components/ui/HowItWorks';
 
 interface SectionCardProps {
   title: string;
   subtitle?: string;
   children: ReactNode;
   gradientType?: keyof typeof GRADIENT_STYLES;
+  /** An explanation, folded under "How this works" (footerOpen: always shown, for a legend) */
   footer?: ReactNode;
+  footerOpen?: boolean;
 }
 
 /**
@@ -32,6 +35,7 @@ export default function SectionCard({
   children,
   gradientType = 'primary',
   footer,
+  footerOpen = false,
 }: SectionCardProps) {
   const gradientClass = GRADIENT_STYLES[gradientType];
 
@@ -48,8 +52,8 @@ export default function SectionCard({
 
       {/* Footer */}
       {footer && (
-        <div className="px-6 py-3 bg-[var(--surface)] border-t border-[var(--border)] text-[var(--muted)]">
-          {footer}
+        <div className="border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-[var(--muted)] sm:px-6">
+          {footerOpen ? footer : <HowItWorks>{footer}</HowItWorks>}
         </div>
       )}
     </div>

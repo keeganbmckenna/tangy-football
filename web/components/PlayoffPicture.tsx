@@ -343,7 +343,9 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       {shownOdds && (
         <SectionCard
           title="Playoff Odds"
-          subtitle={`${shownOdds.sims.toLocaleString()} simulations of the remaining ${weeksLeft} week${weeksLeft === 1 ? '' : 's'} on the real schedule`}
+          subtitle={`${shownOdds.sims.toLocaleString()} simulations of the remaining ${weeksLeft} week${weeksLeft === 1 ? '' : 's'} on the real schedule${
+            liveOdds ? ` · week ${liveOdds.week} at live odds, as of ${new Date(liveOdds.fetchedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''
+          }`}
           gradientType="info"
           footer={
             <span>

@@ -6,6 +6,7 @@ import { useMyTeam } from '@/hooks/useMyTeam';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import SectionCard from '@/components/ui/SectionCard';
+import HowItWorks from '@/components/ui/HowItWorks';
 import TradeLineups from '@/components/TradeLineups';
 import { CHART_THEME } from '@/lib/constants';
 import { bestLineup, formatOdds, simulatePlayoffOdds, type OddsResult, type TeamOdds } from '@/lib/analyze/playoffOdds';
@@ -545,12 +546,14 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
           />
         </div>
         {data.marketValues && (
-          <p className="-mt-3 text-xs text-[var(--muted)]">
+          <HowItWorks className="-mt-3" label="What the numbers mean">
+            <p>
             Each player: points per game this season, expected points per remaining week (half his projection, half his
             season scoring, as the odds model values him), and his{' '}
             <a href="https://fantasycalc.com" target="_blank" rel="noreferrer" className="underline">FantasyCalc</a> redraft
             value (the trade market&apos;s price; kickers and defenses aren&apos;t valued).
-          </p>
+            </p>
+          </HowItWorks>
         )}
 
         {!trade ? (
