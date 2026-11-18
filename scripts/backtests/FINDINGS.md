@@ -389,3 +389,28 @@ were made just before those games, which would leak information.
     player scores. Game state reaches 5-10% of that ceiling. Not adopted. (Player-level
     distributions were tested afterwards and ship as a blend once one team runs low on players:
     see "More live-odds ideas, tested".)
+- **Manager skill** (`manager_skill.py`, 2026-11-17): in 71,592 owner-seasons of crawled
+  12-team leagues (12,176 owners with 2+ seasons), a season's all-play win % (its record on an
+  average schedule) varies with sd 0.129, of which lasting skill is sd 0.043 (about 0.6 wins a
+  14-game season) and the rest noise (sd 0.122, 1.7 wins); one season is 11% skill. Skill does
+  carry over: it correlates 0.72 from one season to the next (0.53 two apart, 0.37 three apart).
+  Predicting a season from the earlier ones, a manager's raw career mean is far worse than
+  calling everyone average (MSE 21-32 vs 14-16, x1000), while the shrunk estimate beats average
+  in all 7 seasons, but only by about 1% (clear of zero in 4 of 7). So skill is real and
+  persistent but small next to a season's luck: the site's estimates sit within about a win of
+  .500 for most managers. Real minus all-play win % (schedule luck) has sd 0.102 (1.43 wins),
+  matching `schedule_luck.py`.
+- **Manager decisions** (`manager_decisions.py`, 2026-11-17): 60,716 crawled team-seasons with
+  projections and transactions (2018-2025), each decision z-scored within its league-season.
+  Year to year, the same manager's activity repeats most (adds a week, r 0.66; points from
+  pickups 0.35), then how strong their roster looks on projections (0.14) and their start/sit
+  calls against the projection-best lineup (0.11); the record itself repeats only 0.09.
+  Starters beating their projections (0.00) and trade results (0.02) don't repeat: luck, even
+  though beating projections explains much of a single season. Adding the decisions to last
+  season's record predicts next season better in every season (MSE about 4% lower, 2023-2025
+  clear of zero); in leagues where every team stayed active the gain is smaller (4 of 4
+  seasons, only 2025 clear of zero), so part of it is spotting fading teams. Predicted
+  managers spread about twice as far apart with decisions as with records alone (0.26 vs 0.14
+  wins a season, active leagues), still well inside true skill's sd of about 0.5-0.6 wins
+  (`manager_skill.py`): good managers are real and decisions find them better than records do,
+  but the edge is around a win a season.
