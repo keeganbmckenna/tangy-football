@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import Capped from '@/components/ui/Capped';
 import HowItWorks from '@/components/ui/HowItWorks';
 import RetryButton from '@/components/ui/RetryButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -33,6 +34,8 @@ import {
 } from '@/lib/analyze/history';
 
 const MIN_SERIES = 4;
+/** Record Book entries listed before "Show all" */
+const RECORDS_SHOWN = 5;
 
 // Where the league's history was scrolled when a manager's page was opened from it
 let listScroll = 0;
@@ -204,14 +207,18 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
   const gameList = (title: string, items: GameRecord[]) => (
     <div className="rounded-lg border border-[var(--border)] p-4">
       <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">{title}</h4>
-      <ol className="space-y-1.5 text-xs">
-        {items.map((r, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="w-14 shrink-0 font-semibold text-[var(--foreground)]">{r.value.toFixed(2)}</span>
-            {gameLine(r.game, r.userId)}
-          </li>
-        ))}
-      </ol>
+      <Capped items={items} initial={RECORDS_SHOWN}>
+        {(shown) => (
+          <ol className="space-y-1.5 text-xs">
+            {shown.map((r, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="w-14 shrink-0 font-semibold text-[var(--foreground)]">{r.value.toFixed(2)}</span>
+                {gameLine(r.game, r.userId)}
+              </li>
+            ))}
+          </ol>
+        )}
+      </Capped>
     </div>
   );
 

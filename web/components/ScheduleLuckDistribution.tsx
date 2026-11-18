@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import LazyMount from '@/components/ui/LazyMount';
 import SectionCard from '@/components/ui/SectionCard';
 import { CHART_THEME } from '@/lib/constants';
 import { useTapTooltip } from '@/hooks/useTapTooltip';
 import { ManagerLink } from '@/hooks/useManagerLink';
+import { useMyTeam } from '@/hooks/useMyTeam';
 import {
   ScheduleLuckSimulation,
   ScheduleLuckDistribution as ScheduleLuckDistributionType,
@@ -151,9 +153,26 @@ function ScheduleLuckTooltip({ active, payload }: TooltipProps) {
   );
 }
 
+/** The wins below which this share of schedules fall */
+const quantile = (outcomes: ScheduleSimulationOutcome[], q: number) => {
+  let cum = 0;
+  for (const o of [...outcomes].sort((a, b) => a.wins - b.wins)) {
+    cum += o.frequency;
+    if (cum >= q - 1e-9) return o.wins;
+  }
+  return outcomes[outcomes.length - 1]?.wins ?? 0;
+};
+
+/** Share of schedules that would have given fewer wins than it got (ties half) */
+const luckierThan = (team: ScheduleLuckDistributionType) =>
+  team.outcomes.reduce((s, o) => s + (o.wins < team.actualWins ? o.frequency : o.wins === team.actualWins ? o.frequency / 2 : 0), 0);
+
 export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistributionProps) {
   // One popup at a time across the teams' charts
   const tapTooltip = useTapTooltip();
+  const me = useMyTeam();
+  // Teams the viewer flipped from where they start (your team starts open, the rest closed)
+  const [flipped, setFlipped] = useState<Set<string>>(() => new Set());
   if (!data || data.teams.length === 0) {
     return null;
   }
@@ -173,28 +192,58 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
       gradientType="warning"
       footer={
         <p className="text-xs text-[var(--muted)]">
-          Highlighted bars show each team&apos;s actual win total across the completed regular season weeks.
+          Each row&apos;s bar is the middle 80% of win totals over the shuffled schedules and the dot is what happened; luckier
+          than is the share of schedules that would have given fewer wins. Tap a team for every total: the highlighted bar is its
+          actual wins across the completed regular-season weeks.
         </p>
       }
     >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+      {/* One row a team: the middle 80% of its schedules (bar) and what happened (dot); tap for the whole distribution */}
+      <ul className="divide-y divide-[var(--border)]">
         {data.teams.map((team) => {
           const chartData = buildChartData(team.outcomes, team.actualWins, minWins, maxWins, winsStep);
+          const lo = quantile(team.outcomes, 0.1);
+          const hi = quantile(team.outcomes, 0.9);
+          const x = (w: number) => `${maxWins > minWins ? ((w - minWins) / (maxWins - minWins)) * 100 : 50}%`;
+          const isOpen = flipped.has(team.username) !== (team.username === me.username);
+          const share = luckierThan(team);
+          const toggle = () =>
+            setFlipped((prev) => {
+              const next = new Set(prev);
+              if (next.has(team.username)) next.delete(team.username);
+              else next.add(team.username);
+              return next;
+            });
 
           return (
-            <div
-              key={team.username}
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-sm font-semibold text-[var(--foreground)]">{team.teamName}</div>
-                  <div className="text-xs text-[var(--muted)]"><ManagerLink username={team.username} /></div>
-                </div>
-                <div className="text-xs text-[var(--muted)]">
-                  Actual wins: <span className="font-semibold text-[var(--foreground)]">{formatWinsLabel(team.actualWins)}</span>
-                </div>
-              </div>
+            <li key={team.username}>
+              <button
+                type="button"
+                onClick={toggle}
+                aria-expanded={isOpen}
+                className="grid w-full grid-cols-[1rem_minmax(0,7.5rem)_1fr_4.5rem] items-center gap-2 px-4 py-2.5 text-left hover:bg-[var(--hover)] sm:grid-cols-[1rem_12rem_1fr_7rem] sm:px-6"
+              >
+                <span aria-hidden className={`text-[var(--muted)] transition-transform ${isOpen ? 'rotate-90' : ''}`}>›</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-[var(--foreground)]">{team.teamName}</span>
+                  <span className="block truncate text-xs text-[var(--muted)]">{formatWinsLabel(team.actualWins)} wins</span>
+                </span>
+                <span
+                  className="relative h-4"
+                  role="img"
+                  aria-label={`${team.teamName}: ${formatWinsLabel(team.actualWins)} wins; 80% of schedules give ${formatWinsLabel(lo)} to ${formatWinsLabel(hi)}`}
+                >
+                  <span className="absolute inset-x-0 top-1/2 h-px bg-[var(--border)]" />
+                  <span className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full opacity-40" style={{ left: x(lo), width: `calc(${x(hi)} - ${x(lo)})`, backgroundColor: SIM_BAR_COLOR, minWidth: 4 }} />
+                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--surface-elevated)]" style={{ left: x(team.actualWins), backgroundColor: ACTUAL_BAR_COLOR }} />
+                </span>
+                <span className="text-right text-xs tabular-nums text-[var(--muted)]">
+                  luckier than <span className="font-semibold text-[var(--foreground)]">{Math.round(share * 100)}%</span>
+                </span>
+              </button>
+              {isOpen && (
+            <div className="px-4 pb-4 sm:px-6">
+              <div className="mb-2 text-xs text-[var(--muted)]"><ManagerLink username={team.username} /></div>
               <LazyMount height={220}>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 16 }} {...tapTooltip(team.username).chartProps}>
@@ -235,9 +284,11 @@ export default function ScheduleLuckDistribution({ data }: ScheduleLuckDistribut
                 </ResponsiveContainer>
               </LazyMount>
             </div>
+              )}
+            </li>
           );
         })}
-      </div>
+      </ul>
     </SectionCard>
   );
 }

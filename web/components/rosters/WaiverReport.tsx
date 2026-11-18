@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
+import Capped from '@/components/ui/Capped';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import TeamName, { PIN_TD, PIN_TH } from '@/components/ui/TeamName';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
@@ -33,7 +34,9 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
     ({ moves: t.moves, spent: t.spent, points: t.startedPoints, perDollar: t.spent > 0 ? t.startedPoints / t.spent : 0 })[key]
   );
 
-  const moveList = (moves: WaiverMove[], detail: (m: WaiverMove) => string) => (
+  const moveList = (all: WaiverMove[], detail: (m: WaiverMove) => string) => (
+    <Capped items={all} initial={5}>
+      {(moves) => (
     <ol className="divide-y divide-[var(--border)]">
       {moves.map((m, i) => (
         <li key={`${m.playerId}-${m.week}-${m.rosterId}`} className="flex items-center gap-3 py-2">
@@ -52,6 +55,8 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
         </li>
       ))}
     </ol>
+      )}
+    </Capped>
   );
 
   return (

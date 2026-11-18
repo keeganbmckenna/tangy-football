@@ -15,9 +15,9 @@ The **You** picker highlights your team everywhere and puts your matchup first, 
 - **Data through:** a line saying which weeks the stats cover ("Stats through week 5 of 14").
 - **Division standings:** one card per division with record, points, games back (GB) and points back (PB); the leader gets a 🥇.
 - **Wild Card Race:** the non-division leaders ranked for the remaining playoff spots, with the playoff cutoff line and each team's division.
-- **Weekly Matchups** comes before Power Rankings. During a week that's being played, it opens on that week (marked with a red dot): the Live tab's matchups with live scores and win odds, each opening the same live lineups.
+- **Weekly Matchups** comes first while the season is being played (before the standings), and after them for a finished season. During a week that's being played, it opens on that week (marked with a red dot): the Live tab's matchups with live scores and win odds, each opening the same live lineups.
 - **Power Rankings** (during the regular season): teams ranked by the playoff-odds model's expected weekly score, each with the range its rank lands in 80% of the time and its move since last week.
-- **Weekly Matchups:** every result for any completed week. Tap one to see both lineups and benches, with each player's points, box score line (like 26/34, 374 yd, 4 TD) and his projection from before the game.
+- **Weekly Matchups:** every result for any completed week. Tap one to see both lineups and benches (the winner marked; the bench folds into one line with each side's total, noting any bench player who outscored a starter), with each player's points, box score line (like 26/34, 374 yd, 4 TD) and his projection from before the game.
   - **Awards:** a strip of the week's awards above the results: high and low score, biggest blowout, closest game, unluckiest loss, luckiest win, most left on the bench, biggest upset (by projections) and who beat their projections most.
   - **How it swung:** each matchup's win odds through the week, replayed play by play on each NFL game's real clock with the Live tab's model, with the lead changes counted; or switch to both teams' scores through the week, with how long each led (every week since 2022). Lines mark each matchup's 8 biggest plays (4+ points to one side's starters, or a 10%+ swing in the odds; a defense's automatic 10 points at kickoff doesn't count); tap one for the play, who it helped and how the odds moved, and use the card's arrows to step through them. The button at the chart's top right opens it full screen: a taller chart with up to 20 big plays, all listed below it. Plays close together keep their own lines and share one tap area, with their count above. A play by starters on both sides shows once, with each side's points, and a play only counts the players in it. The play text is trimmed to the play itself (no tacklers, QB hits or penalties; replay reviews become "Upheld on review"). During the week the lines come from the live saves, saved every 30 seconds, each with its play's text from ESPN's play-by-play and only the players in it (with any score that's taken back, like a touchdown called back by a flag, dropped), until the play-by-play replay replaces them.
 
@@ -25,13 +25,14 @@ For a season before Sleeper, Overview shows that season's final standings and to
 
 ## 🔴 Live (current season, while a week is being played)
 Updates every 10 seconds while NFL games are on; scores flash green (or red) with the change when they move.
-- **Matchups:** every real matchup's live score, projected final and win odds, which update as the games play out. They count injuries, overtime, and how boom-or-bust each starter is; as one team runs out of players, they blend into each remaining player's real chances (often a lot, often nothing, rarely negative) rather than a bell curve. Tap one for both lineups and benches, player by player, with each player's box score so far and a "How it swung" chart of the win odds so far; players in a game are tinted green and those still to play show a dash. While a player's game is on, his row also shows the down and distance and where the ball is on the field, and whether his team is on offense or defense. A defense shows the down and distance while it's defending (the marker turns red inside its own 20) or "On the sideline" while its offense has the ball, and its points allowed say what they're worth and where the next bracket starts ("17 PA: 1 pt, 0 at 21").
+- **Matchups:** every real matchup's live score, projected final and win odds (before anyone has played, the projections are the big numbers, in the cards and their lineups), which update as the games play out. They count injuries, overtime, and how boom-or-bust each starter is; as one team runs out of players, they blend into each remaining player's real chances (often a lot, often nothing, rarely negative) rather than a bell curve. Tap one for both lineups and benches, player by player, with each player's box score so far and a "How it swung" chart of the win odds so far; players in a game are tinted green and those still to play show a dash. While a player's game is on, his row also shows the down and distance and where the ball is on the field, and whether his team is on offense or defense. A defense shows the down and distance while it's defending (the marker turns red inside its own 20) or "On the sideline" while its offense has the ball, and its points allowed say what they're worth and where the next bracket starts ("17 PA: 1 pt, 0 at 21").
 - **What each team needs:** each card says what the team behind needs ("needs 18.3 from 2 players", or "about 24 to be favored" while both teams still have players). Tap a matchup and open **What each team needs** (collapsed until you open it; remembered) for each team's target, its odds on a bad, typical or great rest of the week, the players who swing it most (with their usual range), lineup swaps still open for players whose games haven't started, and a note when a receiver's game is lopsided late. All from the same model as the win odds.
 - **Live Standings:** the standings if the week ended now, each record shown before → now, with teams moving into or dropping out of a playoff spot flagged.
 - **Live Play-All:** each team's record against every other team at the current scores, its real matchup and margin, and its season play-all record if the week ended now.
 
 ## 🏆 Playoffs
 While the regular season is in progress:
+- **Order:** Playoff Odds first, then What Each Team Needs, Games Ahead and What If, then the brackets if the season ended now and the odds week by week.
 - **If the Season Ended Now:** the projected playoff bracket and the first teams out.
 - **Playoff Odds:** 20,000 simulations of the real remaining schedule. Shows each team's chances of:
   - the playoffs, the division and a bye;
@@ -41,7 +42,7 @@ While the regular season is in progress:
   Also shows how this week's win or loss changes them.
 - **Toilet Bowl If the Season Ended Now:** the projected toilet bowl bracket.
 - **Games Ahead:** a team's chance of winning each remaining game, with its expected wins (One team), or every team's as a grid, easiest remaining schedule first (All teams).
-- **What Each Team Needs:** each team's odds now, with a win and with a loss. Also clinched and eliminated, win-and-in scenarios in the last weeks, points races, and the team's biggest rooting interest this week.
+- **What Each Team Needs:** each team's odds now, with a win and with a loss. Also clinched and eliminated, win-and-in scenarios in the last weeks, points races, and the team's biggest rooting interest this week. Your team (or the top team) shows in full; every other team is one line (record, playoff odds and its most important scenario) that opens to the same.
 - **Odds Week by Week:** a chart of how every team's odds moved from the draft to now. Pick what to follow: making the playoffs, a bye, the division, the title, a toilet bowl bye or losing the toilet bowl. Each point is what the model would have said at the time. Finished seasons show it too.
 - **What If:** pick winners of any remaining games and see everyone's playoff, bye and division odds with those results fixed, against the same simulation without the picks, and each picked team's record with them ("2-4 → 5-4").
 - **How Accurate Are the Odds?** (last on the tab): how often favorites have won against what the odds said, in one line; open it for each band of odds against how often it happened (with the range the true rate likely falls in), for single games (2022 on, updated every week) and for the playoff odds (every week of each finished season). **How accurate are these odds?** under Playoff Odds and the Live tab's matchups opens it, and that link can be shared.
@@ -57,7 +58,7 @@ Weekly scores and ranks, how the season moved, and luck. Charts: hover (or tap) 
 - **Rank over time:** the standings week by week, or (toggle) the power rankings by the playoff-odds model from the draft on.
 - **Points over time:** cumulative scores, or (toggle) points above or below the weekly median, added up.
 - **Luck:** real record, play-all record and the wins each team's scoring deserved; luck is the difference. Plus its record in close games.
-- **Schedule Luck Distribution:** 20,000 random schedules per team, showing the range of records it could have had.
+- **Schedule Luck Distribution:** 20,000 random schedules per team: one row each with the middle 80% of its possible records, its real one, and how lucky that was; tap a team (yours starts open) for the whole distribution.
 
 ## 🧩 Rosters (2022 onward)
 During the current regular season, the trade and waiver tools come first:
@@ -80,14 +81,14 @@ Then, for any season:
 - **Waivers:** each team's pickups and what they scored in its lineup, and the best pickups. In FAAB seasons (2024 on), FAAB spent, points per dollar, the costliest misses and the closest bids.
 
 ## 📋 Draft
-- **Draft Board:** by round for snake drafts, by team and price for auctions.
+- **Draft Results** come first: grades by points per available week, spending, $ per point and best pick.
 - **Draft Core:** each team's intended starters.
-- **Draft Results:** grades by points per available week, spending, $ per point and best pick.
+- **Draft Board:** by round for snake drafts; for auctions each team's picks by price, folded to one line per team (Open all opens them).
 
 ## 🏛️ History (every season, whichever one is selected)
 - **Manager pages:** tap any manager (the row of photos at the top, or a name in Champions or All-Time Standings) for their page: career record, points per game, titles, finals, playoffs and toilet bowl losses with where each ranks in the league; every season's team name, record, rank and finish; their record against every other manager (tap one for every meeting), their favorite opponent and nemesis; their best and worst games, biggest win and toughest loss; and their trades, best and worst in hindsight. The address bar keeps the page, so links and the back button work.
   - **Decisions:** what the manager controlled, against what their own roster offered, for their career or any season, in a sentence and three panels, each against a typical season in this league (shaded). **Start/sit:** projected points given up against the best lineup their projections recommended (judged before kickoff), weeks they started that lineup, starting someone who couldn't play (on bye or out), and their overrides (a lineup projected at least a point lower): what they actually did and the games they won or lost. **Waivers:** proactive pickups (added with the lineup already full) and pickups to fill a hole, with what pickups scored. **Trades:** net lineup points. Start/sit and waivers are marked as carrying over from season to season and trades as swinging with luck, as found on thousands of other leagues (`scripts/backtests/manager_causes.py`). Tap Details for every override, start of a player who couldn't play, and proactive pickup. Season in Review's Lineups tile links to it, and a link can open it (`&section=decisions`).
-- **Champions:** every season's champion, runner-up and toilet bowl loser (top three before Sleeper).
+- **Champions:** one table: every season's champion, runner-up and toilet bowl loser (third place before Sleeper).
 - **All-Time Standings:** per manager:
   - seasons, record and win %;
   - points per game, playoff appearances and finals;
@@ -102,7 +103,7 @@ A switch counts the three sections above either with playoff and toilet bowl gam
   - **Trade stats:** per-manager stats, biggest swings, and the best trades in hindsight (what the players received scored in the starting lineup, minus what the players sent scored for their new teams).
   - **Trade partners:** how many times each pair of managers traded; tap a cell for their trades.
   - **List:** the latest 5 trades, then **Show all**.
-- **Record Book:** highest and lowest scores, blowouts, closest games, best and worst seasons, and more.
+- **Record Book:** highest and lowest scores, blowouts, closest games, best and worst seasons, and more. Each list shows its top 5, with Show all for the rest.
 
 ---
 
@@ -114,6 +115,7 @@ A switch counts the three sections above either with playoff and toilet bowl gam
 - **Shareable links:** the address bar keeps the tab and season, so refresh, back and shared links land on the same view. Back, forward (or a swipe) and refresh also return to where each view was scrolled.
 - **Link previews:** links to the site preview as a picture in group chats and on social sites: a matchup (its score, win-odds line and the play that swung it most), a week (its awards, or every matchup's score and odds while it's being played, and its biggest swing), a manager's page (record, titles, points per game, best finish), or the league itself (its photo and the standings' top six). Any address copied from the browser works; **Share** on a matchup's lineups, **Share week** on Weekly Matchups and the share icon on a manager page give the same links, from your phone's share sheet or copied. Sharing your own game puts your team on the left for everyone; otherwise a finished game's winner goes first. Opening a link goes straight to that view.
 - **Definitions:** dotted-underlined terms (GB, PB, Core/wk, luck factor…) explain themselves on hover or tap.
+- **How this works:** each card's explanation (how a number is worked out) is folded under How this works at its foot; tap to read it.
 - **Phones:**
   - the tab row scrolls sideways;
   - team names stay pinned as wide tables scroll;

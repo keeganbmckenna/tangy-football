@@ -59,6 +59,8 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
 // The season filter for this visit, so leaving the History tab and coming back keeps it
 let rememberedFilter = 'all';
 
+// Managers in the Traders table before "Show all"
+const TRADERS_SHOWN = 8;
 // Trades listed before "Show all", so the list doesn't bury the sections below it
 const COLLAPSED_TRADES = 5;
 
@@ -86,6 +88,8 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
   };
   const sort = useTableSort('traders');
   const [showAll, setShowAll] = useState(false);
+  // The Traders table's top rows (by its current sort), the rest behind Show all
+  const [allTraders, setAllTraders] = useState(false);
   // Trade partners grid: a pair of managers whose trades the list shows
   const [pair, setPair] = useState<[string, string] | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -310,7 +314,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {leaderRows.map((r) => (
+                    {(allTraders ? leaderRows : leaderRows.slice(0, TRADERS_SHOWN)).map((r) => (
                       <tr key={r.userId} className={mineRow(r.userId === me.userId)}>
                         <td className={`${PIN_TD} !px-3 py-2 bg-[var(--surface-elevated)]`}>
                           <span className="block max-w-[7.5rem] truncate font-medium text-[var(--foreground)] sm:max-w-none" title={nameOf(r.userId)}>
@@ -343,6 +347,15 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                   </tbody>
                 </table>
               </div>
+              {leaderRows.length > TRADERS_SHOWN && (
+                <button
+                  type="button"
+                  onClick={() => setAllTraders(!allTraders)}
+                  className="mt-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)]"
+                >
+                  {allTraders ? 'Show fewer' : `Show all (${leaderRows.length})`}
+                </button>
+              )}
               <HowItWorks className="mt-2" label="What the columns mean">
                 <p>
                 Odds columns add up each trade&apos;s change in that manager&apos;s odds the week it went through, in percentage
