@@ -441,11 +441,13 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
         subtitle={`Each row's all-time record against each column, ${postseason ? 'regular season, playoffs and toilet bowl' : 'regular season only'} (never placement games). Tap a cell for every meeting.`}
         gradientType="secondary"
       >
-        <div className="overflow-x-auto p-4 sm:p-6">
+        {/* No left padding on the scroll box: the pinned names stick to its edge, so cells scrolled
+            past would show in the gap; the names carry the padding instead */}
+        <div className="overflow-x-auto py-4 pr-4 sm:py-6 sm:pr-6">
           <table className="text-xs">
             <thead>
               <tr>
-                <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)]" />
+                <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)] pl-4 sm:pl-6" />
                 {order.map((id) => (
                   <th key={id} className="px-1 pb-2 font-medium text-[var(--muted)]">
                     <div className="mx-auto w-14 truncate" title={nameOf(id)}>{nameOf(id)}</div>
@@ -456,7 +458,7 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
             <tbody>
               {order.map((row) => (
                 <tr key={row}>
-                  <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)] pr-2 text-left font-medium text-[var(--foreground)]">
+                  <th className="pin-col sticky left-0 z-10 bg-[var(--surface-elevated)] pl-4 pr-2 text-left font-medium text-[var(--foreground)] sm:pl-6">
                     <div className="w-24 truncate" title={nameOf(row)}>{nameOf(row)}</div>
                   </th>
                   {order.map((col) => {
@@ -485,7 +487,7 @@ export default function HistoryTab({ manager = null, onManager }: HistoryTabProp
             </tbody>
           </table>
           {selected && pair && (
-            <div className="mt-5 rounded-lg border border-[var(--border)] p-4">
+            <div className="mt-5 ml-4 rounded-lg border border-[var(--border)] p-4 sm:ml-6">
               <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
                 <h4 className="text-sm font-semibold text-[var(--foreground)]">
                   {nameOf(selected[0])} vs {nameOf(selected[1])}: {record(pair.wins, pair.losses, pair.ties)}

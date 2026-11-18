@@ -106,11 +106,14 @@ export default function GamesAhead({ gameOdds, liveWeek = null, teams, teamStats
           )}
         </div>
         {view === 'all' ? (
-          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <div className="-mx-4 overflow-x-auto pr-4 sm:mx-0 sm:pr-0">
+            {/* No left padding on the scroll box: the pinned names stick to its edge, so cells scrolled
+                past would show in the gap; the names carry the padding instead, on a solid background
+                (the card is see-through) */}
             <table className="w-full border-separate border-spacing-0.5 text-center text-xs tabular-nums">
               <thead>
                 <tr className="text-[var(--muted)]">
-                  <th className="sticky left-0 z-[1] bg-[var(--surface-elevated)] pr-2 text-left font-medium">Team</th>
+                  <th className="sticky left-0 z-[1] bg-[var(--solid-elevated)] pl-4 pr-2 text-left font-medium sm:pl-0">Team</th>
                   {weeks.map((w) => (
                     <th key={w} className="min-w-[2.25rem] font-medium" title={w === liveWeek ? 'Live odds' : undefined}>
                       W{w}
@@ -132,7 +135,7 @@ export default function GamesAhead({ gameOdds, liveWeek = null, teams, teamStats
                     title={`${name(row.rosterId)}: see its games`}
                   >
                     <td
-                      className={`sticky left-0 z-[1] max-w-[7rem] truncate bg-[var(--surface-elevated)] py-1 pr-2 text-left text-xs sm:max-w-[11rem] ${
+                      className={`sticky left-0 z-[1] max-w-[8rem] truncate bg-[var(--solid-elevated)] py-1 pl-4 pr-2 text-left sm:pl-0 text-xs sm:max-w-[11rem] ${
                         row.rosterId === me.rosterId ? 'font-semibold text-[var(--foreground)]' : 'text-[var(--foreground)]'
                       }`}
                     >
