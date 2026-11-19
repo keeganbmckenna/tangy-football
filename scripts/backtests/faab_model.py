@@ -71,7 +71,20 @@ def features(df):
         f['proj'] = g('proj')
         f['proj_jump'] = (g('proj') - g('proj_prev')).clip(-10, 15) / 5
         f['mate_out'] = g('mate_out') / 10
-    if CROWD == 'levels':  # what a manager could say: quiet / some buzz / everyone wants him
+    if CROWD == 'trend':  # what Sleeper's trending endpoint shows: rank (top 100) and count vs the top player
+        f['trend_lrank'] = np.log(df.trend_rank)
+        f['trend_top'] = (df.trend_rank <= 100).astype(float)
+        f['trend_rel'] = np.sqrt(df.trend_rel.clip(0, 1))
+        f['trend_x_val'] = f['trend_rel'] * np.log1p(df.val.clip(lower=0))
+    elif CROWD == 'early':  # adds in other leagues before the bids were due (what trending shows)
+        f['early'] = np.log(df.early + 0.001)
+        f['early24'] = np.log(df.early24 + 0.001)
+        f['early_x_val'] = f['early'] * np.log1p(df.val.clip(lower=0))
+        # the player's place among that week's most-added (trending is a ranking too)
+        pct = df.groupby(['season', 'leg']).early.rank(pct=True)
+        f['early_pct'] = pct
+        f['early_top'] = (pct >= 0.95).astype(float)
+    elif CROWD == 'levels':  # what a manager could say: quiet / some buzz / everyone wants him
         f['buzz1'] = ((df.crowd >= 0.03) & (df.crowd < 0.15)).astype(float)
         f['buzz2'] = (df.crowd >= 0.15).astype(float)
     elif CROWD:
@@ -207,8 +220,10 @@ def main():
     global ROLE, CROWD
     ap = argparse.ArgumentParser(); ap.add_argument('--export'); ap.add_argument('--no-role', action='store_true')
     ap.add_argument('--crowd', action='store_true', help='diagnostic: add other leagues\' bids that week')
-    ap.add_argument('--buzz', action='store_true', help='diagnostic: only a 3-level version of it'); a = ap.parse_args()
-    ROLE, CROWD = not a.no_role, ('levels' if a.buzz else a.crowd)
+    ap.add_argument('--buzz', action='store_true', help='diagnostic: only a 3-level version of it')
+    ap.add_argument('--early', action='store_true', help='adds in other leagues before the bids were due (faab_trending.py)')
+    ap.add_argument('--trend', action='store_true', help='only what the trending endpoint shows: rank and relative count'); a = ap.parse_args()
+    ROLE, CROWD = not a.no_role, ('trend' if a.trend else 'early' if a.early else 'levels' if a.buzz else a.crowd)
     df = pd.read_parquet(os.path.join(HERE, 'cache', 'faab_auctions.parquet'))
     df = df[df.budget >= 50].reset_index(drop=True)
     if CROWD: df = add_crowd(df)
