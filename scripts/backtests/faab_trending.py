@@ -19,6 +19,7 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, 'cache')
 H = 3600 * 1000
+MARGIN = int(os.environ.get("FAAB_MARGIN_H", "6"))  # hours before processing that the bidder looks
 
 
 def main():
@@ -39,18 +40,19 @@ def main():
         for p in times:
             o = np.argsort(times[p][0]); times[p] = (times[p][0][o], times[p][1][o])
         # each week's ranking, at the week's typical deadline (median processing time - 6 h)
-        due_leg = (part.groupby('leg')['when'].median() - 6 * H).to_dict()
-        ranking = {}
+        due_leg = (part.groupby("leg")["when"].median() - MARGIN * H).to_dict()
+        ranking, ranking24 = {}, {}
         for leg, due in due_leg.items():
-            cnt = []
-            for p, (t, l) in times.items():
-                a, b = np.searchsorted(t, due - 72 * H), np.searchsorted(t, due)
-                if b > a: cnt.append(len(set(l[a:b])))
-            ranking[leg] = np.sort(np.array(cnt))[::-1]
+            for back, store in ((72, ranking), (24, ranking24)):
+                cnt = []
+                for p, (t, l) in times.items():
+                    a, b = np.searchsorted(t, due - back * H), np.searchsorted(t, due)
+                    if b > a: cnt.append(len(set(l[a:b])))
+                store[leg] = np.sort(np.array(cnt))[::-1] if cnt else np.zeros(1)
         e72, e24 = [], []
         for pid, when, lg in zip(part.player.values, part['when'].values, part.league.values):
             if pid not in times: e72.append(0.0); e24.append(0.0); continue
-            t, l = times[pid]; due = when - 6 * H
+            t, l = times[pid]; due = when - MARGIN * H
             for out, back in ((e72, 72), (e24, 24)):
                 a, b = np.searchsorted(t, due - back * H), np.searchsorted(t, due)
                 out.append(len(set(l[a:b]) - {lg}) / n)
@@ -60,6 +62,11 @@ def main():
             r = ranking[leg]; c = e * n
             ranks.append(min(101, 1 + int(np.sum(r > c + 1e-9)))); rel.append(c / r[0] if len(r) and r[0] else 0.0)
         df.loc[part.index, 'trend_rank'] = ranks; df.loc[part.index, 'trend_rel'] = rel
+        ranks, rel = [], []
+        for leg, e in zip(part.leg.values, e24):
+            r = ranking24[leg]; c = e * n
+            ranks.append(min(101, 1 + int(np.sum(r > c + 1e-9)))); rel.append(c / r[0] if len(r) and r[0] else 0.0)
+        df.loc[part.index, 'trend_rank24'] = ranks; df.loc[part.index, 'trend_rel24'] = rel
         print(season, f'{n} leagues; mean early share {np.mean(e72):.3%}, rows with any {np.mean(np.array(e72) > 0):.1%}', flush=True)
     df.to_parquet(path)
 

@@ -144,7 +144,7 @@ def league_rows(path):
                     rem = {x: B - spent[x] for x in rosters if x != r}
                     needers = [x for x in rem if g.get(x, 0) >= NEED]
                     rows.append(dict(
-                        season=int(season), league=L['league_id'], when=when, leg=leg, end=end, budget=B, player=pid, pos=pos,
+                        season=int(season), league=L["league_id"], when=when, roster=r, leg=leg, end=end, budget=B, player=pid, pos=pos,
                         val=v, val_now=vals[pid][1].get(leg, (0, 0))[0], fa_rank=rank,
                         last_pts=float((stats.get(pid) or {}).get(col) or 0.0), **sig.get(pid, {}),
                         spent_share=spent_share, med_price=med_price, n_prev=n_prev,

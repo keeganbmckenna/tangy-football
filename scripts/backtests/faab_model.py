@@ -36,6 +36,7 @@ SHRINK = 20
 
 ROLE = True
 CROWD = False
+TREND24 = False
 
 
 def features(df):
@@ -76,6 +77,10 @@ def features(df):
         f['trend_top'] = (df.trend_rank <= 100).astype(float)
         f['trend_rel'] = np.sqrt(df.trend_rel.clip(0, 1))
         f['trend_x_val'] = f['trend_rel'] * np.log1p(df.val.clip(lower=0))
+        if TREND24 and 'trend_rank24' in df:  # the last 24 hours too, and whether adds are speeding up
+            f['trend24_lrank'] = np.log(df.trend_rank24)
+            f['trend24_rel'] = np.sqrt(df.trend_rel24.clip(0, 1))
+            f['trend_accel'] = np.log((df.trend_rel24 + 0.01) / (df.trend_rel + 0.01))
     elif CROWD == 'early':  # adds in other leagues before the bids were due (what trending shows)
         f['early'] = np.log(df.early + 0.001)
         f['early24'] = np.log(df.early24 + 0.001)
@@ -180,8 +185,9 @@ def league_baseline(df, prior):
     return out
 
 
-def win_prob(G, bid, budget):
-    """P(H < b) + 0.5 P(H = b), with G interpolated linearly between grid levels"""
+def win_prob(G, bid, budget, tie=0.5):
+    """P(H < b) + tie x P(H = b), with G interpolated linearly between grid levels; tie is the
+    chance of winning a tie (Sleeper: waiver order), 0.5 unless known"""
     grid = np.array(GRID)
 
     def at(c):
@@ -193,11 +199,11 @@ def win_prob(G, bid, budget):
     step = 1.0 / budget
     below = at(bid - step + 1e-9)  # P(H <= b - $1) = P(H < b)
     upto = at(bid + 1e-9)
-    return below + 0.5 * (upto - below)
+    return below + tie * (upto - below)
 
 
-def scores(df, G):
-    p = np.clip(win_prob(G, df.bid.values, df.budget.values), 1e-4, 1 - 1e-4)
+def scores(df, G, tie=0.5):
+    p = np.clip(win_prob(G, df.bid.values, df.budget.values, tie), 1e-4, 1 - 1e-4)
     y = df.won.values.astype(float)
     ll = -(y * np.log(p) + (1 - y) * np.log(1 - p))
     br = (p - y) ** 2
