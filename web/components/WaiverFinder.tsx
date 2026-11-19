@@ -14,6 +14,8 @@ import { signed } from '@/lib/format';
 interface WaiverFinderProps {
   data: TradeDataResponse;
   teamStats: TeamStats[];
+  /** Load a pickup into the waiver analyzer */
+  onOpen: (me: number, add: string[], drop: string[]) => void;
 }
 
 function Change({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
@@ -32,15 +34,15 @@ function Change({ before, after, bad = false }: { before: number; after: number;
 }
 
 
-export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
+export default function WaiverFinder({ data, teamStats, onOpen }: WaiverFinderProps) {
   // Starts on your team, if you've picked one in the header
   const myTeam = useMyTeam();
   const [me, setMe] = useState<number | null>(myTeam.rosterId);
-  const [options, setOptions] = useState<WaiverOptions>({ target: 'season', positions: [], healthyOnly: false, keep: [] });
+  const [options, setOptions] = useState<WaiverOptions>({ target: 'season', positions: [], healthyOnly: false, keep: [], adds: 1 });
   const { target } = options;
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<WaiverProgress | null>(null);
-  const [results, setResults] = useState<{ me: number; target: WaiverTarget; pickups: WaiverPickup[] } | null>(null);
+  const [results, setResults] = useState<{ me: number; target: WaiverTarget; adds: number; pickups: WaiverPickup[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const worker = useRef<Worker | null>(null);
 
@@ -90,7 +92,7 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
       const msg = e.data;
       if (msg.type === 'progress') setProgress(msg.progress);
       else if (msg.type === 'done') {
-        setResults({ me: team, target: t, pickups: msg.results });
+        setResults({ me: team, target: t, adds: o.adds ?? 1, pickups: msg.results });
         setRunning(false);
         w.terminate();
       } else {
@@ -166,6 +168,18 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
               </option>
             ))}
           </select>
+          <label className="sr-only" htmlFor="waiver-adds">Pickups at once</label>
+          <select
+            id="waiver-adds"
+            value={options.adds ?? 1}
+            disabled={me === null}
+            onChange={(e) => change({ adds: Number(e.target.value) })}
+            className="rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 text-sm text-[var(--foreground)] disabled:opacity-50"
+          >
+            <option value={1}>1 pickup</option>
+            <option value={2}>2 pickups together</option>
+            <option value={3}>3 pickups together</option>
+          </select>
           <button
             type="button"
             disabled={me === null || running}
@@ -209,23 +223,35 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
                 {options.positions?.length || options.healthyOnly || options.keep?.length ? ' with these filters' : ''}.
               </p>
             ) : (
-              results.pickups.map((r) => {
-                const p = player(r.add);
-                return (
-                  <div key={r.add} className="rounded-lg border border-[var(--border)] p-4 text-sm">
+              <>
+                {results.adds > 1 && Math.max(...results.pickups.map((r) => r.add.length)) < results.adds && (
+                  <p className="text-sm text-[var(--muted)]">
+                    No set of {results.adds} pickups helps more than {Math.max(...results.pickups.map((r) => r.add.length)) === 1 ? 'one' : 'fewer'} would, so these are the best{' '}
+                    {Math.max(...results.pickups.map((r) => r.add.length)) === 1 ? 'single pickups' : `sets of ${Math.max(...results.pickups.map((r) => r.add.length))}`}.
+                  </p>
+                )}
+                {results.pickups.map((r) => (
+                  <div key={r.add.join(',')} className="rounded-lg border border-[var(--border)] p-4 text-sm">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
                         <div className="text-xs font-semibold uppercase tracking-wider text-[var(--success-text)]">Add</div>
-                        <div className="font-semibold text-[var(--foreground)]">{label(r.add)}</div>
-                        {p && (
-                          <div className="text-xs text-[var(--muted)]">
-                            {p.team ?? 'FA'}
-                            {p.seasonPerGame !== null ? ` · ${p.seasonPerGame.toFixed(1)} ppg` : ''}
-                            {` · ${p.expectedPerWeek.toFixed(1)}/wk expected`}
-                            {p.byeWeek ? ` · bye week ${p.byeWeek}` : ''}
-                            {p.injury ? <span className="ml-1 font-semibold text-[var(--danger-text)]">{p.injury}</span> : null}
-                          </div>
-                        )}
+                        {r.add.map((id) => {
+                          const p = player(id);
+                          return (
+                            <div key={id} className="mb-1 last:mb-0">
+                              <div className="font-semibold text-[var(--foreground)]">{label(id)}</div>
+                              {p && (
+                                <div className="text-xs text-[var(--muted)]">
+                                  {p.team ?? 'FA'}
+                                  {p.seasonPerGame !== null ? ` · ${p.seasonPerGame.toFixed(1)} ppg` : ''}
+                                  {` · ${p.expectedPerWeek.toFixed(1)}/wk expected`}
+                                  {p.byeWeek ? ` · bye week ${p.byeWeek}` : ''}
+                                  {p.injury ? <span className="ml-1 font-semibold text-[var(--danger-text)]">{p.injury}</span> : null}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                       <div>
                         <div className="text-xs font-semibold uppercase tracking-wider text-[var(--danger-text)]">Drop</div>
@@ -239,9 +265,7 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
                             Week {r.week.week} vs {manager(r.week.opponent)}
                           </span>
                           <Change before={r.week.winBefore} after={r.week.winAfter} />
-                          <span className="ml-2 text-xs text-[var(--muted)]">
-                            (lineup {signed(r.week.lineupAfter - r.week.lineupBefore)} pts)
-                          </span>
+                          <span className="ml-2 text-xs text-[var(--muted)]">(lineup {signed(r.week.lineupAfter - r.week.lineupBefore)} pts)</span>
                         </div>
                       )}
                       <div><span className="mr-1 text-xs text-[var(--muted)]">Playoffs</span><Change before={r.odds[0].playoffs} after={r.odds[1].playoffs} /></div>
@@ -249,12 +273,19 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
                         <div><span className="mr-1 text-xs text-[var(--muted)]">Title</span><Change before={r.odds[0].champion} after={r.odds[1].champion} /></div>
                       )}
                     </div>
-                    <p className="mt-2 text-xs text-[var(--muted)]">
-                      Expected lineup over the rest of the season: {signed(r.lineup[1] - r.lineup[0])} pts/wk
-                    </p>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-[var(--muted)]">Expected lineup over the rest of the season: {signed(r.lineup[1] - r.lineup[0])} pts/wk</p>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(results.me, r.add, r.drop)}
+                        className="rounded-md border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--neutral-bg)]"
+                      >
+                        Open in analyzer
+                      </button>
+                    </div>
                   </div>
-                );
-              })
+                ))}
+              </>
             )}
           </div>
         )}
@@ -263,7 +294,9 @@ export default function WaiverFinder({ data, teamStats }: WaiverFinderProps) {
           <summary className="cursor-pointer font-medium text-[var(--foreground)]">How this works</summary>
           <div className="mt-3 space-y-2">
             <p>
-              It checks the 15 best free agents at every position (kickers and defenses included). Each pickup drops the
+              It checks the 15 best free agents at every position (kickers and defenses included). Two or three pickups
+              together are built from the best single pickups, each set with the drops it needs, and a set only counts if
+              every pickup in it adds something over the set without it. Each pickup drops the
               player whose loss hurts your lineup least over the rest of the season (players in IR slots stay), so a one-week
               fill never costs you more later than it has to.
             </p>

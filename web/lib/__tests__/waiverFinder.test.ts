@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { bestLineupPoints, teamStrength } from '../analyze/playoffOdds';
 import { earlierTradeModel, type TradeDataResponse } from '../analyze/trade';
-import { findPickups } from '../analyze/waiverFinder';
+import { bestPickups, findPickups, waiverComparison } from '../analyze/waiverFinder';
+import { meansAfterTrade, rosterAfterTrade, unchanged, withPickups } from '../analyze/trade';
 
 // Lineup: QB, RB, WR and two bench spots. Team 1's WR is on bye in week 8.
 const ROSTER_POSITIONS = ['QB', 'RB', 'WR', 'BN', 'BN'];
@@ -10,8 +11,8 @@ const flat = (pts: number) => Object.fromEntries(WEEKS.map((w) => [w, pts]));
 const PROJ: Record<string, [string, Record<number, number>]> = {
   qbA: ['QB', flat(18)], rbA: ['RB', flat(12)], wrA: ['WR', { 7: 14, 8: 0, 9: 14 }], wrB: ['WR', flat(3)], rbX: ['RB', flat(2)],
   qbC: ['QB', flat(16)], rbC: ['RB', flat(12)], wrC: ['WR', flat(12)], wrD: ['WR', flat(5)], rbD: ['RB', flat(4)],
-  // Free agents: a solid WR, a weaker one, and a QB who would only sit
-  faWR: ['WR', flat(10)], faWR2: ['WR', flat(6)], faQB: ['QB', flat(15)],
+  // Free agents: a solid WR, a weaker one, a QB who would only sit, and an RB a point better than team 1's
+  faWR: ['WR', flat(10)], faWR2: ['WR', flat(6)], faQB: ['QB', flat(15)], faRB: ['RB', flat(13)],
 };
 const ROSTERS: Record<number, string[]> = { 1: ['qbA', 'rbA', 'wrA', 'wrB', 'rbX'], 2: ['qbC', 'rbC', 'wrC', 'wrD', 'rbD'] };
 
@@ -44,7 +45,7 @@ function league(): TradeDataResponse {
     meanByWeek,
     spread: 20,
     model: earlierTradeModel(meanByWeek, 20, 6, [7, 8]),
-    inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: ['faWR', 'faWR2', 'faQB'], rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
+    inputs: { weeks: WEEKS, projections, positions, rosters: ROSTERS, freeAgents: ['faWR', 'faWR2', 'faQB', 'faRB'], rosterPositions: ROSTER_POSITIONS, lastScoredWeek: 6 },
     players: Object.fromEntries(
       Object.entries(PROJ).map(([id, [pos]]) => [
         id,
@@ -59,7 +60,7 @@ function league(): TradeDataResponse {
 describe('findPickups', () => {
   it('fills the bye week with the best free agent, dropping the least useful player', () => {
     const [top] = findPickups(league(), 1, { target: 8, sims: 1000 });
-    expect(top.add).toBe('faWR');
+    expect(top.add).toEqual(['faWR']);
     expect(top.drop).toEqual(['rbX']);
     expect(top.week).toMatchObject({ week: 8, opponent: 2 });
     // The 10-point WR replaces the 3-point backup filling in for the bye
@@ -69,10 +70,10 @@ describe('findPickups', () => {
 
   it('ranks the rest of the season by playoff odds and skips pickups that would just sit', () => {
     const results = findPickups(league(), 1, { target: 'season', sims: 1000 });
-    expect(results[0].add).toBe('faWR');
+    expect(results[0].add).toEqual(['faWR']);
     expect(results[0].week).toBeNull();
     // A backup QB never starts over an 18-point QB, so it doesn't help
-    expect(results.some((r) => r.add === 'faQB')).toBe(false);
+    expect(results.some((r) => r.add.includes('faQB'))).toBe(false);
     for (const r of results) expect(r.odds[1].playoffs).toBeGreaterThan(r.odds[0].playoffs);
   });
 
@@ -88,13 +89,62 @@ describe('findPickups', () => {
     const data = league();
     data.players.faWR.injury = 'Out';
     const [top] = findPickups(data, 1, { target: 8, sims: 1000, healthyOnly: true });
-    expect(top.add).toBe('faWR2');
+    expect(top.add).toEqual(['faWR2']);
     data.players.faWR.injury = 'Questionable';
-    expect(findPickups(data, 1, { target: 8, sims: 1000, healthyOnly: true })[0].add).toBe('faWR');
+    expect(findPickups(data, 1, { target: 8, sims: 1000, healthyOnly: true })[0].add).toEqual(['faWR']);
   });
 
   it('never drops a kept player when someone else can go', () => {
     const [top] = findPickups(league(), 1, { target: 8, sims: 1000, keep: ['rbX'] });
     expect(top.drop).not.toContain('rbX');
+  });
+
+  it('finds sets of pickups where each one adds something, with the drops they need together', () => {
+    const [top] = findPickups(league(), 1, { target: 8, sims: 1000, adds: 2 });
+    expect([...top.add].sort()).toEqual(['faRB', 'faWR']);
+    expect(top.drop).toHaveLength(2);
+    expect(top.drop).not.toContain('rbA');
+    // The second WR would only sit behind the first, so no set has both
+    for (const r of findPickups(league(), 1, { target: 8, sims: 1000, adds: 2 })) {
+      expect(r.add.includes('faWR') && r.add.includes('faWR2')).toBe(false);
+    }
+  });
+
+  it('falls back to the largest set that helps', () => {
+    // Only the WR helps team 1 in week 8 once a 3-pickup set would need a pickup that sits
+    const results = findPickups(league(), 1, { target: 8, sims: 1000, adds: 3 });
+    expect(results.length).toBeGreaterThan(0);
+    expect(Math.max(...results.map((r) => r.add.length))).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('pickups after a roster change', () => {
+  it('adds pickups on top of a change, dropping the least useful player', () => {
+    const data = league();
+    const c = withPickups(data.inputs, unchanged(data.inputs, 1), ['faWR']);
+    expect(c.before).toEqual(data.inputs.rosters[1]);
+    expect(c.after).toContain('faWR');
+    expect(c.dropped).toEqual(['rbX']);
+    expect(c.added).toEqual(['faWR']);
+  });
+
+  it('picks the pickups that add expected wins, and no others', () => {
+    const data = league();
+    const adds = bestPickups(data, data.model, unchanged(data.inputs, 1));
+    expect(adds[0]).toBe('faWR');
+    expect(adds).not.toContain('faQB');
+  });
+
+  it('compares a trade with what each team could do on waivers, without sharing a free agent', () => {
+    const data = league();
+    const a = rosterAfterTrade(data.inputs, { rosterId: 1, sends: ['wrB'], receives: ['wrD'] });
+    const b = rosterAfterTrade(data.inputs, { rosterId: 2, sends: ['wrD'], receives: ['wrB'] }, a.added);
+    const { model } = meansAfterTrade(data.model, data.inputs, [a, b]);
+    const c = waiverComparison(data, [a, b], model);
+    for (const world of [c.without, c.with]) {
+      const both = [...world[1], ...world[2]];
+      expect(new Set(both).size).toBe(both.length);
+    }
+    expect(c.without[1]).toContain('faWR');
   });
 });

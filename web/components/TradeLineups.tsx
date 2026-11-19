@@ -43,11 +43,13 @@ function lineupFor(inputs: TradeInputs, players: string[], reserve: Set<string>,
   return { starters: ordered, bench };
 }
 
-/** Each team's lineup and bench for a week, without the trade and with it */
+/** A team's lineup and bench for a week, before a move (a trade, or pickups) and after it */
 export default function TradeLineups({
   inputs,
   players,
   change,
+  sent,
+  received,
   week,
   name,
   color,
@@ -55,6 +57,9 @@ export default function TradeLineups({
   inputs: TradeInputs;
   players: Record<string, TradePlayerInfo>;
   change: RosterChange;
+  /** Players traded away and in; other players leaving were dropped (or, against the best pickups, not picked up) */
+  sent: string[];
+  received: string[];
   week: number;
   name: string;
   color: string;
@@ -73,7 +78,10 @@ export default function TradeLineups({
     if (!e) return <td className="px-2 py-1.5 text-[var(--muted)]">{e === null ? 'Empty' : ''}</td>;
     const p = players[e.id];
     const moving = side === 'before' ? leaving.has(e.id) : arriving.has(e.id);
-    const tag = side === 'before' ? (dropped.has(e.id) ? 'dropped' : 'traded') : added.has(e.id) ? 'free agent' : 'new';
+    const tag =
+      side === 'before'
+        ? sent.includes(e.id) ? 'traded' : dropped.has(e.id) ? 'dropped' : 'not picked up'
+        : added.has(e.id) ? 'free agent' : received.includes(e.id) ? 'new' : 'kept';
     const pts = e.points > 0 ? e.points.toFixed(1) : p?.byeWeek === week ? 'bye' : 'out';
     return (
       <td className="px-2 py-1.5" style={moving && side === 'after' ? { boxShadow: `inset 3px 0 0 ${color}` } : undefined}>

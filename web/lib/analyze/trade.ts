@@ -61,6 +61,8 @@ export interface TradeMove {
   receives: string[];
   /** Players this team won't drop to make room */
   keep?: string[];
+  /** Fill spots the move opens with free agents (default true; false for a waiver move's drops) */
+  fill?: boolean;
 }
 
 /** A team's roster after a trade, including drops and pickups the trade forces */
@@ -128,7 +130,7 @@ export function rosterAfterTrade(inputs: TradeInputs, move: TradeMove, unavailab
     dropped.push(best!.id);
   }
 
-  const target = Math.min(activeBefore, inputs.rosterPositions.length);
+  const target = move.fill === false ? 0 : Math.min(activeBefore, inputs.rosterPositions.length);
   while (active(after).length < target) {
     const taken = new Set([...after, ...added, ...move.sends, ...unavailable]);
     let best: { id: string; points: number } | null = null;
@@ -143,6 +145,25 @@ export function rosterAfterTrade(inputs: TradeInputs, move: TradeMove, unavailab
   }
 
   return { rosterId: move.rosterId, before, after, dropped, added };
+}
+
+/** No change to a team's roster (the starting point for pickups on their own) */
+export const unchanged = (inputs: TradeInputs, rosterId: number): RosterChange => {
+  const roster = inputs.rosters[rosterId] ?? [];
+  return { rosterId, before: roster, after: roster, dropped: [], added: [] };
+};
+
+/**
+ * A roster change followed by free-agent pickups, each making room by dropping the player who
+ * costs the lineup least (pickups and kept players stay). Before is still the original roster.
+ */
+export function withPickups(inputs: TradeInputs, change: RosterChange, adds: string[], keep: string[] = []): RosterChange {
+  if (!adds.length) return change;
+  const next = rosterAfterTrade(
+    { ...inputs, rosters: { ...inputs.rosters, [change.rosterId]: change.after } },
+    { rosterId: change.rosterId, sends: [], receives: adds, keep: [...keep, ...adds], fill: false }
+  );
+  return { ...change, after: next.after, dropped: [...change.dropped, ...next.dropped], added: [...change.added, ...adds] };
 }
 
 // ---------------------------------------------------------------------------

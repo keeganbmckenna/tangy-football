@@ -8,6 +8,7 @@ import RetryButton from '@/components/ui/RetryButton';
 import TradeAnalyzer, { type TradePreset } from '@/components/TradeAnalyzer';
 import TradeFinder from '@/components/TradeFinder';
 import WaiverFinder from '@/components/WaiverFinder';
+import WaiverAnalyzer, { type WaiverPreset } from '@/components/WaiverAnalyzer';
 import type { TradeDataResponse } from '@/lib/analyze/trade';
 import type { TeamStats } from '@/lib/types';
 
@@ -18,7 +19,7 @@ interface TradesTabProps {
 /**
  * The trade and waiver tools, at the top of the Rosters tab while the current
  * regular season is in progress: the analyzer and trade finder until the trade
- * deadline, and the waiver finder. Past trades are in the History tab.
+ * deadline, and the waiver analyzer and finder. Past trades are in the History tab.
  */
 export default function TradesTab({ teamStats }: TradesTabProps) {
   const [data, setData] = useState<TradeDataResponse | null>(null);
@@ -28,11 +29,17 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
   // A trade from the finder, loaded into a fresh analyzer
   const [preset, setPreset] = useState<{ key: number; trade: TradePreset } | null>(null);
   const analyzerRef = useRef<HTMLElement | null>(null);
+  // A pickup from the waiver finder, loaded into a fresh waiver analyzer
+  const [waiverPreset, setWaiverPreset] = useState<{ key: number; move: WaiverPreset } | null>(null);
+  const waiverRef = useRef<HTMLElement | null>(null);
   const loaded = useRef(false);
 
   useEffect(() => {
     if (preset) analyzerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [preset]);
+  useEffect(() => {
+    if (waiverPreset) waiverRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [waiverPreset]);
 
   // Reload while the page is open, keeping what's shown meanwhile: every minute once the week has
   // kicked off (its games' live odds, and who has played), otherwise for roster moves and injury news
@@ -118,11 +125,22 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
         </ErrorBoundary>
       )}
       {data && data.inputs.freeAgents.length > 0 && data.remaining.length > 0 && (
-        <ErrorBoundary>
-          <section>
-            <WaiverFinder data={data} teamStats={teamStats} />
-          </section>
-        </ErrorBoundary>
+        <>
+          <ErrorBoundary>
+            <section ref={waiverRef} className="scroll-mt-4">
+              <WaiverAnalyzer key={waiverPreset?.key ?? 0} data={data} teamStats={teamStats} initial={waiverPreset?.move ?? null} />
+            </section>
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <section>
+              <WaiverFinder
+                data={data}
+                teamStats={teamStats}
+                onOpen={(me, add, drop) => setWaiverPreset((p) => ({ key: (p?.key ?? 0) + 1, move: { me, add, drop } }))}
+              />
+            </section>
+          </ErrorBoundary>
+        </>
       )}
     </div>
   );
