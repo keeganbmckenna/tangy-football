@@ -61,7 +61,7 @@ Weekly scores and ranks, how the season moved, and luck. Charts: hover (or tap) 
 - **Schedule Luck Distribution:** 20,000 random schedules per team: one row each with the middle 80% of its possible records, its real one, and how lucky that was; tap a team (yours starts open) for the whole distribution.
 
 ## 🧩 Rosters (2022 onward)
-During the current regular season, the trade and waiver tools come first:
+During the current regular season, the trade and waiver tools come first. In the deadline week the Trade Analyzer says it's the last week for trades; after the deadline the waiver tools lead and a one-line note says trades are closed.
 - **Trade Analyzer:** pick two managers and the players moving. Shows:
   - each team's win odds for every remaining week, with and without the trade;
   - season odds before → after;

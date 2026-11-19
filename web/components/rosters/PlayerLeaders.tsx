@@ -64,7 +64,7 @@ export default function PlayerLeaders({ insights, teamStats }: RostersCardProps)
           ))}
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-1 text-sm font-semibold text-[var(--foreground)]">Season</h3>
             {list(
               top.map((s) => ({
@@ -76,7 +76,7 @@ export default function PlayerLeaders({ insights, teamStats }: RostersCardProps)
               }))
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-1 text-sm font-semibold text-[var(--foreground)]">Single games</h3>
             {list(
               best.map((g) => ({

@@ -199,7 +199,11 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
   return (
     <SectionCard
       title="Trade Analyzer"
-      subtitle={`Pick two managers and the players moving. Trades are allowed through week ${data.tradeDeadline || data.regularSeasonEnd}.`}
+      subtitle={
+        data.tradeDeadline && data.currentWeek === data.tradeDeadline
+          ? `Pick two managers and the players moving. This is the last week for trades: the deadline is week ${data.tradeDeadline}.`
+          : `Pick two managers and the players moving. Trades are allowed through week ${data.tradeDeadline || data.regularSeasonEnd}.`
+      }
       gradientType="primary"
     >
       <div className="space-y-6 p-4 sm:p-6">

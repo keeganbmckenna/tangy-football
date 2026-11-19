@@ -19,7 +19,8 @@ interface TradesTabProps {
 /**
  * The trade and waiver tools, at the top of the Rosters tab while the current
  * regular season is in progress: the analyzer and trade finder until the trade
- * deadline, and the waiver analyzer and finder. Past trades are in the History tab.
+ * deadline, and the waiver analyzer and finder. After the deadline the waiver tools
+ * come first, with a note that trades are closed. Past trades are in the History tab.
  */
 export default function TradesTab({ teamStats }: TradesTabProps) {
   const [data, setData] = useState<TradeDataResponse | null>(null);
@@ -80,66 +81,82 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
     loaded.current = data !== null;
   }, [data]);
 
-  return (
-    <div className="space-y-6">
+  const closed = !!data && !data.open;
+  const trades = (
+    <ErrorBoundary>
+      <section ref={analyzerRef} className="scroll-mt-4">
+        {error ? (
+          <SectionCard title="Trade Analyzer" gradientType="primary">
+            <div className="px-6 py-8">
+              <p className="text-[var(--muted)]">Couldn&apos;t load the trade analyzer: {error}</p>
+              <RetryButton
+                onClick={() => {
+                  setError(null);
+                  setAttempt((a) => a + 1);
+                }}
+              />
+            </div>
+          </SectionCard>
+        ) : !data ? (
+          <LoadingSpinner message="Loading rosters and projections..." />
+        ) : data.open ? (
+          <TradeAnalyzer key={preset?.key ?? 0} data={data} teamStats={teamStats} initial={preset?.trade ?? null} />
+        ) : (
+          // Trades closed: a one-line note under the waiver tools, which are what's still useful
+          <p className="rounded-lg border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--muted)]">
+            <span className="font-semibold text-[var(--foreground)]">Trades are closed.</span>{' '}
+            {data.tradeDeadline && data.currentWeek > data.tradeDeadline
+              ? `The trade deadline (week ${data.tradeDeadline}) has passed, so the Trade Analyzer and Trade Finder are off until next season. Past trades are in the History tab.`
+              : 'The Trade Analyzer and Trade Finder open once the regular season is underway.'}
+          </p>
+        )}
+      </section>
+    </ErrorBoundary>
+  );
+  const finder = data?.open && (
+    <ErrorBoundary>
+      <section>
+        <TradeFinder
+          data={data}
+          teamStats={teamStats}
+          onOpen={(me, t) =>
+            setPreset((p) => ({ key: (p?.key ?? 0) + 1, trade: { teamA: me, teamB: t.partner, sendA: t.gives, sendB: t.gets } }))
+          }
+        />
+      </section>
+    </ErrorBoundary>
+  );
+  const waivers = data && data.inputs.freeAgents.length > 0 && data.remaining.length > 0 && (
+    <>
       <ErrorBoundary>
-        <section ref={analyzerRef} className="scroll-mt-4">
-          {error ? (
-            <SectionCard title="Trade Analyzer" gradientType="primary">
-              <div className="px-6 py-8">
-                <p className="text-[var(--muted)]">Couldn&apos;t load the trade analyzer: {error}</p>
-                <RetryButton
-                  onClick={() => {
-                    setError(null);
-                    setAttempt((a) => a + 1);
-                  }}
-                />
-              </div>
-            </SectionCard>
-          ) : !data ? (
-            <LoadingSpinner message="Loading rosters and projections..." />
-          ) : data.open ? (
-            <TradeAnalyzer key={preset?.key ?? 0} data={data} teamStats={teamStats} initial={preset?.trade ?? null} />
-          ) : (
-            <SectionCard title="Trade Analyzer" gradientType="primary">
-              <p className="px-6 py-8 text-[var(--muted)]">
-                {data.tradeDeadline && data.currentWeek > data.tradeDeadline
-                  ? `The trade deadline (week ${data.tradeDeadline}) has passed.`
-                  : 'Trades open once the regular season is underway.'}
-              </p>
-            </SectionCard>
-          )}
+        <section ref={waiverRef} className="scroll-mt-4">
+          <WaiverAnalyzer key={waiverPreset?.key ?? 0} data={data} teamStats={teamStats} initial={waiverPreset?.move ?? null} />
         </section>
       </ErrorBoundary>
-      {data?.open && (
-        <ErrorBoundary>
-          <section>
-            <TradeFinder
-              data={data}
-              teamStats={teamStats}
-              onOpen={(me, t) =>
-                setPreset((p) => ({ key: (p?.key ?? 0) + 1, trade: { teamA: me, teamB: t.partner, sendA: t.gives, sendB: t.gets } }))
-              }
-            />
-          </section>
-        </ErrorBoundary>
-      )}
-      {data && data.inputs.freeAgents.length > 0 && data.remaining.length > 0 && (
+      <ErrorBoundary>
+        <section>
+          <WaiverFinder
+            data={data}
+            teamStats={teamStats}
+            onOpen={(me, add, drop) => setWaiverPreset((p) => ({ key: (p?.key ?? 0) + 1, move: { me, add, drop } }))}
+          />
+        </section>
+      </ErrorBoundary>
+    </>
+  );
+
+  return (
+    <div className="space-y-6">
+      {closed ? (
         <>
-          <ErrorBoundary>
-            <section ref={waiverRef} className="scroll-mt-4">
-              <WaiverAnalyzer key={waiverPreset?.key ?? 0} data={data} teamStats={teamStats} initial={waiverPreset?.move ?? null} />
-            </section>
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <section>
-              <WaiverFinder
-                data={data}
-                teamStats={teamStats}
-                onOpen={(me, add, drop) => setWaiverPreset((p) => ({ key: (p?.key ?? 0) + 1, move: { me, add, drop } }))}
-              />
-            </section>
-          </ErrorBoundary>
+          {waivers}
+          {trades}
+        </>
+      ) : (
+        <>
+          {trades}
+          {finder}
+          {waivers}
         </>
       )}
     </div>
