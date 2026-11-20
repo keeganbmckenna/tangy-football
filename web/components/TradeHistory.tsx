@@ -28,23 +28,38 @@ const ordinal = (n: number) => {
 };
 const pp = (d: number) => signed(d * 100);
 
-/** compact: on phones, just the new odds and the change (the "before" shows from sm up) */
-function Change({ before, after, bad = false, compact = false }: { before: number; after: number; bad?: boolean; compact?: boolean }) {
-  const d = (after - before) * 100;
-  const tone = Math.abs(d) < 0.5 ? 'var(--muted)' : (bad ? d < 0 : d > 0) ? 'var(--success-text)' : 'var(--danger-text)';
+function Change({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
   return (
     <span className="whitespace-nowrap">
-      <span className={compact ? 'hidden sm:inline' : ''}>
-        <span className="text-[var(--muted)]">{formatOdds(before)}</span>
-        <span className="mx-1 text-[var(--muted)]">→</span>
-      </span>
-      <span className="font-semibold text-[var(--foreground)]">{formatOdds(after)}</span>
-      <span className="ml-1 text-xs font-semibold" style={{ color: tone }}>
-        {Math.abs(d) < 0.5 ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(Math.abs(d) < 10 ? 1 : 0)}`}
-      </span>
+      <FromTo before={before} after={after} />
+      <Delta before={before} after={after} bad={bad} className="ml-1" />
     </span>
   );
 }
+
+function FromTo({ before, after }: { before: number; after: number }) {
+  return (
+    <span className="whitespace-nowrap">
+      <span className="text-[var(--muted)]">{formatOdds(before)}</span>
+      <span className="mx-1 text-[var(--muted)]">→</span>
+      <span className="font-semibold text-[var(--foreground)]">{formatOdds(after)}</span>
+    </span>
+  );
+}
+
+/** The change in percentage points, colored; under half a point is ~0 (within the simulation's precision) */
+function Delta({ before, after, bad = false, className = 'text-right' }: { before: number; after: number; bad?: boolean; className?: string }) {
+  const d = (after - before) * 100;
+  const moved = Math.abs(d) >= 0.5;
+  const tone = !moved ? 'var(--muted)' : (bad ? d < 0 : d > 0) ? 'var(--success-text)' : 'var(--danger-text)';
+  return (
+    <span className={`whitespace-nowrap text-xs font-semibold tabular-nums ${className}`} style={{ color: tone }}>
+      {!moved ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(Math.abs(d) < 10 ? 1 : 0)}`}
+    </span>
+  );
+}
+
+const HEAD = 'text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]';
 
 function Avatar({ url, name }: { url: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -276,18 +291,43 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
           </span>
           <span className="shrink-0 text-[var(--muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
         </summary>
-        {/* One row per team, the same columns every row: name (truncated), playoffs, title. Phones show only the odds after the trade, so the headings say so */}
-        <div className={`mt-2 grid items-baseline gap-x-3 gap-y-1 ${hasTitle ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'}`}>
-          <span />
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Playoffs<span className="sm:hidden"> after</span></span>
-          {hasTitle && <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Title<span className="sm:hidden"> after</span></span>}
+        {/* Fixed columns: playoffs before → after and its change, the title's the same. Each team's name is a column
+            from sm up; on phones it's a line of its own above its numbers, so names are never cut off */}
+        <div
+          className={`mt-2 grid items-baseline gap-x-2 gap-y-0.5 sm:gap-x-4 sm:gap-y-1 ${
+            hasTitle
+              ? 'grid-cols-[auto_auto_auto_auto] justify-start sm:grid-cols-[minmax(0,12rem)_auto_auto_auto_auto]'
+              : 'grid-cols-[auto_auto] justify-start sm:grid-cols-[minmax(0,12rem)_auto_auto]'
+          }`}
+        >
+          <span className="hidden sm:block" />
+          <span className={HEAD}>Playoffs</span>
+          <span className={`${HEAD} text-right`}>+/−</span>
+          {hasTitle && (
+            <>
+              <span className={`${HEAD} pl-2 sm:pl-0`}>Title</span>
+              <span className={`${HEAD} text-right`}>+/−</span>
+            </>
+          )}
           {sorted.map((o) => {
             const w = who(o.rosterId);
+            const title = o.before.champion !== null && o.after.champion !== null ? { b: o.before.champion, a: o.after.champion } : null;
             return (
               <Fragment key={o.rosterId}>
-                <span className={`truncate text-[var(--foreground)] ${w.mine ? 'font-semibold' : ''}`} title={w.name}>{w.name}</span>
-                <Change before={o.before.playoffs} after={o.after.playoffs} compact />
-                {hasTitle && (o.before.champion !== null && o.after.champion !== null ? <Change before={o.before.champion} after={o.after.champion} compact /> : <span />)}
+                <span
+                  className={`truncate pt-1.5 text-[var(--foreground)] sm:pt-0 ${hasTitle ? 'col-span-4' : 'col-span-2'} sm:col-span-1 ${w.mine ? 'font-semibold' : ''}`}
+                  title={w.name}
+                >
+                  {w.name}
+                </span>
+                <FromTo before={o.before.playoffs} after={o.after.playoffs} />
+                <Delta before={o.before.playoffs} after={o.after.playoffs} />
+                {hasTitle && (
+                  <>
+                    <span className="pl-2 sm:pl-0">{title && <FromTo before={title.b} after={title.a} />}</span>
+                    {title ? <Delta before={title.b} after={title.a} /> : <span />}
+                  </>
+                )}
               </Fragment>
             );
           })}
