@@ -27,6 +27,7 @@ const STAGE_LABEL: Record<FinderProgress['stage'], string> = {
 
 /** Minimum rises in playoff or title odds the filters offer (probability) */
 const GAIN_STEPS = [0.005, 0.01, 0.02, 0.03, 0.05];
+const LOSS_STEPS = [0.01, 0.02, 0.03];
 const points = (g: number) => `${Math.round(g * 1000) / 10} point${g === 0.01 ? '' : 's'}`;
 
 function Change({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
@@ -223,17 +224,22 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
               </option>
             ))}
           </select>
-          <label className="sr-only" htmlFor="finder-min-partner-gain">How much it must help them</label>
+          <label className="sr-only" htmlFor="finder-min-partner-gain">How much it must help (or may hurt) them</label>
           <select
             id="finder-min-partner-gain"
             value={options.minPartnerGain ?? 0}
             onChange={(e) => change({ minPartnerGain: Number(e.target.value) || undefined })}
             className={select}
           >
-            <option value={0}>Doesn&apos;t hurt them</option>
-            {GAIN_STEPS.map((g) => (
+            {GAIN_STEPS.slice().reverse().map((g) => (
               <option key={g} value={g}>
                 Helps them {points(g)}+
+              </option>
+            ))}
+            <option value={0}>Doesn&apos;t hurt them</option>
+            {LOSS_STEPS.map((g) => (
+              <option key={g} value={-g}>
+                Hurts them under {points(g)}
               </option>
             ))}
           </select>
@@ -265,7 +271,11 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
             {results.trades.length === 0 ? (
               <p className="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
                 No trades found that help {manager(results.me)}
-                {options.minPartnerGain ? ' and the other manager' : ' without hurting the other manager'}
+                {(options.minPartnerGain ?? 0) > 0
+                  ? ' and the other manager'
+                  : (options.minPartnerGain ?? 0) < 0
+                    ? ` without hurting the other manager ${points(-options.minPartnerGain!)} or more`
+                    : ' without hurting the other manager'}
                 {results.marketFilter ? ' and that the market sees as fair. Try turning off the market filter' : ''}
                 {!results.deep ? `${results.marketFilter ? ' or searching' : '. Try searching'} deeper` : ''}
                 {results.filtered ? `${results.marketFilter || !results.deep ? ', or loosening' : '. Try loosening'} the other filters` : ''}.
@@ -377,7 +387,9 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
               A trade is kept only if your odds improve and the other manager&apos;s don&apos;t get worse: their lineup doesn&apos;t
               drop, their playoff and title odds don&apos;t fall, and their odds of losing the toilet bowl don&apos;t rise. The
               &ldquo;Helps you&rdquo; and &ldquo;Helps them&rdquo; filters ask for more: playoff or title odds (whichever rises
-              more) up by at least that many percentage points. Load more searches each stage deeper for the next 8. Other
+              more) up by at least that many percentage points; &ldquo;Hurts them under&rdquo; lets their playoff and title
+              odds fall, and their toilet-bowl odds rise, by less than that (in this league, 88% of trades since 2022 cost
+              one side some playoff odds at the time: half by more than 1 point, a third by more than 2). Load more searches each stage deeper for the next 8. Other
               teams can lose a little: playoff spots are fixed, so when two teams both gain, someone else gives it up.
             </p>
             <p>

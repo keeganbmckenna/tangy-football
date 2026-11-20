@@ -135,6 +135,18 @@ describe('findTrades', () => {
     for (const r of findTrades(league(), 1, { ...opts, minGain: 0.03 })) expect(rise(r, 'me')).toBeGreaterThanOrEqual(0.03);
   });
 
+  it('lets the partner lose up to the allowed amount, and finds at least as many trades', () => {
+    const opts = { marketFilter: false, sims: 2000, finalSims: 2000, deep: true, limit: 50 };
+    const strict = findTrades(league(), 1, opts);
+    const loose = findTrades(league(), 1, { ...opts, minPartnerGain: -0.03 });
+    expect(loose.length).toBeGreaterThanOrEqual(strict.length);
+    for (const r of loose) {
+      const [b, a] = r.odds.partner;
+      expect(a.playoffs).toBeGreaterThanOrEqual(b.playoffs - 0.03);
+      expect(a.champion ?? 0).toBeGreaterThanOrEqual((b.champion ?? 0) - 0.03);
+    }
+  });
+
   it('shows the next page of trades when the limit grows', () => {
     const opts = { marketFilter: false, sims: 2000, finalSims: 2000, deep: true };
     const first = findTrades(league(), 1, { ...opts, limit: 1 });

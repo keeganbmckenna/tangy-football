@@ -16,7 +16,9 @@
  *  3. Simulate the finalists' seasons (the playoff model, same random draws as
  *     without the trade) and keep trades where the partner's playoff and title
  *     odds don't drop and its odds of losing the toilet bowl don't rise (or,
- *     with minPartnerGain, where its playoff or title odds rise that much).
+ *     with minPartnerGain, where its playoff or title odds rise that much; a
+ *     negative minPartnerGain lets them fall, and the toilet bowl odds rise, by
+ *     less than that).
  *
  * Optional market filter (FantasyCalc redraft values): skip trades the market
  * sees as clearly lopsided against the partner. Values aren't additive:
@@ -48,6 +50,13 @@ const FINALISTS_PER_PARTNER = 4;
 const SHOWN_PER_PARTNER = 2;
 /** A partner may lose this much projected lineup (pts/wk) in the screen; the odds decide in the end */
 const PARTNER_LINEUP_SLACK = 0.5;
+/**
+ * When the partner may lose odds: how much more projected lineup (pts/wk) and expected wins the
+ * earlier stages let it lose per point of odds, generously (a trade costing a team 6.7 pts/wk cost
+ * it 4.5 playoff points), so the simulation, not the screen, decides
+ */
+const LINEUP_PER_POINT = 2.5;
+const WINS_PER_POINT = 0.1;
 /** Changes smaller than this (in probability) count as no change for the partner */
 const ODDS_TOLERANCE = 0.005;
 const MARKET_NORM = 1.75;
@@ -69,7 +78,10 @@ export interface FinderOptions {
   maxPlayers?: number;
   /** Least my playoff or title odds must rise (probability; any rise when missing) */
   minGain?: number;
-  /** Least the partner's playoff or title odds must rise (probability); when missing, they only mustn't fall */
+  /**
+   * Least the partner's playoff or title odds must rise (probability); when missing, they only
+   * mustn't fall; negative, they may fall (and its toilet-bowl odds rise) by less than that
+   */
   minPartnerGain?: number;
   /** Trades to show (SHOWN when missing); a bigger limit searches proportionally deeper */
   limit?: number;
@@ -169,7 +181,10 @@ export function findTrades(
   // turns away more finalists, so those searches simulate twice as many
   const pages = Math.ceil(limit / SHOWN);
   const mutual = (options.minPartnerGain ?? 0) > 0;
-  const finalistCount = FINALISTS * pages * (mutual || (options.minGain ?? 0) > 0 ? 2 : 1);
+  /** How much the partner's odds may fall (probability) */
+  const partnerLoss = Math.max(0, -(options.minPartnerGain ?? 0));
+  const lineupSlack = PARTNER_LINEUP_SLACK + LINEUP_PER_POINT * partnerLoss * 100;
+  const finalistCount = FINALISTS * pages * (mutual || partnerLoss > 0 || (options.minGain ?? 0) > 0 ? 2 : 1);
 
   // Stage 1: screen with season-average expected points
   const avg: Record<string, { position: string; points: number }> = {};
@@ -189,7 +204,16 @@ export function findTrades(
   const isQuick = (c: { partner: number; gives: string[]; gets: string[] }) =>
     c.gives.every((p) => quickPool.get(me)!.has(p)) && c.gets.every((p) => quickPool.get(c.partner)!.has(p));
   /** The deep search's picks plus the quick search's own (in rank order, no repeats) */
-  const withQuick = <T extends { partner: number; gives: string[]; gets: string[] }>(pick: (list: T[]) => T[], list: T[]): T[] => {
+  // When the partner may lose odds, trades that cost it too much can fill every shortlist and all
+  // fail the simulation: each stage also keeps what it would pick among trades that don't hurt it
+  const withStrict = <T extends { partner: number; gives: string[]; gets: string[]; strict: boolean }>(pick: (list: T[]) => T[], list: T[]): T[] => {
+    if (partnerLoss <= 0) return pick(list);
+    const key = (c: T) => `${c.partner}|${c.gives.join(',')}|${c.gets.join(',')}`;
+    const chosen = new Set([...pick(list), ...pick(list.filter((c) => c.strict))].map(key));
+    return list.filter((c) => chosen.has(key(c)));
+  };
+  const withQuick = <T extends { partner: number; gives: string[]; gets: string[]; strict: boolean }>(pick0: (list: T[]) => T[], list: T[]): T[] => {
+    const pick = (l: T[]) => withStrict(pick0, l);
     if (!options.deep) return pick(list);
     const key = (c: T) => `${c.partner}|${c.gives.join(',')}|${c.gets.join(',')}`;
     const chosen = new Set([...pick(list), ...pick(list.filter(isQuick))].map(key));
@@ -207,7 +231,8 @@ export function findTrades(
   }, 0);
 
   // rank: my lineup gain, or when both must gain, the smaller of the two gains
-  type Screened = { partner: number; gives: string[]; gets: string[]; gain: number; rank: number };
+  /** strict: passes the screen without the partner's allowed loss */
+  type Screened = { partner: number; gives: string[]; gets: string[]; gain: number; rank: number; strict: boolean };
   const screened: Screened[] = [];
   let checked = 0;
   for (const partner of partners) {
@@ -224,8 +249,8 @@ export function findTrades(
           const gain = lineup([...myKept, ...gets]) - myBefore;
           if (gain <= 0) continue;
           const theirGain = lineup([...theirRoster.filter((p) => !gets.includes(p)), ...gives]) - theirBefore;
-          if (theirGain < (mutual ? 1e-9 : -PARTNER_LINEUP_SLACK)) continue;
-          screened.push({ partner, gives, gets, gain, rank: mutual ? Math.min(gain, theirGain) : gain });
+          if (theirGain < (mutual ? 1e-9 : -lineupSlack)) continue;
+          screened.push({ partner, gives, gets, gain, rank: mutual ? Math.min(gain, theirGain) : gain, strict: mutual || theirGain >= -PARTNER_LINEUP_SLACK });
         }
       }
       onProgress({ stage: 'screening', done: checked, total });
@@ -273,10 +298,13 @@ export function findTrades(
     const partnerWinGain = expectedWins(c.partner, model) - baseWins[c.partner];
     const lineupMine: [number, number] = [avgLineup(mine.before), avgLineup(mine.after)];
     const lineupTheirs: [number, number] = [avgLineup(theirs.before), avgLineup(theirs.after)];
-    const partnerOk = mutual ? partnerWinGain > 0 : lineupTheirs[1] - lineupTheirs[0] >= -PARTNER_LINEUP_SLACK && partnerWinGain > -0.1;
+    const partnerOk = mutual
+      ? partnerWinGain > 0
+      : lineupTheirs[1] - lineupTheirs[0] >= -lineupSlack && partnerWinGain > -(0.1 + WINS_PER_POINT * partnerLoss * 100);
     if (winGain > 0 && partnerOk) {
       rescored.push({
         ...c,
+        strict: mutual || (lineupTheirs[1] - lineupTheirs[0] >= -PARTNER_LINEUP_SLACK && partnerWinGain > -0.1),
         means: model,
         winGain,
         lineup: { me: lineupMine, partner: lineupTheirs },
@@ -308,10 +336,11 @@ export function findTrades(
   const simulate = (m: TradeModel, n: number) =>
     simulatePlayoffOdds(data.teams, data.remaining, data.format, m.season.meanByWeek, m.season.spread, n, seed, data.playoffWeekStart, data.hasToiletBowl, m.season.teamSpread, undefined, m.live?.games);
   const base = simulate(data.model, sims);
+  const tolerance = Math.max(ODDS_TOLERANCE, partnerLoss);
   const notHurt = (b: OddsLine, a: OddsLine) =>
-    a.playoffs >= b.playoffs - ODDS_TOLERANCE &&
-    (a.champion ?? 0) >= (b.champion ?? 0) - ODDS_TOLERANCE &&
-    (a.lastPlace ?? 0) <= (b.lastPlace ?? 0) + ODDS_TOLERANCE;
+    a.playoffs >= b.playoffs - tolerance &&
+    (a.champion ?? 0) >= (b.champion ?? 0) - tolerance &&
+    (a.lastPlace ?? 0) <= (b.lastPlace ?? 0) + tolerance;
   /** The larger rise of playoff and title odds */
   const gain = (b: OddsLine, a: OddsLine) => Math.max(a.playoffs - b.playoffs, (a.champion ?? 0) - (b.champion ?? 0));
   const partnerPasses = (b: OddsLine, a: OddsLine) => notHurt(b, a) && (!mutual || gain(b, a) >= options.minPartnerGain!);
