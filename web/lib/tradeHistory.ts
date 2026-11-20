@@ -34,6 +34,7 @@ import {
 } from '@/lib/analyze/playoffOdds';
 import {
   meansAfterTrade,
+  lineupByWeek,
   earlierTradeModel,
   type TradeModel,
   parseTrades,
@@ -329,12 +330,17 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
           const a = odds.after.teams[s.rosterId];
           const delta = traded.lineupDelta[s.rosterId] ?? {};
           const perWeek = regularWeeks.length ? regularWeeks.reduce((sum, w) => sum + (delta[w] ?? 0), 0) / regularWeeks.length : 0;
+          const change = changes.find((c) => c.rosterId === s.rosterId)!;
+          const was = lineupByWeek(inputs, change.before);
+          const now = lineupByWeek(inputs, change.after);
+          const r1 = (v: number) => Math.round(v * 10) / 10;
           return [
             s.rosterId,
             {
               before: { playoffs: b.playoffs, champion: b.champion, lastPlace: b.lastPlace },
               after: { playoffs: a.playoffs, champion: a.champion, lastPlace: a.lastPlace },
               lineupPerWeek: Math.round(perWeek * 10) / 10,
+              lineupByWeek: strengthWeeks.map((w) => ({ week: w, before: r1(was[w] ?? 0), after: r1(now[w] ?? 0), ...(w > regularSeasonEnd ? { playoffs: true } : {}) })),
             },
           ];
         })

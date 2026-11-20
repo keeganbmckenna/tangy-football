@@ -6,6 +6,7 @@ import { useTapTooltip } from '@/hooks/useTapTooltip';
 import TradeLineups from '@/components/TradeLineups';
 import { CHART_THEME } from '@/lib/constants';
 import { bestLineup, formatOdds, type OddsResult, type TeamOdds } from '@/lib/analyze/playoffOdds';
+import LineupWeeks from '@/components/LineupWeeks';
 import { lineupByWeek, weeklyOutlook, type RosterChange, type TradeDataResponse, type TradeModel } from '@/lib/analyze/trade';
 import type { TeamStats } from '@/lib/types';
 import { signed, ppChange, ppTone } from '@/lib/format';
@@ -229,7 +230,10 @@ export default function MoveImpact({
     const set = (s: typeof startersBefore) => new Set(s.map((x) => x.playerId));
     const b = set(startersBefore);
     const a = set(startersAfter);
+    const was = lineupByWeek(inputs, change.before);
+    const now = lineupByWeek(inputs, change.after);
     return {
+      weeks: inputs.weeks.map((w) => ({ week: w, before: was[w] ?? 0, after: now[w] ?? 0, ...(w > data.regularSeasonEnd ? { playoffs: true } : {}) })),
       before: avg(change.before),
       after: avg(change.after),
       in: startersAfter.filter((s) => !b.has(s.playerId)),
@@ -364,10 +368,17 @@ export default function MoveImpact({
                   {side.name}
                 </div>
               )}
-              <p className="text-[var(--foreground)]">
-                Expected lineup: {s.before.toFixed(1)} → <strong>{s.after.toFixed(1)}</strong> pts/wk (
-                <span style={{ color: s.after - s.before >= 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>{signed(s.after - s.before)}</span>)
-              </p>
+              <div className="text-[var(--foreground)]">
+                <LineupWeeks
+                  rows={s.weeks}
+                  summary={
+                    <>
+                      Expected lineup: {s.before.toFixed(1)} → <strong>{s.after.toFixed(1)}</strong> pts/wk (
+                      <span style={{ color: s.after - s.before >= 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>{signed(s.after - s.before)}</span>)
+                    </>
+                  }
+                />
+              </div>
               <p className="text-xs text-[var(--muted)]">
                 If nothing else changes. The season odds count {Math.round(data.model.season.lineupWeight * 100)}% of this, the weight the playoff
                 model gives every team&apos;s lineup this week; on real trades in other leagues, about 43% of a trade&apos;s projected change showed up.

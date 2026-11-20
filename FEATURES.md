@@ -67,7 +67,7 @@ During the current regular season, the trade and waiver tools come first. In the
 - **Trade Analyzer:** pick two managers and the players moving. Shows:
   - each team's win odds for every remaining week, with and without the trade;
   - season odds before → after;
-  - lineup changes and forced roster moves;
+  - lineup changes (tap for each remaining week without and with the trade) and forced roster moves;
   - both teams' full lineups and benches before and after, for any remaining week;
   - each player's FantasyCalc market value;
   - **Other teams affected** (collapsed, right under the season odds): how many other teams' odds move half a point or more and what it does to yours, with a tap for each team's playoff, title and toilet bowl odds before → after;
@@ -104,7 +104,7 @@ Then, for any season:
 
 A switch counts the three sections above either with playoff and toilet bowl games or as the regular season only. Placement games (3rd, 5th place and the like) never count.
 - **Trades:** every trade since the league moved to Sleeper, filterable by season.
-  - **Graded two ways:** what it did to each team's odds at the time, and how the players it brought in actually scored.
+  - **Graded two ways:** what it did to each team's odds at the time (with its projected lineup change, tap for each remaining week), and how the players it brought in actually scored.
   - **Everyone else:** under each trade, a collapsed row with how many teams outside it saw their playoff odds move half a point or more, and your own change; tap for every other team's playoff and title odds before → after. Playoff spots are fixed, so what the two sides gain comes out of the others' odds, usually spread thin: a few tenths of a point each.
   - **Trade stats:** per-manager stats (including **playoff odds from others' trades**: what the trades they weren't in did to their odds, added up), biggest swings for traders and for teams not in the trade, and the best trades in hindsight (what the players received did in the starting lineup, minus what the players sent did for their new teams, both over a waiver pickup).
   - **Hindsight over waiver:** each side's starter points also less what a waiver pickup at the same position would have scored in those starts (the three free agents with the best projections that week, by what they actually scored), so a player who started a lot counts for his edge over the waiver wire. The Traders table's points column and the best-trades lists use it.

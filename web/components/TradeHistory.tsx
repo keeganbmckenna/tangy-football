@@ -16,6 +16,7 @@ import { hasOverWaiver, netHindsight, tradeLeaders, type SeasonTrade, type Trade
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
 import type { TradeHistoryResponse, TradeHistorySide } from '@/lib/analyze/trade';
 import { signed, ppChange } from '@/lib/format';
+import LineupWeeks from '@/components/LineupWeeks';
 
 interface TradeHistoryProps {
   history: HistoryData;
@@ -237,7 +238,14 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                 </div>
               )}
               <div className="text-xs text-[var(--muted)]">
-                Projected lineup {signed(side.atTime.lineupPerWeek)} pts/wk
+                {side.atTime.lineupByWeek?.length ? (
+                  <LineupWeeks
+                    rows={side.atTime.lineupByWeek}
+                    summary={<>Projected lineup {signed(side.atTime.lineupPerWeek)} pts/wk</>}
+                  />
+                ) : (
+                  <>Projected lineup {signed(side.atTime.lineupPerWeek)} pts/wk</>
+                )}
               </div>
             </div>
           ) : (

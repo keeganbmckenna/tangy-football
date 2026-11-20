@@ -493,6 +493,15 @@ export interface TradeDataResponse {
   generatedAt: string;
 }
 
+/** A team's best projected lineup one week, without and with a move */
+export interface LineupWeek {
+  week: number;
+  before: number;
+  after: number;
+  /** A playoff week (not in the regular-season average) */
+  playoffs?: boolean;
+}
+
 export interface TradeHistorySide extends TradeSideRecord {
   /** Odds the week of the trade, without and with it (null if it couldn't be simulated) */
   atTime: {
@@ -500,6 +509,8 @@ export interface TradeHistorySide extends TradeSideRecord {
     after: { playoffs: number; champion: number | null; lastPlace: number | null };
     /** Projected lineup change per week, raw (if nothing else changed) */
     lineupPerWeek: number;
+    /** Each remaining week's best projected lineup without and with the trade (absent in older files) */
+    lineupByWeek?: LineupWeek[];
   } | null;
   /** Points the received players scored in this team's starting lineup afterward */
   /** Points the players it received scored in its starting lineup (byPlayer: each one's; absent in older files) */
