@@ -301,7 +301,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
       </nav>
       <SectionCard
         title="Champions"
-        subtitle="Every season's champion, runner-up and toilet bowl loser (third place 🥉 before Sleeper, when the toilet bowl wasn't recorded)"
+        subtitle="Every season's champion, runner-up and toilet bowl loser (third place 🥉 before 2021, when the toilet bowl wasn't recorded)"
         gradientType="warning"
       >
         {/* One row a season: champion, runner-up, and the toilet bowl loser (third place before Sleeper) */}
@@ -337,7 +337,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
                           person(s.toiletLoser, s.season, true)
                         ) : s.thirdPlace ? (
                           <div className="flex items-center gap-1">
-                            <span title="Third place (the toilet bowl wasn't recorded before Sleeper)">🥉</span>
+                            <span title="Third place (the toilet bowl wasn't recorded before 2021)">🥉</span>
                             <div className="min-w-0 flex-1">{person(s.thirdPlace, s.season, true)}</div>
                           </div>
                         ) : (
@@ -454,8 +454,8 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
         <HowItWorks className="px-4 py-3">
           <p>
           Records count {postseason ? 'regular season, playoff and toilet bowl games' : 'regular-season games only'} and go back to 2017 (before 2022 only regular-season records were kept);
-          ties count as half a win. Points per game cover the same games and, like toilet bowl losses,
-          start in 2022 (earlier seasons only kept standings and the top three). Before 2022 playoff appearances are the
+          ties count as half a win. Points per game cover the same games and start in 2022 (earlier seasons only kept standings
+          and the top three). Toilet bowl losses start in 2021 (the 2021 loser as the league remembers it). Before 2022 playoff appearances are the
           top six in the final standings, the league&apos;s playoff field every season. Best finish is the
           final place (1st–6th from Sleeper brackets, 1st–3rd before).
           </p>

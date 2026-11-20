@@ -94,7 +94,7 @@ async function seasonHistory(league: SleeperLeague) {
 }
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 
 /**
  * The league's history, cached: rebuilt as soon as a new week is scored (or the season ends), and
@@ -145,7 +145,7 @@ export async function buildHistory(): Promise<HistoryData> {
       champion: finisher(1),
       runnerUp: finisher(2),
       thirdPlace: finisher(3),
-      toiletLoser: null,
+      toiletLoser: ls.toiletLoser ? ownerId(ls.toiletLoser) : null,
       // The league has always had a six-team playoff: the top six in the final standings
       playoffTeams: ls.teams.filter((t) => t.rank <= LEGACY_PLAYOFF_TEAMS).map((t) => ownerId(t.owner)),
       placements: Object.fromEntries(ls.teams.filter((t) => t.finish).map((t) => [ownerId(t.owner), t.finish!])),

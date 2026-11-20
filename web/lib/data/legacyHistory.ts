@@ -2,7 +2,8 @@
  * The league before Sleeper (2017-2021): final regular-season standings and
  * the top three finishers, transcribed from the old platform's history page.
  * There are no weekly scores, so these seasons count toward records, titles
- * and finishes but not head to head, points or game records.
+ * and finishes but not head to head, points or game records. The toilet bowl
+ * loser is added where the league remembers it.
  *
  * Owners are Sleeper display names (matched case-insensitively), or a plain
  * name for someone who never played on Sleeper.
@@ -22,6 +23,8 @@ export interface LegacyTeam {
 export interface LegacySeason {
   season: string;
   teams: LegacyTeam[];
+  /** Who lost the toilet bowl, where the league remembers it (the old platform didn't record it) */
+  toiletLoser?: string;
 }
 
 /** Managers' first names, by Sleeper display name (or plain name) */
@@ -51,6 +54,7 @@ const t = (rank: number, teamName: string, record: string, owner: string, finish
 export const LEGACY_SEASONS: LegacySeason[] = [
   {
     season: '2021',
+    toiletLoser: 'lublub22',
     teams: [
       t(1, 'Suisauce Squad', '11-3', 'shivvv', 3),
       t(2, 'Ekeler I barely know her', '9-5', 'A_Schoell'),
