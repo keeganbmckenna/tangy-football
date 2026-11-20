@@ -11,6 +11,7 @@ results are in [`scripts/backtests/`](../scripts/backtests/README.md).
 | Trade tools' season odds | The same, with a trade's lineup change at the fitted lineup weight | `meansAfterTrade`, `tradeSeasonOdds` in `web/lib/analyze/trade.ts` |
 | Trade tools' weekly win odds | Single-game model fitted for one week's score | `singleGameModel` in `playoffOdds.ts` |
 | Live tab win odds | Starters' remaining projections, game clocks, boom-or-bust spreads, injuries | `web/lib/analyze/live.ts` |
+| Trade history (odds at the time, hindsight) | The playoff model re-run as of each trade, before and after; starters' points over a waiver pickup | `web/lib/tradeHistory.ts` |
 
 The fitted weights live in [`web/lib/analyze/strengthModel.json`](../web/lib/analyze/strengthModel.json),
 written by `scripts/backtests/export_model.py`.
@@ -107,6 +108,28 @@ playoff Brier +0.00014), so it isn't used. Playoff weeks: the change over the pl
 predicted traded teams' playoff-week scores better than the regular-season change (-0.40
 [-0.69, -0.12], 6 of 8), so title and last-place odds use it.
 
+**Change over waiver replacement** (`trades_repl.py`, 28,913 trading teams, rule set before the
+run): measuring a trade's lineup change with the best free agents (top 3 per position) added to
+both rosters, so a player counts only for his edge over the waiver wire, shrinks the typical
+change (median |change| 1.76 vs 2.70 points a week, correlation 0.83) and its fitted weight rises
+to 0.68 (vs 0.43), but playoff Brier is no better (+0.00005 [-0.00002, +0.00011]). Not used: the
+fitted 0.43 already absorbs the backfilling, and the assumption that a team actually picks up
+that free agent often fails.
+
+**Trade history** (`web/lib/tradeHistory.ts`): each past trade is graded two ways.
+- *At the time*: the season odds just before and just after it, with only what was known then
+  (the week's rosters, results so far, that week's projections carried forward as in Odds week
+  by week), 10,000 simulations with the same random draws before and after, so the difference is
+  the trade, not simulation noise. The same run gives every other team's change: playoff spots
+  are zero-sum, so the teams in a trade gain or lose them from everyone else. Effects on teams
+  outside a trade are small (most under half a point; the largest seen 1.8 points).
+- *In hindsight*: what each received player scored in the new team's starting lineup, and that
+  over a waiver pickup (each start minus the mean actual points of the 3 best-projected free
+  agents at his position that week, so the pickup isn't chosen with hindsight). A player counts
+  only while he stays: through the week he's dropped or traded away, or the week before the team
+  reacquires him. Waiver pickups on the Rosters tab are credited the same way, once per stint
+  (fixed 2026-11-20: a player dropped and picked up again had counted for both pickups).
+
 ## Live tab
 
 Each starter still to play adds his Sleeper projection for the share of his NFL game left, with
@@ -185,6 +208,14 @@ terms; per-team uncertainty; projection-only player values; streaming from waive
 roster activity and managers' track records (they help only by spotting abandoned teams, which
 an active league like ours doesn't have); and correlated players such as QB-WR stacks
 (+0.29 correlation, but no effect on kickoff win odds). For the Live tab, see its section.
+
+**FAAB bids** (research, not on the site): a model of the highest other bid on a player
+(`faab_model.py`, 507,460 bids in 2,997 FAAB league-seasons, fit 2018-2023, test 2024-2025) beats
+simple baselines (log loss 0.678 vs 0.696-0.702), and Sleeper's trending adds as the crowd
+signal bring it to 0.662. But the chance of winning at the bid actually placed stays
+overconfident for big bids (over 20% of budget: 86% predicted, 65% won), because high bidders
+know about demand the public data doesn't show, so win chances aren't shown. Details in
+`LOG.md`.
 
 ## Changing a model
 
