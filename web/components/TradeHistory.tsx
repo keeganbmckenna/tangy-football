@@ -15,7 +15,7 @@ import { formatOdds } from '@/lib/analyze/playoffOdds';
 import { netHindsight, tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
 import type { TradeHistoryResponse, TradeHistorySide } from '@/lib/analyze/trade';
-import { signed } from '@/lib/format';
+import { signed, ppChange } from '@/lib/format';
 
 interface TradeHistoryProps {
   history: HistoryData;
@@ -47,14 +47,14 @@ function FromTo({ before, after }: { before: number; after: number }) {
   );
 }
 
-/** The change in percentage points, colored; under half a point is ~0 (within the simulation's precision) */
+/** The change in percentage points, always shown; grey under half a point (within the simulation's precision) */
 function Delta({ before, after, bad = false, className = 'text-right' }: { before: number; after: number; bad?: boolean; className?: string }) {
   const d = (after - before) * 100;
   const moved = Math.abs(d) >= 0.5;
   const tone = !moved ? 'var(--muted)' : (bad ? d < 0 : d > 0) ? 'var(--success-text)' : 'var(--danger-text)';
   return (
     <span className={`whitespace-nowrap text-xs font-semibold tabular-nums ${className}`} style={{ color: tone }}>
-      {!moved ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(Math.abs(d) < 10 ? 1 : 0)}`}
+      {ppChange(d)}
     </span>
   );
 }
@@ -281,7 +281,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
     // Your own change, when you weren't in the trade
     const hasTitle = others.some((o) => o.before.champion !== null && o.after.champion !== null);
     const mineO = others.find((o) => who(o.rosterId).mine);
-    const myMove = mineO ? (Math.abs(d(mineO)) < 0.005 ? '~0' : `${d(mineO) > 0 ? '+' : '−'}${Math.abs(d(mineO) * 100).toFixed(1)}`) : null;
+    const myMove = mineO ? ppChange(d(mineO) * 100) : null;
     return (
       <details className="group border-t border-[var(--border)] py-2 text-xs">
         <summary className="flex cursor-pointer list-none items-start gap-2 [&::-webkit-details-marker]:hidden">

@@ -8,7 +8,7 @@ import { CHART_THEME } from '@/lib/constants';
 import { bestLineup, formatOdds, type OddsResult, type TeamOdds } from '@/lib/analyze/playoffOdds';
 import { lineupByWeek, weeklyOutlook, type RosterChange, type TradeDataResponse, type TradeModel } from '@/lib/analyze/trade';
 import type { TeamStats } from '@/lib/types';
-import { signed } from '@/lib/format';
+import { signed, ppChange, ppTone } from '@/lib/format';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 
 /** One team a move changes: its roster before and after (as shown), and what it sent away */
@@ -27,14 +27,12 @@ export interface ImpactSide {
 // ---------------------------------------------------------------------------
 // Formatting
 
-/** Change in percentage points; changes under half a point are within the model's precision */
+/** Change in percentage points, always shown; grey under half a point (within the model's precision) */
 function OddsChange({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
   const d = (after - before) * 100;
-  if (Math.abs(d) < 0.5) return <span className="text-[var(--muted)]">~0</span>;
-  const good = bad ? d < 0 : d > 0;
   return (
-    <span className="font-semibold" style={{ color: good ? 'var(--success-text)' : 'var(--danger-text)' }}>
-      {signed(d, Math.abs(d) < 10 ? 1 : 0)}
+    <span className="font-semibold" style={{ color: ppTone(d, bad) }}>
+      {ppChange(d)}
     </span>
   );
 }
@@ -65,13 +63,9 @@ export function WinsChange({ before, after }: { before: number; after: number })
       </span>
       <span className="block text-xs sm:ml-2 sm:inline">
         (
-        {Math.abs(d) < 0.05 ? (
-          <span className="text-[var(--muted)]">~0</span>
-        ) : (
-          <span className="font-semibold" style={{ color: d > 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>
-            {signed(d)}
-          </span>
-        )}
+        <span className="font-semibold" style={{ color: Math.abs(d) < 0.05 ? 'var(--muted)' : d > 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>
+          {signed(d)}
+        </span>
         )
       </span>
     </span>
@@ -271,7 +265,7 @@ export default function MoveImpact({
 
       <div>
         <h3 className="text-lg font-semibold text-[var(--foreground)]">Season outlook</h3>
-        <p className="mb-3 text-sm text-[var(--muted)]">Before → after, with the change in percentage points. Changes under half a point are shown as ~0.</p>
+        <p className="mb-3 text-sm text-[var(--muted)]">Before → after, with the change in percentage points. Changes under half a point are grey: within the model&apos;s precision.</p>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -318,7 +312,7 @@ export default function MoveImpact({
                 {ripple.length === 0 ? 'No team moves half a point' : `${ripple.length} team${ripple.length === 1 ? '' : 's'} move half a point or more`}
                 {mine && (() => {
                   const d = (mine.a.playoffs - mine.b.playoffs) * 100;
-                  return <span className="font-semibold text-[var(--foreground)]"> · your playoff odds {Math.abs(d) < 0.5 ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}`}</span>;
+                  return <span className="font-semibold text-[var(--foreground)]"> · your playoff odds {ppChange(d)}</span>;
                 })()}
               </span>
             </span>

@@ -1,5 +1,6 @@
 'use client';
 
+import { ppChange, ppTone } from '@/lib/format';
 import type { ReactNode, RefObject } from 'react';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
 
@@ -21,7 +22,7 @@ export default function StickyResult({
 }) {
   const ready = before != null && after != null;
   const d = ready ? (after - before) * 100 : 0;
-  const tone = Math.abs(d) < 0.5 ? 'var(--muted)' : d > 0 ? 'var(--success-text)' : 'var(--danger-text)';
+  const tone = ppTone(d);
   return (
     <div className="sticky bottom-3 z-20 md:hidden">
       <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 shadow-lg">
@@ -33,7 +34,7 @@ export default function StickyResult({
               <>
                 {formatOdds(before)} → <strong>{formatOdds(after)}</strong>{' '}
                 <span className="text-xs font-semibold" style={{ color: tone }}>
-                  {Math.abs(d) < 0.5 ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(Math.abs(d) < 10 ? 1 : 0)}`}
+                  {ppChange(d)}
                 </span>
               </>
             ) : (

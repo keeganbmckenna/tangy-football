@@ -9,7 +9,7 @@ import type { TradeDataResponse } from '@/lib/analyze/trade';
 import { SHOWN, type FinderOptions, type FinderProgress, type FoundTrade } from '@/lib/analyze/tradeFinder';
 import type { FinderMessage, FinderRequest } from '@/lib/analyze/tradeFinder.worker';
 import type { TeamStats } from '@/lib/types';
-import { signed } from '@/lib/format';
+import { signed, ppChange, ppTone } from '@/lib/format';
 
 interface TradeFinderProps {
   data: TradeDataResponse;
@@ -31,14 +31,14 @@ const points = (g: number) => `${Math.round(g * 1000) / 10} point${g === 0.01 ? 
 
 function Change({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
   const d = (after - before) * 100;
-  const tone = Math.abs(d) < 0.5 ? 'var(--muted)' : (bad ? d < 0 : d > 0) ? 'var(--success-text)' : 'var(--danger-text)';
+  const tone = ppTone(d, bad);
   return (
     <span className="whitespace-nowrap">
       <span className="text-[var(--muted)]">{formatOdds(before)}</span>
       <span className="mx-1 text-[var(--muted)]">→</span>
       <span className="font-semibold text-[var(--foreground)]">{formatOdds(after)}</span>
       <span className="ml-1 text-xs font-semibold" style={{ color: tone }}>
-        {Math.abs(d) < 0.5 ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(Math.abs(d) < 10 ? 1 : 0)}`}
+        {ppChange(d)}
       </span>
     </span>
   );

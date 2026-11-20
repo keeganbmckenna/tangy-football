@@ -12,6 +12,16 @@ export function signed(v: number, digits = 1): string {
   return `${v > 0 ? '+' : '−'}${text}`;
 }
 
+/** Changes in percentage points smaller than this are within the odds simulation's precision: shown grey, not colored */
+export const PP_NOISE = 0.5;
+
+/** A change in percentage points: one decimal under 10 ("+0.4", "−2.2", "0.0"), whole points from 10 ("+12") */
+export const ppChange = (d: number) => signed(d, Math.abs(d) < 9.95 ? 1 : 0);
+
+/** Color for a change in percentage points: grey within the noise, else green for good and red for bad */
+export const ppTone = (d: number, bad = false) =>
+  Math.abs(d) < PP_NOISE ? 'var(--muted)' : (bad ? d < 0 : d > 0) ? 'var(--success-text)' : 'var(--danger-text)';
+
 /** Rounded the way it's shown, for coloring or comparing by the number people see */
 export const asShown = (v: number, digits = 1) => Number(v.toFixed(digits));
 
