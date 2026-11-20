@@ -276,11 +276,11 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
           </span>
           <span className="shrink-0 text-[var(--muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
         </summary>
-        {/* One row per team, the same columns every row: name (truncated), playoffs, title */}
+        {/* One row per team, the same columns every row: name (truncated), playoffs, title. Phones show only the odds after the trade, so the headings say so */}
         <div className={`mt-2 grid items-baseline gap-x-3 gap-y-1 ${hasTitle ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'}`}>
           <span />
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Playoffs</span>
-          {hasTitle && <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Title</span>}
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Playoffs<span className="sm:hidden"> after</span></span>
+          {hasTitle && <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Title<span className="sm:hidden"> after</span></span>}
           {sorted.map((o) => {
             const w = who(o.rosterId);
             return (
