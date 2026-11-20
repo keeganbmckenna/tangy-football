@@ -102,7 +102,7 @@ Then, for any season:
 - **Rivalries:** most played, most lopsided and closest series.
 - **Lifetime Luck:** every manager's regular-season wins since 2022 against what their scoring would have won on other schedules. Each season reshuffles who played whom 20,000 times (as the season's Schedule Luck chart does), and a manager's seasons add up exactly. The table shows wins over expected with a bar for the middle 80% of schedules, how many schedules would have given fewer wins, record, expected wins, close games, and the luckiest and unluckiest season; tap a row for the whole distribution and each season's line. Manager pages show the same total and a luck column by season.
 
-A switch counts the three sections above either with playoff and toilet bowl games or as the regular season only. Placement games (3rd, 5th place and the like) never count.
+A switch counts the three sections above as the regular season only (the default) or with playoff and toilet bowl games. Placement games (3rd, 5th place and the like) never count.
 - **Trades:** every trade since the league moved to Sleeper, filterable by season.
   - **Graded two ways:** what it did to each team's odds at the time (with its projected lineup change, tap for each remaining week), and how the players it brought in actually scored.
   - **Everyone else:** under each trade, a collapsed row with how many teams outside it saw their playoff odds move half a point or more, and your own change; tap for every other team's playoff and title odds before → after. Playoff spots are fixed, so what the two sides gain comes out of the others' odds, usually spread thin: a few tenths of a point each.

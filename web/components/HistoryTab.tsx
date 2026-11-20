@@ -40,8 +40,8 @@ const RECORDS_SHOWN = 5;
 // Where the league's history was scrolled when a manager's page was opened from it
 let listScroll = 0;
 
-// Whether records count playoff and toilet bowl games, for this visit
-let rememberedPostseason = true;
+// Whether records count playoff and toilet bowl games, for this visit (regular season only by default)
+let rememberedPostseason = false;
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -367,8 +367,8 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
         </div>
         <div className="flex shrink-0 gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1" role="group" aria-label="Games counted">
           {[
-            { on: true, label: 'With playoffs & toilet bowl' },
             { on: false, label: 'Regular season only' },
+            { on: true, label: 'With playoffs & toilet bowl' },
           ].map((o) => (
             <button
               key={o.label}
