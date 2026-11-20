@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import HowItWorks from '@/components/ui/HowItWorks';
 import RetryButton from '@/components/ui/RetryButton';
@@ -28,13 +28,16 @@ const ordinal = (n: number) => {
 };
 const pp = (d: number) => signed(d * 100);
 
-function Change({ before, after, bad = false }: { before: number; after: number; bad?: boolean }) {
+/** compact: on phones, just the new odds and the change (the "before" shows from sm up) */
+function Change({ before, after, bad = false, compact = false }: { before: number; after: number; bad?: boolean; compact?: boolean }) {
   const d = (after - before) * 100;
   const tone = Math.abs(d) < 0.5 ? 'var(--muted)' : (bad ? d < 0 : d > 0) ? 'var(--success-text)' : 'var(--danger-text)';
   return (
     <span className="whitespace-nowrap">
-      <span className="text-[var(--muted)]">{formatOdds(before)}</span>
-      <span className="mx-1 text-[var(--muted)]">→</span>
+      <span className={compact ? 'hidden sm:inline' : ''}>
+        <span className="text-[var(--muted)]">{formatOdds(before)}</span>
+        <span className="mx-1 text-[var(--muted)]">→</span>
+      </span>
       <span className="font-semibold text-[var(--foreground)]">{formatOdds(after)}</span>
       <span className="ml-1 text-xs font-semibold" style={{ color: tone }}>
         {Math.abs(d) < 0.5 ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(Math.abs(d) < 10 ? 1 : 0)}`}
@@ -258,6 +261,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
       return { id, name: nameOf(id), mine: !!id && id === me.userId };
     };
     // Your own change, when you weren't in the trade
+    const hasTitle = others.some((o) => o.before.champion !== null && o.after.champion !== null);
     const mineO = others.find((o) => who(o.rosterId).mine);
     const myMove = mineO ? (Math.abs(d(mineO)) < 0.005 ? '~0' : `${d(mineO) > 0 ? '+' : '−'}${Math.abs(d(mineO) * 100).toFixed(1)}`) : null;
     return (
@@ -268,23 +272,23 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
             {moved.length === 0
               ? 'no one moved half a point'
               : `${moved.length} team${moved.length === 1 ? '' : 's'} moved half a point+`}
-            {myMove !== null && <span className="font-semibold text-[var(--foreground)]"> · you {myMove}</span>}
+            {myMove !== null && <> <span className="whitespace-nowrap font-semibold text-[var(--foreground)]">· you {myMove}</span></>}
           </span>
           <span className="shrink-0 text-[var(--muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
         </summary>
-        <div className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+        {/* One row per team, the same columns every row: name (truncated), playoffs, title */}
+        <div className={`mt-2 grid items-baseline gap-x-3 gap-y-1 ${hasTitle ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'}`}>
+          <span />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Playoffs</span>
+          {hasTitle && <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Title</span>}
           {sorted.map((o) => {
             const w = who(o.rosterId);
             return (
-              <div key={o.rosterId} className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span className={`truncate text-[var(--foreground)] ${w.mine ? 'font-semibold' : ''}`}>{w.name}</span>
-                <span className="flex gap-3">
-                  <span><span className="mr-1 text-[var(--muted)]">Playoffs</span><Change before={o.before.playoffs} after={o.after.playoffs} /></span>
-                  {o.before.champion !== null && o.after.champion !== null && (
-                    <span><span className="mr-1 text-[var(--muted)]">Title</span><Change before={o.before.champion} after={o.after.champion} /></span>
-                  )}
-                </span>
-              </div>
+              <Fragment key={o.rosterId}>
+                <span className={`truncate text-[var(--foreground)] ${w.mine ? 'font-semibold' : ''}`} title={w.name}>{w.name}</span>
+                <Change before={o.before.playoffs} after={o.after.playoffs} compact />
+                {hasTitle && (o.before.champion !== null && o.after.champion !== null ? <Change before={o.before.champion} after={o.after.champion} compact /> : <span />)}
+              </Fragment>
             );
           })}
         </div>
