@@ -44,6 +44,7 @@ import {
   type TradeHistoryResponse,
   type TradeInputs,
 } from '@/lib/analyze/trade';
+import { stintEnd } from '@/lib/analyze/stints';
 
 /**
  * Fewer runs than the live odds: each past trade needs two, and the paired draws keep the difference
@@ -109,7 +110,8 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
     Promise.all(weeks.map((w) => fetchJson<SleeperMatchup[]>(`${baseUrl}/league/${id}/matchups/${w}`, revalidate(w)))),
     fetchJson<SleeperRoster[]>(`${baseUrl}/league/${id}/rosters`, CACHE_CONFIG.leagueData),
   ]);
-  const trades = parseTrades(transactions.flat()).filter((t) => t.week >= 1 && t.week <= regularSeasonEnd);
+  const allTransactions = transactions.flat();
+  const trades = parseTrades(allTransactions).filter((t) => t.week >= 1 && t.week <= regularSeasonEnd);
   const matchups: Record<number, SleeperMatchup[]> = Object.fromEntries(weeks.map((w, i) => [w, matchupList[i]]));
   const division = new Map(rosters.map((r) => [r.roster_id, format.hasDivisions ? r.settings.division ?? 0 : 0]));
   const currentRosters = new Map(rosters.map((r) => [r.roster_id, r.players ?? []]));
@@ -339,6 +341,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       );
     }
 
+    const raw = allTransactions.find((t) => t.transaction_id === trade.id);
     entries.push({
       id: trade.id,
       week: trade.week,
@@ -346,7 +349,10 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       sides: trade.sides.map((s) => ({
         ...s,
         atTime: atTime?.get(s.rosterId) ?? null,
-        hindsight: starterPoints(s.receives, s.rosterId, matchups, w0, lastScoredWeek, waiverReplacement),
+        // Each player's starts only while he stayed (not after he's dropped, or reacquired by a move of its own)
+        hindsight: starterPoints(s.receives, s.rosterId, matchups, w0, lastScoredWeek, waiverReplacement, (pid) =>
+          raw ? stintEnd(allTransactions, raw, pid, s.rosterId) : Infinity
+        ),
         finalSeed: finalOrder ? finalOrder.indexOf(s.rosterId) + 1 : null,
       })),
       ...(others ? { others } : {}),

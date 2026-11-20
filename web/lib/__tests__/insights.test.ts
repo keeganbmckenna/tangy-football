@@ -63,4 +63,21 @@ describe('waiverMoves', () => {
     expect(moves[0]).toMatchObject({ rosterId: 1, playerId: 'w9', bid: 30, dropped: ['w1'], startedPoints: 24, startedWeeks: 2 });
     expect(moves[0].losingBids).toEqual([{ rosterId: 3, bid: 25 }]);
   });
+
+  it('credits each pickup only until he is dropped or picked up again', () => {
+    const team = { 1: [2, 3, 4, 5].map((week) => ({
+      week, opponent: 2, points: 100, opponentPoints: 90, optimal: 110, projected: 100,
+      starters: ['w9'], playerPoints: { w9: 10 }, starterProjections: {},
+    })) };
+    const moves = waiverMoves(
+      [
+        tx({ transaction_id: 'a', type: 'free_agent', leg: 2, adds: { w9: 1 }, status_updated: 1 }),
+        tx({ transaction_id: 'b', type: 'free_agent', leg: 3, drops: { w9: 1 }, status_updated: 2 }),
+        tx({ transaction_id: 'c', leg: 4, adds: { w9: 1 }, status_updated: 3 }),
+      ],
+      team
+    );
+    // first stint: weeks 2-3 (dropped in week 3); second: from week 4. No week counted twice
+    expect(moves.map((m) => [m.week, m.startedPoints, m.startedWeeks])).toEqual([[2, 20, 2], [4, 20, 2]]);
+  });
 });

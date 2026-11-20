@@ -83,7 +83,7 @@ Then, for any season:
 - **Versus Projections:** each team's starters against Sleeper's pregame projections as a running total, and its players who beat or missed them most.
 - **Points by Position:** where each team's starting-lineup points come from, against the league average, and how much it leans on its top scorer.
 - **Player Leaders:** top players and single games by points in fantasy starting lineups, by position, and each team's MVP.
-- **Waivers:** each team's pickups and what they scored in its lineup, and the best pickups. In FAAB seasons (2024 on), FAAB spent, points per dollar, the costliest misses and the closest bids.
+- **Waivers:** each team's pickups and what they scored in its lineup while it kept them (a player dropped and picked up again counts once per stint, never twice), and the best pickups. In FAAB seasons (2024 on), FAAB spent, points per dollar, the costliest misses and the closest bids.
 
 ## 📋 Draft
 - **Draft Results** come first: grades by points per available week, spending, $ per point and best pick.

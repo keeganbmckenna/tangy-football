@@ -407,6 +407,7 @@ export function parseTrades(transactions: SleeperTransaction[]): TradeRecord[] {
  * Points the given players scored while in a team's starting lineup over a span of weeks. With
  * replacement (week, player -> what a waiver pickup at his position scored that week, or null if
  * unknown), also those points over the waiver wire, in all and by player (absent if any is unknown).
+ * With lastWeekFor, each player's starts count only through that week (his time on the team).
  */
 export function starterPoints(
   players: string[],
@@ -414,7 +415,8 @@ export function starterPoints(
   matchupsByWeek: Record<number, SleeperMatchup[]>,
   fromWeek: number,
   toWeek: number,
-  replacement?: (week: number, playerId: string) => number | null
+  replacement?: (week: number, playerId: string) => number | null,
+  lastWeekFor?: (playerId: string) => number
 ): { points: number; starts: number; byPlayer: Record<string, number>; overWaiver?: number; overWaiverByPlayer?: Record<string, number> } {
   let points = 0;
   let starts = 0;
@@ -426,7 +428,7 @@ export function starterPoints(
     const m = matchupsByWeek[w]?.find((x) => x.roster_id === rosterId);
     if (!m) continue;
     for (const p of m.starters ?? []) {
-      if (!wanted.has(p)) continue;
+      if (!wanted.has(p) || (lastWeekFor && w > lastWeekFor(p))) continue;
       const pts = m.players_points?.[p] ?? 0;
       starts++;
       points += pts;

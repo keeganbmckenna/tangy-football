@@ -8,6 +8,7 @@
 
 import type { SleeperMatchup, SleeperTransaction } from '../types';
 import { bestLineup } from './playoffOdds';
+import { stintEnd } from './stints';
 
 export interface InsightsPlayer {
   name: string;
@@ -57,7 +58,7 @@ export interface WaiverMove {
   /** Bids that lost this player to this claim */
   losingBids: Array<{ rosterId: number; bid: number }>;
   dropped: string[];
-  /** Points he scored in this roster's starting lineup from the week he joined it */
+  /** Points he scored in this roster's starting lineup from the week he joined it until he left (or it picked him up again) */
   startedPoints: number;
   startedWeeks: number;
 }
@@ -159,8 +160,9 @@ export function waiverMoves(transactions: SleeperTransaction[], teams: Record<nu
         : [];
       let startedPoints = 0;
       let startedWeeks = 0;
+      const end = stintEnd(transactions, t, playerId, rosterId);
       for (const w of teams[rosterId] ?? []) {
-        if (w.week < t.leg || !w.starters.includes(playerId)) continue;
+        if (w.week < t.leg || w.week > end || !w.starters.includes(playerId)) continue;
         startedPoints += w.playerPoints[playerId] ?? 0;
         startedWeeks++;
       }
