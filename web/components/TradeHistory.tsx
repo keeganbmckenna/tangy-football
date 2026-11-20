@@ -59,6 +59,9 @@ function Delta({ before, after, bad = false, className = 'text-right' }: { befor
   );
 }
 
+/** Odds without the % sign, for tables headed "%" */
+const pct = (p: number) => formatOdds(p).replace('%', '');
+
 const HEAD = 'text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]';
 
 function Avatar({ url, name }: { url: string | null; name: string }) {
@@ -291,46 +294,53 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
           </span>
           <span className="shrink-0 text-[var(--muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
         </summary>
-        {/* Fixed columns: playoffs before → after and its change, the title's the same. Each team's name is a column
-            from sm up; on phones it's a line of its own above its numbers, so names are never cut off */}
-        <div
-          className={`mt-2 grid items-baseline gap-x-2 gap-y-0.5 sm:gap-x-4 sm:gap-y-1 ${
-            hasTitle
-              ? 'grid-cols-[auto_auto_auto_auto] justify-start sm:grid-cols-[minmax(0,12rem)_auto_auto_auto_auto]'
-              : 'grid-cols-[auto_auto] justify-start sm:grid-cols-[minmax(0,12rem)_auto_auto]'
-          }`}
-        >
-          <span className="hidden sm:block" />
-          <span className={HEAD}>Playoffs</span>
-          <span className={`${HEAD} text-right`}>+/−</span>
-          {hasTitle && (
-            <>
-              <span className={`${HEAD} pl-2 sm:pl-0`}>Title</span>
-              <span className={`${HEAD} text-right`}>+/−</span>
-            </>
-          )}
-          {sorted.map((o) => {
-            const w = who(o.rosterId);
-            const title = o.before.champion !== null && o.after.champion !== null ? { b: o.before.champion, a: o.after.champion } : null;
-            return (
-              <Fragment key={o.rosterId}>
-                <span
-                  className={`truncate pt-1.5 text-[var(--foreground)] sm:pt-0 ${hasTitle ? 'col-span-4' : 'col-span-2'} sm:col-span-1 ${w.mine ? 'font-semibold' : ''}`}
-                  title={w.name}
-                >
-                  {w.name}
-                </span>
-                <FromTo before={o.before.playoffs} after={o.after.playoffs} />
-                <Delta before={o.before.playoffs} after={o.after.playoffs} />
-                {hasTitle && (
-                  <>
-                    <span className="pl-2 sm:pl-0">{title && <FromTo before={title.b} after={title.a} />}</span>
-                    {title ? <Delta before={title.b} after={title.a} /> : <span />}
-                  </>
+        {/* One row per team: playoffs before, after and the change, the title's the same. On a narrow phone the
+            table scrolls sideways with the names pinned. Numbers without % (the headings say so) to fit a phone */}
+        <div className="mt-2 overflow-x-auto">
+          <table className="text-xs tabular-nums">
+            <thead>
+              <tr className={HEAD}>
+                <th className="sticky left-0 z-10 bg-[var(--surface-elevated)]" />
+                <th colSpan={3} className="border-b border-[var(--border)] px-[3px] pb-0.5 text-center font-semibold sm:px-2">Playoffs %</th>
+                {hasTitle && <th colSpan={3} className="border-b border-[var(--border)] px-[3px] pb-0.5 text-center font-semibold sm:px-2">Title %</th>}
+              </tr>
+              <tr className={HEAD}>
+                <th className="sticky left-0 z-10 bg-[var(--surface-elevated)]" />
+                {(hasTitle ? [0, 1] : [0]).flatMap((g) =>
+                  ['Was', 'Now', '+/−'].map((h) => (
+                    <th key={`${g}${h}`} className={`px-[3px] pt-1 text-right font-semibold sm:px-2 ${g === 1 && h === 'Was' ? 'pl-2 sm:pl-5' : ''}`}>
+                      {h}
+                    </th>
+                  ))
                 )}
-              </Fragment>
-            );
-          })}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((o) => {
+                const w = who(o.rosterId);
+                const title = o.before.champion !== null && o.after.champion !== null ? { b: o.before.champion, a: o.after.champion } : null;
+                const cells = (x: { b: number; a: number } | null, first: boolean) => (
+                  <>
+                    <td className={`px-[3px] py-0.5 text-right text-[var(--muted)] sm:px-2 ${first ? '' : 'pl-2 sm:pl-5'}`}>{x ? pct(x.b) : ''}</td>
+                    <td className="px-[3px] py-0.5 text-right font-semibold text-[var(--foreground)] sm:px-2">{x ? pct(x.a) : ''}</td>
+                    <td className="px-[3px] py-0.5 text-right sm:px-2">{x && <Delta before={x.b} after={x.a} />}</td>
+                  </>
+                );
+                return (
+                  <tr key={o.rosterId}>
+                    <td
+                      className={`sticky left-0 z-10 max-w-[6.25rem] truncate bg-[var(--surface-elevated)] py-0.5 pr-1.5 text-[var(--foreground)] sm:max-w-[12rem] sm:pr-4 ${w.mine ? 'font-semibold' : ''}`}
+                      title={w.name}
+                    >
+                      {w.name}
+                    </td>
+                    {cells({ b: o.before.playoffs, a: o.after.playoffs }, true)}
+                    {hasTitle && cells(title, false)}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </details>
     );
