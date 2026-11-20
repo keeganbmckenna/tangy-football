@@ -297,7 +297,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
         {/* One row per team: playoffs before, after and the change, the title's the same. On a narrow phone the
             table scrolls sideways with the names pinned. Numbers without % (the headings say so) to fit a phone */}
         <div className="mt-2 overflow-x-auto">
-          <table className="text-xs tabular-nums">
+          <table className="w-full text-xs tabular-nums sm:w-auto">
             <thead>
               <tr className={HEAD}>
                 <th className="sticky left-0 z-10 bg-[var(--surface-elevated)]" />
