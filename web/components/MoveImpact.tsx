@@ -9,6 +9,7 @@ import { bestLineup, formatOdds, type OddsResult, type TeamOdds } from '@/lib/an
 import { lineupByWeek, weeklyOutlook, type RosterChange, type TradeDataResponse, type TradeModel } from '@/lib/analyze/trade';
 import type { TeamStats } from '@/lib/types';
 import { signed } from '@/lib/format';
+import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 
 /** One team a move changes: its roster before and after (as shown), and what it sent away */
 export interface ImpactSide {
@@ -183,6 +184,7 @@ export default function MoveImpact({
   children?: ReactNode;
 }) {
   const { inputs } = data;
+  const me = useMyTeam();
   const name = (id: number) => teamStats.find((t) => t.rosterId === id)?.username.trim() ?? `Team ${id}`;
   const firstWeek = data.remaining.reduce((m, g) => Math.min(m, g.week), Infinity);
   const [lineupWeek, setLineupWeek] = useState<number | null>(null);
@@ -246,10 +248,16 @@ export default function MoveImpact({
       ? data.teams
           .filter((t) => !ids.includes(t.rosterId))
           .map((t) => ({ id: t.rosterId, b: before.odds!.teams[t.rosterId], a: after.odds!.teams[t.rosterId] }))
-          .filter(({ a, b }) => [a.playoffs - b.playoffs, (a.champion ?? 0) - (b.champion ?? 0), (a.lastPlace ?? 0) - (b.lastPlace ?? 0)].some((d) => Math.abs(d) >= 0.01))
+          .filter(({ a, b }) => [a.playoffs - b.playoffs, (a.champion ?? 0) - (b.champion ?? 0), (a.lastPlace ?? 0) - (b.lastPlace ?? 0)].some((d) => Math.abs(d) >= 0.005))
           .sort((x, y) => Math.abs(y.a.playoffs - y.b.playoffs) - Math.abs(x.a.playoffs - x.b.playoffs))
       : [];
 
+  // You, when you're not one of the teams the move changes
+  const myRoster = me.rosterId ?? undefined;
+  const mine =
+    myRoster !== undefined && !ids.includes(myRoster) && before.odds?.teams[myRoster] && after.odds?.teams[myRoster]
+      ? { id: myRoster, b: before.odds.teams[myRoster], a: after.odds.teams[myRoster] }
+      : null;
   const one = sides.length === 1;
   return (
     <>
@@ -299,6 +307,55 @@ export default function MoveImpact({
           </table>
         </div>
       </div>
+
+      {(ripple.length > 0 || mine) && (
+        // Collapsed: the heading, how many teams move and what it does to you; tap for the table
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+            <span className="min-w-0 flex-1">
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">Other teams affected</h3>
+              <span className="block text-sm text-[var(--muted)]">
+                {ripple.length === 0 ? 'No team moves half a point' : `${ripple.length} team${ripple.length === 1 ? '' : 's'} move half a point or more`}
+                {mine && (() => {
+                  const d = (mine.a.playoffs - mine.b.playoffs) * 100;
+                  return <span className="font-semibold text-[var(--foreground)]"> · your playoff odds {Math.abs(d) < 0.5 ? '~0' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}`}</span>;
+                })()}
+              </span>
+            </span>
+            <span className="shrink-0 text-xl text-[var(--muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
+          </summary>
+          <p className="mb-3 mt-2 text-sm text-[var(--muted)]">
+            Playoff spots are fixed, so what {one ? 'this move gains' : 'the two sides gain'} comes out of everyone else&apos;s odds: mostly
+            the teams chasing the same spots and the ones about to play {one ? 'this team' : 'a team that got stronger'}.
+          </p>
+          {ripple.length === 0 ? (
+            <p className="text-sm text-[var(--muted)]">No other team&apos;s odds move half a point or more.</p>
+          ) : (
+          <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
+                    <th className="px-3 py-2 font-medium">Team</th>
+                    <th className="px-3 py-2 font-medium">Playoffs</th>
+                    {ripple[0].a.champion !== null && <th className="px-3 py-2 font-medium">Win league</th>}
+                    {ripple[0].a.lastPlace !== null && <th className="px-3 py-2 font-medium">Lose toilet bowl</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {ripple.map(({ id, a, b }) => (
+                    <tr key={id} className={mineRow(id === mine?.id)}>
+                      <td className="px-3 py-2 text-[var(--foreground)]">{name(id)}</td>
+                      <td className="px-3 py-2"><BeforeAfter before={b.playoffs} after={a.playoffs} /></td>
+                      {a.champion !== null && b.champion !== null && <td className="px-3 py-2"><BeforeAfter before={b.champion} after={a.champion} /></td>}
+                      {a.lastPlace !== null && b.lastPlace !== null && <td className="px-3 py-2"><BeforeAfter before={b.lastPlace} after={a.lastPlace} bad /></td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </details>
+      )}
 
       <div className={`grid gap-4 ${one ? '' : 'md:grid-cols-2'}`}>
         {sides.map((side) => {
@@ -364,35 +421,6 @@ export default function MoveImpact({
           ))}
         </div>
       </div>
-
-      {ripple.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-[var(--foreground)]">Other teams affected</h3>
-          <p className="mb-3 text-sm text-[var(--muted)]">Teams whose odds move by a point or more, mostly through who they play.</p>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
-                  <th className="px-3 py-2 font-medium">Team</th>
-                  <th className="px-3 py-2 font-medium">Playoffs</th>
-                  {ripple[0].a.champion !== null && <th className="px-3 py-2 font-medium">Win league</th>}
-                  {ripple[0].a.lastPlace !== null && <th className="px-3 py-2 font-medium">Lose toilet bowl</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {ripple.map(({ id, a, b }) => (
-                  <tr key={id}>
-                    <td className="px-3 py-2 text-[var(--foreground)]">{name(id)}</td>
-                    <td className="px-3 py-2"><BeforeAfter before={b.playoffs} after={a.playoffs} /></td>
-                    {a.champion !== null && b.champion !== null && <td className="px-3 py-2"><BeforeAfter before={b.champion} after={a.champion} /></td>}
-                    {a.lastPlace !== null && b.lastPlace !== null && <td className="px-3 py-2"><BeforeAfter before={b.lastPlace} after={a.lastPlace} bad /></td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {children}
     </>

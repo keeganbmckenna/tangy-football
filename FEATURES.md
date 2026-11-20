@@ -70,7 +70,7 @@ During the current regular season, the trade and waiver tools come first. In the
   - lineup changes and forced roster moves;
   - both teams' full lineups and benches before and after, for any remaining week;
   - each player's FantasyCalc market value;
-  - which other teams' odds move;
+  - **Other teams affected** (collapsed, right under the season odds): how many other teams' odds move half a point or more and what it does to yours, with a tap for each team's playoff, title and toilet bowl odds before → after;
   - during a week's games, which players have already played: Sleeper keeps them (and their points) on the old team until next week, while players still to play move right away;
   - **Compare with waiver pickups** (a switch): judges the trade against the free agents each team could add instead. "Before" becomes each team's best pickups (up to two, each adding 0.01+ expected wins), "after" the trade plus the best pickups after it, and a Trade vs waivers card shows each team's expected wins and playoff odds three ways (no moves, best pickups, trade + pickups) with a verdict.
   - On phones, a bar at the bottom of the screen shows the playoff-odds change while you pick players, with a jump to the results.
@@ -105,7 +105,8 @@ Then, for any season:
 A switch counts the three sections above either with playoff and toilet bowl games or as the regular season only. Placement games (3rd, 5th place and the like) never count.
 - **Trades:** every trade since the league moved to Sleeper, filterable by season.
   - **Graded two ways:** what it did to each team's odds at the time, and how the players it brought in actually scored.
-  - **Trade stats:** per-manager stats, biggest swings, and the best trades in hindsight (what the players received scored in the starting lineup, minus what the players sent scored for their new teams).
+  - **Everyone else:** under each trade, a collapsed row with how many teams outside it saw their playoff odds move half a point or more, and your own change; tap for every other team's playoff and title odds before → after. Playoff spots are fixed, so what the two sides gain comes out of the others' odds, usually spread thin: a few tenths of a point each.
+  - **Trade stats:** per-manager stats (including **playoff odds from others' trades**: what the trades they weren't in did to their odds, added up), biggest swings for traders and for teams not in the trade, and the best trades in hindsight (what the players received scored in the starting lineup, minus what the players sent scored for their new teams).
   - **Trade partners:** how many times each pair of managers traded; tap a cell for their trades.
   - **List:** the latest 5 trades, then **Show all**.
 - **Record Book:** highest and lowest scores, blowouts, closest games, best and worst seasons, and more. Each list shows its top 5, with Show all for the rest.

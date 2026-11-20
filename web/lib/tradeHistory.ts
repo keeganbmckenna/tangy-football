@@ -45,8 +45,11 @@ import {
   type TradeInputs,
 } from '@/lib/analyze/trade';
 
-/** Fewer runs than the live odds: each past trade needs two, and the paired draws keep the difference steady */
-const HISTORY_SIMS = 5000;
+/**
+ * Fewer runs than the live odds: each past trade needs two, and the paired draws keep the difference
+ * steady. Enough that a change of a point to a team outside the trade is real, not noise.
+ */
+const HISTORY_SIMS = 10000;
 
 /** A team's record, points for and weekly scores through a week */
 export const record = (matchups: Record<number, SleeperMatchup[]>, rosterId: number, throughWeek: number) => {
@@ -202,6 +205,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
     trade.sides.forEach((s) => [...s.receives, ...s.sends].forEach((p) => nameFor(p, projectionsAt.has(w0) ? w0 : trade.week)));
 
     let atTime: Map<number, NonNullable<TradeHistoryEntry['sides'][number]['atTime']>> | null = null;
+    let others: TradeHistoryEntry['others'];
     const remaining = gamesFrom(matchups, w0, regularSeasonEnd);
     if (proj && remaining.length) {
       // That week's projections carried forward, zeroed in each NFL team's bye weeks
@@ -273,6 +277,11 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       }));
       const traded = meansAfterTrade(model, inputs, changes);
       const odds = tradeSeasonOdds(teams, remaining, format, model, traded.model, playoffWeekStart, hasToiletBowl, HISTORY_SIMS);
+      const odds3 = (t: { playoffs: number; champion: number | null; lastPlace: number | null }) => ({ playoffs: t.playoffs, champion: t.champion, lastPlace: t.lastPlace });
+      const inTrade = new Set(trade.sides.map((s) => s.rosterId));
+      others = rosters
+        .filter((r) => !inTrade.has(r.roster_id))
+        .map((r) => ({ rosterId: r.roster_id, before: odds3(odds.before.teams[r.roster_id]), after: odds3(odds.after.teams[r.roster_id]) }));
       atTime = new Map(
         trade.sides.map((s) => {
           const b = odds.before.teams[s.rosterId];
@@ -301,6 +310,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
         hindsight: starterPoints(s.receives, s.rosterId, matchups, w0, lastScoredWeek),
         finalSeed: finalOrder ? finalOrder.indexOf(s.rosterId) + 1 : null,
       })),
+      ...(others ? { others } : {}),
     });
   }
 

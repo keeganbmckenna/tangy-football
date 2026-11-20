@@ -37,6 +37,24 @@ describe('tradeLeaders', () => {
     expect(netHindsight(r.bestHauls[0].trade, r.bestHauls[0].side)).toBe(110);
   });
 
+  it('adds up what trades a manager was not in did to their odds, including managers who never traded', () => {
+    const o = (rosterId: number, before: number, after: number) => ({
+      rosterId, before: { playoffs: before, champion: 0.1, lastPlace: null }, after: { playoffs: after, champion: 0.08, lastPlace: null },
+    });
+    const withOthers: SeasonTrade[] = [
+      { season: '2025', trade: { ...trades[1].trade, others: [o(2, 0.5, 0.42), o(4, 0.3, 0.31)] } },
+      { season: '2025', trade: { ...trades[2].trade, others: [o(2, 0.42, 0.40)] } },
+    ];
+    const u = (season: string, rosterId: number) => userOf(season, rosterId) ?? (rosterId === 2 ? 'u2' : rosterId === 4 ? 'u4' : null);
+    const r = tradeLeaders(withOthers, u);
+    const u2 = r.leaders.find((l) => l.userId === 'u2')!;
+    expect(u2.trades).toBe(0);
+    expect(u2.playoffOddsFromOthers).toBeCloseTo(-0.1);
+    expect(r.leaders.find((l) => l.userId === 'u1')!.playoffOddsFromOthers).toBe(0);
+    expect(r.biggestBystanders[0]).toMatchObject({ userId: 'u2', season: '2025' });
+    expect(r.biggestBystanders[0].delta).toBeCloseTo(-0.08);
+  });
+
   it('nets each sent player\'s points for whoever got him, in a three-team trade', () => {
     const s = (rosterId: number, receives: string[], sends: string[], byPlayer: Record<string, number>): TradeHistorySide => ({
       rosterId, receives, sends, picks: [], faab: 0, atTime: null, finalSeed: null,

@@ -21,6 +21,8 @@ export interface TradeLeader {
   titleOddsGained: number;
   /** Points the players they got scored in their starting lineup */
   starterPoints: number;
+  /** Sum of the playoff-odds change at the time from trades they weren't in (0 for older files) */
+  playoffOddsFromOthers: number;
 }
 
 export interface TradeSideRef {
@@ -47,17 +49,27 @@ export function netHindsight(trade: TradeHistoryEntry, side: TradeHistorySide): 
 export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, rosterId: number) => string | null) {
   const rows = new Map<string, TradeLeader & { partners: Map<string, number> }>();
   const sides: TradeSideRef[] = [];
+  const row = (userId: string) => {
+    let r = rows.get(userId);
+    if (!r) {
+      r = { userId, trades: 0, topPartner: null, playoffOddsGained: 0, titleOddsGained: 0, starterPoints: 0, playoffOddsFromOthers: 0, partners: new Map() };
+      rows.set(userId, r);
+    }
+    return r;
+  };
   for (const { season, trade } of trades) {
     const users = trade.sides.map((s) => userOf(season, s.rosterId));
+    // Managers not in the trade: what it did to their odds (a manager who isn't in rows yet joins with 0 trades)
+    for (const o of trade.others ?? []) {
+      const userId = userOf(season, o.rosterId);
+      if (!userId) continue;
+      row(userId).playoffOddsFromOthers += o.after.playoffs - o.before.playoffs;
+    }
     trade.sides.forEach((side, i) => {
       const userId = users[i];
       if (!userId) return;
       sides.push({ season, trade, side, userId });
-      let r = rows.get(userId);
-      if (!r) {
-        r = { userId, trades: 0, topPartner: null, playoffOddsGained: 0, titleOddsGained: 0, starterPoints: 0, partners: new Map() };
-        rows.set(userId, r);
-      }
+      const r = row(userId);
       r.trades++;
       for (const other of users) {
         if (other && other !== userId) r.partners.set(other, (r.partners.get(other) ?? 0) + 1);
@@ -86,5 +98,15 @@ export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, ros
     /** Best trades in hindsight: incoming players' starting-lineup points minus the outgoing players' for their new teams */
     bestHauls: [...sides].sort((a, b) => netHindsight(b.trade, b.side) - netHindsight(a.trade, a.side)).slice(0, 5),
     playoffDelta,
+    /** The biggest moves to a team outside a trade (either way), by playoff odds */
+    biggestBystanders: trades
+      .flatMap(({ season, trade }) =>
+        (trade.others ?? []).flatMap((o) => {
+          const userId = userOf(season, o.rosterId);
+          return userId ? [{ season, trade, userId, rosterId: o.rosterId, delta: o.after.playoffs - o.before.playoffs }] : [];
+        })
+      )
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+      .slice(0, 5),
   };
 }

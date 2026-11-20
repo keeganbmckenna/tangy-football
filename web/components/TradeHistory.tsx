@@ -164,7 +164,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
   }
 
   const leaderRows = sortRows(stats.leaders, sort.state, (r, key) =>
-    ({ trades: r.trades, playoff: r.playoffOddsGained, title: r.titleOddsGained, points: r.starterPoints })[key]
+    ({ trades: r.trades, playoff: r.playoffOddsGained, title: r.titleOddsGained, points: r.starterPoints, others: r.playoffOddsFromOthers })[key]
   );
   const bySeason = new Map(seasons.map((s) => [s.season, s]));
   const players = Object.assign({}, ...seasons.map((s) => s.players)) as TradeHistoryResponse['players'];
@@ -248,6 +248,50 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
     );
   };
 
+  // The teams not in a trade, collapsed to a count (half a point or more: less is within the simulation's precision) and your change; every team behind a tap
+  const othersRow = (season: string, others: NonNullable<TradeHistoryResponse['trades'][number]['others']>) => {
+    const d = (o: (typeof others)[number]) => o.after.playoffs - o.before.playoffs;
+    const sorted = [...others].sort((a, b) => Math.abs(d(b)) - Math.abs(d(a)));
+    const moved = sorted.filter((o) => Math.abs(d(o)) >= 0.005);
+    const who = (rosterId: number) => {
+      const id = userOf.id(season, rosterId);
+      return { id, name: nameOf(id), mine: !!id && id === me.userId };
+    };
+    // Your own change, when you weren't in the trade
+    const mineO = others.find((o) => who(o.rosterId).mine);
+    const myMove = mineO ? (Math.abs(d(mineO)) < 0.005 ? '~0' : `${d(mineO) > 0 ? '+' : '−'}${Math.abs(d(mineO) * 100).toFixed(1)}`) : null;
+    return (
+      <details className="group border-t border-[var(--border)] py-2 text-xs">
+        <summary className="flex cursor-pointer list-none items-start gap-2 [&::-webkit-details-marker]:hidden">
+          <span className="shrink-0 font-semibold uppercase tracking-wider text-[var(--muted)]">Everyone else</span>
+          <span className="min-w-0 flex-1 text-[var(--muted)]">
+            {moved.length === 0
+              ? 'no one moved half a point'
+              : `${moved.length} team${moved.length === 1 ? '' : 's'} moved half a point+`}
+            {myMove !== null && <span className="font-semibold text-[var(--foreground)]"> · you {myMove}</span>}
+          </span>
+          <span className="shrink-0 text-[var(--muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
+        </summary>
+        <div className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+          {sorted.map((o) => {
+            const w = who(o.rosterId);
+            return (
+              <div key={o.rosterId} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className={`truncate text-[var(--foreground)] ${w.mine ? 'font-semibold' : ''}`}>{w.name}</span>
+                <span className="flex gap-3">
+                  <span><span className="mr-1 text-[var(--muted)]">Playoffs</span><Change before={o.before.playoffs} after={o.after.playoffs} /></span>
+                  {o.before.champion !== null && o.after.champion !== null && (
+                    <span><span className="mr-1 text-[var(--muted)]">Title</span><Change before={o.before.champion} after={o.after.champion} /></span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </details>
+    );
+  };
+
   const sideList = (title: string, items: TradeSideRef[], value: (s: TradeSideRef) => string) => (
     <div className="rounded-lg border border-[var(--border)] p-4">
       <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">{title}</h4>
@@ -311,6 +355,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                       <SortableTh sort={sort} col="playoff" tip="Sum of each trade’s change to this manager’s playoff odds the week it went through, in percentage points" className="px-3 py-2 text-center font-medium">Playoff odds at the time</SortableTh>
                       <SortableTh sort={sort} col="title" className="px-3 py-2 text-center font-medium">Title odds at the time</SortableTh>
                       <SortableTh sort={sort} col="points" tip="Points the players they got scored in their starting lineup afterward" tipAlign="right" className="px-3 py-2 text-center font-medium">Starter pts received</SortableTh>
+                      <SortableTh sort={sort} col="others" tip="Sum of what trades they weren’t in did to their playoff odds the week each went through, in percentage points" tipAlign="right" className="px-3 py-2 text-center font-medium">Playoff odds from others&apos; trades</SortableTh>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -342,6 +387,12 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                           </td>
                         ))}
                         <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.starterPoints.toFixed(1)}</td>
+                        <td
+                          className="px-3 py-2 text-center font-semibold"
+                          style={{ color: Math.abs(r.playoffOddsFromOthers) < 0.005 ? 'var(--muted)' : r.playoffOddsFromOthers > 0 ? 'var(--success-text)' : 'var(--danger-text)' }}
+                        >
+                          {pp(r.playoffOddsFromOthers)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -361,13 +412,38 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                 Odds columns add up each trade&apos;s change in that manager&apos;s odds the week it went through, in percentage
                 points (pp). Starter points are what the players they got scored in their starting lineup afterward.
                 </p>
+                <p>
+                Playoff odds from others&apos; trades adds up what the trades they weren&apos;t in did to their playoff odds, the
+                same way. Playoff spots are fixed, so what the two sides of a trade gain comes out of everyone else&apos;s odds:
+                mostly the teams chasing the same spots, and the ones about to play the team that got stronger.
+                </p>
               </HowItWorks>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               {sideList('Biggest playoff odds gains at the time', stats.bestAtTheTime.filter((s) => stats.playoffDelta(s) > 0), (s) => `${pp(stats.playoffDelta(s))} pp`)}
               {sideList('Biggest playoff odds losses at the time', stats.worstAtTheTime.filter((s) => stats.playoffDelta(s) < 0), (s) => `${pp(stats.playoffDelta(s))} pp`)}
               {sideList('Best trades in hindsight', stats.bestHauls, (s) => `${signed(netHindsight(s.trade, s.side), 1)} pts net`)}
+              <div className="rounded-lg border border-[var(--border)] p-4">
+                <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">Biggest swings for teams not in the trade</h4>
+                {stats.biggestBystanders.filter((b) => Math.abs(b.delta) >= 0.005).length === 0 ? (
+                  <p className="text-xs text-[var(--muted)]">None yet.</p>
+                ) : (
+                  <ol className="space-y-1.5 text-xs">
+                    {stats.biggestBystanders.filter((b) => Math.abs(b.delta) >= 0.005).map((b) => (
+                      <li key={`${b.season}-${b.trade.id}-${b.rosterId}`} className="flex gap-2">
+                        <span className="w-24 shrink-0 font-semibold text-[var(--foreground)]">{pp(b.delta)} pp</span>
+                        <span>
+                          <span className="text-[var(--foreground)]">{nameOf(b.userId)}</span>
+                          <span className="text-[var(--muted)]">
+                            {' '}· {b.season} wk {b.trade.week} · {b.trade.sides.map((x) => nameOf(userOf.id(b.season, x.rosterId))).join(' and ')} traded
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
             </div>
 
             {partners.size > 0 && (() => {
@@ -456,6 +532,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                       )}
                     </div>
                     <div className="divide-y divide-[var(--border)]">{t.sides.map((s) => sideRow(season, s))}</div>
+                    {t.others && t.others.length > 0 && othersRow(season, t.others)}
                   </div>
                 ))}
               </div>

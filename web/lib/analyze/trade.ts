@@ -489,6 +489,13 @@ export interface TradeHistorySide extends TradeSideRecord {
   finalSeed: number | null;
 }
 
+/** One team's odds the week of a trade, without and with it */
+export interface OddsAtTrade {
+  playoffs: number;
+  champion: number | null;
+  lastPlace: number | null;
+}
+
 export interface TradeHistoryEntry {
   id: string;
   /** Week Sleeper processed the trade in */
@@ -496,6 +503,8 @@ export interface TradeHistoryEntry {
   /** First week the trade counted for (the next week if it went through after that week's games) */
   effectiveWeek: number;
   sides: TradeHistorySide[];
+  /** The teams not in the trade: their odds the week of it, without and with it (absent in older files) */
+  others?: Array<{ rosterId: number; before: OddsAtTrade; after: OddsAtTrade }>;
 }
 
 /** /api/trades/[season] (or /data/trades/{season}.json for completed seasons) */
