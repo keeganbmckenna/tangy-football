@@ -31,7 +31,14 @@ Tests (rule fixed before the run, 2026-10-29):
      average) or w x Delta (playoff weeks). Same rule: ADOPT playoff-week deltas if the
      squared-error interval is below 0 and 5+ of 8 seasons.
 
-    python trade_waivers.py [--workers 8] [--skip-brier]
+Active leagues only (--active, rule set before the run, 2026-11-20): the same tests on leagues
+where every team made 0.5+ adds a week over the season (active_leagues.py's definition; ours is
+at 0.62-0.92), since teams that fade never make the waiver moves the 'waivers' measure assumes.
+The strength model stays fitted on all leagues (as the site's is); the trade weights are fitted
+on the active leagues' trades. Same rule as test 1: waivers over forced if the squared-error
+interval is below 0 in 5+ of 8 seasons and playoff Brier is no worse.
+
+    python trade_waivers.py [--workers 8] [--skip-brier] [--active]
 """
 import argparse, glob, gzip, json, os, sys
 from collections import defaultdict
@@ -199,7 +206,7 @@ def oos_fit(x, y, season, cols):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--workers', type=int, default=8)
-    ap.add_argument('--skip-brier', action='store_true'); a = ap.parse_args()
+    ap.add_argument('--skip-brier', action='store_true'); ap.add_argument('--active', action='store_true'); a = ap.parse_args()
     cache = os.path.join(HERE, 'cache', 'trade_waivers.json')
     if os.path.exists(cache):
         trades = {(k.split('|')[0], int(k.split('|')[1])): {'season': v['season'], 'teams': {int(r): x for r, x in v['teams'].items()}}
@@ -211,6 +218,12 @@ def main():
                 trades.update(part)
                 if i % 500 == 0: print(f'{i}/{len(files)} leagues', flush=True)
         json.dump({f'{k[0]}|{k[1]}': {'season': v['season'], 'teams': {str(r): x for r, x in v['teams'].items()}} for k, v in trades.items()}, open(cache, 'w'))
+    if a.active:
+        import manager_features as MF, candidate_checks as CC
+        _, _, rosters = MF.scan()
+        active = {lid for lid, rs in rosters.items() if min(CC.season_adds(rs).values()) >= 0.5}
+        trades = {k: v for k, v in trades.items() if k[0] in active}
+        print(f'active leagues only: {len(active):,} leagues')
     rows = [(k, r, v['season'], x) for k, v in trades.items() for r, x in v['teams'].items()]
     print(f'{len(trades):,} league-weeks with a trade, {len(rows):,} trading teams')
     for m in ('raw', 'forced', 'waivers'):
@@ -280,7 +293,7 @@ def main():
     G.S.collect = lambda *a_, **k: data
     labels = ['ignore the trade', 'raw (trades.py)', 'forced (trade tools)', 'waivers']
     stack = np.stack([base * mask, offs['raw'], offs['forced'], offs['waivers']])
-    sys.argv = [sys.argv[0], '--weekly', '--rules', 'ours', '--sims', '4000', '--target-sims', '2000', '--save', os.path.join(HERE, 'cache', 'trade_waivers.npz')]
+    sys.argv = [sys.argv[0], '--weekly', '--rules', 'ours', '--sims', '4000', '--target-sims', '2000', '--save', os.path.join(HERE, 'cache', 'trade_waivers_active.npz' if a.active else 'trade_waivers.npz')]
     R.main(lambda P_: (labels, stack, np.repeat(tau[None], 4, 0), np.repeat(P['sd'][None], 4, 0)),
            [('waivers', 'forced (trade tools)'), ('waivers', 'raw (trades.py)'), ('forced (trade tools)', 'raw (trades.py)')])
 

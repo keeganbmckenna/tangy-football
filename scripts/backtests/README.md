@@ -20,6 +20,13 @@ division winners seeded first, top 6 make the playoffs), on real schedules, from
 from 3 to the end of the regular season (`rank_odds.py --weekly --rules ours`). Nothing is
 tuned on 2026 data before the preregistered evaluation.
 
+**Active leagues.** Research uses leagues where every team stayed active: 0.5+ adds a week over
+the season (`active_leagues.py`; this league's least active team is at 0.62-0.92). Many crawled
+leagues are abandoned partway through, and their fading teams add noise that doesn't apply here.
+If that leaves too little data, crawl more leagues rather than falling back to all of them.
+Results from before this rule (2026-11-20) used all 12-team leagues; rerun one on active leagues
+before relying on it.
+
 ## Setup
 
 Run everything from this directory with the repo's environment (`uv sync`, or

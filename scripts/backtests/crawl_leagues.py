@@ -32,6 +32,7 @@ run resumes; files are written to a temporary name and renamed, so none is left 
     python crawl_leagues.py --transactions --calls-per-min 900
     python crawl_leagues.py --histories --calls-per-min 900
     python crawl_leagues.py --summary
+    python crawl_leagues.py --twelve --seed-from-cache --per-season 3000 --seasons 2025 ... 2018  # more 12-team leagues
 
 Seeded first from dezdroppedit27 (869000996184055808), whose leagues are full of serious
 players, then our other managers. For seasons before ours (Sleeper's projections start in
@@ -53,6 +54,7 @@ TRANSACTIONS = os.path.join(CACHE, 'transactions')
 HISTORY = os.path.join(CACHE, 'history')
 DIVISIONS = False  # --divisions: keep leagues in our exact format (12 teams, 3 divisions, 6 playoff teams)
 CALLS_PER_MIN = 700
+TWELVE = False  # --twelve: only 12-team leagues (what the research uses)
 
 
 class Limiter:
@@ -87,7 +89,7 @@ def like_ours(l):
     if DIVISIONS:
         size = l.get('total_rosters') == 12 and s.get('divisions') == 3 and s.get('playoff_teams') == 6
     else:
-        size = 10 <= (l.get('total_rosters') or 0) <= 14 and not s.get('divisions') and s.get('playoff_teams') in (4, 6)
+        size = (l.get('total_rosters') == 12 if TWELVE else 10 <= (l.get('total_rosters') or 0) <= 14) and not s.get('divisions') and s.get('playoff_teams') in (4, 6)
     return (l.get('status') == 'complete' and s.get('type', 0) == 0 and not s.get('best_ball') and size
             and rp.count('QB') == 1 and 'SUPER_FLEX' not in rp
             and sc.get('rec') in (0.5, 1.0) and sc.get('pass_td') == 4 and l.get('league_id') not in OURS)
@@ -325,9 +327,12 @@ def main():
     ap.add_argument('--check-divisions', action='store_true', help='per season: division leagues and how many play our schedule exactly')
     ap.add_argument('--transactions', action='store_true', help='weeks 1-18 of transactions for every cached league -> cache/transactions')
     ap.add_argument('--histories', action='store_true', help='earlier seasons of every cached league (previous_league_id) -> cache/history')
+    ap.add_argument('--twelve', action='store_true', help='keep only 12-team leagues (the research uses those; active ones are filtered after)')
     ap.add_argument('--summary', action='store_true', help='files per season in each cache folder, each read back')
     args = ap.parse_args()
     LIMIT.gap = 60.0 / min(args.calls_per_min, 999)
+    global TWELVE
+    TWELVE = args.twelve
     if args.check_divisions: return check_divisions()
     if args.summary: return summary()
     if args.transactions: return crawl_transactions()
