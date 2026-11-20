@@ -35,8 +35,8 @@ league average so far
 ```
 
 the same in every remaining week, playoff rounds included. The weights are fitted separately for
-every week of the season: the lineup weight is about 0.3-0.5 for most of the season (higher in
-the last week or two), and the points-per-game weight rises from about 0.1 in week 3 to about
+every week of the season: the lineup weight is about 0.35-0.45 for most of the season (about 0.55
+in weeks 12-13 and 0.84 in the last week), and the points-per-game weight rises from about 0.1 in week 3 to about
 0.5 late in the season. Weeks 1-2 use week 3's weights.
 
 Each simulated season also draws one random offset per team, sd *tau(e)* (about 8.7 points early,
@@ -53,13 +53,12 @@ others):
 | Model | Playoff Brier | Title Brier |
 |---|---|---|
 | Coin flip for every remaining game | 0.1420 | 0.0718 |
-| Earlier model (75% of the lineup gap) | 0.1432 | 0.0726 |
-| **Fitted model** | **0.1371** | **0.0712** |
+| Earlier model (75% of the lineup gap) | 0.1414 | 0.0721 |
+| **Fitted model** | **0.1369** | **0.0711** |
 
-The fitted model beats the earlier one by 0.0062 (95% 0.0059 to 0.0065) in 8 of 8 seasons, at
-every week of the season. Its odds are calibrated on the crawled leagues (teams given 30% made the
-playoffs 31% of the time, 50% made it 50%, 88% made it 87%). On this league's own 2022-2025 seasons it ties the earlier
-model, whose settings were chosen on those seasons (`own_league.py`).
+The fitted model beats the earlier one by 0.0046 (95% 0.0043 to 0.0048) in 8 of 8 seasons, and
+on title (-0.0010) and last-place odds (-0.0020), also 8 of 8 (`title_odds.py`). On this league's
+own 2022-2025 seasons (the Playoffs tab's odds history) its playoff Brier is 0.1389.
 
 **Headroom** (`headroom.py`): of the spread in teams' rest-of-season scoring, the model explains
 24%, misses 13% that could in principle be known, and the rest is change still to come (8%) and
@@ -70,9 +69,8 @@ of the draft and after every completed week, with only what was known then: the 
 (then each week's), records and scores so far, season production so far, and that week's
 projections carried forward with byes (a player on bye that week goes by the following week's
 projection). Past injury statuses aren't kept, so earlier points don't discount injured players.
-The trade history's "at the time" odds (`web/lib/tradeHistory.ts`) work the same way. Known
-limitation: the Python backtests (`leagues_fit.table`) value a player projected 0 in the snapshot
-week (on bye) at 0 for the rest of the season.
+The trade history's "at the time" odds (`web/lib/tradeHistory.ts`) and the backtests the model is
+fitted on (`leagues_fit.table`) work the same way.
 
 ## Single-game win odds (trade tools)
 

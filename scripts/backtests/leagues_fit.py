@@ -52,15 +52,23 @@ def table(season, e, ppr):
     for w in range(1, e):
         for p, s in arch(season, f'stats/{w}').items():
             if s.get('gp'): tot[p] += s.get(col) or 0; gp[p] += 1
+    # A player on bye in week e is projected 0 then: he goes by the next week's projection, not 0 all season
+    nxt = {}
+    if e < 18:
+        try:
+            nxt = {r['player_id']: (r.get('stats') or {}).get(col) or 0 for r in arch(season, f'projections/{e + 1}')}
+        except FileNotFoundError:
+            pass
     out = {}
     for r in arch(season, f'projections/{e}'):
         pos = (r.get('player') or {}).get('position')
         if pos not in POS: continue
         pid = r['player_id']; pts = (r.get('stats') or {}).get(col) or 0
+        team = r.get('team') or (pid if pos == 'DEF' else None)
+        if team is not None and team not in playing[e] and e < 18: pts = nxt.get(pid, pts)
         if pos == 'DEF':  # defenses: games played = team games
             gp[pid] = sum(1 for w in range(1, e) if pid in playing[w])
         ppg = (tot[pid] + 3 * pts) / (gp[pid] + 3)
-        team = r.get('team') or (pid if pos == 'DEF' else None)
         weeks = {}
         for w in range(e, 19):
             on = team in playing[w]

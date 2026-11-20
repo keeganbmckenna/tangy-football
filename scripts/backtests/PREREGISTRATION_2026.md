@@ -196,6 +196,17 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
   doubt, so next week counted as his second game out (back by then 81% instead of 66%). A bug fix
   in applying the injury rule, not a model change: nothing fitted or tuned. Past odds history and
   trade grades don't use injury statuses, so nothing is rebuilt. No 2026 data used.
+- 2026-11-20: **the fitted model is refitted with a bug fixed in its player values**
+  (`leagues_fit.table`): a player whose team was on bye in the snapshot week (projected 0 then)
+  was valued at 0 for the rest of the season; he now goes by the following week's projection, as
+  the site's own odds history and trade grades do. It changed the lineup feature in 62% of the
+  crawled snapshots. Same model, features and fitting procedure, refitted on the same 2018-2025
+  league-seasons (`byefix_check.py`, `export_model.py`): playoff Brier -0.00030 [-0.00035,
+  -0.00024] on all 12-team leagues (7 of 8 seasons), -0.00042 [-0.00051, -0.00033] on active
+  leagues (8 of 8); this league's 2022-2025 odds history 0.1394 -> 0.1389, better in all four.
+  The single-game model is refitted on the fixed values too. A bug fix, not a tuning: nothing
+  chosen on 2026 data. The 2026 evaluation scores the logged predictions as preregistered, which
+  were made by the model before the fix up to this date.
 
 ## Addendum (2026-10-26): further live-odds tests, set before their data is examined
 
