@@ -100,7 +100,7 @@ export default function OddsHistoryChart({ season, teamStats, liveOdds, lastScor
       footer={
         <span>
           Each point is the playoff-odds model re-run with only what was known then: rosters (the drafted ones, then each
-          week&apos;s), records and points so far, and the projections published that week, carried forward with bye weeks.
+          week&apos;s), records and points so far, and the projections published that week, carried forward with bye weeks (a player on bye that week goes by the next week&apos;s).
           The Draft point has no games played, and the model&apos;s weights were fitted from week 3 on, so the first points
           are rougher. Earlier points don&apos;t discount injured players, since past injury reports aren&apos;t kept
           {liveOdds ? '; the latest point is the live odds above' : ''}.

@@ -21,6 +21,8 @@ export interface TradeLeader {
   titleOddsGained: number;
   /** Points the players they got scored in their starting lineup */
   starterPoints: number;
+  /** The same over the waiver wire (raw points for trades in files without it) */
+  starterPointsOverWaiver: number;
   /** Sum of the playoff-odds change at the time from trades they weren't in (0 for older files) */
   playoffOddsFromOthers: number;
 }
@@ -33,18 +35,26 @@ export interface TradeSideRef {
 }
 
 /**
- * A side's net in hindsight: what the players it received scored in its starting lineup, minus
- * what the players it sent scored in their new teams' lineups. Each received player's points
- * (byPlayer) make it exact; files built before those were kept fall back to the other sides'
- * totals, which is exact for a two-team trade.
+ * A side's net in hindsight: what the players it received did in its starting lineup, minus what the
+ * players it sent did in their new teams' lineups. Over the waiver wire when every side has it (each
+ * start counts only for its edge over what a waiver pickup would have scored), so a player who simply
+ * started more often isn't a win by itself; else raw points. Each received player's points (byPlayer)
+ * make it exact; files built before those were kept fall back to the other sides' totals, which is
+ * exact for a two-team trade.
  */
 export function netHindsight(trade: TradeHistoryEntry, side: TradeHistorySide): number {
   const others = trade.sides.filter((o) => o.rosterId !== side.rosterId);
-  const given = others.every((o) => o.hindsight.byPlayer)
-    ? side.sends.reduce((sum, p) => sum + others.reduce((s, o) => s + (o.hindsight.byPlayer?.[p] ?? 0), 0), 0)
-    : others.reduce((sum, o) => sum + o.hindsight.points, 0);
-  return Math.round((side.hindsight.points - given) * 100) / 100;
+  const overWaiver = hasOverWaiver(trade);
+  const total = (s: TradeHistorySide) => (overWaiver ? s.hindsight.overWaiver! : s.hindsight.points);
+  const by = (s: TradeHistorySide) => (overWaiver ? s.hindsight.overWaiverByPlayer : s.hindsight.byPlayer);
+  const given = others.every((o) => by(o))
+    ? side.sends.reduce((sum, p) => sum + others.reduce((s, o) => s + (by(o)?.[p] ?? 0), 0), 0)
+    : others.reduce((sum, o) => sum + total(o), 0);
+  return Math.round((total(side) - given) * 100) / 100;
 }
+
+/** Whether a trade's hindsight is measured over the waiver wire (every side has it) */
+export const hasOverWaiver = (trade: TradeHistoryEntry) => trade.sides.every((s) => s.hindsight.overWaiver !== undefined);
 
 export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, rosterId: number) => string | null) {
   const rows = new Map<string, TradeLeader & { partners: Map<string, number> }>();
@@ -52,7 +62,7 @@ export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, ros
   const row = (userId: string) => {
     let r = rows.get(userId);
     if (!r) {
-      r = { userId, trades: 0, topPartner: null, playoffOddsGained: 0, titleOddsGained: 0, starterPoints: 0, playoffOddsFromOthers: 0, partners: new Map() };
+      r = { userId, trades: 0, topPartner: null, playoffOddsGained: 0, titleOddsGained: 0, starterPoints: 0, starterPointsOverWaiver: 0, playoffOddsFromOthers: 0, partners: new Map() };
       rows.set(userId, r);
     }
     return r;
@@ -79,6 +89,7 @@ export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, ros
         r.titleOddsGained += (side.atTime.after.champion ?? 0) - (side.atTime.before.champion ?? 0);
       }
       r.starterPoints += side.hindsight.points;
+      r.starterPointsOverWaiver += side.hindsight.overWaiver ?? side.hindsight.points;
     });
   }
   const leaders: TradeLeader[] = [...rows.values()]
@@ -95,7 +106,7 @@ export function tradeLeaders(trades: SeasonTrade[], userOf: (season: string, ros
     /** Biggest playoff-odds gains and losses at the time of a trade */
     bestAtTheTime: [...graded].sort((a, b) => playoffDelta(b) - playoffDelta(a)).slice(0, 5),
     worstAtTheTime: [...graded].sort((a, b) => playoffDelta(a) - playoffDelta(b)).slice(0, 5),
-    /** Best trades in hindsight: incoming players' starting-lineup points minus the outgoing players' for their new teams */
+    /** Best trades in hindsight: incoming players' starting-lineup points minus the outgoing players' for their new teams (over the waiver wire where known) */
     bestHauls: [...sides].sort((a, b) => netHindsight(b.trade, b.side) - netHindsight(a.trade, a.side)).slice(0, 5),
     playoffDelta,
     /** The biggest moves to a team outside a trade (either way), by playoff odds */

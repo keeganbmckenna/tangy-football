@@ -13,7 +13,7 @@ import { lineupEfficiency, playerLeaders, teamMvps } from '@/lib/analyze/rosters
 import type { TradeHistoryResponse } from '@/lib/analyze/trade';
 import type { LeagueData, PlayEveryoneStats, TeamStats, WeekMatchup } from '@/lib/types';
 import { signed } from '@/lib/format';
-import { netHindsight } from '@/lib/analyze/tradeLeaders';
+import { hasOverWaiver, netHindsight } from '@/lib/analyze/tradeLeaders';
 import type { DraftData } from '@/lib/analyze/draft';
 import { POINT_SOURCES, averageTeam, pointSources, slope, type PointSource } from '@/lib/analyze/pointSources';
 import Term from '@/components/ui/Term';
@@ -120,7 +120,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
   const efficiencyRank = lineups ? [...lineups].sort((a, b) => b.efficiency - a.efficiency).findIndex((l) => l.rosterId === rosterId) + 1 : null;
   const mvp = mvps?.get(rosterId);
   const pickup = insights?.waivers.filter((m) => m.rosterId === rosterId).sort((a, b) => b.startedPoints - a.startedPoints)[0];
-  // Best trade by net points: what it got (in its lineup) minus what the other side got (in theirs)
+  // Best trade by net points over the waiver wire: what it got (in its lineup) minus what the other side got (in theirs)
   const trade = trades?.trades
     .flatMap((t) =>
       t.sides
@@ -175,7 +175,7 @@ export default function SeasonReview({ season, leagueData, teamStats, playEveryo
             <Tile
               wide
               label="Best trade"
-              sub={`Week ${trade.t.week} with ${trade.t.sides.filter((s) => s.rosterId !== rosterId).map((s) => name(s.rosterId)).join(', ')} · ${signed(trade.net)} net pts`}
+              sub={`Week ${trade.t.week} with ${trade.t.sides.filter((s) => s.rosterId !== rosterId).map((s) => name(s.rosterId)).join(', ')} · ${signed(trade.net)} net pts${hasOverWaiver(trade.t) ? ' over waiver' : ''}`}
             >
               <span title={trade.s.receives.map(player).join(', ')}>
                 {trade.s.receives.map((id) => shortName(player(id))).join(', ') || trade.s.picks.join(', ') || 'Picks and FAAB'}

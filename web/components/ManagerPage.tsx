@@ -295,7 +295,7 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
           )}
           {trades?.best && (
             <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Best trade (net points in hindsight)</dt>
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Best trade (net points over waiver, in hindsight)</dt>
               <dd>
                 <span className="font-semibold text-[var(--foreground)]">{signed(trades.best.net)}</span>
                 <span className="text-[var(--muted)]"> · {trades.best.season} wk {trades.best.week} with {trades.best.with.map(nameOf).join(', ')}: got {trades.best.got.join(', ') || 'nothing'} for {trades.best.gave.join(', ') || 'nothing'}</span>

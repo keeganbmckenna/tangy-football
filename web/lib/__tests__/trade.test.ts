@@ -266,6 +266,10 @@ describe('past trades', () => {
     };
     expect(starterPoints(['p2'], 1, matchups, 3, 5)).toEqual({ points: 19.5, starts: 2, byPlayer: { p2: 19.5 } });
     expect(starterPoints(['p2'], 1, matchups, 4, 4)).toEqual({ points: 0, starts: 0, byPlayer: {} });
+    // Over the waiver wire: each start less what a pickup scored that week; unknown in any start drops it
+    const repl = (w: number) => (w === 3 ? 8 : 9);
+    expect(starterPoints(['p2'], 1, matchups, 3, 5, repl)).toMatchObject({ points: 19.5, overWaiver: 2.5, overWaiverByPlayer: { p2: 2.5 } });
+    expect(starterPoints(['p2'], 1, matchups, 3, 5, (w) => (w === 5 ? null : 1))).not.toHaveProperty('overWaiver');
   });
 });
 

@@ -51,6 +51,9 @@ import {
  */
 const HISTORY_SIMS = 10000;
 
+/** Free agents averaged for a week's waiver replacement (the best projected at the position) */
+const WAIVER_POOL = 3;
+
 /** A team's record, points for and weekly scores through a week */
 export const record = (matchups: Record<number, SleeperMatchup[]>, rosterId: number, throughWeek: number) => {
   let wins = 0;
@@ -134,9 +137,16 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
     ...tradeWeeks.map((w) => weekProjections(league.season, w)),
   ]);
   const projectionsAt = new Map(tradeWeeks.map((w, i) => [w, projectionList[i]]));
+  // A player on bye in the trade week is projected 0 that week: carried forward, he'd count for nothing
+  // all season, so he goes by the next week's projection instead
+  const nextWeeks = [...new Set(tradeWeeks.map((w) => w + 1))];
+  const nextProjections = new Map(
+    await Promise.all(nextWeeks.map(async (w) => [w, projectionsAt.get(w) ?? (await weekProjections(league.season, w))] as const))
+  );
 
-  // Each player's season production before each trade week
-  const statsWeeks = Math.max(0, ...tradeWeeks.map((w) => w - 1));
+  // Each player's season production before each trade week, and each scored week's points for the
+  // waiver replacement in hindsight
+  const statsWeeks = Math.max(0, lastScoredWeek, ...tradeWeeks.map((w) => w - 1));
   const weeklyStats = await Promise.all(
     Array.from({ length: statsWeeks }, (_, i) =>
       fetchJson<Record<string, { pts_half_ppr?: number; gp?: number }>>(`${baseUrl}/stats/nfl/regular/${league.season}/${i + 1}`, false).catch(
@@ -147,6 +157,33 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
   const productionBefore = new Map<number, SeasonProduction>(
     tradeWeeks.map((w) => [w, cumulativeProduction(weeklyStats.slice(0, w - 1))])
   );
+
+  // Hindsight over the waiver wire: what a pickup at the player's position would have scored that
+  // week. The pickup isn't chosen with hindsight: it's the mean of the WAIVER_POOL free agents (on no
+  // roster that week) with the best projections for the week, scored by what they actually did
+  const scoredWeeks = Array.from({ length: Math.max(0, lastScoredWeek - Math.min(Infinity, ...tradeWeeks) + 1) }, (_, i) => Math.min(...tradeWeeks) + i);
+  const projByScoredWeek = new Map(
+    await Promise.all(
+      scoredWeeks.map(async (w) => [w, projectionsAt.get(w) ?? (await weekProjections(league.season, w))] as const)
+    )
+  );
+  const replacementCache = new Map<string, number | null>();
+  const waiverReplacement = (w: number, playerId: string): number | null => {
+    const proj = projByScoredWeek.get(w);
+    const position = proj?.[playerId]?.position ?? players[playerId]?.position;
+    if (!proj || !position) return null;
+    const key = `${w}:${position}`;
+    if (!replacementCache.has(key)) {
+      const rostered = new Set((matchups[w] ?? []).flatMap((m) => m.players ?? []));
+      const pool = Object.entries(proj)
+        .filter(([pid, p]) => p.position === position && !rostered.has(pid))
+        .sort((a, b) => b[1].points - a[1].points)
+        .slice(0, WAIVER_POOL);
+      const stats = weeklyStats[w - 1] ?? {};
+      replacementCache.set(key, pool.length ? pool.reduce((s, [pid]) => s + (stats[pid]?.pts_half_ppr ?? 0), 0) / pool.length : null);
+    }
+    return replacementCache.get(key)!;
+  };
 
   const players: TradeHistoryResponse['players'] = {};
   const nameFor = (pid: string, week: number) => {
@@ -219,8 +256,10 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       const production: SeasonProduction = productionBefore.get(w0) ?? { points: {}, games: {}, playedWeeks: {} };
       const weekProj = (w: number) => {
         const out: Record<string, { position: string; points: number }> = {};
+        const next = nextProjections.get(w0 + 1);
         for (const [pid, p] of Object.entries(proj)) {
-          const projected = plays(p, pid, w) ? p.points : 0;
+          const points = plays(p, pid, w0) ? p.points : next?.[pid]?.points ?? p.points;
+          const projected = plays(p, pid, w) ? points : 0;
           out[pid] = { position: p.position, points: playerValue(projected, production.points[pid] ?? 0, production.games[pid] ?? 0) };
         }
         return out;
@@ -307,7 +346,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       sides: trade.sides.map((s) => ({
         ...s,
         atTime: atTime?.get(s.rosterId) ?? null,
-        hindsight: starterPoints(s.receives, s.rosterId, matchups, w0, lastScoredWeek),
+        hindsight: starterPoints(s.receives, s.rosterId, matchups, w0, lastScoredWeek, waiverReplacement),
         finalSeed: finalOrder ? finalOrder.indexOf(s.rosterId) + 1 : null,
       })),
       ...(others ? { others } : {}),

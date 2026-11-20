@@ -12,7 +12,7 @@ import { sortRows } from '@/lib/tableSort';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { getHeatmapColorByRatio } from '@/lib/constants';
 import { formatOdds } from '@/lib/analyze/playoffOdds';
-import { netHindsight, tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
+import { hasOverWaiver, netHindsight, tradeLeaders, type SeasonTrade, type TradeSideRef } from '@/lib/analyze/tradeLeaders';
 import type { HistoryData, HistoryManager } from '@/lib/analyze/history';
 import type { TradeHistoryResponse, TradeHistorySide } from '@/lib/analyze/trade';
 import { signed, ppChange } from '@/lib/format';
@@ -185,7 +185,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
   }
 
   const leaderRows = sortRows(stats.leaders, sort.state, (r, key) =>
-    ({ trades: r.trades, playoff: r.playoffOddsGained, title: r.titleOddsGained, points: r.starterPoints, others: r.playoffOddsFromOthers })[key]
+    ({ trades: r.trades, playoff: r.playoffOddsGained, title: r.titleOddsGained, points: r.starterPointsOverWaiver, others: r.playoffOddsFromOthers })[key]
   );
   const bySeason = new Map(seasons.map((s) => [s.season, s]));
   const players = Object.assign({}, ...seasons.map((s) => s.players)) as TradeHistoryResponse['players'];
@@ -250,6 +250,17 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
           <span className="text-xs text-[var(--muted)]">
             {' '}in {side.hindsight.starts} start{side.hindsight.starts === 1 ? '' : 's'}
           </span>
+          {side.hindsight.overWaiver !== undefined && side.hindsight.starts > 0 && (
+            <div className="text-xs text-[var(--muted)]">
+              <span
+                className="font-semibold"
+                style={{ color: Math.abs(side.hindsight.overWaiver) < 0.05 ? 'var(--muted)' : side.hindsight.overWaiver > 0 ? 'var(--success-text)' : 'var(--danger-text)' }}
+              >
+                {signed(side.hindsight.overWaiver)}
+              </span>{' '}
+              over a waiver pickup
+            </div>
+          )}
         </div>
         <div className="text-sm">
           {side.finalSeed !== null && (
@@ -408,7 +419,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                       <th className="px-3 py-2 font-medium">Favorite partner</th>
                       <SortableTh sort={sort} col="playoff" tip="Sum of each trade’s change to this manager’s playoff odds the week it went through, in percentage points" className="px-3 py-2 text-center font-medium">Playoff odds at the time</SortableTh>
                       <SortableTh sort={sort} col="title" className="px-3 py-2 text-center font-medium">Title odds at the time</SortableTh>
-                      <SortableTh sort={sort} col="points" tip="Points the players they got scored in their starting lineup afterward" tipAlign="right" className="px-3 py-2 text-center font-medium">Starter pts received</SortableTh>
+                      <SortableTh sort={sort} col="points" tip="Points the players they got scored in their starting lineup afterward, minus what a waiver pickup at the same position would have scored in those starts" tipAlign="right" className="px-3 py-2 text-center font-medium">Starter pts over waiver</SortableTh>
                       <SortableTh sort={sort} col="others" tip="Sum of what trades they weren’t in did to their playoff odds the week each went through, in percentage points" tipAlign="right" className="px-3 py-2 text-center font-medium">Playoff odds from others&apos; trades</SortableTh>
                     </tr>
                   </thead>
@@ -440,7 +451,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
                             {pp(d)}
                           </td>
                         ))}
-                        <td className="px-3 py-2 text-center text-[var(--foreground)]">{r.starterPoints.toFixed(1)}</td>
+                        <td className="px-3 py-2 text-center text-[var(--foreground)]">{signed(r.starterPointsOverWaiver)}</td>
                         <td
                           className="px-3 py-2 text-center font-semibold"
                           style={{ color: Math.abs(r.playoffOddsFromOthers) < 0.005 ? 'var(--muted)' : r.playoffOddsFromOthers > 0 ? 'var(--success-text)' : 'var(--danger-text)' }}
@@ -464,7 +475,10 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
               <HowItWorks className="mt-2" label="What the columns mean">
                 <p>
                 Odds columns add up each trade&apos;s change in that manager&apos;s odds the week it went through, in percentage
-                points (pp). Starter points are what the players they got scored in their starting lineup afterward.
+                points (pp). Starter points over waiver are what the players they got scored in their starting lineup
+                afterward, minus what a waiver pickup at the same position would have scored in each of those starts (the
+                three free agents with the best projections that week, by what they actually scored): a player who started
+                a lot counts for his edge over the waiver wire, not for every point.
                 </p>
                 <p>
                 Playoff odds from others&apos; trades adds up what the trades they weren&apos;t in did to their playoff odds, the
@@ -477,7 +491,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
             <div className="grid gap-4 md:grid-cols-2">
               {sideList('Biggest playoff odds gains at the time', stats.bestAtTheTime.filter((s) => stats.playoffDelta(s) > 0), (s) => `${pp(stats.playoffDelta(s))} pp`)}
               {sideList('Biggest playoff odds losses at the time', stats.worstAtTheTime.filter((s) => stats.playoffDelta(s) < 0), (s) => `${pp(stats.playoffDelta(s))} pp`)}
-              {sideList('Best trades in hindsight', stats.bestHauls, (s) => `${signed(netHindsight(s.trade, s.side), 1)} pts net`)}
+              {sideList('Best trades in hindsight', stats.bestHauls, (s) => `${signed(netHindsight(s.trade, s.side), 1)} pts net${hasOverWaiver(s.trade) ? ' over waiver' : ''}`)}
               <div className="rounded-lg border border-[var(--border)] p-4">
                 <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">Biggest swings for teams not in the trade</h4>
                 {stats.biggestBystanders.filter((b) => Math.abs(b.delta) >= 0.005).length === 0 ? (
@@ -610,9 +624,13 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
         <HowItWorks>
           <p>
           At the time: the playoff odds model re-run the week the trade counted from, with that week&apos;s records, rosters and
-          projections, without and with the trade (5,000 seasons each, on the same random draws). The projected lineup change
-          is the raw difference if nothing else changed. Hindsight: points the players a team got scored in its starting
-          lineup through the end of that regular season (or the latest week, for the season in progress).
+          projections (a player on bye that week goes by the next week&apos;s), without and with the trade (10,000 seasons
+          each, on the same random draws). The projected lineup change is the raw difference if nothing else changed; a
+          test on 28,913 trades in other leagues found that measuring it over the waiver wire instead didn&apos;t make the odds
+          more accurate. Hindsight: points the players a team got scored in its starting lineup through the end of that
+          regular season (or the latest week, for the season in progress), and the same over a waiver pickup: each start
+          less what the three free agents with the best projections at that position that week actually scored, on
+          average. A player who started a lot counts for his edge over the waiver wire, not every point.
           </p>
         </HowItWorks>
       </div>

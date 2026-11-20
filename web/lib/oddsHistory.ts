@@ -94,8 +94,9 @@ export async function buildOddsHistory(league: SleeperLeague): Promise<OddsHisto
 
   // Checkpoints: the draft (0 weeks played), then after each completed regular-season week
   const checkpointWeeks = Array.from({ length: lastScoredWeek + 1 }, (_, k) => k);
+  // Each checkpoint's projections are for the next week, and one more week's for its players on bye then
   const [projectionList, weeklyStats] = await Promise.all([
-    Promise.all(checkpointWeeks.map((k) => weekProjections(league.season, Math.min(k + 1, regularSeasonEnd)))),
+    Promise.all([...checkpointWeeks, lastScoredWeek + 1].map((k) => weekProjections(league.season, Math.min(k + 1, regularSeasonEnd)))),
     Promise.all(
       Array.from({ length: lastScoredWeek }, (_, i) =>
         fetchJson<Record<string, { pts_half_ppr?: number; gp?: number }>>(`${baseUrl}/stats/nfl/regular/${league.season}/${i + 1}`, false).catch(
@@ -131,10 +132,15 @@ export async function buildOddsHistory(league: SleeperLeague): Promise<OddsHisto
       if (!playing) return true;
       return p.position === 'DEF' ? playing.has(pid) : !!p.team && playing.has(p.team);
     };
+    // A player on bye the week projected is projected 0 then: carried forward he'd count for nothing all
+    // season, so he goes by the following week's projection instead
+    const projWeek = Math.min(k + 1, regularSeasonEnd);
+    const next = projectionList[k + 1];
     const values = (w: number) => {
       const out: Record<string, { position: string; points: number }> = {};
       for (const [pid, p] of Object.entries(proj)) {
-        out[pid] = { position: p.position, points: playerValue(plays(p, pid, w) ? p.points : 0, production.points[pid] ?? 0, production.games[pid] ?? 0) };
+        const points = plays(p, pid, projWeek) ? p.points : next?.[pid]?.points ?? p.points;
+        out[pid] = { position: p.position, points: playerValue(plays(p, pid, w) ? points : 0, production.points[pid] ?? 0, production.games[pid] ?? 0) };
       }
       return out;
     };

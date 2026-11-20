@@ -67,8 +67,12 @@ weekly luck (56%). No team-strength model can get far below about 0.12 on these 
 **Odds week by week** (`web/lib/oddsHistory.ts`): the Playoffs tab's chart re-runs this model as
 of the draft and after every completed week, with only what was known then: the drafted rosters
 (then each week's), records and scores so far, season production so far, and that week's
-projections carried forward with byes. Past injury statuses aren't kept, so earlier points don't
-discount injured players.
+projections carried forward with byes; a player on bye that week (projected 0) goes by the next
+week's projection, not 0 all season (fixed 2026-11-20: past seasons' playoff Brier 0.1403 -> 0.1394,
+better in all four). Past injury statuses aren't kept, so earlier points don't discount injured
+players. The trade history's "at the time" odds (`web/lib/tradeHistory.ts`) work the same way. The
+Python backtests (`leagues_fit.table`) still value a player at 0 for the whole season when he's
+projected 0 in the snapshot week.
 
 ## Single-game win odds (trade tools)
 

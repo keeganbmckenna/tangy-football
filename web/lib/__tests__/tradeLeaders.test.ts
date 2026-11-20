@@ -55,6 +55,22 @@ describe('tradeLeaders', () => {
     expect(r.biggestBystanders[0].delta).toBeCloseTo(-0.08);
   });
 
+  it('nets over the waiver wire when every side has it, so more starts alone is no win', () => {
+    const s = (rosterId: number, receives: string[], sends: string[], points: number, over: number) => ({
+      rosterId, receives, sends, picks: [], faab: 0, atTime: null, finalSeed: null,
+      hindsight: { points, starts: 1, byPlayer: { [receives[0]]: points }, overWaiver: over, overWaiverByPlayer: { [receives[0]]: over } },
+    });
+    // 1 got A (60 pts in 6 starts, 6 over waiver); 2 got B (30 in 2 starts, 10 over waiver)
+    const trade = { id: 't', week: 4, effectiveWeek: 4, sides: [s(1, ['A'], ['B'], 60, 6), s(2, ['B'], ['A'], 30, 10)] };
+    expect(netHindsight(trade, trade.sides[0])).toBe(-4);
+    expect(netHindsight(trade, trade.sides[1])).toBe(4);
+    const r = tradeLeaders([{ season: '2025', trade }], (_s, id) => `u${id}`);
+    expect(r.leaders.find((l) => l.userId === 'u1')).toMatchObject({ starterPoints: 60, starterPointsOverWaiver: 6 });
+    // Without it on every side, raw points
+    const older = { ...trade, sides: [trade.sides[0], { ...trade.sides[1], hindsight: { points: 30, starts: 2, byPlayer: { B: 30 } } }] };
+    expect(netHindsight(older, older.sides[0])).toBe(30);
+  });
+
   it('nets each sent player\'s points for whoever got him, in a three-team trade', () => {
     const s = (rosterId: number, receives: string[], sends: string[], byPlayer: Record<string, number>): TradeHistorySide => ({
       rosterId, receives, sends, picks: [], faab: 0, atTime: null, finalSeed: null,

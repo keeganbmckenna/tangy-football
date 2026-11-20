@@ -403,30 +403,47 @@ export function parseTrades(transactions: SleeperTransaction[]): TradeRecord[] {
     .sort((a, b) => a.week - b.week || a.created - b.created);
 }
 
-/** Points the given players scored while in a team's starting lineup over a span of weeks */
+/**
+ * Points the given players scored while in a team's starting lineup over a span of weeks. With
+ * replacement (week, player -> what a waiver pickup at his position scored that week, or null if
+ * unknown), also those points over the waiver wire, in all and by player (absent if any is unknown).
+ */
 export function starterPoints(
   players: string[],
   rosterId: number,
   matchupsByWeek: Record<number, SleeperMatchup[]>,
   fromWeek: number,
-  toWeek: number
-): { points: number; starts: number; byPlayer: Record<string, number> } {
+  toWeek: number,
+  replacement?: (week: number, playerId: string) => number | null
+): { points: number; starts: number; byPlayer: Record<string, number>; overWaiver?: number; overWaiverByPlayer?: Record<string, number> } {
   let points = 0;
   let starts = 0;
   const byPlayer: Record<string, number> = {};
+  const over: Record<string, number> = {};
+  let overKnown = !!replacement;
   const wanted = new Set(players);
   for (let w = fromWeek; w <= toWeek; w++) {
     const m = matchupsByWeek[w]?.find((x) => x.roster_id === rosterId);
     if (!m) continue;
     for (const p of m.starters ?? []) {
       if (!wanted.has(p)) continue;
+      const pts = m.players_points?.[p] ?? 0;
       starts++;
-      points += m.players_points?.[p] ?? 0;
-      byPlayer[p] = (byPlayer[p] ?? 0) + (m.players_points?.[p] ?? 0);
+      points += pts;
+      byPlayer[p] = (byPlayer[p] ?? 0) + pts;
+      if (overKnown) {
+        const r = replacement!(w, p);
+        if (r === null) overKnown = false;
+        else over[p] = (over[p] ?? 0) + pts - r;
+      }
     }
   }
-  for (const p of Object.keys(byPlayer)) byPlayer[p] = Math.round(byPlayer[p] * 100) / 100;
-  return { points: Math.round(points * 100) / 100, starts, byPlayer };
+  const round = (v: number) => Math.round(v * 100) / 100;
+  for (const p of Object.keys(byPlayer)) byPlayer[p] = round(byPlayer[p]);
+  const out = { points: round(points), starts, byPlayer };
+  if (!overKnown) return out;
+  for (const p of Object.keys(over)) over[p] = round(over[p]);
+  return { ...out, overWaiver: round(Object.values(over).reduce((a, b) => a + b, 0)), overWaiverByPlayer: over };
 }
 
 // ---------------------------------------------------------------------------
@@ -484,7 +501,18 @@ export interface TradeHistorySide extends TradeSideRecord {
   } | null;
   /** Points the received players scored in this team's starting lineup afterward */
   /** Points the players it received scored in its starting lineup (byPlayer: each one's; absent in older files) */
-  hindsight: { points: number; starts: number; byPlayer?: Record<string, number> };
+  hindsight: {
+    points: number;
+    starts: number;
+    byPlayer?: Record<string, number>;
+    /**
+     * Those points minus what a waiver pickup at the same position would have scored in each of those
+     * starts (lib/tradeHistory.ts waiverReplacement), in all and by player; absent in older files or
+     * when a week's projections were unavailable
+     */
+    overWaiver?: number;
+    overWaiverByPlayer?: Record<string, number>;
+  };
   /** Final regular-season seed (null while the season is in progress) */
   finalSeed: number | null;
 }
