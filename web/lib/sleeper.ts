@@ -2,13 +2,11 @@
  * Shared Sleeper API fetch helpers for server routes
  */
 
-import { CACHE_CONFIG } from '@/lib/config';
+import { CACHE_CONFIG, cacheFor } from '@/lib/config';
 import type { SleeperLeague } from '@/lib/types';
 
 export const fetchLeague = async (baseUrl: string, leagueId: string) => {
-  const response = await fetch(`${baseUrl}/league/${leagueId}`, {
-    next: { revalidate: CACHE_CONFIG.leagueData },
-  });
+  const response = await fetch(`${baseUrl}/league/${leagueId}`, cacheFor(CACHE_CONFIG.leagueData));
 
   if (!response.ok) {
     throw new Error(`Failed to fetch league ${leagueId}`);

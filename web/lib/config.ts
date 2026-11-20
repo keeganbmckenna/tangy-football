@@ -33,6 +33,18 @@ export const APP_CONFIG = {
 } as const;
 
 /**
+ * Cache tag on everything in the 5-minute tier (CACHE_CONFIG.leagueData: the league, users,
+ * rosters, brackets) and on the builds made from it (playoff odds, trade data). The header's
+ * refresh button (POST /api/refresh) expires it, so the next requests go to Sleeper.
+ */
+export const FRESH_TAG = 'sleeper-fresh';
+
+/** fetch options for a revalidate time: the 5-minute tier also carries FRESH_TAG */
+export const cacheFor = (revalidate: number) => ({
+  next: revalidate === CACHE_CONFIG.leagueData ? { revalidate, tags: [FRESH_TAG] } : { revalidate },
+});
+
+/**
  * Cache configuration (in seconds — Next.js `revalidate` durations)
  */
 export const CACHE_CONFIG = {

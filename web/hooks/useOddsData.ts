@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { PlayoffOddsResponse } from '@/lib/analyze/playoffOdds';
 import type { OddsHistoryResponse } from '@/lib/oddsHistory';
 import { fetchFirst, forgetShared, useSharedFetch } from '@/hooks/useSharedFetch';
+import { onRefresh } from '@/hooks/useRefresh';
 
 /** While a week is being played the odds follow its games: reload this often (the Live tab's model refreshes every 30s) */
 const LIVE_REFRESH_MS = 60_000;
@@ -23,6 +24,13 @@ function refreshIfStale() {
   loadedAt = Date.now();
   listeners.forEach((l) => l());
 }
+
+// The header's refresh button: reload now, whatever the clock says
+onRefresh(() => {
+  generation++;
+  loadedAt = Date.now();
+  listeners.forEach((l) => l());
+});
 
 /** The reload generation: advances while the page is visible and its odds are older than refreshEvery */
 function useGeneration(active: boolean): number {

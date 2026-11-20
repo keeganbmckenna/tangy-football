@@ -8,6 +8,8 @@ The **Season** picker in the header switches every tab between seasons:
 
 The **You** picker highlights your team everywhere and puts your matchup first, with you on the left, in Overview and Live (✕ clears it).
 
+The **↻ refresh** button (top left of the header) gets the latest from Sleeper without reloading the page: the tab, scroll position and open cards stay. It clears the site's cached league, rosters and brackets (and the playoff odds and trade data built from them), then reloads this season, the Live tab, the playoff odds and the trade and waiver tools in place. It spins while loading, shows a check when done, and says so if Sleeper can't be reached. It's mainly for the home-screen web app on phones, which has no reload button. A second tap within 30 seconds reuses the first one's data.
+
 ---
 
 ## 📊 Overview

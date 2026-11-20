@@ -41,6 +41,8 @@ import Chalkboard from '@/components/ui/Chalkboard';
 import HomeLink from '@/components/ui/HomeLink';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import RefreshButton from '@/components/ui/RefreshButton';
+import { broadcastRefresh } from '@/hooks/useRefresh';
 import { LeagueData, TeamStats, WeekMatchup, PlayEveryoneStats, DivisionStanding, WildCardStanding, ScheduleLuckSimulation } from '@/lib/types';
 import type { PostseasonBrackets } from '@/lib/analyze/brackets';
 import {
@@ -140,10 +142,13 @@ export default function App() {
     : undefined;
 
   // `show` is the season to display, when it isn't the one fetched (seasons before Sleeper)
-  const fetchData = useCallback(async (season?: string, show?: string): Promise<boolean> => {
+  // silent: a refresh, keeping the page as it is until the new data arrives (and if it fails)
+  const fetchData = useCallback(async (season?: string, show?: string, silent = false): Promise<boolean> => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       const query = season ? `?season=${season}` : '';
       const response = await fetch(`/api/league${query}`);
       if (!response.ok) {
@@ -196,11 +201,24 @@ export default function App() {
       setLoading(false);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      setLoading(false);
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setLoading(false);
+      }
       return false;
     }
   }, []);
+
+  // The header's refresh button: clear the server's cached Sleeper data, then reload this season
+  // and everything else on the page that loads its own (hooks/useRefresh.ts), in place
+  const refreshAll = useCallback(async (): Promise<boolean> => {
+    const cleared = await fetch('/api/refresh', { method: 'POST' }).then((r) => r.ok, () => false);
+    if (!cleared) return false;
+    const season = selectedSeason || leagueData?.league.season;
+    const legacy = !!season && LEGACY_SEASONS.some((s) => s.season === season);
+    const [ok] = await Promise.all([legacy ? fetchData(undefined, season, true) : fetchData(season, undefined, true), broadcastRefresh()]);
+    return ok;
+  }, [selectedSeason, leagueData, fetchData]);
 
   const changeSeason = useCallback(
     (season: string) => {
@@ -453,6 +471,10 @@ export default function App() {
       {/* Header */}
       <header className="site-header relative bg-[var(--surface-elevated)] shadow-md border-b border-[var(--border)] md:sticky md:top-0 z-40">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+          {/* Refresh on the left, theme on the right: the title stays centered between them */}
+          <div className="absolute left-4 top-4 sm:left-6 lg:left-8">
+            <RefreshButton onRefresh={refreshAll} />
+          </div>
           <div className="absolute right-4 top-4 sm:right-6 lg:right-8">
             <ThemeToggle />
           </div>

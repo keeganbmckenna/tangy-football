@@ -1,5 +1,6 @@
 'use client';
 
+import { useOnRefresh } from '@/hooks/useRefresh';
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -61,6 +62,8 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
     };
   }, [inSeason, live, data]);
 
+  // The header's refresh button: reload, keeping what's shown meanwhile
+  useOnRefresh(() => setAttempt((a) => a + 1));
   useEffect(() => {
     let cancelled = false;
     fetch('/api/trade-data')

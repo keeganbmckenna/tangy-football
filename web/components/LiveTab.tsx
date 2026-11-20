@@ -1,5 +1,6 @@
 'use client';
 
+import { useOnRefresh } from '@/hooks/useRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
@@ -243,6 +244,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
   useEffect(() => {
     refresh();
   }, [refresh]);
+  // The header's refresh button
+  useOnRefresh(refresh);
   useEffect(() => {
     if (week === null || !isCurrentSeason) return;
     const visible = () => document.visibilityState === 'visible';

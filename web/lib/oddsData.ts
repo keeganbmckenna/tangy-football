@@ -4,7 +4,7 @@
  */
 
 import { backBy, INJURED, missedStreak } from './analyze/availability';
-import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
+import { SLEEPER_CONFIG, CACHE_CONFIG, cacheFor } from '@/lib/config';
 import type { SleeperLeague, SleeperMatchup, SleeperRoster } from '@/lib/types';
 import {
   bestLineupPoints,
@@ -23,7 +23,7 @@ export const SCHEDULE_URL = 'https://api.sleeper.com/schedule/nfl/regular';
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 export const fetchJson = async <T,>(url: string, revalidate: number | false): Promise<T> => {
-  const response = await fetch(url, revalidate === false ? { cache: 'no-store' } : { next: { revalidate } });
+  const response = await fetch(url, revalidate === false ? { cache: 'no-store' } : cacheFor(revalidate));
   if (!response.ok) throw new Error(`Sleeper request failed (${response.status}): ${url}`);
   return response.json() as Promise<T>;
 };

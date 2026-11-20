@@ -4,7 +4,7 @@
  * link previews (lib/sharePreview.ts), which build their cards on the server.
  */
 
-import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
+import { SLEEPER_CONFIG, CACHE_CONFIG, cacheFor, FRESH_TAG } from '@/lib/config';
 import { buildLeagueChain } from '@/lib/sleeper';
 import type { LeagueData, SleeperUser, SleeperRoster, SleeperMatchup, SleeperBracketMatchup } from '@/lib/types';
 
@@ -34,19 +34,19 @@ export async function loadLeagueData(seasonParam?: string | null): Promise<Leagu
 
   const winnersBracketPromise = targetLeague.bracket_id
     ? fetch(`${baseUrl}/league/${targetLeagueId}/winners_bracket`, {
-      next: { revalidate: bracketRevalidate },
+      next: { revalidate: bracketRevalidate, tags: [FRESH_TAG] },
     }).then(res => (res.ok ? res.json() as Promise<SleeperBracketMatchup[]> : null))
     : Promise.resolve(null);
 
   const losersBracketPromise = targetLeague.loser_bracket_id
     ? fetch(`${baseUrl}/league/${targetLeagueId}/losers_bracket`, {
-      next: { revalidate: bracketRevalidate },
+      next: { revalidate: bracketRevalidate, tags: [FRESH_TAG] },
     }).then(res => (res.ok ? res.json() as Promise<SleeperBracketMatchup[]> : null))
     : Promise.resolve(null);
 
   const [usersRes, rostersRes, winnersBracket, losersBracket] = await Promise.all([
-    fetch(`${baseUrl}/league/${targetLeagueId}/users`, { next: { revalidate: CACHE_CONFIG.leagueData } }),
-    fetch(`${baseUrl}/league/${targetLeagueId}/rosters`, { next: { revalidate: CACHE_CONFIG.leagueData } }),
+    fetch(`${baseUrl}/league/${targetLeagueId}/users`, cacheFor(CACHE_CONFIG.leagueData)),
+    fetch(`${baseUrl}/league/${targetLeagueId}/rosters`, cacheFor(CACHE_CONFIG.leagueData)),
     winnersBracketPromise,
     losersBracketPromise,
   ]);
@@ -59,10 +59,14 @@ export async function loadLeagueData(seasonParam?: string | null): Promise<Leagu
   for (let week = 1; week <= Math.min(currentWeek, maxWeeks); week++) {
     // Don't cache the current week's matchups - update in near real-time
     // Cache completed weeks for one day
+    // The latest scored week also clears on a refresh (stat corrections)
     const isCurrentWeek = week === currentWeek && week > lastScoredWeek;
     matchupPromises.push(
       fetch(`${baseUrl}/league/${targetLeagueId}/matchups/${week}`, {
-        next: { revalidate: isCurrentWeek ? CACHE_CONFIG.currentWeek : CACHE_CONFIG.completedWeek }
+        next: {
+          revalidate: isCurrentWeek ? CACHE_CONFIG.currentWeek : CACHE_CONFIG.completedWeek,
+          ...(week === lastScoredWeek ? { tags: [FRESH_TAG] } : {}),
+        },
       }).then(res => res.json())
     );
   }

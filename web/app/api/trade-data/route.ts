@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
-import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
+import { SLEEPER_CONFIG, CACHE_CONFIG, FRESH_TAG } from '@/lib/config';
 import type { SleeperLeague } from '@/lib/types';
 import { fetchJson, loadOddsInputs, teamsPlaying } from '@/lib/oddsData';
 import { liveWeekOdds } from '@/lib/liveWeek';
@@ -158,6 +158,7 @@ export async function GET() {
     const lastScored = league.settings?.last_scored_leg ?? 0;
     const cached = unstable_cache(() => build(league), ['trade-data', CACHE_VERSION, league.league_id, String(lastScored)], {
       revalidate: CACHE_CONFIG.tradeData,
+      tags: [FRESH_TAG],
     });
     const data = await cached();
     // The week being played, once it has kicked off: its games at the live odds, and which players
