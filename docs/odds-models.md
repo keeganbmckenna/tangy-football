@@ -68,12 +68,11 @@ weekly luck (56%). No team-strength model can get far below about 0.12 on these 
 **Odds week by week** (`web/lib/oddsHistory.ts`): the Playoffs tab's chart re-runs this model as
 of the draft and after every completed week, with only what was known then: the drafted rosters
 (then each week's), records and scores so far, season production so far, and that week's
-projections carried forward with byes; a player on bye that week (projected 0) goes by the next
-week's projection, not 0 all season (fixed 2026-11-20: past seasons' playoff Brier 0.1403 -> 0.1394,
-better in all four). Past injury statuses aren't kept, so earlier points don't discount injured
-players. The trade history's "at the time" odds (`web/lib/tradeHistory.ts`) work the same way. The
-Python backtests (`leagues_fit.table`) still value a player at 0 for the whole season when he's
-projected 0 in the snapshot week.
+projections carried forward with byes (a player on bye that week goes by the following week's
+projection). Past injury statuses aren't kept, so earlier points don't discount injured players.
+The trade history's "at the time" odds (`web/lib/tradeHistory.ts`) work the same way. Known
+limitation: the Python backtests (`leagues_fit.table`) value a player projected 0 in the snapshot
+week (on bye) at 0 for the rest of the season.
 
 ## Single-game win odds (trade tools)
 
@@ -97,7 +96,7 @@ agent for an opened spot.
 
 **Evidence** (`trades.py`, 28,899 teams in two-way trades): a trade's projected change showed up
 at 0.43 of its size (95% 0.40 to 0.46), in line with the fitted lineup weight week by week. The
-earlier tools used 0.75, overstating trades by about 70%.
+naive weight of 0.75 would overstate trades by about 70%.
 
 **Forced moves and waivers** (`trade_waivers.py`, 28,913 teams): counting the forced drops and
 pickups predicted traded teams' later scoring better than the bare swap (squared error -0.21
@@ -127,8 +126,7 @@ that free agent often fails.
   over a waiver pickup (each start minus the mean actual points of the 3 best-projected free
   agents at his position that week, so the pickup isn't chosen with hindsight). A player counts
   only while he stays: through the week he's dropped or traded away, or the week before the team
-  reacquires him. Waiver pickups on the Rosters tab are credited the same way, once per stint
-  (fixed 2026-11-20: a player dropped and picked up again had counted for both pickups).
+  reacquires him. Waiver pickups on the Rosters tab are credited the same way, once per stint.
 
 ## Live tab
 
@@ -145,20 +143,19 @@ remaining variance falls from 5% to 1%, the odds blend gradually into each playe
 distribution of points still to come (no cutoffs, so they don't jump when it takes over)
 (`remainingPointsOdds`, tables in `web/lib/analyze/remainingPoints.json` from
 `scripts/backtests/live_sim.py`, 2020-2025, by position, half-PPR projection in 8 bands and share
-of game left): often a lot, often nothing, rarely negative. The bands were finer from 2026-11-01:
-the earlier ones lumped everyone projected under 8 together, so a receiver projected 7 had a 33%
-chance of scoring nothing instead of the real 7-12%. A top
+of game left): often a lot, often nothing, rarely negative. The low bands are fine-grained
+because a receiver projected 7 scores nothing only 7-12% of the time, far less than one projected
+2. A top
 receiver with half his game left ended 0.61+ points down in none of 14,283 cases, so a team up
 0.61 with him left and its opponent done is above 99%, not the normal's 92%.
 
 **Evidence** (`live_replay.py`, `live_eval.py`; the preregistered live addendum): the site's
 model, ported to PyTorch and checked against this code, replayed every 3 minutes of game time
 through 364,672 matchups of crawled 12-team leagues (2018-2025), scored by log loss averaged
-over each matchup's week. The earlier scale (0.7, picked on our ~260 kickoff matchups) was
-overconfident at every stage: final margins landed 1.4-1.5x the model's spread from kickoff to
-the last few minutes, with no bias. Widening the spread lowered log loss in all 8 held-out
-seasons (by 0.004 to 0.06). The scale ships at 1.0, the fit on 2022-2025, whose projections
-are like Sleeper's now. Tested and not adopted: a spread that changes with the time left,
+over each matchup's week. The spread scale is 1.0, fitted on 2022-2025 (whose projections are
+like Sleeper's today); a narrower 0.7 was overconfident at every stage, with final margins
+1.4-1.5x the model's spread, and 1.0 lowers log loss in all 8 held-out seasons (by 0.004 to
+0.06). Tested and not adopted: a spread that changes with the time left,
 skewed scoring, a weight on the projections, scoring that speeds up late in games, per-player
 variance growing with the projection rather than its square (real, but 0.0002-0.0027), a
 heavier-tailed link, in-game injury flags, Vegas lines, game state and correlated players (each
