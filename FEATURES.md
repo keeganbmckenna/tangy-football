@@ -5,6 +5,7 @@ Everything the site does, tab by tab, in plain language. [README.md](README.md) 
 The **Season** picker in the header switches every tab between seasons:
 - **2022 onward:** everything comes from Sleeper.
 - **2017-2021:** before Sleeper, so Overview shows the final standings and playoff bracket, and the History tab counts them.
+- **2014-2016:** only the finals are known, so Overview shows the champion, the runner-up where known, the league's size and (2015) the semifinals.
 
 The **You** picker highlights your team everywhere and puts your matchup first, with you on the left, in Overview and Live (✕ clears it).
 

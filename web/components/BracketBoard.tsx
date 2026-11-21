@@ -14,6 +14,7 @@ export interface BoardTeam {
   name: string;
   username?: string;
   avatarUrl?: string | null;
+  /** Leave out where seeds aren't known (no bubble); null shows a dash */
   seed?: number | null;
   /** Small line under the name (record, odds); defaults to @username */
   caption?: string | null;
@@ -60,9 +61,12 @@ function Slot({ team, decided }: { team: BoardTeam; decided: boolean }) {
   const caption = team.caption ?? (team.username ? `@${team.username}` : null);
   return (
     <div className={`flex items-center gap-2 ${lost ? 'opacity-60' : ''}`}>
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--neutral-bg)] text-[10px] font-bold text-[var(--foreground)]">
-        {team.seed ?? '–'}
-      </span>
+      {/* No bubble at all where seeds aren't known (seed left out); null is an unseeded team */}
+      {team.seed !== undefined && (
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--neutral-bg)] text-[10px] font-bold text-[var(--foreground)]">
+          {team.seed ?? '–'}
+        </span>
+      )}
       <TeamAvatar url={team.avatarUrl} name={team.name} />
       <div className="min-w-0 flex-1">
         <div

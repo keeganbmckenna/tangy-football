@@ -20,7 +20,7 @@ import TradesTab from '@/components/TradesTab';
 import HistoryTab from '@/components/HistoryTab';
 import RostersTab from '@/components/RostersTab';
 import LegacySeasonOverview from '@/components/LegacySeasonOverview';
-import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
+import { MANAGER_FIRST_NAMES, PRE_SLEEPER_SEASONS, isPreSleeper } from '@/lib/data/legacyHistory';
 import { readLinkTarget, readManager, readSection, readUrlState, urlSearchFor } from '@/lib/urlState';
 import OddsAccuracy, { OPEN_ACCURACY_EVENT } from '@/components/OddsAccuracy';
 import { OPEN_DECISIONS_EVENT } from '@/components/ManagerDecisions';
@@ -117,8 +117,8 @@ export default function App() {
   const [postseasonBrackets, setPostseasonBrackets] = useState<PostseasonBrackets | null>(null);
 
   const leagueSettings = leagueData ? getLeagueSettings(leagueData.league) : null;
-  // Seasons before Sleeper only have final standings (lib/data/legacyHistory.ts)
-  const legacySeasons = LEGACY_SEASONS.map((s) => s.season);
+  // Seasons before Sleeper: final standings, brackets or just the final (lib/data/legacyHistory.ts)
+  const legacySeasons = PRE_SLEEPER_SEASONS;
   const isLegacySeason = legacySeasons.includes(selectedSeason);
   // Current season's regular season still being played: the Playoffs tab
   // shows the playoff picture instead of empty brackets
@@ -215,7 +215,7 @@ export default function App() {
     const cleared = await fetch('/api/refresh', { method: 'POST' }).then((r) => r.ok, () => false);
     if (!cleared) return false;
     const season = selectedSeason || leagueData?.league.season;
-    const legacy = !!season && LEGACY_SEASONS.some((s) => s.season === season);
+    const legacy = isPreSleeper(season);
     const [ok] = await Promise.all([legacy ? fetchData(undefined, season, true) : fetchData(season, undefined, true), broadcastRefresh()]);
     return ok;
   }, [selectedSeason, leagueData, fetchData]);
@@ -227,7 +227,7 @@ export default function App() {
       resetTableSorts();
       setSelectedSeason(season);
       // Seasons before Sleeper have nothing to fetch (tabs that don't apply fall back to Overview below)
-      if (LEGACY_SEASONS.some((s) => s.season === season)) return;
+      if (isPreSleeper(season)) return;
       fetchData(season);
     },
     [selectedSeason, leagueData, fetchData]
@@ -247,7 +247,7 @@ export default function App() {
     setMyUserId(readMyTeam());
     setFadeTabs(!canViewTransition());
     (async () => {
-      if (season && LEGACY_SEASONS.some((s) => s.season === season)) await fetchData(undefined, season);
+      if (season && isPreSleeper(season)) await fetchData(undefined, season);
       else if (!season || !(await fetchData(season))) await fetchData();
     })();
   }, [fetchData]);

@@ -2,7 +2,7 @@
 
 import BracketBoard, { type BoardGame, type BoardTeam } from '@/components/BracketBoard';
 import SectionCard from '@/components/ui/SectionCard';
-import { LEGACY_SEASONS, MANAGER_FIRST_NAMES, type LegacyGame } from '@/lib/data/legacyHistory';
+import { LEGACY_CHAMPIONS, LEGACY_SEASONS, MANAGER_FIRST_NAMES, type LegacyFinal, type LegacyGame } from '@/lib/data/legacyHistory';
 
 interface LegacySeasonOverviewProps {
   season: string;
@@ -10,12 +10,55 @@ interface LegacySeasonOverviewProps {
 
 const FINISH: Record<number, string> = { 1: '🏆 Champion', 2: '🥈 Runner-up', 3: '🥉 Third place' };
 
+const firstName = (owner: string) =>
+  Object.entries(MANAGER_FIRST_NAMES).find(([k]) => k.toLowerCase() === owner.toLowerCase())?.[1] ?? owner;
+
+/** A season before the old platform's history: only its final (and, for 2015, its semifinals) */
+function FinalOnly({ final }: { final: LegacyFinal }) {
+  const slot = (owner: string, won: boolean): BoardTeam => ({ rosterId: 0, name: firstName(owner), caption: null, won });
+  const game = (g: LegacyGame, id: string): BoardGame => ({ id, label: g.label, top: slot(g.winner, true), bottom: slot(g.loser, false) });
+  const finalGame: LegacyGame | null = final.runnerUp ? { winner: final.owner, loser: final.runnerUp } : null;
+  const columns = [
+    ...(final.semis ? [{ title: 'Semifinals', games: final.semis.map((g, i) => game(g, `semi-${i}`)) }] : []),
+    ...(finalGame ? [{ title: 'Final', games: [game(finalGame, 'final')] }] : []),
+  ];
+  return (
+    <div className="space-y-6">
+      <SectionCard
+        title={`${final.season} Final`}
+        subtitle={`Before the old platform's history: only the final is known, from the league's group chat. ${final.teams} teams; the other tabs have nothing for this season.`}
+        gradientType="primary"
+      >
+        <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
+          <div className="rounded-lg border border-[var(--border)] p-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{FINISH[1]}</div>
+            <div className="mt-1 text-base font-semibold text-[var(--foreground)]">{firstName(final.owner)}</div>
+          </div>
+          <div className="rounded-lg border border-[var(--border)] p-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{FINISH[2]}</div>
+            <div className={`mt-1 text-base font-semibold ${final.runnerUp ? 'text-[var(--foreground)]' : 'text-[var(--muted)]'}`}>
+              {final.runnerUp ? firstName(final.runnerUp) : 'Not recorded'}
+            </div>
+          </div>
+        </div>
+        {columns.length > 0 && (
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <BracketBoard columns={columns} />
+          </div>
+        )}
+        {final.note && <p className="px-4 pb-4 text-xs text-[var(--muted)] sm:px-6">{final.note}</p>}
+      </SectionCard>
+    </div>
+  );
+}
+
 /** Overview for a season before Sleeper: the final standings and top three, and the playoff bracket where it's known */
 export default function LegacySeasonOverview({ season }: LegacySeasonOverviewProps) {
   const data = LEGACY_SEASONS.find((s) => s.season === season);
-  if (!data) return null;
-  const firstName = (owner: string) =>
-    Object.entries(MANAGER_FIRST_NAMES).find(([k]) => k.toLowerCase() === owner.toLowerCase())?.[1] ?? owner;
+  if (!data) {
+    const final = LEGACY_CHAMPIONS.find((s) => s.season === season);
+    return final ? <FinalOnly final={final} /> : null;
+  }
   const podium = [1, 2, 3]
     .map((place) => ({ place, team: data.teams.find((t) => t.finish === place) }))
     .filter((p) => p.team);

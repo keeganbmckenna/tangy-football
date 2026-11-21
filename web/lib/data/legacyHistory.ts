@@ -48,11 +48,7 @@ export interface LegacySeason {
  * gone: Ian and an earlier Caleb), where only the final is known: the champion, and the runner-up where
  * the chat names the final
  */
-export const LEGACY_CHAMPIONS: Array<{ season: string; owner: string; runnerUp?: string }> = [
-  { season: '2016', owner: 'bigbuttboi', runnerUp: 'lublub22' },
-  { season: '2015', owner: 'shivvv', runnerUp: 'Ian' },
-  { season: '2014', owner: 'lublub22' },
-];
+
 
 /** Managers' first names, by Sleeper display name (or plain name) */
 export const MANAGER_FIRST_NAMES: Record<string, string> = {
@@ -207,3 +203,35 @@ export const LEGACY_SEASONS: LegacySeason[] = [
     ],
   },
 ];
+
+export interface LegacyFinal {
+  season: string;
+  owner: string;
+  runnerUp?: string;
+  /** Teams in the league that season */
+  teams: number;
+  /** Semifinals, where the chat settles them */
+  semis?: LegacyGame[];
+  /** What else is known, in a sentence */
+  note?: string;
+}
+
+export const LEGACY_CHAMPIONS: LegacyFinal[] = [
+  { season: '2016', owner: 'bigbuttboi', runnerUp: 'lublub22', teams: 10, note: "Cam won his semifinal on a late touchdown; neither semifinal opponent is named in the chat." },
+  {
+    season: '2015',
+    owner: 'shivvv',
+    runnerUp: 'Ian',
+    teams: 10,
+    semis: [
+      { winner: 'shivvv', loser: 'RTred' },
+      { winner: 'Ian', loser: 'lublub22' },
+    ],
+    note: 'Reid was the 4 seed and played Shiv; Lucas, the last playoff team left, lost to Ian.',
+  },
+  { season: '2014', owner: 'lublub22', teams: 8, note: "The chat starts the week after the final, so Lucas's opponent isn't known." },
+];
+
+/** Every season before Sleeper, newest first: full standings (2017-2021), then finals only (2014-2016) */
+export const PRE_SLEEPER_SEASONS: string[] = [...LEGACY_SEASONS.map((x) => x.season), ...LEGACY_CHAMPIONS.map((x) => x.season)];
+export const isPreSleeper = (season: string | null | undefined) => !!season && PRE_SLEEPER_SEASONS.includes(season);

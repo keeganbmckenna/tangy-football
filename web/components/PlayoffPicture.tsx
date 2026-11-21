@@ -246,7 +246,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
           name: name(side.rosterId),
           username: user(side.rosterId),
           avatarUrl: stats.get(side.rosterId)?.avatarUrl,
-          seed: side.seed,
+          seed: side.seed ?? null,
           caption: [record(teams.get(side.rosterId)!), caption(side.rosterId)].filter(Boolean).join(' · '),
         };
 

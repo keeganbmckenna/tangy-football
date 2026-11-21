@@ -15,7 +15,7 @@ const toBoardTeam = (t: BracketTeamView): BoardTeam =>
         name: t.name,
         username: t.username,
         avatarUrl: t.avatarUrl,
-        seed: t.seed,
+        seed: t.seed ?? null,
         score: t.score,
         won: t.isWinner,
       };

@@ -19,7 +19,7 @@ A Next.js web app for our Sleeper fantasy football league: standings, live scori
 
 ## Features
 
-The season picker in the header switches every tab between seasons. Past Sleeper seasons are found by following each league's `previous_league_id`. Seasons before Sleeper (2017-2021) have their final standings and playoff bracket, and count in the History tab. Weekly analytics count completed regular-season weeks only, and ties count as half a win everywhere.
+The season picker in the header switches every tab between seasons. Past Sleeper seasons are found by following each league's `previous_league_id`. Seasons before Sleeper have their final standings and playoff bracket (2017-2021) or just their final (2014-2016), and count in the History tab. Weekly analytics count completed regular-season weeks only, and ties count as half a win everywhere.
 
 ### Overview
 - 📖 **Season in Review** (finished seasons) - One manager at a time: finish, record and points rank, best and worst week, MVP, best pickup, best trade by net points, lineup efficiency, luck and close games, and a sparkline of their playoff odds.
