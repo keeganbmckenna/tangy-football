@@ -101,6 +101,7 @@ export default function LegacySeasonOverview({ season }: LegacySeasonOverviewPro
               }))}
               extras={{ title: 'Other games', games: bracket.other.map((g, i) => game(g, `other-${i}`)) }}
             />
+            {bracket.note && <p className="mt-4 text-xs text-[var(--muted)]">{bracket.note}</p>}
           </div>
         </SectionCard>
       )}

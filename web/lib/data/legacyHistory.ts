@@ -3,7 +3,7 @@
  * the top three finishers, transcribed from the old platform's history page.
  * There are no weekly scores, so these seasons count toward records, titles
  * and finishes but not head to head, points or game records. The playoff
- * field size, the 2019-2021 brackets and the 2016 champion come from the
+ * field size, the brackets and the 2016 champion come from the
  * league's group chat, and are filled in only where it settles them. The
  * toilet bowl began in 2021.
  *
@@ -37,8 +37,8 @@ export interface LegacySeason {
   playoffTeams: number;
   /** Who lost the toilet bowl, which began in 2021 (earlier seasons had a last-place game with nothing riding on it) */
   toiletLoser?: string;
-  /** The playoff by round, where every game is known, plus placement and toilet bowl games */
-  bracket?: { rounds: Array<{ title: string; games: LegacyGame[] }>; other: LegacyGame[] };
+  /** The playoff by round, plus placement, last-place and toilet bowl games */
+  bracket?: { rounds: Array<{ title: string; games: LegacyGame[] }>; other: LegacyGame[]; note?: string };
   /** How the playoff worked that year, in a few words */
   format?: string;
 }
@@ -151,6 +151,14 @@ export const LEGACY_SEASONS: LegacySeason[] = [
     season: '2018',
     playoffTeams: 4,
     format: 'Four teams',
+    bracket: {
+      rounds: [
+        { title: 'Semifinals', games: [{ winner: 'shivvv', loser: 'dezdroppedit27' }, { winner: 'kbmckenna', loser: 'A_Schoell' }] },
+        { title: 'Final', games: [{ winner: 'shivvv', loser: 'kbmckenna' }] },
+      ],
+      other: [{ winner: 'dezdroppedit27', loser: 'A_Schoell', label: '3rd place' }, { winner: 'BradysOldCheeks', loser: 'bigbuttboi', label: 'Last-place game' }],
+      note: 'Semifinal pairings follow the seeds (1 v 4, 2 v 3); the finalists and the final order of all four are on record.',
+    },
     teams: [
       t(1, 'The Dickriders', '11-3', 'shivvv', 1),
       t(2, 'BetterIngredients Better Pizza', '10-4', 'A_Schoell'),
@@ -168,6 +176,14 @@ export const LEGACY_SEASONS: LegacySeason[] = [
     season: '2017',
     playoffTeams: 4,
     format: 'Four teams',
+    bracket: {
+      rounds: [
+        { title: 'Semifinals', games: [{ winner: 'bergenjay', loser: 'A_Schoell' }, { winner: 'bigbuttboi', loser: 'Vikram' }] },
+        { title: 'Final', games: [{ winner: 'bigbuttboi', loser: 'bergenjay' }] },
+      ],
+      other: [{ winner: 'A_Schoell', loser: 'Vikram', label: '3rd place' }],
+      note: 'Semifinal pairings follow the seeds (1 v 4, 2 v 3); the finalists and the final order of all four are on record.',
+    },
     teams: [
       t(1, 'UVM Epiphany', '12-2', 'bergenjay', 2),
       t(2, 'Boner City', '11-3', 'bigbuttboi', 1),
