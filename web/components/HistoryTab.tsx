@@ -24,6 +24,7 @@ import { getHeatmapColorByRatio } from '@/lib/constants';
 import { signed } from '@/lib/format';
 import {
   allTimeStandings,
+  DEFAULT_ERA,
   HISTORY_ERAS,
   headToHead,
   historySince,
@@ -44,9 +45,9 @@ const RECORDS_SHOWN = 5;
 // Where the league's history was scrolled when a manager's page was opened from it
 let listScroll = 0;
 
-// The filters, for this visit: regular season only, every season, current managers only by default
+// The filters, for this visit: regular season only, since 2017, current managers only by default
 let rememberedPostseason = false;
-let rememberedEra: HistoryEra['key'] = 'all';
+let rememberedEra: HistoryEra['key'] = DEFAULT_ERA;
 let rememberedShowFormer = false;
 
 const ordinal = (n: number) => {
@@ -200,7 +201,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
     .filter((m) => !current.has(m.userId) && allStandings.some((r) => r.userId === m.userId))
     .map((m) => m.firstName ?? m.name);
   const resetFilters = () => {
-    setEra('all');
+    setEra(DEFAULT_ERA);
     setPostseason(false);
     setShowFormer(false);
   };

@@ -394,6 +394,9 @@ export const HISTORY_ERAS: HistoryEra[] = [
   { key: '12', label: 'Since 2022', from: 2022, detail: '2022 on: 12 teams, on Sleeper' },
 ];
 
+/** The era the History tab opens on: the 10- and 12-team league, where full records exist */
+export const DEFAULT_ERA: HistoryEra['key'] = '10';
+
 /** The history from one season on: its seasons and games */
 export function historySince(data: HistoryData, from: number): HistoryData {
   if (!from) return data;

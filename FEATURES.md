@@ -103,7 +103,7 @@ Then, for any season:
 - **Lifetime Luck:** every manager's regular-season wins since 2022 against what their scoring would have won on other schedules. Each season reshuffles who played whom 20,000 times (as the season's Schedule Luck chart does), and a manager's seasons add up exactly. The table shows wins over expected with a bar for the middle 80% of schedules, how many schedules would have given fewer wins, record, expected wins, close games, and the luckiest and unluckiest season; tap a row for the whole distribution and each season's line. Manager pages show the same total and a luck column by season.
 
 **Filters** at the top of the tab apply to everything below them (manager pages always cover the whole career):
-- **Seasons:** All time (the default, from 2014), Since 2017 (10 teams, then 12) or Since 2022 (12 teams, on Sleeper).
+- **Seasons:** Since 2017 (the default: 10 teams, then 12), All time (from 2014, adding the 2014–2016 champions) or Since 2022 (12 teams, on Sleeper).
 - **Games counted:** the regular season only (the default) or with playoff and toilet bowl games. Placement games (3rd, 5th place and the like) never count.
 - **Show former managers:** off by default, so the manager row, standings, head to head, rivalries, Lifetime Luck and the Record Book list only managers in this season's league. Their games still count in everyone's records, and Champions always lists every season's winners.
 - **Reset** appears once anything is changed. The filters hold for the visit.

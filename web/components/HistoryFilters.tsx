@@ -1,6 +1,6 @@
 'use client';
 
-import { HISTORY_ERAS, type HistoryEra } from '@/lib/analyze/history';
+import { DEFAULT_ERA, HISTORY_ERAS, type HistoryEra } from '@/lib/analyze/history';
 
 interface Option<T> {
   value: T;
@@ -46,7 +46,7 @@ interface HistoryFiltersProps {
  */
 export default function HistoryFilters({ era, onEra, postseason, onPostseason, showFormer, onShowFormer, former, onReset }: HistoryFiltersProps) {
   const current = HISTORY_ERAS.find((e) => e.key === era) ?? HISTORY_ERAS[0];
-  const changed = era !== 'all' || postseason || showFormer;
+  const changed = era !== DEFAULT_ERA || postseason || showFormer;
   return (
     <section aria-label="History filters" className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3">
       <div className="mb-2 flex items-baseline justify-between gap-2">
