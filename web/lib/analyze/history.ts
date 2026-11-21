@@ -218,6 +218,10 @@ export interface HeadToHead {
 }
 
 /** h2h[a][b]: a's record against b (see countsForStandings) */
+/** Oldest game first: by season, then week (the history's games come grouped by season, not in date order) */
+export const byDate = (x: HistoryGame, y: HistoryGame) => Number(x.season) - Number(y.season) || x.week - y.week;
+
+/** Each pair's record; each pair's games are oldest first */
 export function headToHead(data: HistoryData, opts: RecordOptions = {}): Record<string, Record<string, HeadToHead>> {
   const out: Record<string, Record<string, HeadToHead>> = {};
   const cell = (a: string, b: string) => {
@@ -225,7 +229,7 @@ export function headToHead(data: HistoryData, opts: RecordOptions = {}): Record<
     out[a][b] ??= { wins: 0, losses: 0, ties: 0, pointsFor: 0, pointsAgainst: 0, games: [] };
     return out[a][b];
   };
-  for (const g of data.games) {
+  for (const g of [...data.games].sort(byDate)) {
     if (!countsForStandings(g, opts)) continue;
     for (const [me, them, pf, pa] of [[g.a, g.b, g.pa, g.pb], [g.b, g.a, g.pb, g.pa]] as const) {
       const c = cell(me, them);

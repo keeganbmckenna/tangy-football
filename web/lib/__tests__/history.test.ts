@@ -106,6 +106,14 @@ describe('allTimeStandings', () => {
 });
 
 describe('headToHead and rivalries', () => {
+  it("lists each pair's games oldest first, whatever order the history has them in", () => {
+    const d = data();
+    // Seasons grouped newest first, weeks newest first within each: neither is date order
+    d.games = [...d.games].reverse();
+    const games = headToHead(d).u1.u2.games;
+    expect(games.map((g) => `${g.season}-${g.week}`)).toEqual(['2024-1', '2025-1', '2025-15']);
+  });
+
   it('counts regular season, playoff and toilet bowl games from both sides', () => {
     const h = headToHead(data());
     expect(h.u1.u2).toMatchObject({ wins: 3, losses: 0 });

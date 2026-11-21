@@ -148,7 +148,13 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
     const listed = (id: string) => showFormer || current.has(id);
     const opts = { postseason };
     const luck = lifetimeLuck(scoped);
+    // One fixed order for the manager row and head to head, whatever the filters: current managers
+    // first, each group by all-time standing (titles, then win %), so nobody moves when a filter changes
+    const rank = new Map(allTimeStandings(data, { postseason: false }).map((r, i) => [r.userId, i]));
+    const fixedOrder = (ids: string[]) =>
+      [...ids].sort((a, b) => Number(current.has(b)) - Number(current.has(a)) || (rank.get(a) ?? 1e9) - (rank.get(b) ?? 1e9));
     return {
+      fixedOrder,
       scoped,
       current,
       listed,
@@ -195,7 +201,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
   const managers = new Map(data.managers.map((m) => [m.userId, m]));
   const nameOf = (id: string | null) => (id ? managers.get(id)?.name ?? 'Unknown' : '—');
   const teamIn = (season: string, id: string | null) => data.seasons.find((s) => s.season === season)?.teams.find((t) => t.userId === id);
-  const { scoped, current, listed, standings: allStandings, h2h, rivals, records, luck } = derived;
+  const { scoped, current, listed, fixedOrder, standings: allStandings, h2h, rivals, records, luck } = derived;
   const standings = allStandings.filter((r) => listed(r.userId));
   const formerNames = data.managers
     .filter((m) => !current.has(m.userId) && allStandings.some((r) => r.userId === m.userId))
@@ -207,12 +213,8 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
   };
   // The seasons the filters cover, for the section subtitles
   const range = scoped.seasons.length ? `${scoped.seasons[scoped.seasons.length - 1].season}–${scoped.seasons[0].season}` : '';
-  // Matrix order: current managers by all-time win %, then former ones
-  // (managers from before Sleeper only have no games to show)
-  const order = [...standings]
-    .filter((r) => h2h[r.userId])
-    .sort((a, b) => Number(current.has(b.userId)) - Number(current.has(a.userId)))
-    .map((r) => r.userId);
+  // Matrix order: the fixed manager order (managers from before Sleeper only have no games to show)
+  const order = fixedOrder(standings.filter((r) => h2h[r.userId]).map((r) => r.userId));
 
   const person = (id: string | null, season?: string, compact = false) => {
     const m = id ? managers.get(id) : undefined;
@@ -324,7 +326,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
   );
 
   // Every manager's page, current managers first (by all-time standing)
-  const pickable = [...standings].sort((a, b) => Number(current.has(b.userId)) - Number(current.has(a.userId))).map((r) => r.userId);
+  const pickable = fixedOrder(standings.map((r) => r.userId));
 
   return (
     <div className="space-y-6">
