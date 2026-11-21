@@ -78,3 +78,20 @@ describe('managerProfile', () => {
     expect(managerProfile(data, 'nobody')).toBeNull();
   });
 });
+
+describe('managerProfile, a season where only the champion is known', () => {
+  const withTitle: HistoryData = {
+    ...data,
+    seasons: [
+      ...data.seasons,
+      { season: '2016', complete: true, legacy: true, championOnly: true, teams: [], champion: 'u2', runnerUp: null, toiletLoser: null, playoffTeams: [], placements: { u2: 1 } },
+    ],
+  };
+
+  it("lists the title for its champion only, without counting a season played", () => {
+    const p2 = managerProfile(withTitle, 'u2', {}, 2)!;
+    expect(p2.seasons.at(-1)).toMatchObject({ season: '2016', champion: true, championOnly: true });
+    expect(p2.totals).toMatchObject({ titles: 2, seasons: 2 });
+    expect(managerProfile(withTitle, 'u1', {}, 2)!.seasons.map((s) => s.season)).toEqual(['2025', '2024', '2020']);
+  });
+});

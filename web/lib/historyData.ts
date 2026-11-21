@@ -2,7 +2,7 @@
  * Server-side league history: every season in the league's chain, with each
  * game's managers, scores and kind (regular season, playoff, placement,
  * consolation, toilet bowl) and each season's postseason results, plus the
- * seasons before Sleeper (standings and top three only).
+ * seasons before Sleeper (standings and top three, and earlier champions).
  */
 
 import { unstable_cache } from 'next/cache';
@@ -11,11 +11,8 @@ import { buildLeagueChain } from '@/lib/sleeper';
 import { fetchJson } from '@/lib/oddsData';
 import { getAvatarUrl, getTeamName } from '@/lib/analyze/teamIdentity';
 import { bracketResults, postseasonKind, type HistoryData, type HistoryGame, type HistorySeason } from '@/lib/analyze/history';
-import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
+import { LEGACY_CHAMPIONS, LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
 import type { LeagueData, SleeperBracketMatchup, SleeperLeague, SleeperMatchup, SleeperRoster, SleeperUser } from '@/lib/types';
-
-/** Playoff teams before Sleeper, which kept only the standings and the top three */
-const LEGACY_PLAYOFF_TEAMS = 6;
 
 async function seasonHistory(league: SleeperLeague) {
   const { baseUrl } = SLEEPER_CONFIG;
@@ -94,7 +91,7 @@ async function seasonHistory(league: SleeperLeague) {
 }
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 
 /**
  * The league's history, cached: rebuilt as soon as a new week is scored (or the season ends), and
@@ -146,11 +143,17 @@ export async function buildHistory(): Promise<HistoryData> {
       runnerUp: finisher(2),
       thirdPlace: finisher(3),
       toiletLoser: ls.toiletLoser ? ownerId(ls.toiletLoser) : null,
-      // The league has always had a six-team playoff: the top six in the final standings
-      playoffTeams: ls.teams.filter((t) => t.rank <= LEGACY_PLAYOFF_TEAMS).map((t) => ownerId(t.owner)),
+      // The top of the final standings: four teams through 2018, six from 2019
+      playoffTeams: ls.teams.filter((t) => t.rank <= ls.playoffTeams).map((t) => ownerId(t.owner)),
       placements: Object.fromEntries(ls.teams.filter((t) => t.finish).map((t) => [ownerId(t.owner), t.finish!])),
     };
   });
+
+  // Earlier seasons where only the champion is known
+  for (const c of LEGACY_CHAMPIONS) {
+    const id = ownerId(c.owner);
+    legacy.push({ season: c.season, complete: true, legacy: true, championOnly: true, teams: [], champion: id, runnerUp: null, toiletLoser: null, playoffTeams: [], placements: { [id]: 1 } });
+  }
 
   const firstNames = new Map(Object.entries(MANAGER_FIRST_NAMES).map(([k, v]) => [k.toLowerCase(), v]));
   return {

@@ -301,10 +301,10 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
       </nav>
       <SectionCard
         title="Champions"
-        subtitle="Every season's champion, runner-up and toilet bowl loser (third place 🥉 before 2021, when the toilet bowl wasn't recorded)"
+        subtitle="Every season's champion, runner-up and toilet bowl loser (third place 🥉 before 2021, when the toilet bowl began)"
         gradientType="warning"
       >
-        {/* One row a season: champion, runner-up, and the toilet bowl loser (third place before Sleeper) */}
+        {/* One row a season: champion, runner-up, and the toilet bowl loser (third place before 2021) */}
         <div className="overflow-x-auto">
           <table className="w-full table-fixed text-sm">
             <colgroup>
@@ -331,13 +331,15 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
                   {s.complete ? (
                     <>
                       <td className="px-1 py-2.5">{person(s.champion, s.season, true)}</td>
-                      <td className="px-1 py-2.5">{person(s.runnerUp, s.season, true)}</td>
+                      <td className="px-1 py-2.5">
+                        {s.championOnly ? <span className="text-xs text-[var(--muted)]">Not recorded</span> : person(s.runnerUp, s.season, true)}
+                      </td>
                       <td className="px-1 py-2.5 sm:pr-4">
                         {s.toiletLoser ? (
                           person(s.toiletLoser, s.season, true)
                         ) : s.thirdPlace ? (
                           <div className="flex items-center gap-1">
-                            <span title="Third place (the toilet bowl wasn't recorded before 2021)">🥉</span>
+                            <span title="Third place (the toilet bowl began in 2021)">🥉</span>
                             <div className="min-w-0 flex-1">{person(s.thirdPlace, s.season, true)}</div>
                           </div>
                         ) : (
@@ -455,8 +457,8 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
           <p>
           Records count {postseason ? 'regular season, playoff and toilet bowl games' : 'regular-season games only'} and go back to 2017 (before 2022 only regular-season records were kept);
           ties count as half a win. Points per game cover the same games and start in 2022 (earlier seasons only kept standings
-          and the top three). Toilet bowl losses start in 2021 (the 2021 loser as the league remembers it). Before 2022 playoff appearances are the
-          top six in the final standings, the league&apos;s playoff field every season. Best finish is the
+          and the top three). Titles and finals include 2016, the one earlier season whose champion is known. Toilet bowl losses start in 2021,
+          when the toilet bowl began. Before 2022 playoff appearances are the top of the final standings: four teams through 2018, six from 2019. Best finish is the
           final place (1st–6th from Sleeper brackets, 1st–3rd before).
           </p>
         </HowItWorks>

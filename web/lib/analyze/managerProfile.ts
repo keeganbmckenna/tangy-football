@@ -30,6 +30,8 @@ export interface ProfileSeason {
   legacy: boolean;
   /** Third place (recorded before Sleeper; Sleeper seasons have it in placement) */
   third: boolean;
+  /** Only the title is known (see HistorySeason.championOnly): no team name or record */
+  championOnly?: boolean;
 }
 
 export interface ProfileOpponent {
@@ -90,6 +92,12 @@ export function managerProfile(data: HistoryData, userId: string, opts: RecordOp
 
   const seasons: ProfileSeason[] = [];
   for (const s of data.seasons) {
+    if (s.championOnly) {
+      if (s.champion === userId) {
+        seasons.push({ season: s.season, teamName: '', avatarUrl: null, wins: 0, losses: 0, ties: 0, pointsPerGame: null, regularRank: null, teams: 0, placement: 1, champion: true, runnerUp: false, toiletLoser: false, playoffs: false, complete: true, legacy: true, third: false, championOnly: true });
+      }
+      continue;
+    }
     const team = s.teams.find((t) => t.userId === userId);
     if (!team) continue;
     let wins = 0;

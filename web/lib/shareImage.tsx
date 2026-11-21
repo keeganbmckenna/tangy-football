@@ -284,7 +284,7 @@ export async function managerImage(p: ManagerProfile, name: string, avatarUrl: s
           <Avatar src={src} name={name} size={120} />
           <div style={{ display: 'flex', flexDirection: 'column', marginLeft: 28 }}>
             <div style={{ display: 'flex', color: C.text, fontSize: 64, fontWeight: 700 }}>{clip(name, 22)}</div>
-            <div style={{ display: 'flex', color: C.muted, fontSize: 28 }}>{`${p.seasons.length} seasons · ${clip(p.seasons[0]?.teamName ?? '', 30)}`}</div>
+            <div style={{ display: 'flex', color: C.muted, fontSize: 28 }}>{`${p.totals.seasons} seasons · ${clip(p.seasons[0]?.teamName ?? '', 30)}`}</div>
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>

@@ -41,7 +41,9 @@ export interface HistorySeason {
   legacy?: boolean;
   /** Final regular-season records (legacy seasons; Sleeper seasons come from their games) */
   standings?: Array<{ userId: string; wins: number; losses: number; rank: number }>;
-  /** Third place (legacy seasons, which don't record the toilet bowl) */
+  /** Only the champion is known (before the old platform's history): no teams, records or other finishes */
+  championOnly?: boolean;
+  /** Third place (legacy seasons) */
   thirdPlace?: string | null;
   teams: HistorySeasonTeam[];
   champion: string | null;
@@ -147,7 +149,7 @@ export interface AllTimeRow {
   pointsFor: number;
   scoredGames: number;
   pointsPerGame: number;
-  /** Playoff appearances (Sleeper seasons; earlier brackets weren't recorded) */
+  /** Playoff appearances (legacy seasons: the top 4 or 6 of the final standings) */
   playoffs: number;
   finals: number;
   titles: number;

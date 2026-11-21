@@ -1,7 +1,8 @@
 'use client';
 
+import BracketBoard, { type BoardGame, type BoardTeam } from '@/components/BracketBoard';
 import SectionCard from '@/components/ui/SectionCard';
-import { LEGACY_SEASONS, MANAGER_FIRST_NAMES } from '@/lib/data/legacyHistory';
+import { LEGACY_SEASONS, MANAGER_FIRST_NAMES, type LegacyGame } from '@/lib/data/legacyHistory';
 
 interface LegacySeasonOverviewProps {
   season: string;
@@ -9,7 +10,7 @@ interface LegacySeasonOverviewProps {
 
 const FINISH: Record<number, string> = { 1: '🏆 Champion', 2: '🥈 Runner-up', 3: '🥉 Third place' };
 
-/** Overview for a season before Sleeper: the final standings and top three, all that was kept */
+/** Overview for a season before Sleeper: the final standings and top three, and the playoff bracket where it's known */
 export default function LegacySeasonOverview({ season }: LegacySeasonOverviewProps) {
   const data = LEGACY_SEASONS.find((s) => s.season === season);
   if (!data) return null;
@@ -18,12 +19,24 @@ export default function LegacySeasonOverview({ season }: LegacySeasonOverviewPro
   const podium = [1, 2, 3]
     .map((place) => ({ place, team: data.teams.find((t) => t.finish === place) }))
     .filter((p) => p.team);
+  const teamOf = (owner: string) => data.teams.find((t) => t.owner === owner);
+  const slot = (owner: string, won: boolean): BoardTeam => {
+    const t = teamOf(owner);
+    return { rosterId: t?.rank ?? 0, name: firstName(owner), caption: t?.teamName ?? null, seed: t && t.rank <= data.playoffTeams ? t.rank : null, won };
+  };
+  // Higher seed on top, as on the Sleeper brackets
+  const game = (g: LegacyGame, id: string): BoardGame => {
+    const [w, l] = [slot(g.winner, true), slot(g.loser, false)];
+    const wTop = (teamOf(g.winner)?.rank ?? 99) < (teamOf(g.loser)?.rank ?? 99);
+    return { id, label: g.label, top: wTop ? w : l, bottom: wTop ? l : w };
+  };
+  const bracket = data.bracket;
 
   return (
     <div className="space-y-6">
       <SectionCard
         title={`${season} Final Standings`}
-        subtitle="Before Sleeper: only the final standings and the top three were kept, so the other tabs have nothing for this season."
+        subtitle={`Before Sleeper: only the final standings and the top three were kept, so the other tabs have nothing for this season. ${data.format ? `Playoff: ${data.format.charAt(0).toLowerCase()}${data.format.slice(1)}.` : ''}`.trim()}
         gradientType="primary"
       >
         <div className="grid gap-4 p-4 sm:grid-cols-3 sm:p-6">
@@ -50,7 +63,7 @@ export default function LegacySeasonOverview({ season }: LegacySeasonOverviewPro
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
               {data.teams.map((t) => (
-                <tr key={t.rank}>
+                <tr key={t.rank} className={t.rank === data.playoffTeams ? 'border-b-2 border-b-[var(--muted)]' : undefined}>
                   <td className="px-4 py-2 text-[var(--muted)]">{t.rank}</td>
                   <td className="px-4 py-2 font-medium text-[var(--foreground)]">{t.teamName}</td>
                   <td className="px-4 py-2 text-[var(--foreground)]">
@@ -60,17 +73,37 @@ export default function LegacySeasonOverview({ season }: LegacySeasonOverviewPro
                   <td className="px-4 py-2 text-center text-[var(--foreground)]">
                     {t.wins}-{t.losses}
                   </td>
-                  <td className="px-4 py-2 text-[var(--foreground)]">{t.finish ? FINISH[t.finish] : ''}</td>
+                  <td className="px-4 py-2 text-[var(--foreground)]">
+                    {t.finish ? FINISH[t.finish] : data.toiletLoser === t.owner ? '💩 Lost the toilet bowl' : t.rank <= data.playoffTeams ? 'Playoffs' : ''}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <p className="px-4 py-3 text-xs text-[var(--muted)]">
-          Standings order as the old platform listed them. The league had 10 teams; see the History tab for how these seasons
-          fit into all-time records.
+          Standings order as the old platform listed them; the line marks the playoff field, the top {data.playoffTeams}. The league had
+          10 teams; see the History tab for how these seasons fit into all-time records.
         </p>
       </SectionCard>
+      {bracket && (
+        <SectionCard
+          title={`${season} Playoffs`}
+          subtitle="Who beat whom, from the league's group chat (no scores were kept)"
+          gradientType="success"
+        >
+          <div className="p-4 sm:p-6">
+            <BracketBoard
+              columns={bracket.rounds.map((round) => ({
+                title: round.title,
+                note: round.title === 'Round 1' ? `Byes: 1. ${firstName(data.teams[0].owner)} · 2. ${firstName(data.teams[1].owner)}` : undefined,
+                games: round.games.map((g, i) => game(g, `${round.title}-${i}`)),
+              }))}
+              extras={{ title: 'Other games', games: bracket.other.map((g, i) => game(g, `other-${i}`)) }}
+            />
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }

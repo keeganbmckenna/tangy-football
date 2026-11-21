@@ -121,9 +121,11 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
   const { totals, ranks, seasons } = profile;
   const titles = seasons.filter((s) => s.champion).map((s) => s.season);
   const toilets = seasons.filter((s) => s.toiletLoser).map((s) => s.season);
-  const finishedCount = seasons.filter((s) => s.complete).length;
+  // Seasons with a team on record (not a title known on its own)
+  const played = seasons.filter((s) => !s.championOnly);
+  const finishedCount = played.filter((s) => s.complete).length;
   // Team names, newest first, each once
-  const names = [...new Set(seasons.map((s) => s.teamName.trim()))];
+  const names = [...new Set(seasons.map((s) => s.teamName.trim()).filter(Boolean))];
   const latestAvatar = seasons.find((s) => s.avatarUrl)?.avatarUrl ?? m?.avatarUrl ?? null;
   const game = (g: ProfileGame | null) =>
     g && (
@@ -148,7 +150,7 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
           <div className="flex items-center gap-3">
             <TeamAvatar url={latestAvatar} name={nameOf(userId)} size="h-14 w-14" />
             <div className="min-w-0 flex-1 text-sm text-[var(--muted)]">
-              {totals.seasons} season{totals.seasons === 1 ? '' : 's'} · {seasons[seasons.length - 1]?.season}–{seasons[0]?.season}
+              {totals.seasons} season{totals.seasons === 1 ? '' : 's'} · {played[played.length - 1]?.season}–{played[0]?.season}
             </div>
             <ShareButton icon path={`/?tab=history&manager=${userId}`} title={`${nameOf(userId)} in the league's history`} className="shrink-0 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />
           </div>
@@ -203,11 +205,11 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
                   <tr key={s.season}>
                     <td className="px-4 py-2 font-semibold text-[var(--foreground)]">{s.season}</td>
                     <td className="max-w-[11rem] px-4 py-2 sm:max-w-none">
-                      <div className="truncate text-[var(--foreground)]" title={s.teamName}>{s.teamName}</div>
+                      <div className="truncate text-[var(--foreground)]" title={s.teamName}>{s.championOnly ? 'Team not recorded' : s.teamName}</div>
                       {f.text && <div className="truncate text-xs" style={{ color: f.tone === 'win' ? RESULT_DOT_COLORS.W : f.tone === 'loss' ? RESULT_DOT_COLORS.L : 'var(--muted)' }}>{f.text}</div>}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-center tabular-nums text-[var(--foreground)]">
-                      {record(s.wins, s.losses, s.ties)}
+                      {s.championOnly ? '—' : record(s.wins, s.losses, s.ties)}
                       {s.regularRank && <span className="block text-xs text-[var(--muted)]">{ordinal(s.regularRank)} of {s.teams > 1 ? s.teams : '—'}</span>}
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums text-[var(--foreground)]">{s.pointsPerGame !== null ? s.pointsPerGame.toFixed(1) : '—'}</td>
