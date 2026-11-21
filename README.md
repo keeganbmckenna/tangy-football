@@ -19,7 +19,7 @@ A Next.js web app for our Sleeper fantasy football league: standings, live scori
 
 ## Features
 
-The season picker in the header switches every tab between seasons. Past Sleeper seasons are found by following each league's `previous_league_id`. Seasons before Sleeper (2017-2021) only have their final standings and the History tab. Weekly analytics count completed regular-season weeks only, and ties count as half a win everywhere.
+The season picker in the header switches every tab between seasons. Past Sleeper seasons are found by following each league's `previous_league_id`. Seasons before Sleeper (2017-2021) have their final standings and playoff bracket, and count in the History tab. Weekly analytics count completed regular-season weeks only, and ties count as half a win everywhere.
 
 ### Overview
 - 📖 **Season in Review** (finished seasons) - One manager at a time: finish, record and points rank, best and worst week, MVP, best pickup, best trade by net points, lineup efficiency, luck and close games, and a sparkline of their playoff odds.
@@ -71,15 +71,16 @@ Then, for every season: lineup efficiency (points against the best possible line
 Completed seasons' drafts are pre-built JSON in `web/public/data/drafts/`; the season in progress is built live.
 
 ### History
-Every season the league has played. Managers are tracked by their Sleeper account and shown by first name. Seasons before Sleeper come from the old platform's final standings (`web/lib/data/legacyHistory.ts`) and count toward records, titles and finishes; points, head to head and game records start in 2022.
-- 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser (third place before Sleeper).
+Every season the league has played. Managers are tracked by their Sleeper account and shown by first name. Seasons before Sleeper (`web/lib/data/legacyHistory.ts`) come from the old platform's final standings and top three, plus what the league's group chat settles: the playoff field (4 teams through 2018, 6 from 2019), each 2017-2021 bracket, and the 2014-2016 finals. They count toward records, titles and finishes; points, head to head and game records start in 2022.
+- 🎛️ **Filters** - One bar above everything it affects: seasons (Since 2017, the default; All time, adding the 2014-2016 finals; or Since 2022), games counted (regular season only by default, or with playoff and toilet bowl games), and Show former managers (off by default; their games still count in everyone's records). Manager pages always cover the whole career.
+- 🏆 **Champions** - Each season's champion, runner-up and toilet bowl loser (the toilet bowl began in 2021; third place before that). 2014-2016 show only their finals.
 - 📋 **All-Time Standings** - Per manager: seasons, record, win %, points per game, playoff appearances, finals, titles, toilet bowl losses and best finish.
 - ⚔️ **Head to Head** - Every manager's record against every other; tap a cell for every meeting.
 - 🔥 **Rivalries** - Most-played, most lopsided and closest series.
 - 🔁 **Trades** - Every Sleeper-era trade, graded at the time (the odds change it made, re-simulated with that week's rosters and projections) and in hindsight (the starting-lineup points the players brought in), with per-manager trade stats. Completed seasons are pre-built JSON in `web/public/data/trades/`.
 - 📖 **Record Book** - Highest and lowest scores, blowouts, closest games, and best and worst seasons.
 
-All-time records, head to head and rivalries count regular-season, playoff and toilet bowl games; a switch changes them to the regular season only. Placement games (3rd place, 5th place and so on) never count, since teams often don't set lineups for them.
+Placement games (3rd place, 5th place and so on) never count, since teams often don't set lineups for them.
 
 ### Across the site
 - 🙋 **You** - Pick your team in the header (saved on this device; ✕ clears it) to highlight it in every table and chart, put its matchup first (with it on the left) in Overview and Live, and preselect it in the trade and waiver tools.
