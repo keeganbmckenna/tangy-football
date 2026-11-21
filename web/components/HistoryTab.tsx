@@ -18,16 +18,20 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import TradeHistory from '@/components/TradeHistory';
 import ManagerPage from '@/components/ManagerPage';
 import LifetimeLuck from '@/components/LifetimeLuck';
+import HistoryFilters from '@/components/HistoryFilters';
 import { lifetimeLuck } from '@/lib/analyze/lifetimeLuck';
 import { getHeatmapColorByRatio } from '@/lib/constants';
 import { signed } from '@/lib/format';
 import {
   allTimeStandings,
+  HISTORY_ERAS,
   headToHead,
+  historySince,
   recordBook,
   rivalries,
   type GameRecord,
   type HistoryData,
+  type HistoryEra,
   type HistoryGame,
   type HistoryManager,
   type SeasonRecord,
@@ -40,8 +44,10 @@ const RECORDS_SHOWN = 5;
 // Where the league's history was scrolled when a manager's page was opened from it
 let listScroll = 0;
 
-// Whether records count playoff and toilet bowl games, for this visit (regular season only by default)
+// The filters, for this visit: regular season only, every season, current managers only by default
 let rememberedPostseason = false;
+let rememberedEra: HistoryEra['key'] = 'all';
+let rememberedShowFormer = false;
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -106,6 +112,16 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
     rememberedPostseason = on;
     setPostseasonState(on);
   };
+  const [era, setEraState] = useState(() => rememberedEra);
+  const setEra = (e: HistoryEra['key']) => {
+    rememberedEra = e;
+    setEraState(e);
+  };
+  const [showFormer, setShowFormerState] = useState(() => rememberedShowFormer);
+  const setShowFormer = (on: boolean) => {
+    rememberedShowFormer = on;
+    setShowFormerState(on);
+  };
   const me = useMyTeam();
 
   useEffect(() => {
@@ -122,14 +138,29 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
     };
   }, [attempt]);
 
+  const from = (HISTORY_ERAS.find((e) => e.key === era) ?? HISTORY_ERAS[0]).from;
   const derived = useMemo(() => {
     if (!data) return null;
+    const scoped = historySince(data, from);
+    // Managers in this season's league; the others are listed only on request
+    const current = new Set(data.seasons[0]?.teams.map((t) => t.userId) ?? []);
+    const listed = (id: string) => showFormer || current.has(id);
     const opts = { postseason };
-    const standings = allTimeStandings(data, opts);
-    return { standings, h2h: headToHead(data, opts), rivals: rivalries(data, opts), records: recordBook(data) };
-  }, [data, postseason]);
-  // Regular season only, so the postseason switch doesn't change it
-  const luck = useMemo(() => (data ? lifetimeLuck(data) : null), [data]);
+    const luck = lifetimeLuck(scoped);
+    return {
+      scoped,
+      current,
+      listed,
+      standings: allTimeStandings(scoped, opts),
+      h2h: headToHead(scoped, opts),
+      rivals: rivalries(scoped, opts).filter((x) => listed(x.a) && listed(x.b)),
+      records: recordBook(scoped, 5, listed),
+      // Regular season only, so the postseason switch doesn't change it
+      luck: luck.rows.length ? { ...luck, rows: luck.rows.filter((x) => listed(x.userId)) } : luck,
+    };
+  }, [data, postseason, from, showFormer]);
+  // A manager's page covers their whole career, whatever the filters
+  const careerLuck = useMemo(() => (data ? lifetimeLuck(data) : null), [data]);
 
   if (error) {
     return (
@@ -157,14 +188,24 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
     else restoreScroll(listScroll);
   };
   if (manager && data.managers.some((m) => m.userId === manager)) {
-    return <ManagerPage data={data} userId={manager} postseason={postseason} luck={luck} onBack={() => openManager(null)} onManager={openManager} decisionsFocus={decisionsFocus} />;
+    return <ManagerPage data={data} userId={manager} postseason={postseason} luck={careerLuck} onBack={() => openManager(null)} onManager={openManager} decisionsFocus={decisionsFocus} />;
   }
 
   const managers = new Map(data.managers.map((m) => [m.userId, m]));
-  const current = new Set(data.seasons[0]?.teams.map((t) => t.userId) ?? []);
   const nameOf = (id: string | null) => (id ? managers.get(id)?.name ?? 'Unknown' : '—');
   const teamIn = (season: string, id: string | null) => data.seasons.find((s) => s.season === season)?.teams.find((t) => t.userId === id);
-  const { standings, h2h, rivals, records } = derived;
+  const { scoped, current, listed, standings: allStandings, h2h, rivals, records, luck } = derived;
+  const standings = allStandings.filter((r) => listed(r.userId));
+  const formerNames = data.managers
+    .filter((m) => !current.has(m.userId) && allStandings.some((r) => r.userId === m.userId))
+    .map((m) => m.firstName ?? m.name);
+  const resetFilters = () => {
+    setEra('all');
+    setPostseason(false);
+    setShowFormer(false);
+  };
+  // The seasons the filters cover, for the section subtitles
+  const range = scoped.seasons.length ? `${scoped.seasons[scoped.seasons.length - 1].season}–${scoped.seasons[0].season}` : '';
   // Matrix order: current managers by all-time win %, then former ones
   // (managers from before Sleeper only have no games to show)
   const order = [...standings]
@@ -299,6 +340,16 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
           ))}
         </ul>
       </nav>
+      <HistoryFilters
+        era={era}
+        onEra={setEra}
+        postseason={postseason}
+        onPostseason={setPostseason}
+        showFormer={showFormer}
+        onShowFormer={setShowFormer}
+        former={formerNames}
+        onReset={resetFilters}
+      />
       <SectionCard
         title="Champions"
         subtitle="Every season's champion, runner-up and toilet bowl loser (third place 🥉 before 2021, when the toilet bowl began)"
@@ -322,7 +373,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {data.seasons.map((s) => (
+              {scoped.seasons.map((s) => (
                 <tr key={s.season} className="align-middle">
                   <td className="px-2 py-2.5 font-bold text-[var(--foreground)] sm:px-4">
                     {s.season}
@@ -359,37 +410,9 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
         </div>
       </SectionCard>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="font-medium text-[var(--foreground)]">Games counted in all-time records, head to head and rivalries</div>
-          <div className="text-xs text-[var(--muted)]">
-            3rd-place, 5th-place and other placement games, and consolation games outside both brackets, never count. Titles,
-            finals and toilet bowl losses don&apos;t change.
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1" role="group" aria-label="Games counted">
-          {[
-            { on: false, label: 'Regular season only' },
-            { on: true, label: 'With playoffs & toilet bowl' },
-          ].map((o) => (
-            <button
-              key={o.label}
-              type="button"
-              onClick={() => setPostseason(o.on)}
-              aria-pressed={postseason === o.on}
-              className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                postseason === o.on ? 'bg-[var(--info-bg)] text-[var(--info-text)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <SectionCard
         title="All-Time Standings"
-        subtitle={postseason ? 'Records with playoff and toilet bowl games, plus postseason results, by manager' : 'Regular-season records plus postseason results, by manager'}
+        subtitle={`${postseason ? 'Records with playoff and toilet bowl games' : 'Regular-season records'}, plus postseason results, by manager, ${range}`}
         gradientType="primary"
       >
         <ColumnChips picker={standingsColumns} />

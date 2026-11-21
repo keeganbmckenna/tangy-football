@@ -309,15 +309,21 @@ export interface RecordBook {
   fewestPointsSeasons: SeasonRecord[];
 }
 
-export function recordBook(data: HistoryData, top = 5): RecordBook {
+/** The league's records; `include` limits them to some managers (each record's scorer, winner or season owner) */
+export function recordBook(data: HistoryData, top = 5, include: (userId: string) => boolean = () => true): RecordBook {
   const games = data.games.filter(countsForRecords);
   const sides = games.flatMap((g) => [
     { game: g, userId: g.a, pf: g.pa, pa: g.pb },
     { game: g, userId: g.b, pf: g.pb, pa: g.pa },
   ]);
   const winnerSide = (g: HistoryGame) => (g.pa >= g.pb ? { userId: g.a, pf: g.pa, pa: g.pb } : { userId: g.b, pf: g.pb, pa: g.pa });
-  const take = <T,>(items: T[], key: (t: T) => number, desc: boolean) =>
-    [...items].sort((x, y) => (desc ? key(y) - key(x) : key(x) - key(y))).slice(0, top);
+  // The holder of a record: the side's or season's manager, or a game's winner
+  const holder = (t: { userId: string } | HistoryGame) => ('userId' in t ? t.userId : winnerSide(t).userId);
+  const take = <T extends { userId: string } | HistoryGame>(items: T[], key: (t: T) => number, desc: boolean) =>
+    items
+      .filter((t) => include(holder(t)))
+      .sort((x, y) => (desc ? key(y) - key(x) : key(x) - key(y)))
+      .slice(0, top);
 
   const decided = games.filter((g) => g.pa !== g.pb);
   // Season records: complete seasons' regular seasons only
@@ -366,5 +372,34 @@ export function recordBook(data: HistoryData, top = 5): RecordBook {
     worstSeasons: take(seasons, (r) => pct(r) - (r.wins + r.losses) / 1e3 - (r.pointsPerGame ?? 0) / 1e6, false),
     mostPointsSeasons: take(scored, (r) => r.pointsPerGame!, true),
     fewestPointsSeasons: take(scored, (r) => r.pointsPerGame!, false),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Eras: the History tab's season filter
+
+export interface HistoryEra {
+  key: 'all' | '10' | '12';
+  label: string;
+  /** First season counted (0 = every season) */
+  from: number;
+  /** What the range covers, in a few words */
+  detail: string;
+}
+
+/** The league's eras: 8 teams before 2017 (only 2016's champion is known), 10 teams 2017-2021, 12 on Sleeper since 2022 */
+export const HISTORY_ERAS: HistoryEra[] = [
+  { key: 'all', label: 'All time', from: 0, detail: '2016 on: 8 teams, then 10, then 12' },
+  { key: '10', label: 'Since 2017', from: 2017, detail: '2017 on: 10 teams, then 12' },
+  { key: '12', label: 'Since 2022', from: 2022, detail: '2022 on: 12 teams, on Sleeper' },
+];
+
+/** The history from one season on: its seasons and games */
+export function historySince(data: HistoryData, from: number): HistoryData {
+  if (!from) return data;
+  return {
+    ...data,
+    seasons: data.seasons.filter((s) => Number(s.season) >= from),
+    games: data.games.filter((g) => Number(g.season) >= from),
   };
 }

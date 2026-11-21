@@ -3,6 +3,7 @@ import {
   allTimeStandings,
   bracketResults,
   headToHead,
+  historySince,
   postseasonKind,
   recordBook,
   rivalries,
@@ -142,6 +143,27 @@ describe('recordBook', () => {
     expect(r.fewestPointsInWin[0]).toMatchObject({ userId: 'u1', value: 100 });
     expect(r.bestSeasons[0]).toMatchObject({ userId: 'u1', season: '2025', wins: 2, losses: 0 });
     expect([...r.highestScores, ...r.lowestScores, ...r.fewestPointsInWin].some((x) => x.game.kind === 'toilet' || x.game.kind === 'placement')).toBe(false);
+  });
+
+  it('limits records to some managers before taking the top ones', () => {
+    const r = recordBook(data(), 3, (id) => id !== 'u2');
+    // u2's 150 is gone; the next highest score takes its place
+    expect(r.highestScores[0]).toMatchObject({ userId: 'u1', value: 140 });
+    expect(r.highestScores).toHaveLength(3);
+    // A blowout belongs to its winner: u2's 150-60 win is gone, u1's 140-70 is first
+    expect(r.biggestBlowouts[0]).toMatchObject({ userId: 'u1', value: 70 });
+    expect([...r.highestScores, ...r.biggestBlowouts, ...r.bestSeasons].some((x) => x.userId === 'u2')).toBe(false);
+  });
+});
+
+describe('historySince', () => {
+  it('keeps the seasons and games from a season on', () => {
+    const d = historySince(data(), 2025);
+    expect(d.seasons.map((s) => s.season)).toEqual(['2025']);
+    expect(d.games.every((x) => x.season === '2025')).toBe(true);
+    expect(allTimeStandings(d).find((r) => r.userId === 'u2')).toMatchObject({ seasons: 1, titles: 0, finals: 1 });
+    // 0 is every season
+    expect(historySince(data(), 0)).toEqual(data());
   });
 });
 
