@@ -481,7 +481,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
           <p>
           Records count {postseason ? 'regular season, playoff and toilet bowl games' : 'regular-season games only'} and go back to 2017 (before 2022 only regular-season records were kept);
           ties count as half a win. Points per game cover the same games and start in 2022 (earlier seasons only kept standings
-          and the top three). Titles and finals include 2014–2016, earlier and smaller leagues where only the champion (and 2015&apos;s runner-up) is known. Toilet bowl losses start in 2021,
+          and the top three). Titles and finals include 2014–2016, earlier leagues where only the final is known (2014earlier and smaller leagues where only the champion (and 2015&apos;s runner-up) is known.apos;s runner-up isnearlier and smaller leagues where only the champion (and 2015&apos;s runner-up) is known.apos;t). Toilet bowl losses start in 2021,
           when the toilet bowl began. Before 2022 playoff appearances are the top of the final standings: four teams through 2018, six from 2019. Best finish is the
           final place (1st–6th from Sleeper brackets, 1st–3rd before).
           </p>

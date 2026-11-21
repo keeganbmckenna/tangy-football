@@ -44,11 +44,12 @@ export interface LegacySeason {
 }
 
 /**
- * Seasons before the old platform's history (smaller leagues, 8 teams in 2014; 2015 on ESPN), where only
- * the champion is known, and the runner-up where the chat names the final
+ * Seasons before the old platform's history (8 teams in 2014, 10 in 2015 and 2016, two of them since
+ * gone: Ian and an earlier Caleb), where only the final is known: the champion, and the runner-up where
+ * the chat names the final
  */
 export const LEGACY_CHAMPIONS: Array<{ season: string; owner: string; runnerUp?: string }> = [
-  { season: '2016', owner: 'bigbuttboi' },
+  { season: '2016', owner: 'bigbuttboi', runnerUp: 'lublub22' },
   { season: '2015', owner: 'shivvv', runnerUp: 'Ian' },
   { season: '2014', owner: 'lublub22' },
 ];
