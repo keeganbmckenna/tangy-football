@@ -150,12 +150,16 @@ export default function ManagerPage({ data, userId, postseason, luck, onBack, on
           <div className="flex items-center gap-3">
             <TeamAvatar url={latestAvatar} name={nameOf(userId)} size="h-14 w-14" />
             <div className="min-w-0 flex-1 text-sm text-[var(--muted)]">
-              {totals.seasons} season{totals.seasons === 1 ? '' : 's'} · {played[played.length - 1]?.season}–{played[0]?.season}
+              {played.length ? `${totals.seasons} season${totals.seasons === 1 ? '' : 's'} · ${played[played.length - 1].season}–${played[0].season}` : `Finals only: ${seasons.map((x) => x.season).join(', ')}`}
             </div>
             <ShareButton icon path={`/?tab=history&manager=${userId}`} title={`${nameOf(userId)} in the league's history`} className="shrink-0 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]" />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Tile label="Record" value={record(totals.wins, totals.losses, totals.ties)} sub={`${(totals.winPct * 100).toFixed(1)}% · ${ordinal(ranks.winPct)} of ${ranks.of}${seasons[0] && !seasons[0].complete ? ` · incl. ${seasons[0].season}` : ''}`} />
+            <Tile
+              label="Record"
+              value={totals.games ? record(totals.wins, totals.losses, totals.ties) : '—'}
+              sub={totals.games ? `${(totals.winPct * 100).toFixed(1)}% · ${ordinal(ranks.winPct)} of ${ranks.of}${seasons[0] && !seasons[0].complete ? ` · incl. ${seasons[0].season}` : ''}` : 'No games on record'}
+            />
             <Tile label="Points per game" value={totals.scoredGames ? totals.pointsPerGame.toFixed(1) : '—'} sub={totals.scoredGames ? `${ordinal(ranks.pointsPerGame)} · since Sleeper` : 'Sleeper seasons only'} />
             <Tile label="Titles" value={titles.length ? `🏆 ${titles.length}` : '0'} sub={titles.length ? titles.join(', ') : undefined} />
             <Tile label="Finals" value={String(totals.finals)} sub={totals.bestFinish ? `Best finish ${ordinal(totals.bestFinish)}` : undefined} />

@@ -3,7 +3,7 @@
  * the top three finishers, transcribed from the old platform's history page.
  * There are no weekly scores, so these seasons count toward records, titles
  * and finishes but not head to head, points or game records. The playoff
- * field size, the brackets and the 2016 champion come from the
+ * field size, the brackets and the 2014-2016 champions come from the
  * league's group chat, and are filled in only where it settles them. The
  * toilet bowl began in 2021.
  *
@@ -43,8 +43,15 @@ export interface LegacySeason {
   format?: string;
 }
 
-/** Seasons before the old platform's history, where only the champion is known */
-export const LEGACY_CHAMPIONS: Array<{ season: string; owner: string }> = [{ season: '2016', owner: 'bigbuttboi' }];
+/**
+ * Seasons before the old platform's history (smaller leagues, 8 teams in 2014; 2015 on ESPN), where only
+ * the champion is known, and the runner-up where the chat names the final
+ */
+export const LEGACY_CHAMPIONS: Array<{ season: string; owner: string; runnerUp?: string }> = [
+  { season: '2016', owner: 'bigbuttboi' },
+  { season: '2015', owner: 'shivvv', runnerUp: 'Ian' },
+  { season: '2014', owner: 'lublub22' },
+];
 
 /** Managers' first names, by Sleeper display name (or plain name) */
 export const MANAGER_FIRST_NAMES: Record<string, string> = {
@@ -63,6 +70,7 @@ export const MANAGER_FIRST_NAMES: Record<string, string> = {
   tchoezin: 'Choezin',
   richardholt: 'Richard',
   Vikram: 'Vikram',
+  Ian: 'Ian',
 };
 
 const t = (rank: number, teamName: string, record: string, owner: string, finish?: 1 | 2 | 3): LegacyTeam => {

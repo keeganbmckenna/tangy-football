@@ -41,7 +41,7 @@ export interface HistorySeason {
   legacy?: boolean;
   /** Final regular-season records (legacy seasons; Sleeper seasons come from their games) */
   standings?: Array<{ userId: string; wins: number; losses: number; rank: number }>;
-  /** Only the champion is known (before the old platform's history): no teams, records or other finishes */
+  /** Only the champion (and maybe the runner-up) is known, before the old platform's history: no teams, records or other finishes */
   championOnly?: boolean;
   /** Third place (legacy seasons) */
   thirdPlace?: string | null;
@@ -389,7 +389,7 @@ export interface HistoryEra {
 
 /** The league's eras: 8 teams before 2017 (only 2016's champion is known), 10 teams 2017-2021, 12 on Sleeper since 2022 */
 export const HISTORY_ERAS: HistoryEra[] = [
-  { key: 'all', label: 'All time', from: 0, detail: '2016 on: 8 teams, then 10, then 12' },
+  { key: 'all', label: 'All time', from: 0, detail: '2014 on: 2014–2016 champions only, then 10 teams, then 12' },
   { key: '10', label: 'Since 2017', from: 2017, detail: '2017 on: 10 teams, then 12' },
   { key: '12', label: 'Since 2022', from: 2022, detail: '2022 on: 12 teams, on Sleeper' },
 ];

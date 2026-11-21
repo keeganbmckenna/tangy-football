@@ -30,7 +30,7 @@ export interface ProfileSeason {
   legacy: boolean;
   /** Third place (recorded before Sleeper; Sleeper seasons have it in placement) */
   third: boolean;
-  /** Only the title is known (see HistorySeason.championOnly): no team name or record */
+  /** Only the final is known (see HistorySeason.championOnly): no team name or record */
   championOnly?: boolean;
 }
 
@@ -93,8 +93,9 @@ export function managerProfile(data: HistoryData, userId: string, opts: RecordOp
   const seasons: ProfileSeason[] = [];
   for (const s of data.seasons) {
     if (s.championOnly) {
-      if (s.champion === userId) {
-        seasons.push({ season: s.season, teamName: '', avatarUrl: null, wins: 0, losses: 0, ties: 0, pointsPerGame: null, regularRank: null, teams: 0, placement: 1, champion: true, runnerUp: false, toiletLoser: false, playoffs: false, complete: true, legacy: true, third: false, championOnly: true });
+      if (s.champion === userId || s.runnerUp === userId) {
+        const won = s.champion === userId;
+        seasons.push({ season: s.season, teamName: '', avatarUrl: null, wins: 0, losses: 0, ties: 0, pointsPerGame: null, regularRank: null, teams: 0, placement: won ? 1 : 2, champion: won, runnerUp: !won, toiletLoser: false, playoffs: false, complete: true, legacy: true, third: false, championOnly: true });
       }
       continue;
     }

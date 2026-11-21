@@ -149,10 +149,14 @@ export async function buildHistory(): Promise<HistoryData> {
     };
   });
 
-  // Earlier seasons where only the champion is known
+  // Earlier seasons where only the champion (and maybe the runner-up) is known
   for (const c of LEGACY_CHAMPIONS) {
     const id = ownerId(c.owner);
-    legacy.push({ season: c.season, complete: true, legacy: true, championOnly: true, teams: [], champion: id, runnerUp: null, toiletLoser: null, playoffTeams: [], placements: { [id]: 1 } });
+    const second = c.runnerUp ? ownerId(c.runnerUp) : null;
+    legacy.push({
+      season: c.season, complete: true, legacy: true, championOnly: true, teams: [], champion: id, runnerUp: second, toiletLoser: null, playoffTeams: [],
+      placements: second ? { [id]: 1, [second]: 2 } : { [id]: 1 },
+    });
   }
 
   const firstNames = new Map(Object.entries(MANAGER_FIRST_NAMES).map(([k, v]) => [k.toLowerCase(), v]));
