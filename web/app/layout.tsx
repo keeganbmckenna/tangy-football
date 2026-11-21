@@ -52,6 +52,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>{children}</ThemeProvider>
+        {/* FantasyCalc's terms ask for a link in the page's first HTML, wherever their values are used */}
+        <footer className="pb-6 text-center text-xs text-[var(--muted)]">
+          Trade market values from{' '}
+          <a href="https://fantasycalc.com" target="_blank" rel="noreferrer" className="underline">
+            FantasyCalc
+          </a>
+        </footer>
       </body>
     </html>
   );

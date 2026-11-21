@@ -331,7 +331,12 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
                     </div>
                     <p className="mt-2 text-xs text-[var(--muted)]">
                       Expected lineups {signed(gainMe)} (you) / {signed(gainThem)} (them) pts/wk
-                      {data.marketValues && <> · Market value: you give {t.market.give.toLocaleString()}, get {t.market.get.toLocaleString()}</>}
+                      {data.marketValues && (
+                        <>
+                          {' '}
+                          · Market value (<a href="https://fantasycalc.com" target="_blank" rel="noreferrer" className="underline">FantasyCalc</a>): you give {t.market.give.toLocaleString()}, get {t.market.get.toLocaleString()}
+                        </>
+                      )}
                       {t.moves.meDrops.length > 0 && <> · You drop {t.moves.meDrops.map(player).join(', ')}</>}
                       {t.moves.meAdds.length > 0 && <> · You pick up {t.moves.meAdds.map(player).join(', ')}</>}
                     </p>
@@ -398,7 +403,7 @@ export default function TradeFinder({ data, teamStats, onOpen }: TradeFinderProp
               players you won&apos;t trade, who also never get dropped to make room.
             </p>
             <p>
-              The market filter uses FantasyCalc redraft values and hides trades where the other manager gets back less than 85% of
+              The market filter uses <a href="https://fantasycalc.com" target="_blank" rel="noreferrer" className="underline">FantasyCalc</a> redraft values and hides trades where the other manager gets back less than 85% of
               the value they give. Values are compared with a premium for the best player in a deal (in real trades, a 2-for-1 has
               cost about 1.36× the star&apos;s value). It only sees what the model sees: projections, this season&apos;s production
               and the schedule, not what a manager actually wants. A trade where you get back less than 85% of the value you give

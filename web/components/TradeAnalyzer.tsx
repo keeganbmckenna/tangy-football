@@ -183,7 +183,7 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
           received: gets,
           extra: data.marketValues ? (
             <p className="mt-2 text-[var(--foreground)]">
-              Market value: gives {give.total.toLocaleString()}, gets {get.total.toLocaleString()}
+              Market value (<a href="https://fantasycalc.com" target="_blank" rel="noreferrer" className="underline">FantasyCalc</a>): gives {give.total.toLocaleString()}, gets {get.total.toLocaleString()}
               {give.valued < give.count || get.valued < get.count ? ' (kickers and defenses not valued)' : ''}
               {marketFair(gives.map((p) => data.players[p]?.value ?? 0), gets.map((p) => data.players[p]?.value ?? 0)) === false && (
                 <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
@@ -224,6 +224,14 @@ export default function TradeAnalyzer({ data, teamStats, initial = null }: Trade
             );
           })}
         </div>
+        {data.marketValues && (
+          <p className="-mt-3 text-xs text-[var(--muted)]">
+            Values:{' '}
+            <a href="https://fantasycalc.com" target="_blank" rel="noreferrer" className="underline">
+              FantasyCalc
+            </a>
+          </p>
+        )}
         {data.marketValues && (
           <HowItWorks className="-mt-3" label="What the numbers mean">
             <p>
