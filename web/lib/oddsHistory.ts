@@ -5,8 +5,11 @@
  * Each checkpoint uses that time's rosters (the drafted rosters, then each week's), records and
  * weekly scores so far, each player's season production so far, and the projections published
  * for the next week, carried forward to later weeks with each NFL team's byes (as the model was
- * backtested and as the trade grades are made). Injury statuses from back then aren't kept, so
- * past checkpoints don't discount injured players; the Playoffs tab's live odds do.
+ * backtested and as the trade grades are made); a player out that week counts from the week he's
+ * projected back (lib/oddsData.ts carriedValues). Injury statuses from back then aren't kept, so
+ * past checkpoints don't discount injured players. The latest checkpoint is the week still to be
+ * played: it uses the Playoffs tab's values (injury discount included), so the chart ends where
+ * the tab's odds are.
  */
 
 import { SLEEPER_CONFIG, CACHE_CONFIG } from '@/lib/config';
@@ -15,14 +18,15 @@ import {
   cumulativeProduction,
   fetchJson,
   playoffFormat,
+  playedIn,
   teamsPlaying,
+  valuesAsOf,
   weekProjections,
   type ProjectedPlayer,
 } from '@/lib/oddsData';
 import {
   bestLineupPoints,
   fittedStrength,
-  playerValue,
   simulatePlayoffOdds,
   teamStrength,
   type OddsTeam,
@@ -94,9 +98,14 @@ export async function buildOddsHistory(league: SleeperLeague): Promise<OddsHisto
 
   // Checkpoints: the draft (0 weeks played), then after each completed regular-season week
   const checkpointWeeks = Array.from({ length: lastScoredWeek + 1 }, (_, k) => k);
-  // Each checkpoint's projections are for the next week, and one more week's for its players on bye then
+  // Each checkpoint's projections are for the next week (later weeks' too, for when a player out then is back)
+  const projectionCache = new Map<number, Promise<Record<string, ProjectedPlayer> | null>>();
+  const projectionsFor = (w: number) => {
+    if (!projectionCache.has(w)) projectionCache.set(w, weekProjections(league.season, w));
+    return projectionCache.get(w)!;
+  };
   const [projectionList, weeklyStats] = await Promise.all([
-    Promise.all([...checkpointWeeks, lastScoredWeek + 1].map((k) => weekProjections(league.season, Math.min(k + 1, regularSeasonEnd)))),
+    Promise.all(checkpointWeeks.map((k) => projectionsFor(Math.min(k + 1, regularSeasonEnd)))),
     Promise.all(
       Array.from({ length: lastScoredWeek }, (_, i) =>
         fetchJson<Record<string, { pts_half_ppr?: number; gp?: number }>>(`${baseUrl}/stats/nfl/regular/${league.season}/${i + 1}`, false).catch(
@@ -127,27 +136,15 @@ export async function buildOddsHistory(league: SleeperLeague): Promise<OddsHisto
     const regularWeeks = [...new Set(remaining.map((g) => g.week))];
     const strengthWeeks = [...regularWeeks, playoffWeekStart, playoffWeekStart + 1, playoffWeekStart + 2];
     const production = cumulativeProduction(weeklyStats.slice(0, k));
-    const plays = (p: ProjectedPlayer, pid: string, w: number) => {
-      const playing = schedule?.[w];
-      if (!playing) return true;
-      return p.position === 'DEF' ? playing.has(pid) : !!p.team && playing.has(p.team);
-    };
-    // A player on bye the week projected is projected 0 then: carried forward he'd count for nothing all
-    // season, so he goes by the following week's projection instead
+    // Player values as known then (lib/oddsData.ts valuesAsOf): the latest checkpoint exactly as the
+    // Playoffs tab has them now, earlier ones by that week's projections carried forward
     const projWeek = Math.min(k + 1, regularSeasonEnd);
-    const next = projectionList[k + 1];
-    const values = (w: number) => {
-      const out: Record<string, { position: string; points: number }> = {};
-      for (const [pid, p] of Object.entries(proj)) {
-        const points = plays(p, pid, projWeek) ? p.points : next?.[pid]?.points ?? p.points;
-        out[pid] = { position: p.position, points: playerValue(plays(p, pid, w) ? points : 0, production.points[pid] ?? 0, production.games[pid] ?? 0) };
-      }
-      return out;
-    };
+    const byWeek = Object.fromEntries(await Promise.all(strengthWeeks.map(async (w) => [w, w === projWeek ? proj : await projectionsFor(w)] as const)));
+    const vals = valuesAsOf(projWeek, byWeek, strengthWeeks, production, schedule, lastScoredWeek, playedIn(matchups[lastScoredWeek + 1]));
     const roster = rostersAt(k);
     const lineups: Record<number, Record<number, number>> = {};
     for (const w of strengthWeeks) {
-      const v = values(w);
+      const v = vals[w] ?? {};
       lineups[w] = Object.fromEntries(rosters.map((r) => [r.roster_id, bestLineupPoints(roster.get(r.roster_id) ?? [], v, rosterPositions)]));
     }
     const teams: OddsTeam[] = rosters.map((r) => {

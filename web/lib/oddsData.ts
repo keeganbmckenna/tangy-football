@@ -250,6 +250,116 @@ export function discountInjured(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Player values by week: the one place they're built. The playoff odds, the trade calculator, the
+// trade grades and the odds chart all use these, so the same player is worth the same everywhere.
+
+type WeekValues = Record<number, Record<string, { position: string; points: number }>>;
+
+/** Players who have already scored in a week being played (their game isn't in doubt) */
+export const playedIn = (week: SleeperMatchup[] | undefined) =>
+  new Set((week ?? []).flatMap((m) => Object.entries(m.players_points ?? {}).filter(([, pts]) => pts !== 0).map(([pid]) => pid)));
+
+/**
+ * Player values now (no week from lastScoredWeek + 1 on played yet): each week's own projection
+ * blended with season production (weekValues), injured players discounted by the chance they're
+ * back (discountInjured). What the live playoff odds and trade calculator use (and what the 2026
+ * evaluation scores: don't change it outside a logged bug fix).
+ */
+export function currentValues(
+  byWeek: Record<number, Record<string, ProjectedPlayer> | null>,
+  weeks: number[],
+  production: SeasonProduction,
+  schedule: Record<number, Set<string>> | null,
+  lastScoredWeek: number,
+  playedNow: Set<string> = new Set()
+): { players: Record<number, Record<string, ProjectedPlayer>>; values: WeekValues } {
+  const players: Record<number, Record<string, ProjectedPlayer>> = {};
+  const values: WeekValues = {};
+  for (const w of weeks) {
+    const week = byWeek[w];
+    if (!week) continue;
+    players[w] = week;
+    values[w] = weekValues(week, production);
+  }
+  if (schedule) discountInjured(values, players, production, schedule, lastScoredWeek, weeks, playedNow);
+  return { players, values };
+}
+
+/** Whether a player's NFL team plays in a week (true without the schedule) */
+export function playsIn(schedule: Record<number, Set<string>> | null, p: ProjectedPlayer, pid: string, w: number): boolean {
+  const playing = schedule?.[w];
+  if (!playing) return true;
+  return p.position === 'DEF' ? playing.has(pid) : !!p.team && playing.has(p.team);
+}
+
+/**
+ * Player values as of an earlier week `from`, for grading the past (trade grades, the odds chart's
+ * earlier checkpoints). Sleeper only serves each week's latest projection, which already knows what
+ * happened after `from`, so week `from`'s projections are carried forward to later weeks, zeroed
+ * in each NFL team's bye weeks: the table the odds model was fitted and backtested on
+ * (scripts/backtests/leagues_fit.table). A player projected for nothing in week `from` (on bye,
+ * or out hurt) goes by the first later week he's projected to play and counts for nothing before
+ * it; carried forward, the zero would write him off for the season (Kenneth Walker, out in week 11
+ * of 2026). For a player on bye that's next week's projection, the backtested bye fix;
+ * leagues_fit.table(returning=True) has the same rule for out players (injury_return_check.py).
+ */
+export function carriedValues(
+  from: number,
+  byWeek: Record<number, Record<string, ProjectedPlayer> | null>,
+  weeks: number[],
+  production: SeasonProduction,
+  schedule: Record<number, Set<string>> | null
+): WeekValues {
+  const proj = byWeek[from];
+  if (!proj) return {};
+  const later = weeks.filter((w) => w > from).sort((a, b) => a - b);
+  const carried = new Map<string, { from: number; points: number }>();
+  for (const [pid, p] of Object.entries(proj)) {
+    if (p.points > 0 && playsIn(schedule, p, pid, from)) {
+      carried.set(pid, { from, points: p.points });
+      continue;
+    }
+    for (const w of later) {
+      const q = byWeek[w]?.[pid];
+      if (q && q.points > 0 && playsIn(schedule, q, pid, w)) {
+        carried.set(pid, { from: w, points: q.points });
+        break;
+      }
+    }
+  }
+  const values: WeekValues = {};
+  for (const w of weeks) {
+    const out: Record<string, { position: string; points: number }> = {};
+    for (const [pid, p] of Object.entries(proj)) {
+      const c = carried.get(pid);
+      const projected = c && w >= c.from && playsIn(schedule, p, pid, w) ? c.points : 0;
+      out[pid] = { position: p.position, points: playerValue(projected, production.points[pid] ?? 0, production.games[pid] ?? 0) };
+    }
+    values[w] = out;
+  }
+  return values;
+}
+
+/**
+ * Player values for the weeks from `from` on, as known before week `from` was played: now
+ * (currentValues) when it's still to be played, so a trade this week or the odds chart's latest
+ * point match the trade calculator and the Playoffs tab exactly; otherwise carriedValues.
+ * byWeek holds the projections for `from` and the weeks after it.
+ */
+export function valuesAsOf(
+  from: number,
+  byWeek: Record<number, Record<string, ProjectedPlayer> | null>,
+  weeks: number[],
+  production: SeasonProduction,
+  schedule: Record<number, Set<string>> | null,
+  lastScoredWeek: number,
+  playedNow: Set<string> = new Set()
+): WeekValues {
+  if (from > lastScoredWeek) return currentValues(byWeek, weeks, production, schedule, lastScoredWeek, playedNow).values;
+  return carriedValues(from, byWeek, weeks, production, schedule);
+}
+
 /** Current rosters, records, schedule, projections and team strength for the live season */
 export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs> {
   const { baseUrl } = SLEEPER_CONFIG;
@@ -310,21 +420,16 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     seasonProduction(league.season, lastScoredWeek),
     teamsPlaying(league.season),
   ]);
-  const players: Record<number, Record<string, ProjectedPlayer>> = {};
-  const values: Record<number, Record<string, { position: string; points: number }>> = {};
   const lineups: Record<number, Record<number, number>> = {};
   const rosterPositions = league.roster_positions ?? [];
-  strengthWeeks.forEach((w, i) => {
-    const week = perWeek[i];
-    if (!week) return;
-    players[w] = week;
-    values[w] = weekValues(week, production);
-  });
-  // Who has already scored in the week being played
-  const playedNow = new Set(
-    (matchups[lastScoredWeek] ?? []).flatMap((m) => Object.entries(m.players_points ?? {}).filter(([, pts]) => pts !== 0).map(([pid]) => pid))
+  const { players, values } = currentValues(
+    Object.fromEntries(strengthWeeks.map((w, i) => [w, perWeek[i]])),
+    strengthWeeks,
+    production,
+    schedule,
+    lastScoredWeek,
+    playedIn(matchups[lastScoredWeek])
   );
-  if (schedule) discountInjured(values, players, production, schedule, lastScoredWeek, strengthWeeks, playedNow);
   for (const w of Object.keys(values).map(Number)) {
     lineups[w] = Object.fromEntries(
       rosters.map((r) => [r.roster_id, bestLineupPoints(r.players ?? [], values[w], rosterPositions)])

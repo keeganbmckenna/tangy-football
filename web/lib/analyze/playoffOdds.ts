@@ -176,6 +176,22 @@ export interface LineupSlot {
   points: number;
 }
 
+/**
+ * Whether no two starting slots overlap without one containing the other (QB, RB, FLEX, SUPER_FLEX:
+ * yes; WRRB_FLEX with REC_FLEX: no). Then filling the most restrictive slots first, each with its
+ * best eligible player, is the best lineup; otherwise bestLineup solves it exactly.
+ */
+const nestedCache = new Map<string, boolean>();
+function slotsNested(eligible: string[][]): boolean {
+  const key = eligible.map((e) => e.join('|')).join(',');
+  let nested = nestedCache.get(key);
+  if (nested === undefined) {
+    nested = eligible.every((a) => eligible.every((b) => a.every((x) => b.includes(x)) || b.every((x) => a.includes(x)) || !a.some((x) => b.includes(x))));
+    nestedCache.set(key, nested);
+  }
+  return nested;
+}
+
 /** The best lineup a roster can start: each starting slot's player, most restrictive slots first */
 export function bestLineup(
   players: string[],
@@ -190,6 +206,7 @@ export function bestLineup(
     .filter((s) => !NON_STARTING.has(s))
     .map((s) => ({ slot: s, eligible: SLOT_POSITIONS[s] ?? [s] }))
     .sort((a, b) => a.eligible.length - b.eligible.length);
+  if (!slotsNested(slots.map((s) => s.eligible))) return exactLineup(pool, slots);
   const used = new Set<string>();
   const starters: LineupSlot[] = [];
   let total = 0;
@@ -202,6 +219,94 @@ export function bestLineup(
     }
   }
   return { total, starters };
+}
+
+/**
+ * The best lineup when flex slots overlap (WRRB_FLEX and REC_FLEX): a maximum-points assignment of
+ * players to slots, by augmenting paths (each path the best gain, Bellman-Ford on the few players
+ * who can matter: each position's best as many as the slots that take it). Slots left over get
+ * the best remaining eligible player, as the greedy picker does.
+ */
+function exactLineup(
+  pool: Array<{ id: string; position: string; points: number }>,
+  slots: Array<{ slot: string; eligible: string[] }>
+): { total: number; starters: LineupSlot[] } {
+  const room = new Map<string, number>();
+  for (const s of slots) for (const pos of s.eligible) room.set(pos, (room.get(pos) ?? 0) + 1);
+  const taken = new Map<string, number>();
+  const cands = pool.filter((p) => {
+    const n = taken.get(p.position) ?? 0;
+    if (n >= (room.get(p.position) ?? 0)) return false;
+    taken.set(p.position, n + 1);
+    return true;
+  });
+  const slotOf = new Array<number>(cands.length).fill(-1);
+  const playerIn = new Array<number>(slots.length).fill(-1);
+  const can = (i: number, j: number) => slots[j].eligible.includes(cands[i].position);
+  // Each round: the path from a free player to a free slot (through filled slots, moving their
+  // players) that adds the most points; stop when none adds any
+  for (;;) {
+    // dist[j]: best gain reaching slot j; via[j]: the player placed there on that path
+    const dist = new Array<number>(slots.length).fill(-Infinity);
+    const via = new Array<number>(slots.length).fill(-1);
+    for (let i = 0; i < cands.length; i++) {
+      if (slotOf[i] !== -1) continue;
+      for (let j = 0; j < slots.length; j++) if (can(i, j) && cands[i].points > dist[j]) { dist[j] = cands[i].points; via[j] = i; }
+    }
+    for (let round = 0; round < slots.length; round++) {
+      let changed = false;
+      for (let j = 0; j < slots.length; j++) {
+        const i = playerIn[j];
+        if (i === -1 || dist[j] === -Infinity) continue;
+        // Slot j's player moves to slot k: the gain carries over
+        for (let k = 0; k < slots.length; k++) {
+          if (k === j || !can(i, k) || dist[j] <= dist[k] + 1e-12) continue;
+          if (via[j] === i) continue;
+          dist[k] = dist[j];
+          via[k] = i;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+    let best = -1;
+    for (let j = 0; j < slots.length; j++) if (playerIn[j] === -1 && dist[j] > 1e-12 && (best === -1 || dist[j] > dist[best])) best = j;
+    if (best === -1) break;
+    // Walk the path back from the free slot, moving each player along it
+    let j = best;
+    const seen = new Set<number>();
+    while (j !== -1 && !seen.has(j)) {
+      seen.add(j);
+      const i = via[j];
+      const from = slotOf[i];
+      playerIn[j] = i;
+      slotOf[i] = j;
+      if (from === -1) break;
+      playerIn[from] = -1;
+      j = from;
+    }
+  }
+  const used = new Set<string>();
+  const starters: LineupSlot[] = [];
+  let total = 0;
+  slots.forEach((s, j) => {
+    const p = playerIn[j] === -1 ? undefined : cands[playerIn[j]];
+    if (p) used.add(p.id);
+    starters.push({ slot: s.slot, playerId: p?.id ?? '', points: p?.points ?? 0 });
+  });
+  // Empty slots: the best remaining eligible player (zero-point players fill them, as in the greedy picker)
+  starters.forEach((st, j) => {
+    if (st.playerId) return;
+    const p = pool.find((x) => !used.has(x.id) && slots[j].eligible.includes(x.position));
+    if (p) {
+      used.add(p.id);
+      st.playerId = p.id;
+      st.points = p.points;
+    }
+  });
+  const filled = starters.filter((st) => st.playerId);
+  for (const st of filled) total += st.points;
+  return { total, starters: filled };
 }
 
 /** Projected points of the best lineup a roster can start */

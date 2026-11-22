@@ -20,14 +20,15 @@ import {
   cumulativeProduction,
   fetchJson,
   playoffFormat,
+  playedIn,
   teamsPlaying,
+  valuesAsOf,
   weekProjections,
   type ProjectedPlayer,
   type SeasonProduction,
 } from '@/lib/oddsData';
 import {
   bestLineupPoints,
-  playerValue,
   seedTeams,
   teamStrength,
   fittedStrength,
@@ -249,56 +250,11 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
     const remaining = gamesFrom(matchups, w0, regularSeasonEnd);
     if (proj && remaining.length) {
       const strengthWeeks = [...new Set(remaining.map((g) => g.week)), playoffWeekStart, playoffWeekStart + 1, playoffWeekStart + 2];
-      const plays = (p: ProjectedPlayer, pid: string, w: number) => {
-        const playing = schedule?.[w];
-        if (!playing) return true;
-        return p.position === 'DEF' ? playing.has(pid) : !!p.team && playing.has(p.team);
-      };
-      // Player values as the odds model sets them: projection blended with season production so far
+      // Player values as the odds model sets them (lib/oddsData.ts valuesAsOf): a trade this week
+      // exactly as the trade calculator values it, an older one by its week's projections carried forward
       const production: SeasonProduction = productionBefore.get(w0) ?? { points: {}, games: {}, playedWeeks: {} };
-      const laterWeeks = strengthWeeks.filter((w) => w > w0);
-      const later = new Map(await Promise.all(laterWeeks.map(async (w) => [w, await projectionsFor(w)] as const)));
-      // Which projection each week goes by:
-      // - A trade whose first week hasn't been played yet: each week's own projection, as the live
-      //   trade tool and playoff odds use. Nothing after the trade is known yet, so nothing leaks.
-      // - An older trade: Sleeper only serves each week's latest projection, which knows what happened
-      //   after the trade (injuries, breakouts), so the trade week's projection is carried forward,
-      //   zeroed in each NFL team's bye weeks, as the odds model was backtested. A player projected
-      //   for nothing that week (on bye, or out hurt) goes by the first later week he's projected to
-      //   play and counts for nothing before it: carrying the zero forward would write him off for the
-      //   season. (That return week is the one thing taken from later projections.)
-      const weekly = w0 > lastScoredWeek;
-      const carried = new Map<string, { from: number; points: number }>();
-      if (!weekly) {
-        for (const [pid, p] of Object.entries(proj)) {
-          if (p.points > 0 && plays(p, pid, w0)) {
-            carried.set(pid, { from: w0, points: p.points });
-            continue;
-          }
-          for (const w of laterWeeks) {
-            const q = later.get(w)?.[pid];
-            if (q && q.points > 0 && plays(q, pid, w)) {
-              carried.set(pid, { from: w, points: q.points });
-              break;
-            }
-          }
-        }
-      }
-      const weekProj = (w: number) => {
-        const out: Record<string, { position: string; points: number }> = {};
-        const source = weekly && w > w0 ? later.get(w) ?? proj : proj;
-        for (const [pid, p] of Object.entries(source)) {
-          let projected: number;
-          if (weekly) projected = plays(p, pid, w) ? p.points : 0;
-          else {
-            const c = carried.get(pid);
-            projected = c && w >= c.from && plays(p, pid, w) ? c.points : 0;
-          }
-          out[pid] = { position: p.position, points: playerValue(projected, production.points[pid] ?? 0, production.games[pid] ?? 0) };
-        }
-        return out;
-      };
-      const projByWeek = Object.fromEntries(strengthWeeks.map((w) => [w, weekProj(w)]));
+      const byWeek = Object.fromEntries(await Promise.all(strengthWeeks.map(async (w) => [w, await projectionsFor(w)] as const)));
+      const projByWeek = valuesAsOf(w0, byWeek, strengthWeeks, production, schedule, lastScoredWeek, playedIn(matchups[lastScoredWeek + 1]));
       const rosterPositions = league.roster_positions ?? [];
 
       const teams: OddsTeam[] = rosters.map((r) => {
@@ -318,7 +274,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       const lineups: Record<number, Record<number, number>> = {};
       for (const w of strengthWeeks) {
         lineups[w] = Object.fromEntries(
-          rosters.map((r) => [r.roster_id, bestLineupPoints(beforeRosters.get(r.roster_id) ?? [], projByWeek[w], rosterPositions)])
+          rosters.map((r) => [r.roster_id, bestLineupPoints(beforeRosters.get(r.roster_id) ?? [], projByWeek[w] ?? {}, rosterPositions)])
         );
       }
       const regularWeeks = strengthWeeks.filter((w) => w <= regularSeasonEnd);
@@ -334,7 +290,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       const involved = trade.sides.flatMap((s) => [...(beforeRosters.get(s.rosterId) ?? []), ...(afterRosters.get(s.rosterId) ?? [])]);
       const inputs: TradeInputs = {
         weeks: strengthWeeks,
-        projections: Object.fromEntries(involved.map((pid) => [pid, Object.fromEntries(strengthWeeks.map((w) => [w, projByWeek[w][pid]?.points ?? 0]))])),
+        projections: Object.fromEntries(involved.map((pid) => [pid, Object.fromEntries(strengthWeeks.map((w) => [w, projByWeek[w]?.[pid]?.points ?? 0]))])),
         positions: Object.fromEntries(involved.filter((pid) => proj[pid]).map((pid) => [pid, proj[pid].position])),
         rosters: Object.fromEntries(trade.sides.map((s) => [s.rosterId, beforeRosters.get(s.rosterId) ?? []])),
         freeAgents: [],

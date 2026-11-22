@@ -39,11 +39,28 @@ def arch(season, name):
 
 
 _tables = {}
+# A player projected 0 in week e while his team plays (out hurt) counts from the first later week
+# he's projected to play, as the site does (web/lib/oddsData.ts carriedValues), instead of 0 all
+# season. Off in the shipped model; measured by injury_return_check.py.
+RETURNING = False
 
 
-def table(season, e, ppr):
+_projs = {}
+
+
+def _proj(season, w, col):
+    if (season, w, col) not in _projs:
+        try:
+            _projs[(season, w, col)] = {r['player_id']: (r.get('stats') or {}).get(col) or 0 for r in arch(season, f'projections/{w}')}
+        except FileNotFoundError:
+            _projs[(season, w, col)] = {}
+    return _projs[(season, w, col)]
+
+
+def table(season, e, ppr, returning=None):
     """Player values for weeks e..18 from week e: id -> (position, {week: (value, projection only)})"""
-    key = (season, e, ppr)
+    returning = RETURNING if returning is None else returning
+    key = (season, e, ppr, returning)
     if key in _tables: return _tables[key]
     col = 'pts_ppr' if ppr == 1.0 else 'pts_half_ppr'
     sched = arch(season, 'schedule'); playing = defaultdict(set)
@@ -66,12 +83,21 @@ def table(season, e, ppr):
         pid = r['player_id']; pts = (r.get('stats') or {}).get(col) or 0
         team = r.get('team') or (pid if pos == 'DEF' else None)
         if team is not None and team not in playing[e] and e < 18: pts = nxt.get(pid, pts)
+        start = e
+        if returning and team is not None and not (team in playing[e] and pts > 0):
+            # On bye or out in week e: from the first later week he's projected to play
+            pts = 0
+            for w2 in range(e + 1, 19):
+                q = _proj(season, w2, col).get(pid, 0)
+                if q > 0 and team in playing[w2]:
+                    pts, start = q, w2
+                    break
         if pos == 'DEF':  # defenses: games played = team games
             gp[pid] = sum(1 for w in range(1, e) if pid in playing[w])
         ppg = (tot[pid] + 3 * pts) / (gp[pid] + 3)
         weeks = {}
         for w in range(e, 19):
-            on = team in playing[w]
+            on = team in playing[w] and w >= start
             weeks[w] = ((0.5 * pts + 0.5 * ppg) if (on and pts > 0) else 0.0, pts if on else 0.0)
         out[pid] = (pos, weeks)
     _tables[key] = out

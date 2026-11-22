@@ -207,6 +207,12 @@ web/scripts/build-win-history.ts). These rules are fixed before any variant is f
   The single-game model is refitted on the fixed values too. A bug fix, not a tuning: nothing
   chosen on 2026 data. The 2026 evaluation scores the logged predictions as preregistered, which
   were made by the model before the fix up to this date.
+- 2026-11-22: **nothing scored here changed.** The trade grades and the odds chart now build player
+  values with the live odds' own code (`web/lib/oddsData.ts`), fixing a player out hurt in the
+  carried-forward week being valued at 0 all season; the live playoff odds and trade-data inputs
+  were checked identical before and after. The same rule in `leagues_fit.table` was measured
+  (`injury_return_check.py`: playoff Brier -0.00016 [-0.00032, -0.00001] on active leagues, 4 of 8)
+  but the fitted model is **not** refitted with it during the evaluation (LOG.md).
 
 ## Addendum (2026-10-26): further live-odds tests, set before their data is examined
 
