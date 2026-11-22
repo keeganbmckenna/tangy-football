@@ -14,7 +14,7 @@ import { SLEEPER_CONFIG } from '../lib/config';
 import type { SleeperLeague, SleeperMatchup } from '../lib/types';
 import { gamePlays, scoreboard, type EspnPlay } from '../lib/liveData';
 import { starterProjections } from '../lib/liveProjections';
-import { cleanPlay, matchPlay, PLAY_LOOKBACK_SECONDS, playersInPlay, type PlayEvent } from '../lib/winHistory';
+import { cleanPlay, involvedText, matchPlay, PLAY_LOOKBACK_SECONDS, playersInPlay, type PlayEvent } from '../lib/winHistory';
 
 const URL_ = process.env.KV_REST_API_URL;
 const TOKEN = process.env.KV_REST_API_TOKEN;
@@ -73,7 +73,7 @@ async function main() {
     let best: { play: EspnPlay; miss: number } | null = null;
     for (const play of gamePlays) {
       const k = `${espnId}:${play.t}:${top.id}`;
-      if (used.has(k) || Math.abs(play.t - event.t) > REDO_SECONDS || !play.text.toLowerCase().includes(name) || /no play/i.test(play.text)) continue;
+      if (used.has(k) || Math.abs(play.t - event.t) > REDO_SECONDS || !involvedText(play.text).toLowerCase().includes(name) || /no play/i.test(play.text)) continue;
       const miss = Math.abs(worth(play.text, name) - top.pts) + Math.abs(play.t - event.t) / 3600;
       if (!best || miss < best.miss) best = { play, miss };
     }

@@ -280,6 +280,24 @@ export function liveMoments(
 /** A loss this big can be a score taken back */
 const RETRACTED_POINTS = 3;
 
+/**
+ * A play's text without the players it names who don't take part in it: who took the snap when
+ * the play then goes through someone else ("Direct snap to J.Coker. B.Young pass deep left to
+ * M.Evans...": Coker gets nothing from it; one who does act is named again). Matching a player's
+ * points to a play goes by this.
+ */
+export function involvedText(text: string): string {
+  return text.replace(/Direct snap to (?:\d{1,2}-)?[A-Z][a-z]{0,2}\.[A-Za-z'-]+(?: (?:Jr|Sr|II|III|IV|V))?\.\s*/g, '');
+}
+
+/**
+ * The fewest points a touchdown play gives the player matched to it: a passer 4 (a touchdown pass),
+ * anyone else 6 (the touchdown itself). A smaller gain came from another play (Jalen Coker's
+ * 35-yard catch, 4.0, the play before a touchdown that only named him as taking the snap).
+ */
+const touchdownShare = (text: string, lastName: string) =>
+  /touchdown/i.test(text) ? (involvedText(text).toLowerCase().includes(`${lastName} pass`) ? 4 : 6) : 0;
+
 /** How far back before the previous save a live event's play can be (Sleeper's stats trail the plays) */
 export const PLAY_LOOKBACK_SECONDS = 10 * 60;
 
@@ -301,13 +319,14 @@ export function matchPlay(
   const name = lastName.toLowerCase();
   // A gain isn't an incomplete pass
   const found = plays.filter(
-    (p) => p.t >= since && p.t <= event.t && p.text.toLowerCase().includes(name) && !/no play/i.test(p.text) && !(top.pts > 0 && /incomplete/i.test(p.text))
+    (p) => p.t >= since && p.t <= event.t && involvedText(p.text).toLowerCase().includes(name) && !/no play/i.test(p.text) && !(top.pts > 0 && /incomplete/i.test(p.text))
   );
   const wantScore = Math.abs(top.pts) >= 4;
   // A touchdown's worth: the latest scoring play. Less: the longest play that didn't score (the
   // points are mostly its yards), the latest of equals
   const yards = (text: string) => (/no gain/i.test(text) ? 0 : Number(/for (-?\d+) yards?/i.exec(text)?.[1] ?? 0));
-  const scoring = found.filter((p) => p.scoring);
+  // A touchdown only explains a gain at least the size of the player's part in it
+  const scoring = found.filter((p) => p.scoring && !(top.pts > 0 && top.pts < touchdownShare(p.text, name) - 0.05));
   const other = found.filter((p) => !p.scoring);
   const longest = other.reduce<(typeof found)[number] | undefined>((best, p) => (!best || yards(p.text) >= yards(best.text) ? p : best), undefined);
   const pick = (wantScore ? scoring[scoring.length - 1] : undefined) ?? longest ?? found[found.length - 1];
@@ -329,7 +348,7 @@ const isDefense = (p: PlayEvent['players'][number]) => (p.id ? /^[A-Z]{2,3}$/.te
  */
 export function playersInPlay(event: PlayEvent): PlayEvent {
   if (!event.desc) return event;
-  const text = event.desc.toLowerCase();
+  const text = involvedText(event.desc).toLowerCase();
   const kept = event.players.filter((p) =>
     isDefense(p) ? !event.teams || !p.id || event.teams.includes(p.id) : text.includes(playName(p.name))
   );

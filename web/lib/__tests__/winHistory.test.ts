@@ -270,3 +270,46 @@ describe('roundOdds', () => {
     expect(roundOdds(0)).toBe(0);
   });
 });
+
+describe('the play behind a live save (Jalen Coker, week 11 of 2026)', () => {
+  const catch35 = { t: 100, text: '(Shotgun) B.Young pass deep left to J.Coker to BLT 23 for 35 yards (K.Hamilton).', scoring: false };
+  const touchdown = {
+    t: 140,
+    text: '(Shotgun) Direct snap to J.Coker.  B.Young pass deep left to M.Evans for 23 yards, TOUCHDOWN [C.Campbell]. R.Fitzgerald extra point is GOOD, Center-J.Jansen, Holder-S.Martin.',
+    scoring: true,
+  };
+  const ev = (name: string, pts: number): PlayEvent => ({ t: 200, desc: null, players: [{ side: 'b', name, pts }], before: 0, after: 0 });
+
+  it("credits a 4.0-point catch to the catch, not the next play's touchdown that only names him taking the snap", () => {
+    expect(matchPlay(ev('J. Coker', 4), [catch35, touchdown], 'coker', 0)?.t).toBe(100);
+  });
+
+  it('credits the passer with the touchdown pass', () => {
+    expect(matchPlay(ev('B. Young', 4.9), [catch35, touchdown], 'young', 0)?.t).toBe(140);
+  });
+
+  it('a receiver gaining less than a touchdown is not matched to one he caught', () => {
+    const td = { t: 140, text: 'B.Young pass short right to J.Coker for 5 yards, TOUCHDOWN.', scoring: true };
+    const short = { t: 120, text: 'B.Young pass short left to J.Coker to CAR 30 for 12 yards.', scoring: false };
+    expect(matchPlay(ev('J. Coker', 4.5), [short, td], 'coker', 0)?.t).toBe(120);
+    expect(matchPlay(ev('J. Coker', 7), [short, td], 'coker', 0)?.t).toBe(140);
+  });
+
+  it('keeps only the players who took part in the play', () => {
+    const event: PlayEvent = {
+      t: 140,
+      desc: 'Direct snap to J.Coker. B.Young pass deep left to M.Evans for 23 yards, TOUCHDOWN. R.Fitzgerald extra point is GOOD.',
+      players: [
+        { side: 'b', name: 'B. Young', pts: 4.9, id: '1' },
+        { side: 'b', name: 'J. Coker', pts: 4, id: '2' },
+      ],
+      before: 0.68,
+      after: 0.56,
+    };
+    expect(playersInPlay(event).players.map((p) => p.name)).toEqual(['B. Young']);
+  });
+
+  it('a player who takes the direct snap and runs is still in the play', () => {
+    expect(matchPlay(ev('T. Hill', 6.5), [{ t: 50, text: 'Direct snap to T.Hill. T.Hill up the middle for 5 yards, TOUCHDOWN.', scoring: true }], 'hill', 0)?.t).toBe(50);
+  });
+});
