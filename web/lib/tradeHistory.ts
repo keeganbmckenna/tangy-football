@@ -4,9 +4,12 @@
  *
  * - At the time: the playoff-odds model re-run the week of the trade, with the
  *   records, rosters, projections and season production from then, without
- *   and with the trade. Projections are that week's, carried forward to later
- *   weeks with each NFL team's byes (what was knowable when the trade was
- *   made, and how the model was backtested).
+ *   and with the trade. A trade whose first week hasn't been played goes by
+ *   each week's own projections, like the live trade tool. An older one goes
+ *   by that week's projections carried forward to later weeks with each NFL
+ *   team's byes (what was knowable when the trade was made, and how the model
+ *   was backtested); a player out that week counts from the first week he's
+ *   projected back.
  * - Hindsight: the points the players each team received scored in its
  *   starting lineup for the rest of the regular season.
  */
@@ -135,17 +138,14 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
     })
   );
   const tradeWeeks = [...new Set([...effectiveWeek.values()].filter((w) => w <= regularSeasonEnd))];
-  const [schedule, ...projectionList] = await Promise.all([
-    teamsPlaying(league.season),
-    ...tradeWeeks.map((w) => weekProjections(league.season, w)),
-  ]);
+  // Each week's projections, fetched once
+  const projectionCache = new Map<number, Promise<Record<string, ProjectedPlayer> | null>>();
+  const projectionsFor = (w: number) => {
+    if (!projectionCache.has(w)) projectionCache.set(w, weekProjections(league.season, w));
+    return projectionCache.get(w)!;
+  };
+  const [schedule, ...projectionList] = await Promise.all([teamsPlaying(league.season), ...tradeWeeks.map(projectionsFor)]);
   const projectionsAt = new Map(tradeWeeks.map((w, i) => [w, projectionList[i]]));
-  // A player on bye in the trade week is projected 0 that week: carried forward, he'd count for nothing
-  // all season, so he goes by the next week's projection instead
-  const nextWeeks = [...new Set(tradeWeeks.map((w) => w + 1))];
-  const nextProjections = new Map(
-    await Promise.all(nextWeeks.map(async (w) => [w, projectionsAt.get(w) ?? (await weekProjections(league.season, w))] as const))
-  );
 
   // Each player's season production before each trade week, and each scored week's points for the
   // waiver replacement in hindsight
@@ -167,7 +167,7 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
   const scoredWeeks = Array.from({ length: Math.max(0, lastScoredWeek - Math.min(Infinity, ...tradeWeeks) + 1) }, (_, i) => Math.min(...tradeWeeks) + i);
   const projByScoredWeek = new Map(
     await Promise.all(
-      scoredWeeks.map(async (w) => [w, projectionsAt.get(w) ?? (await weekProjections(league.season, w))] as const)
+      scoredWeeks.map(async (w) => [w, await projectionsFor(w)] as const)
     )
   );
   const replacementCache = new Map<string, number | null>();
@@ -248,7 +248,6 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
     let others: TradeHistoryEntry['others'];
     const remaining = gamesFrom(matchups, w0, regularSeasonEnd);
     if (proj && remaining.length) {
-      // That week's projections carried forward, zeroed in each NFL team's bye weeks
       const strengthWeeks = [...new Set(remaining.map((g) => g.week)), playoffWeekStart, playoffWeekStart + 1, playoffWeekStart + 2];
       const plays = (p: ProjectedPlayer, pid: string, w: number) => {
         const playing = schedule?.[w];
@@ -257,12 +256,44 @@ export async function buildTradeHistory(league: SleeperLeague): Promise<TradeHis
       };
       // Player values as the odds model sets them: projection blended with season production so far
       const production: SeasonProduction = productionBefore.get(w0) ?? { points: {}, games: {}, playedWeeks: {} };
+      const laterWeeks = strengthWeeks.filter((w) => w > w0);
+      const later = new Map(await Promise.all(laterWeeks.map(async (w) => [w, await projectionsFor(w)] as const)));
+      // Which projection each week goes by:
+      // - A trade whose first week hasn't been played yet: each week's own projection, as the live
+      //   trade tool and playoff odds use. Nothing after the trade is known yet, so nothing leaks.
+      // - An older trade: Sleeper only serves each week's latest projection, which knows what happened
+      //   after the trade (injuries, breakouts), so the trade week's projection is carried forward,
+      //   zeroed in each NFL team's bye weeks, as the odds model was backtested. A player projected
+      //   for nothing that week (on bye, or out hurt) goes by the first later week he's projected to
+      //   play and counts for nothing before it: carrying the zero forward would write him off for the
+      //   season. (That return week is the one thing taken from later projections.)
+      const weekly = w0 > lastScoredWeek;
+      const carried = new Map<string, { from: number; points: number }>();
+      if (!weekly) {
+        for (const [pid, p] of Object.entries(proj)) {
+          if (p.points > 0 && plays(p, pid, w0)) {
+            carried.set(pid, { from: w0, points: p.points });
+            continue;
+          }
+          for (const w of laterWeeks) {
+            const q = later.get(w)?.[pid];
+            if (q && q.points > 0 && plays(q, pid, w)) {
+              carried.set(pid, { from: w, points: q.points });
+              break;
+            }
+          }
+        }
+      }
       const weekProj = (w: number) => {
         const out: Record<string, { position: string; points: number }> = {};
-        const next = nextProjections.get(w0 + 1);
-        for (const [pid, p] of Object.entries(proj)) {
-          const points = plays(p, pid, w0) ? p.points : next?.[pid]?.points ?? p.points;
-          const projected = plays(p, pid, w) ? points : 0;
+        const source = weekly && w > w0 ? later.get(w) ?? proj : proj;
+        for (const [pid, p] of Object.entries(source)) {
+          let projected: number;
+          if (weekly) projected = plays(p, pid, w) ? p.points : 0;
+          else {
+            const c = carried.get(pid);
+            projected = c && w >= c.from && plays(p, pid, w) ? c.points : 0;
+          }
           out[pid] = { position: p.position, points: playerValue(projected, production.points[pid] ?? 0, production.games[pid] ?? 0) };
         }
         return out;

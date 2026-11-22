@@ -632,8 +632,10 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
         <HowItWorks>
           <p>
           At the time: the playoff odds model re-run the week the trade counted from, with that week&apos;s records, rosters and
-          projections (a player on bye that week goes by the next week&apos;s), without and with the trade (10,000 seasons
-          each, on the same random draws). The projected lineup change is the raw difference if nothing else changed; a
+          projections, without and with the trade (10,000 seasons each, on the same random draws). A trade this week goes by
+          each week&apos;s own projection, like the trade tool. An older one carries its week&apos;s projections forward,
+          since later weeks&apos; projections now know what happened after it; a player on bye or out that week counts from
+          the first week he&apos;s projected to play. The projected lineup change is the raw difference if nothing else changed; a
           test on 28,913 trades in other leagues found that measuring it over the waiver wire instead didn&apos;t make the odds
           more accurate. Hindsight: points the players a team got scored in its starting lineup through the end of that
           regular season (or the latest week, for the season in progress), and the same over a waiver pickup: each start
