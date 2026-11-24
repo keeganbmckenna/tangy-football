@@ -9,6 +9,11 @@ import ResultDot from './ui/ResultDot';
 import { RESULT_DOT_COLORS } from '@/lib/constants';
 import Term from './ui/Term';
 import { ManagerLink } from '@/hooks/useManagerLink';
+import { useColumnPicker, type ColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
+import ColumnChips from './ui/ColumnChips';
+
+/** Columns a phone can add to the division cards */
+const DIVISION_COLUMNS: PickableColumn[] = [{ key: 'divRecord', label: 'Div record' }];
 
 /** Extra per-team info for live standings ("if the week ended now") */
 export interface StandingAnnotation {
@@ -38,8 +43,8 @@ interface TeamRowProps {
   pointsBack?: number;
   isLeader?: boolean;
   showDivision?: boolean;
-  /** Show the record against the team's own division (division cards; hidden on phones) */
-  showDivisionRecord?: boolean;
+  /** Visibility classes for the record against the team's own division (division cards only) */
+  divisionRecordClass?: string;
   isInPlayoffs?: boolean;
   showCutoffLine?: boolean;
   annotation?: StandingAnnotation;
@@ -77,7 +82,7 @@ function TeamRow({
   pointsBack,
   isLeader = false,
   showDivision = false,
-  showDivisionRecord = false,
+  divisionRecordClass,
   isInPlayoffs = false,
   showCutoffLine = false,
   annotation,
@@ -127,8 +132,8 @@ function TeamRow({
           {team.ties > 0 && `-${team.ties}`}
           {annotation && <span className="ml-2"><ResultDot result={annotation.liveResult} live /></span>}
         </td>
-        {showDivisionRecord && (
-          <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)] sm:table-cell">
+        {divisionRecordClass !== undefined && (
+          <td className={`${divisionRecordClass} whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)]`}>
             {team.divisionRecord
               ? `${team.divisionRecord.wins}-${team.divisionRecord.losses}${team.divisionRecord.ties > 0 ? `-${team.divisionRecord.ties}` : ''}`
               : '—'}
@@ -172,7 +177,17 @@ function TeamRow({
   );
 }
 
-function DivisionCard({ division, annotations, avatar }: { division: DivisionStanding; annotations?: Map<number, StandingAnnotation>; avatar?: string }) {
+function DivisionCard({
+  division,
+  annotations,
+  avatar,
+  cols,
+}: {
+  division: DivisionStanding;
+  annotations?: Map<number, StandingAnnotation>;
+  avatar?: string;
+  cols: ColumnPicker;
+}) {
   const leaderPoints = Math.max(...division.teams.map(t => t.totalPoints));
   return (
     <div className="section-card bg-[var(--surface-elevated)] rounded-lg shadow overflow-hidden">
@@ -182,6 +197,7 @@ function DivisionCard({ division, annotations, avatar }: { division: DivisionSta
           {division.divisionName || `Division ${division.division}`}
         </h3>
       </div>
+      <ColumnChips picker={cols} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
@@ -189,7 +205,7 @@ function DivisionCard({ division, annotations, avatar }: { division: DivisionSta
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12"><Short short="#" long="Rank" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Short short="W-L" long="Record" /></th>
-              <th className="hidden px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20 sm:table-cell"><Term tip="Division record: wins and losses in regular-season games against this division's other teams. Standings ties are broken by points, not by this">Div</Term></th>
+              <th className={`${cols.col('divRecord')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20`}><Term tip="Division record: wins and losses in regular-season games against this division's other teams. Standings ties are broken by points, not by this">Div</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Short short="Pts" long="Points" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back: how far behind the division leader, in games (a win for one team and a loss for the other is one game)">GB</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points back: how many fewer points this team has scored than the division's top scorer" align="right">PB</Term></th>
@@ -204,7 +220,7 @@ function DivisionCard({ division, annotations, avatar }: { division: DivisionSta
                 gamesBack={team.gamesBack}
                 pointsBack={team.totalPoints - leaderPoints}
                 isLeader={team.isDivisionLeader}
-                showDivisionRecord
+                divisionRecordClass={cols.col('divRecord')}
                 annotation={annotations?.get(team.rosterId)}
               />
             ))}
@@ -337,13 +353,15 @@ function WildCardCard({
 }
 
 export default function PlayoffRace({ divisions, wildCard, standings, playoffTeams, annotations, divisionAvatars }: PlayoffRaceProps) {
+  // One picker for every division card, so adding the column on a phone adds it to all of them
+  const divisionCols = useColumnPicker('division-standings', DIVISION_COLUMNS);
   return (
     <div className="space-y-6">
       {/* Division Standings or Overall Standings */}
       {divisions.length > 0 ? (
         <div className="space-y-6">
           {divisions.map((division) => (
-            <DivisionCard key={division.division} division={division} annotations={annotations} avatar={divisionAvatars?.[division.division]} />
+            <DivisionCard key={division.division} division={division} annotations={annotations} avatar={divisionAvatars?.[division.division]} cols={divisionCols} />
           ))}
         </div>
       ) : (
