@@ -19,7 +19,11 @@ const DIVISION_COLUMNS: PickableColumn[] = [
   { key: 'divRecord', label: 'Division' },
   { key: 'streak', label: 'Streak', from: 'md' },
   { key: 'pa', label: 'Pts against', from: 'md' },
+  { key: 'maxPf', label: 'Max PF', from: 'md' },
 ];
+const MAX_PF_TIP = "Max points: what the team's best possible lineup would have scored every week so far. The gap to Points is what its lineup choices left on the bench";
+/** The same for the overall standings (leagues without divisions): no division record */
+const OVERALL_COLUMNS = DIVISION_COLUMNS.filter((c) => c.key !== 'divRecord');
 
 /** Extra per-team info for live standings ("if the week ended now") */
 export interface StandingAnnotation {
@@ -99,6 +103,8 @@ function TeamRow({
   annotation,
 }: TeamRowProps) {
   const me = useMyTeam();
+  /** Whether this table offers a column (the overall standings have no division record) */
+  const has = (key: string) => !!cols?.columns.some((c) => c.key === key);
   return (
     <>
       <tr
@@ -148,7 +154,7 @@ function TeamRow({
             {odds === null ? '…' : formatOdds(odds)}
           </td>
         )}
-        {cols && (
+        {cols && has('divRecord') && (
           <td className={`${cols.col('divRecord')} whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)]`}>
             {team.divisionRecord
               ? `${team.divisionRecord.wins}-${team.divisionRecord.losses}${team.divisionRecord.ties > 0 ? `-${team.divisionRecord.ties}` : ''}`
@@ -175,6 +181,11 @@ function TeamRow({
             {team.pointsAgainst.toFixed(2)}
           </td>
         )}
+        {cols && (
+          <td className={`${cols.col('maxPf')} whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)]`}>
+            {team.maxPoints !== undefined ? team.maxPoints.toFixed(2) : '—'}
+          </td>
+        )}
         {showDivision && (
           <td className="hidden px-4 py-3 text-xs sm:table-cell">
             <span className="inline-block whitespace-nowrap px-2 py-1 bg-[var(--neutral-bg)] text-[var(--neutral-text)] rounded">
@@ -196,7 +207,7 @@ function TeamRow({
       </tr>
       {showCutoffLine && (
         <tr>
-          <td colSpan={showDivision ? 8 : 7} className="px-0 py-0">
+          <td colSpan={99} className="px-0 py-0">
             <div className="border-t-2 border-dashed border-red-500 relative">
               {/* At the left on phones, where the middle of a wide table can be off-screen */}
               <span className="absolute -top-2.5 left-3 bg-[var(--surface-elevated)] px-2 text-xs font-semibold text-red-500 sm:left-1/2 sm:-translate-x-1/2">
@@ -247,6 +258,7 @@ function DivisionCard({
               <th className={`${cols.col('streak')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-16`}><Term tip="Streak: the current run of wins (W) or losses (L) in a row">Strk</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Short short="Pts" long="Points" /></th>
               <th className={`${cols.col('pa')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24`}><Term tip="Points against: what this team's opponents have scored against it">PA</Term></th>
+              <th className={`${cols.col('maxPf')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24`}><Term tip={MAX_PF_TIP} align="right">Max PF</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back: how far behind the division leader, in games (a win for one team and a loss for the other is one game)">GB</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points back: how many fewer points this team has scored than the division's top scorer" align="right">PB</Term></th>
             </tr>
@@ -276,11 +288,16 @@ function OverallStandingsCard({
   standings,
   playoffTeams,
   annotations,
+  odds,
 }: {
   standings: TeamStats[];
   playoffTeams: number;
   annotations?: Map<number, StandingAnnotation>;
+  /** Each team's playoff odds by roster ID (null while loading); undefined: no odds column */
+  odds?: Record<number, number> | null;
 }) {
+  const cols = useColumnPicker('overall-standings', odds !== undefined ? [ODDS_COLUMN, ...OVERALL_COLUMNS] : OVERALL_COLUMNS);
+  const th = 'px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase';
   const hasCutoff = playoffTeams > 0 && standings.length > 0;
   const cutoffIndex = hasCutoff ? Math.min(playoffTeams, standings.length) - 1 : -1;
   const cutoffTeam = hasCutoff ? standings[cutoffIndex] : undefined;
@@ -301,6 +318,7 @@ function OverallStandingsCard({
       subtitle="Overall league standings"
       gradientType="primary"
     >
+      <ColumnChips picker={cols} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
@@ -308,7 +326,13 @@ function OverallStandingsCard({
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12"><Short short="#" long="Rank" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Short short="W-L" long="Record" /></th>
+              {odds !== undefined && (
+                <th className={`${cols.col('odds')} ${th} w-20`}><Term tip="Playoff odds: the chance of making the playoffs, from the model on the Playoffs tab">Odds</Term></th>
+              )}
+              <th className={`${cols.col('streak')} ${th} w-16`}><Term tip="Streak: the current run of wins (W) or losses (L) in a row">Strk</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Short short="Pts" long="Points" /></th>
+              <th className={`${cols.col('pa')} ${th} w-24`}><Term tip="Points against: what this team's opponents have scored against it">PA</Term></th>
+              <th className={`${cols.col('maxPf')} ${th} w-24`}><Term tip={MAX_PF_TIP} align="right">Max PF</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back from the last playoff spot: + means ahead of it, by that many games">GB</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points ahead (+) of or behind the team holding the last playoff spot; points scored are the tiebreaker" align="right">PB</Term></th>
             </tr>
@@ -324,6 +348,8 @@ function OverallStandingsCard({
                 isLeader={team.standing === 1}
                 isInPlayoffs={hasCutoff && team.standing <= playoffTeams}
                 showCutoffLine={hasCutoff && index === cutoffIndex}
+                cols={cols}
+                odds={odds === undefined ? undefined : odds === null ? null : (odds[team.rosterId] ?? 0)}
                 annotation={annotations?.get(team.rosterId)}
               />
             ))}
@@ -413,7 +439,7 @@ export default function PlayoffRace({ divisions, wildCard, standings, playoffTea
           ))}
         </div>
       ) : (
-        <OverallStandingsCard standings={standings} playoffTeams={playoffTeams} annotations={annotations} />
+        <OverallStandingsCard standings={standings} playoffTeams={playoffTeams} annotations={annotations} odds={playoffOdds} />
       )}
 
       {/* Wild Card Race */}

@@ -23,6 +23,9 @@ export interface SleeperRoster {
     fpts_decimal?: number;
     fpts_against?: number;
     fpts_against_decimal?: number;
+    /** Max points: the best possible lineup every week (Sleeper's ppts) */
+    ppts?: number;
+    ppts_decimal?: number;
     division?: number;
     /** FAAB spent this season */
     waiver_budget_used?: number;
@@ -171,6 +174,8 @@ export interface TeamStats {
   divisionRank?: number;
   /** Record in regular-season games against teams of its own division, scored weeks only */
   divisionRecord?: { wins: number; losses: number; ties: number };
+  /** Max points (Sleeper's max PF): what the best possible lineup would have scored, every week so far */
+  maxPoints?: number;
   /** Current run of the same result in regular-season weeks already scored (W3: three straight wins) */
   streak?: { result: 'W' | 'L' | 'T'; count: number };
   isDivisionLeader?: boolean;

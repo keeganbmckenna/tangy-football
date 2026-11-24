@@ -202,6 +202,15 @@ describe('calculateTeamStats', () => {
     expect(byId[2]).toEqual({ result: 'L', count: 2 });
   });
 
+  it("reads each team's max points from Sleeper's ppts", () => {
+    const roster = createMockRoster({ roster_id: 1, owner_id: 'user1', settings: { wins: 0, losses: 0, ties: 0, fpts: 1200, ppts: 1350, ppts_decimal: 42 } });
+    const user = createMockUser({ user_id: 'user1' });
+    const data = createMockLeagueData({ rosters: [roster], users: [user], userMap: { user1: user } });
+    expect(calculateTeamStats(data)[0].maxPoints).toBeCloseTo(1350.42, 6);
+    const none = createMockLeagueData({ rosters: [createMockRoster({ roster_id: 1, owner_id: 'user1' })], users: [user], userMap: { user1: user } });
+    expect(calculateTeamStats(none)[0].maxPoints).toBeUndefined();
+  });
+
   it('leaves the division record out in leagues without divisions', () => {
     const roster = createMockRoster({ roster_id: 1, owner_id: 'user1' });
     const user = createMockUser({ user_id: 'user1' });

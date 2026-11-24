@@ -42,6 +42,7 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
       pointsAgainst:
         (roster.settings.fpts_against || 0) +
         ((roster.settings.fpts_against_decimal || 0) / 100),
+      maxPoints: roster.settings.ppts !== undefined ? roster.settings.ppts + (roster.settings.ppts_decimal || 0) / 100 : undefined,
       avgPoints: 0,
       weeklyScores: [],
       weeklyResults: [],
