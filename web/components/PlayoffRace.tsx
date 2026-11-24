@@ -38,6 +38,8 @@ interface TeamRowProps {
   pointsBack?: number;
   isLeader?: boolean;
   showDivision?: boolean;
+  /** Show the record against the team's own division (division cards; hidden on phones) */
+  showDivisionRecord?: boolean;
   isInPlayoffs?: boolean;
   showCutoffLine?: boolean;
   annotation?: StandingAnnotation;
@@ -75,6 +77,7 @@ function TeamRow({
   pointsBack,
   isLeader = false,
   showDivision = false,
+  showDivisionRecord = false,
   isInPlayoffs = false,
   showCutoffLine = false,
   annotation,
@@ -124,6 +127,13 @@ function TeamRow({
           {team.ties > 0 && `-${team.ties}`}
           {annotation && <span className="ml-2"><ResultDot result={annotation.liveResult} live /></span>}
         </td>
+        {showDivisionRecord && (
+          <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)] sm:table-cell">
+            {team.divisionRecord
+              ? `${team.divisionRecord.wins}-${team.divisionRecord.losses}${team.divisionRecord.ties > 0 ? `-${team.divisionRecord.ties}` : ''}`
+              : '—'}
+          </td>
+        )}
         <td className="px-4 py-3 text-sm text-[var(--foreground)]">
           {team.totalPoints.toFixed(2)}
         </td>
@@ -179,6 +189,7 @@ function DivisionCard({ division, annotations, avatar }: { division: DivisionSta
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12"><Short short="#" long="Rank" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Short short="W-L" long="Record" /></th>
+              <th className="hidden px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20 sm:table-cell"><Term tip="Division record: wins and losses in regular-season games against this division's other teams. Standings ties are broken by points, not by this">Div</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Short short="Pts" long="Points" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back: how far behind the division leader, in games (a win for one team and a loss for the other is one game)">GB</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points back: how many fewer points this team has scored than the division's top scorer" align="right">PB</Term></th>
@@ -193,6 +204,7 @@ function DivisionCard({ division, annotations, avatar }: { division: DivisionSta
                 gamesBack={team.gamesBack}
                 pointsBack={team.totalPoints - leaderPoints}
                 isLeader={team.isDivisionLeader}
+                showDivisionRecord
                 annotation={annotations?.get(team.rosterId)}
               />
             ))}

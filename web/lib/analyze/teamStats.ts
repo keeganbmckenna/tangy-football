@@ -54,8 +54,20 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
     };
   });
 
+  // Division records: regular-season games already scored, between two teams of the same division
+  const hasDivisions = (data.league.settings?.divisions ?? 0) > 0;
+  const playoffStart = data.league.settings?.playoff_week_start || Infinity;
+  const scoredThrough = lastScoredWeek ?? data.lastScoredWeek;
+  if (hasDivisions) {
+    Object.values(stats).forEach((s) => {
+      if (s.division) s.divisionRecord = { wins: 0, losses: 0, ties: 0 };
+    });
+  }
+
   // Calculate weekly scores and results
-  Object.entries(data.matchups).forEach(([, matchups]) => {
+  Object.entries(data.matchups).forEach(([weekKey, matchups]) => {
+    const week = Number(weekKey);
+    const countsForDivision = hasDivisions && week < playoffStart && week <= scoredThrough;
     // Group matchups by matchup_id
     const matchupGroups: Record<number, SleeperMatchup[]> = {};
     matchups.forEach((matchup) => {
@@ -79,6 +91,22 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
         // Track opponent scores for margin calculations
         stats[team1.roster_id].weeklyOpponentScores.push(points2);
         stats[team2.roster_id].weeklyOpponentScores.push(points1);
+
+        const s1 = stats[team1.roster_id];
+        const s2 = stats[team2.roster_id];
+        if (countsForDivision && s1.divisionRecord && s2.divisionRecord && s1.division === s2.division) {
+          const [r1, r2] = [s1.divisionRecord, s2.divisionRecord];
+          if (points1 > points2) {
+            r1.wins++;
+            r2.losses++;
+          } else if (points2 > points1) {
+            r1.losses++;
+            r2.wins++;
+          } else {
+            r1.ties++;
+            r2.ties++;
+          }
+        }
 
         // Determine result
         if (points1 > points2) {

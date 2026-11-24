@@ -149,6 +149,45 @@ describe('getTeamName', () => {
 });
 
 describe('calculateTeamStats', () => {
+  it('counts division records from scored regular-season games within a division', () => {
+    const divisionOf: Record<number, number> = { 1: 1, 2: 1, 3: 2, 4: 2 };
+    const rosters = [1, 2, 3, 4].map((id) =>
+      createMockRoster({ roster_id: id, owner_id: `user${id}`, settings: { wins: 0, losses: 0, ties: 0, fpts: 0, division: divisionOf[id] } })
+    );
+    const users = [1, 2, 3, 4].map((id) => createMockUser({ user_id: `user${id}`, display_name: `Team ${id}` }));
+    const game = (week: number, a: number, pa: number, b: number, pb: number): SleeperMatchup[] => [
+      { roster_id: a, matchup_id: week * 10 + a, points: pa },
+      { roster_id: b, matchup_id: week * 10 + a, points: pb },
+    ];
+    const data = createMockLeagueData({
+      league: { league_id: 'l', name: 'L', season: '2024', status: 'in_season', settings: { divisions: 2, playoff_week_start: 4 } } as SleeperLeague,
+      rosters,
+      users,
+      userMap: Object.fromEntries(users.map((u) => [u.user_id, u])),
+      lastScoredWeek: 2,
+      matchups: {
+        1: [...game(1, 1, 120, 2, 100), ...game(1, 3, 90, 4, 90)], // division games: 1 beats 2, 3 and 4 tie
+        2: [...game(2, 1, 80, 3, 110), ...game(2, 2, 95, 4, 70)], // across divisions: not counted
+        3: [...game(3, 2, 130, 1, 60), ...game(3, 4, 100, 3, 50)], // not scored yet
+      },
+    });
+    const byId = Object.fromEntries(calculateTeamStats(data, 2).map((t) => [t.rosterId, t.divisionRecord]));
+    expect(byId[1]).toEqual({ wins: 1, losses: 0, ties: 0 });
+    expect(byId[2]).toEqual({ wins: 0, losses: 1, ties: 0 });
+    expect(byId[3]).toEqual({ wins: 0, losses: 0, ties: 1 });
+    expect(byId[4]).toEqual({ wins: 0, losses: 0, ties: 1 });
+    // Playoff weeks don't count either
+    const later = calculateTeamStats({ ...data, lastScoredWeek: 5, matchups: { ...data.matchups, 4: game(4, 2, 150, 1, 10) } }, 5);
+    expect(later.find((t) => t.rosterId === 1)?.divisionRecord).toEqual({ wins: 1, losses: 1, ties: 0 });
+  });
+
+  it('leaves the division record out in leagues without divisions', () => {
+    const roster = createMockRoster({ roster_id: 1, owner_id: 'user1' });
+    const user = createMockUser({ user_id: 'user1' });
+    const data = createMockLeagueData({ rosters: [roster], users: [user], userMap: { user1: user } });
+    expect(calculateTeamStats(data)[0].divisionRecord).toBeUndefined();
+  });
+
   it('should calculate basic stats for teams with no matchups', () => {
     const roster1 = createMockRoster({
       roster_id: 1,

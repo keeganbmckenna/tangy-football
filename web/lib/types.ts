@@ -169,6 +169,8 @@ export interface TeamStats {
   division?: number;
   divisionName?: string;
   divisionRank?: number;
+  /** Record in regular-season games against teams of its own division, scored weeks only */
+  divisionRecord?: { wins: number; losses: number; ties: number };
   isDivisionLeader?: boolean;
   avatarUrl?: string | null;
   gamesBack?: number;
