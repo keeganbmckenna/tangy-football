@@ -11,9 +11,15 @@ import Term from './ui/Term';
 import { ManagerLink } from '@/hooks/useManagerLink';
 import { useColumnPicker, type ColumnPicker, type PickableColumn } from '@/hooks/useColumnPicker';
 import ColumnChips from './ui/ColumnChips';
+import { formatOdds } from '@/lib/analyze/playoffOdds';
 
-/** Columns a phone can add to the division cards */
-const DIVISION_COLUMNS: PickableColumn[] = [{ key: 'divRecord', label: 'Div record' }];
+/** Columns a phone can add to the division cards (wider screens show them from their own width) */
+const ODDS_COLUMN: PickableColumn = { key: 'odds', label: 'Odds' };
+const DIVISION_COLUMNS: PickableColumn[] = [
+  { key: 'divRecord', label: 'Division' },
+  { key: 'streak', label: 'Streak', from: 'md' },
+  { key: 'pa', label: 'Pts against', from: 'md' },
+];
 
 /** Extra per-team info for live standings ("if the week ended now") */
 export interface StandingAnnotation {
@@ -34,6 +40,8 @@ interface PlayoffRaceProps {
   annotations?: Map<number, StandingAnnotation>;
   /** Division photos set in Sleeper, by division number */
   divisionAvatars?: Record<number, string>;
+  /** Playoff odds by roster ID for the division cards' odds column (null while loading); omit for none */
+  playoffOdds?: Record<number, number> | null;
 }
 
 interface TeamRowProps {
@@ -43,8 +51,10 @@ interface TeamRowProps {
   pointsBack?: number;
   isLeader?: boolean;
   showDivision?: boolean;
-  /** Visibility classes for the record against the team's own division (division cards only) */
-  divisionRecordClass?: string;
+  /** The division cards' extra columns (record in the division, streak, points against, playoff odds) */
+  cols?: ColumnPicker;
+  /** Playoff odds (0-1) when the odds column is shown, null while they load */
+  odds?: number | null;
   isInPlayoffs?: boolean;
   showCutoffLine?: boolean;
   annotation?: StandingAnnotation;
@@ -82,7 +92,8 @@ function TeamRow({
   pointsBack,
   isLeader = false,
   showDivision = false,
-  divisionRecordClass,
+  cols,
+  odds,
   isInPlayoffs = false,
   showCutoffLine = false,
   annotation,
@@ -132,16 +143,38 @@ function TeamRow({
           {team.ties > 0 && `-${team.ties}`}
           {annotation && <span className="ml-2"><ResultDot result={annotation.liveResult} live /></span>}
         </td>
-        {divisionRecordClass !== undefined && (
-          <td className={`${divisionRecordClass} whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)]`}>
+        {cols && odds !== undefined && (
+          <td className={`${cols.col('odds')} whitespace-nowrap px-4 py-3 text-sm tabular-nums text-[var(--foreground)]`}>
+            {odds === null ? '…' : formatOdds(odds)}
+          </td>
+        )}
+        {cols && (
+          <td className={`${cols.col('divRecord')} whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)]`}>
             {team.divisionRecord
               ? `${team.divisionRecord.wins}-${team.divisionRecord.losses}${team.divisionRecord.ties > 0 ? `-${team.divisionRecord.ties}` : ''}`
               : '—'}
           </td>
         )}
+        {cols && (
+          <td className={`${cols.col('streak')} whitespace-nowrap px-4 py-3 text-sm font-medium`}>
+            {team.streak ? (
+              <span style={{ color: RESULT_DOT_COLORS[team.streak.result] }}>
+                {team.streak.result}
+                {team.streak.count}
+              </span>
+            ) : (
+              '—'
+            )}
+          </td>
+        )}
         <td className="px-4 py-3 text-sm text-[var(--foreground)]">
           {team.totalPoints.toFixed(2)}
         </td>
+        {cols && (
+          <td className={`${cols.col('pa')} whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground)]`}>
+            {team.pointsAgainst.toFixed(2)}
+          </td>
+        )}
         {showDivision && (
           <td className="hidden px-4 py-3 text-xs sm:table-cell">
             <span className="inline-block whitespace-nowrap px-2 py-1 bg-[var(--neutral-bg)] text-[var(--neutral-text)] rounded">
@@ -182,11 +215,14 @@ function DivisionCard({
   annotations,
   avatar,
   cols,
+  odds,
 }: {
   division: DivisionStanding;
   annotations?: Map<number, StandingAnnotation>;
   avatar?: string;
   cols: ColumnPicker;
+  /** Each team's playoff odds by roster ID (null while loading); undefined: no odds column */
+  odds?: Record<number, number> | null;
 }) {
   const leaderPoints = Math.max(...division.teams.map(t => t.totalPoints));
   return (
@@ -197,7 +233,6 @@ function DivisionCard({
           {division.divisionName || `Division ${division.division}`}
         </h3>
       </div>
-      <ColumnChips picker={cols} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[var(--border)]">
           <thead className="bg-[var(--surface)]">
@@ -205,8 +240,13 @@ function DivisionCard({
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-12"><Short short="#" long="Rank" /></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-56">Team</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Short short="W-L" long="Record" /></th>
+              {odds !== undefined && (
+                <th className={`${cols.col('odds')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20`}><Term tip="Playoff odds: the chance of making the playoffs, from the model on the Playoffs tab">Odds</Term></th>
+              )}
               <th className={`${cols.col('divRecord')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20`}><Term tip="Division record: wins and losses in regular-season games against this division's other teams. Standings ties are broken by points, not by this">Div</Term></th>
+              <th className={`${cols.col('streak')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-16`}><Term tip="Streak: the current run of wins (W) or losses (L) in a row">Strk</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Short short="Pts" long="Points" /></th>
+              <th className={`${cols.col('pa')} px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24`}><Term tip="Points against: what this team's opponents have scored against it">PA</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-20"><Term tip="Games back: how far behind the division leader, in games (a win for one team and a loss for the other is one game)">GB</Term></th>
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points back: how many fewer points this team has scored than the division's top scorer" align="right">PB</Term></th>
             </tr>
@@ -220,7 +260,8 @@ function DivisionCard({
                 gamesBack={team.gamesBack}
                 pointsBack={team.totalPoints - leaderPoints}
                 isLeader={team.isDivisionLeader}
-                divisionRecordClass={cols.col('divRecord')}
+                cols={cols}
+                odds={odds === undefined ? undefined : odds === null ? null : (odds[team.rosterId] ?? 0)}
                 annotation={annotations?.get(team.rosterId)}
               />
             ))}
@@ -352,16 +393,23 @@ function WildCardCard({
   );
 }
 
-export default function PlayoffRace({ divisions, wildCard, standings, playoffTeams, annotations, divisionAvatars }: PlayoffRaceProps) {
-  // One picker for every division card, so adding the column on a phone adds it to all of them
-  const divisionCols = useColumnPicker('division-standings', DIVISION_COLUMNS);
+export default function PlayoffRace({ divisions, wildCard, standings, playoffTeams, annotations, divisionAvatars, playoffOdds }: PlayoffRaceProps) {
+  // One picker for every division card, so adding a column on a phone adds it to all of them
+  const divisionCols = useColumnPicker(
+    'division-standings',
+    playoffOdds !== undefined ? [ODDS_COLUMN, ...DIVISION_COLUMNS] : DIVISION_COLUMNS
+  );
   return (
     <div className="space-y-6">
       {/* Division Standings or Overall Standings */}
       {divisions.length > 0 ? (
         <div className="space-y-6">
+          {/* One row of chips for every division card (phones only) */}
+          <div className="-mx-4 mb-2 sm:hidden">
+            <ColumnChips picker={divisionCols} />
+          </div>
           {divisions.map((division) => (
-            <DivisionCard key={division.division} division={division} annotations={annotations} avatar={divisionAvatars?.[division.division]} cols={divisionCols} />
+            <DivisionCard key={division.division} division={division} annotations={annotations} avatar={divisionAvatars?.[division.division]} cols={divisionCols} odds={playoffOdds} />
           ))}
         </div>
       ) : (

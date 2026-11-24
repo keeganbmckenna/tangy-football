@@ -181,6 +181,27 @@ describe('calculateTeamStats', () => {
     expect(later.find((t) => t.rosterId === 1)?.divisionRecord).toEqual({ wins: 1, losses: 1, ties: 0 });
   });
 
+  it('counts the current streak over scored regular-season weeks only', () => {
+    const rosters = [1, 2].map((id) => createMockRoster({ roster_id: id, owner_id: `user${id}` }));
+    const users = [1, 2].map((id) => createMockUser({ user_id: `user${id}`, display_name: `Team ${id}` }));
+    const week = (p1: number, p2: number): SleeperMatchup[] => [
+      { roster_id: 1, matchup_id: 1, points: p1 },
+      { roster_id: 2, matchup_id: 1, points: p2 },
+    ];
+    const data = createMockLeagueData({
+      league: { league_id: 'l', name: 'L', season: '2024', status: 'in_season', settings: { playoff_week_start: 5 } } as SleeperLeague,
+      rosters,
+      users,
+      userMap: Object.fromEntries(users.map((u) => [u.user_id, u])),
+      lastScoredWeek: 3,
+      // Week 4 is being played (0-0): not part of the streak
+      matchups: { 1: week(90, 100), 2: week(110, 100), 3: week(120, 80), 4: week(0, 0) },
+    });
+    const byId = Object.fromEntries(calculateTeamStats(data, 3).map((t) => [t.rosterId, t.streak]));
+    expect(byId[1]).toEqual({ result: 'W', count: 2 });
+    expect(byId[2]).toEqual({ result: 'L', count: 2 });
+  });
+
   it('leaves the division record out in leagues without divisions', () => {
     const roster = createMockRoster({ roster_id: 1, owner_id: 'user1' });
     const user = createMockUser({ user_id: 'user1' });

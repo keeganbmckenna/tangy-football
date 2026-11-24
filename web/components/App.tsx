@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import type { ChangeEvent } from 'react';
 import Image from 'next/image';
 import PlayoffRace from '@/components/PlayoffRace';
+import { usePlayoffOdds } from '@/hooks/useOddsData';
 import WeeklyScores from '@/components/WeeklyScores';
 import ScoreDistribution from '@/components/ScoreDistribution';
 import WeeklyMatchups from '@/components/WeeklyMatchups';
@@ -81,6 +82,21 @@ function DataThrough({ leagueData, regularSeasonEnd }: { leagueData: LeagueData;
           ? `Regular season complete (${regularSeasonEnd} weeks); playoffs in progress`
           : `Stats through week ${week} of ${regularSeasonEnd} (completed weeks only; see Live for this week)`;
   return <p className="text-sm text-[var(--muted)]">{text}</p>;
+}
+
+/**
+ * The Overview's standings, with each team's playoff odds (as on the Playoffs tab) while the
+ * season is in progress
+ */
+function OverviewPlayoffRace({ withOdds, ...props }: React.ComponentProps<typeof PlayoffRace> & { withOdds: boolean }) {
+  const { data, error } = usePlayoffOdds(withOdds);
+  let odds: Record<number, number> | null | undefined;
+  if (!withOdds || error || (data && data.status !== 'in_progress')) odds = undefined;
+  else {
+    const shown = data?.live?.odds ?? data?.odds;
+    odds = shown ? Object.fromEntries(Object.values(shown.teams).map((t) => [t.rosterId, t.playoffs])) : data ? undefined : null;
+  }
+  return <PlayoffRace {...props} playoffOdds={odds} />;
 }
 
 export default function App() {
@@ -437,7 +453,8 @@ export default function App() {
   const overviewStandings = (
     <ErrorBoundary>
       <section>
-        <PlayoffRace
+        <OverviewPlayoffRace
+          withOdds={isCurrentSeason}
           divisions={divisions}
           wildCard={wildCard}
           standings={teamStats}

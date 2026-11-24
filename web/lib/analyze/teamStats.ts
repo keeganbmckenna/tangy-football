@@ -64,9 +64,15 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
     });
   }
 
+  // Each team's results in scored regular-season weeks, in week order, for its streak
+  const scoredResults: Record<number, ('W' | 'L' | 'T')[]> = {};
+
   // Calculate weekly scores and results
-  Object.entries(data.matchups).forEach(([weekKey, matchups]) => {
+  Object.entries(data.matchups)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .forEach(([weekKey, matchups]) => {
     const week = Number(weekKey);
+    const scoredRegular = week < playoffStart && week <= scoredThrough;
     const countsForDivision = hasDivisions && week < playoffStart && week <= scoredThrough;
     // Group matchups by matchup_id
     const matchupGroups: Record<number, SleeperMatchup[]> = {};
@@ -109,18 +115,23 @@ export function calculateTeamStats(data: LeagueData, lastScoredWeek?: number): T
         }
 
         // Determine result
-        if (points1 > points2) {
-          stats[team1.roster_id].weeklyResults.push('W');
-          stats[team2.roster_id].weeklyResults.push('L');
-        } else if (points2 > points1) {
-          stats[team1.roster_id].weeklyResults.push('L');
-          stats[team2.roster_id].weeklyResults.push('W');
-        } else {
-          stats[team1.roster_id].weeklyResults.push('T');
-          stats[team2.roster_id].weeklyResults.push('T');
+        const [res1, res2]: ['W' | 'L' | 'T', 'W' | 'L' | 'T'] =
+          points1 > points2 ? ['W', 'L'] : points2 > points1 ? ['L', 'W'] : ['T', 'T'];
+        stats[team1.roster_id].weeklyResults.push(res1);
+        stats[team2.roster_id].weeklyResults.push(res2);
+        if (scoredRegular) {
+          (scoredResults[team1.roster_id] ??= []).push(res1);
+          (scoredResults[team2.roster_id] ??= []).push(res2);
         }
       }
     });
+  });
+
+  Object.entries(scoredResults).forEach(([id, results]) => {
+    const last = results[results.length - 1];
+    let count = 0;
+    for (let i = results.length - 1; i >= 0 && results[i] === last; i--) count++;
+    stats[Number(id)].streak = { result: last, count };
   });
 
   // Calculate averages and standing values
