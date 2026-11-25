@@ -192,6 +192,14 @@ describe('simulatePlayoffOdds', () => {
   const perTeam = { 1: 110, 2: 100, 3: 100, 4: 100, 5: 100, 6: 90 };
   const mean = { 5: perTeam, 6: perTeam };
 
+  it('gives playoff odds for the seasons where a team wins out', () => {
+    const { teams: odds } = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 4000);
+    // 1 at 3-1 wins out to 5-1: in every time
+    expect(odds[1].ifWinOut).toBe(1);
+    // Winning out can only help
+    for (const o of Object.values(odds)) if (o.ifWinOut !== null) expect(o.ifWinOut).toBeGreaterThanOrEqual(o.playoffs - 0.02);
+  });
+
   it('produces consistent totals', () => {
     const { teams: odds } = simulatePlayoffOdds(teams, remaining, FORMAT, mean, 20, 4000);
     const sum = (f: (o: (typeof odds)[number]) => number) => Object.values(odds).reduce((s, o) => s + f(o), 0);
@@ -351,6 +359,8 @@ describe('playoffScenarios', () => {
     expect(s[2].winOutAndIn).toBe(false);
     expect(s[2].winOutPointsAtWorst).toBe(true);
     expect(s[2].helpNeeded).toEqual([{ winner: 6, loser: 3, week: 13 }]);
+    // ... and the team it could tie is 3
+    expect(s[2].winOutTies).toEqual([3]);
     // 5 at best 7-6 can tie 2 and 3 only if both lose: depends on points at best
     expect(s[5].eliminated).toBe(false);
     expect(s[5].winOutAndIn).toBe(false);

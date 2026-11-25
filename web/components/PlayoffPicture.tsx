@@ -126,16 +126,42 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
     }
 
     if (sc.exact && !sc.clinchedPlayoffs) {
-      if (sc.winOutAndIn) lines.push({ tone: 'good', text: 'Controls its own destiny: win out and it’s in.' });
-      else if (sc.winOutPointsAtWorst) lines.push({ tone: 'neutral', text: 'Win out and at worst it comes down to points for.' });
+      // How often winning out gets it in, from the simulated seasons where it does ("almost certainly" once
+      // it would round to 100%, since only a clinch is certain)
+      const winOut = o?.ifWinOut ?? null;
+      const often = winOut === null ? null : winOut >= 0.995 ? 'they’re almost certainly in' : `they get in ${pct(winOut)} of the time`;
+      if (sc.winOutAndIn) lines.push({ tone: 'good', text: 'Win out and they’re in.' });
+      else if (sc.winOutPointsAtWorst) {
+        // Only a tie on record can keep it out, and ties go to points for: where it stands on points
+        const ties = sc.winOutTies;
+        const pf = (rid: number) => data.teams.find((t) => t.rosterId === rid)?.pointsFor ?? 0;
+        const behind = (ties ?? []).filter((rid) => pf(rid) >= pf(id)).length;
+        const onPoints = !ties?.length
+          ? 'a tie on record would go to points for'
+          : behind === 0
+            ? `they lead ${ties.length === 1 ? 'the one team' : `all ${ties.length} teams`} they could tie on record in points for`
+            : behind === ties.length
+              ? `they trail ${ties.length === 1 ? 'the one team' : `all ${ties.length} teams`} they could tie on record in points for`
+              : `they trail ${behind} of the ${ties.length} teams they could tie on record in points for`;
+        lines.push({
+          tone: winOut === null ? (behind === 0 ? 'good' : 'neutral') : winOut >= 0.9 ? 'good' : 'neutral',
+          text: `Win out and ${often ?? 'only a tie on record can keep them out'}: ${onPoints}.`,
+        });
+      }
       if (!sc.winOutAndIn && sc.helpNeeded.length) {
         const help = sc.helpNeeded
           .slice(0, 3)
           .map((h) => `${name(h.winner)} beating ${name(h.loser)} (week ${h.week})`)
           .join(', or ');
-        lines.push({ tone: 'neutral', text: `Winning out isn’t enough alone. Any one of these clinches it with wins: ${help}.` });
+        lines.push({
+          tone: 'neutral',
+          text:
+            often && !sc.winOutPointsAtWorst
+              ? `Win out and ${often}; they’re certainly in with any one of these too: ${help}.`
+              : `Win out plus any one of these and they’re in for sure: ${help}.`,
+        });
       } else if (!sc.winOutAndIn && !sc.winOutPointsAtWorst) {
-        lines.push({ tone: 'bad', text: 'Needs to win and get help from several other results.' });
+        lines.push({ tone: 'bad', text: `Even winning out, they need help from several other results${often ? ` (${often})` : ''}.` });
       }
     }
     if (sc.exact && data.format.hasDivisions && !sc.clinchedDivision && !sc.eliminatedFromDivision && sc.winOutAndDivision) {

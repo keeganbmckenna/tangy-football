@@ -628,6 +628,9 @@ export function strengthRanks(means: Record<number, number>, tau: number, sims =
   );
 }
 
+/** Fewest simulated seasons with a team winning out for its win-out odds to be shown */
+export const MIN_WIN_OUT_SIMS = 200;
+
 /** Odds of each outcome, given some condition (e.g. winning this week) */
 export interface OutcomeOdds {
   playoffs: number;
@@ -657,6 +660,9 @@ export interface TeamOdds {
   champion: number | null;
   /** Chance of a toilet bowl bye: seed 1 or 2, the two worst teams (null if no toilet bowl) */
   toiletBye: number | null;
+  /** Playoff odds in the simulated seasons where it wins every remaining regular-season game (null without
+   * a game left, or when too few simulated seasons have it winning out to measure) */
+  ifWinOut: number | null;
   /** Average wins over the remaining regular-season games */
   expectedWins: number;
 }
@@ -768,7 +774,12 @@ export function simulatePlayoffOdds(
   const bump = (m: Map<number, number>, id: number) => m.set(id, m.get(id)! + 1);
 
   const winTotals = new Map(ids.map((id) => [id, 0]));
+  // Win out: seasons where a team won every remaining regular-season game, and made the playoffs in them
+  const hasGame = new Set(remaining.flatMap((g) => [g.a, g.b]));
+  const winOutN = new Map(ids.map((id) => [id, 0]));
+  const winOutIn = new Map(ids.map((id) => [id, 0]));
   for (let s = 0; s < sims; s++) {
+    const lost = new Set<number>();
     if (teamSpread > 0) offset = new Map(ids.map((id) => [id, teamSpread * normal()]));
     const sim = teams.map((t) => ({ ...t }));
     const byId = new Map(sim.map((t) => [t.rosterId, t]));
@@ -792,10 +803,12 @@ export function simulatePlayoffOdds(
       if (sa > sb) {
         a.wins++;
         b.losses++;
+        lost.add(g.b);
         winTotals.set(g.a, winTotals.get(g.a)! + 1);
       } else {
         b.wins++;
         a.losses++;
+        lost.add(g.a);
         winTotals.set(g.b, winTotals.get(g.b)! + 1);
       }
       if (g.week === nextWeek) nextWinners.push(sa > sb);
@@ -807,6 +820,12 @@ export function simulatePlayoffOdds(
       if (i < format.byes) bye.set(id, bye.get(id)! + 1);
     });
     divisionWinners.forEach((id) => division.set(id, division.get(id)! + 1));
+    const inSeeds = new Set(seeds);
+    for (const id of hasGame) {
+      if (lost.has(id) || !winOutN.has(id)) continue;
+      bump(winOutN, id);
+      if (inSeeds.has(id)) bump(winOutIn, id);
+    }
     let champ: number | null = null;
     let last: number | null = null;
     let toiletByes: number[] = [];
@@ -887,6 +906,7 @@ export function simulatePlayoffOdds(
       lastPlace: simulateToilet ? lastPlace.get(id)! / sims : null,
       champion: simulateChampion ? champion.get(id)! / sims : null,
       toiletBye: simulateToilet ? toiletBye.get(id)! / sims : null,
+      ifWinOut: winOutN.get(id)! >= MIN_WIN_OUT_SIMS ? winOutIn.get(id)! / winOutN.get(id)! : null,
       expectedWins: winTotals.get(id)! / sims,
     };
   }
@@ -963,6 +983,8 @@ export interface TeamScenarios {
   winOutAndDivision: boolean | null;
   /** If winning out isn't enough: single other results that would make it enough */
   helpNeeded: { winner: number; loser: number; week: number }[];
+  /** Teams it could finish level with on record after winning out, where points for then decides (exact mode only) */
+  winOutTies: number[];
 }
 
 export function playoffScenarios(teams: OddsTeam[], remaining: RemainingGame[], format: PlayoffFormat): Record<number, TeamScenarios> {
@@ -988,6 +1010,7 @@ export function playoffScenarios(teams: OddsTeam[], remaining: RemainingGame[], 
     const pFlags = new Uint8Array(T), dFlags = new Uint8Array(T);
     const winOutP = new Uint8Array(T), winOutD = new Uint8Array(T);
     const help = new Uint8Array(T * G * 2); // [x][game][a won? 0 : 1]
+    const ties = new Uint8Array(T * T); // [x][j]: level on record in a win-out outcome decided by points
     // Games each team plays, as bit masks over game index, and which side it's on
     const playsMask = new Array(T).fill(0), sideAMask = new Array(T).fill(0);
     games.forEach((_, i) => {
@@ -1029,6 +1052,7 @@ export function playoffScenarios(teams: OddsTeam[], remaining: RemainingGame[], 
         const won = (mask & playsMask[x]) === sideAMask[x];
         if (won) {
           winOutP[x] |= p; winOutD[x] |= d;
+          if (p === PTS) for (let j = 0; j < T; j++) if (j !== x && rec[j] === rec[x]) ties[x * T + j] = 1;
           for (let i = 0; i < G; i++) {
             if (playsMask[x] & (1 << i)) continue;
             help[(x * G + i) * 2 + (mask & (1 << i) ? 0 : 1)] |= p;
@@ -1060,6 +1084,7 @@ export function playoffScenarios(teams: OddsTeam[], remaining: RemainingGame[], 
         winOutPointsAtWorst: !winOutAndIn && (winOutP[x] & OUT) === 0,
         winOutAndDivision: format.hasDivisions ? winOutD[x] === IN : null,
         helpNeeded: helpNeeded.sort((p, q) => p.week - q.week),
+        winOutTies: ids.filter((_, j) => ties[x * T + j]),
       };
     }
     return result;
@@ -1085,6 +1110,7 @@ export function playoffScenarios(teams: OddsTeam[], remaining: RemainingGame[], 
       winOutPointsAtWorst: null,
       winOutAndDivision: null,
       helpNeeded: [],
+      winOutTies: [],
     };
   }
   return result;

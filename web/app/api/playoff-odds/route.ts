@@ -22,7 +22,7 @@ import { weeklyWinProbability } from '@/lib/analyze/trade';
 export const dynamic = 'force-dynamic';
 
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v20';
+const CACHE_VERSION = 'v21'; // v21: ifWinOut, winOutTies
 
 async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
   const inputs = await loadOddsInputs(league);
