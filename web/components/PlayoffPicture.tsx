@@ -144,7 +144,8 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
               ? `they trail ${ties.length === 1 ? 'the one team' : `all ${ties.length} teams`} they could tie on record in points for`
               : `they trail ${behind} of the ${ties.length} teams they could tie on record in points for`;
         lines.push({
-          tone: winOut === null ? (behind === 0 ? 'good' : 'neutral') : winOut >= 0.9 ? 'good' : 'neutral',
+          // Grey however likely: green is for certainties (clinched, or in after winning out whatever else happens)
+          tone: 'neutral',
           text: `Win out and ${often ?? 'only a tie on record can keep them out'}: ${onPoints}.`,
         });
       }
