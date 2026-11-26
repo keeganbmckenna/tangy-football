@@ -79,7 +79,7 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       </SectionCard>
     );
   }
-  if (!data) return <LoadingSpinner message="Simulating the rest of the season..." />;
+  if (!data) return <LoadingSpinner title="Playoff Odds" gradientType="info" height={900} message="Simulating the rest of the season..." />;
   if (data.status !== 'in_progress') return null;
 
   const stats = new Map(teamStats.map((t) => [t.rosterId, t]));

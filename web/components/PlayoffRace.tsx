@@ -266,7 +266,7 @@ function DivisionCard({
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points back: how many fewer points this team has scored than the division's top scorer" align="right">PB</Term></th>
             </tr>
           </thead>
-          <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {division.teams.map((team) => (
               <TeamRow
                 key={team.username}
@@ -340,7 +340,7 @@ function OverallStandingsCard({
               <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted)] uppercase w-24"><Term tip="Points ahead (+) of or behind the team holding the last playoff spot; points scored are the tiebreaker" align="right">PB</Term></th>
             </tr>
           </thead>
-          <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {standings.map((team, index) => (
               <TeamRow
                 key={team.username}
@@ -396,7 +396,7 @@ function WildCardCard({
               </th>
             </tr>
           </thead>
-          <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {wildCard.map((standing, index) => {
               // Find the cutoff - last team that's IN
               const isLastIn = standing.isIn && (!wildCard[index + 1] || !wildCard[index + 1].isIn);

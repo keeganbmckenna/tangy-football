@@ -117,7 +117,7 @@ export default function VsProjections({ insights, teamStats }: RostersCardProps)
               <th className={`${TH} ${cols.col('worst')} text-left`}>Worst</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((t) => {
               const diff = t.points - t.projected;
               const best = t.players[0];

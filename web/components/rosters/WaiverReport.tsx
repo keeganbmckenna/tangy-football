@@ -87,7 +87,7 @@ export default function WaiverReport({ insights, teamStats }: RostersCardProps) 
               {faab && <SortableTh sort={sort} col="perDollar" tip="Pickup points per FAAB dollar spent" tipAlign="right" className={`${TH} ${cols.col('perDollar')}`}>Pts / $</SortableTh>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((t) => (
               <tr key={t.rosterId} className={mineRow(t.rosterId === me.rosterId)}>
                 <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>

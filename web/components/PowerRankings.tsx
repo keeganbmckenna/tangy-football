@@ -1,6 +1,7 @@
 'use client';
 
 import SectionCard from '@/components/ui/SectionCard';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { useOddsHistory, usePlayoffOdds } from '@/hooks/useOddsData';
 import { formatRecord } from '@/lib/analyze/playEveryone';
@@ -26,8 +27,12 @@ const ranksOf = (strength: Record<number, number>) =>
  */
 export default function PowerRankings({ season, teamStats }: PowerRankingsProps) {
   const me = useMyTeam();
-  const { data } = usePlayoffOdds();
+  const { data, error } = usePlayoffOdds();
   const { data: history } = useOddsHistory(season);
+  // While the odds load, a placeholder of the card's size (a row per team), so nothing pops in
+  if (!data && !error) {
+    return <LoadingSpinner title="Power Rankings" gradientType="accent" height={teamStats.length * 58} message="Ranking the teams..." />;
+  }
   if (!data?.strength || data.status !== 'in_progress') return null;
 
   const strength = data.strength;

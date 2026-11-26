@@ -130,7 +130,7 @@ export default function LuckBreakdown({ teams, playEveryone, matchups, maxWeek }
               <SortableTh sort={sort} col="close" tip={`Record in games decided by under ${CLOSE_GAME_MARGIN} points: luck, not clutch`} tipAlign="right" className={th}>Close</SortableTh>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((t) => (
               <tr key={t.rosterId} className={mineRow(t.rosterId === me.rosterId)}>
                 <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>

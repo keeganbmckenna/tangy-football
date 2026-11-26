@@ -111,7 +111,7 @@ export default function WeeklyRankingsHeatmap({ rankingsData, teams, maxWeek }: 
               </SortableTh>
             </tr>
           </thead>
-          <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((team) => {
               const rankings = rankingsData[team.username] || [];
               return (

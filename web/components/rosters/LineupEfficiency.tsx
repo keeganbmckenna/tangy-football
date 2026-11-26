@@ -79,7 +79,7 @@ export default function LineupEfficiency({ insights, teamStats, rosterPositions 
               <SortableTh sort={sort} col="flipped" best="asc" tip="Losses the best lineup would have won" tipAlign="right" className={TH}>Lost w/ better lineup</SortableTh>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((t) => {
               const expanded = open === t.rosterId;
               const c = t.costliest;

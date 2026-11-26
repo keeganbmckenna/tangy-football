@@ -43,6 +43,7 @@ import {
 } from '@/lib/analyze/live';
 import type { LeagueData, TeamStats } from '@/lib/types';
 import { percent } from '@/lib/format';
+import { MatchupPlaceholders } from '@/components/ui/LoadingSpinner';
 
 // While a week is in progress and the tab is visible: scores and game clocks every 10
 // seconds while an NFL game is being played (once a minute between games), and the rest
@@ -293,7 +294,8 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
 
   const statusBar = (
     <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
-      {live && <span>Updated {secondsAgo(live.fetchedAt, now)}</span>}
+      {/* Loading takes the same room, so the line wraps the same before and after */}
+      <span>{live ? `Updated ${secondsAgo(live.fetchedAt, now)}` : 'Loading scores…'}</span>
       {week !== null && isCurrentSeason && <span>· {gameOn ? 'live: updates every 10 seconds' : 'updates every minute until games start'}</span>}
       <button
         type="button"
@@ -307,17 +309,32 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     </div>
   );
 
+  // While the scores load: the week's matchup cards as placeholders, so nothing below them moves
+  const matchupCount = Math.ceil(leagueData.rosters.length / 2);
   if (compact && (!live || !isCurrentSeason || !view || week === null)) {
-    return <p className="px-6 py-8 text-sm text-[var(--muted)]">{error ? 'Couldn’t load the live scores.' : 'Loading live scores…'}</p>;
+    if (error && !live) return <p className="px-6 py-8 text-sm text-[var(--muted)]">Couldn’t load the live scores.</p>;
+    return (
+      <div>
+        <div className="px-4 pt-4 sm:px-6">{statusBar}</div>
+        <MatchupPlaceholders count={matchupCount} />
+      </div>
+    );
   }
 
   if (!live) {
     return (
       <SectionCard title="Live" subtitle="This week as it happens" gradientType="info">
-        <div className="px-6 py-8 space-y-3">
-          <p className="text-[var(--muted)]">{error ? 'Couldn’t load live data.' : 'Loading live data…'}</p>
-          {statusBar}
-        </div>
+        {error ? (
+          <div className="px-6 py-8 space-y-3">
+            <p className="text-[var(--muted)]">Couldn’t load live data.</p>
+            {statusBar}
+          </div>
+        ) : (
+          <>
+            <div className="px-6 pt-4">{statusBar}</div>
+            <MatchupPlaceholders count={matchupCount} />
+          </>
+        )}
       </SectionCard>
     );
   }

@@ -421,7 +421,7 @@ export default function App() {
   }, [myUserId, leagueData, isLegacySeason]);
 
   if (loading && !leagueData) {
-    return <LoadingSpinner message="Loading league data..." />;
+    return <LoadingSpinner fullScreen message="Loading league data..." />;
   }
 
   if (error && !leagueData) {

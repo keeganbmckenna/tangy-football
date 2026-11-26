@@ -184,7 +184,7 @@ export default function HistoryTab({ manager = null, onManager, decisionsFocus =
       </SectionCard>
     );
   }
-  if (!data || !derived) return <LoadingSpinner message="Loading every season..." />;
+  if (!data || !derived) return <LoadingSpinner height={800} message="Loading every season..." />;
 
   // A manager's page in place of the league's history
   const openManager = (id: string | null) => {

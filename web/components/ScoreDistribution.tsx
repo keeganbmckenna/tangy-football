@@ -127,7 +127,7 @@ export default function ScoreDistribution({ teams, maxWeek }: ScoreDistributionP
               <SortableTh sort={sort} col="busts" best="asc" tip="Weeks in the league's bottom quarter of scores" tipAlign="right" className={th}>Busts</SortableTh>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--border)] bg-[var(--surface-elevated)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((t) => (
               <tr key={t.rosterId} className={mineRow(t.rosterId === me.rosterId)}>
                 <td className={`${PIN_TD} py-3 whitespace-nowrap bg-[var(--surface-elevated)]`}>

@@ -48,7 +48,7 @@ function SeasonRosters({ season, teamStats, rosterPositions, complete }: Omit<Ro
       </SectionCard>
     );
   }
-  if (!data) return <LoadingSpinner message="Going through every lineup..." />;
+  if (!data) return <LoadingSpinner height={800} message="Going through every lineup..." />;
   if (!data.weeks) {
     return (
       <SectionCard title="Rosters" gradientType="primary">

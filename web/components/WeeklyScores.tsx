@@ -84,7 +84,7 @@ export default function WeeklyScores({ teams, maxWeek }: WeeklyScoresProps) {
               </SortableTh>
             </tr>
           </thead>
-          <tbody className="bg-[var(--surface-elevated)] divide-y divide-[var(--border)]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((team) => (
               <tr key={team.username} className={mineRow(team.rosterId === me.rosterId)}>
                 <td className={`${PIN_TD} py-4 whitespace-nowrap bg-[var(--surface-elevated)]`}>
