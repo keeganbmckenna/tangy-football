@@ -1,10 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import SectionCard from '@/components/ui/SectionCard';
 import { mineRow, useMyTeam } from '@/hooks/useMyTeam';
 import { formatRecord } from '@/lib/analyze/playEveryone';
-import { formatOdds, simulatePlayoffOdds, type PlayoffOddsResponse } from '@/lib/analyze/playoffOdds';
+import { formatOdds, liveGameFor, simulatePlayoffOdds, type LiveGameOdds, type PlayoffOddsResponse } from '@/lib/analyze/playoffOdds';
+import { matchupModels, scoreSpread } from '@/lib/analyze/live';
+import { useLiveFeed } from '@/hooks/useLiveFeed';
+import { useOddsWorker } from '@/hooks/useOddsSimulator';
 import type { TeamStats } from '@/lib/types';
 import { pointsChange } from '@/lib/format';
 
@@ -16,6 +19,47 @@ const simulate = (data: PlayoffOddsResponse, forced: Record<number, number>) =>
     ? simulatePlayoffOdds(data.teams, data.model.remaining, data.format, data.model.meanByWeek, data.model.spread, SIMS, 2026, undefined, false, data.model.teamSpread, forced, data.live?.games).teams
     : {};
 
+/**
+ * Everyone's odds without and with the picks. The first run is straight away, so the card never
+ * shows empty; later ones (the live week moves every few seconds while games are on) run in a
+ * worker, the last odds staying up until the new ones are in, so scrolling never stalls.
+ */
+function useWhatIfOdds(data: PlayoffOddsResponse, picks: Record<number, number>) {
+  const run = useOddsWorker();
+  const [odds, setOdds] = useState(() => ({ data, picks, base: simulate(data, {}), picked: simulate(data, picks) }));
+  const last = useRef(odds);
+  useEffect(() => {
+    last.current = odds;
+  }, [odds]);
+  useEffect(() => {
+    const shown = last.current;
+    const model = data.model;
+    if (!model || (shown.data === data && shown.picks === picks)) return;
+    const job = (forced: Record<number, number>) =>
+      run({
+        teams: data.teams,
+        remaining: model.remaining,
+        format: data.format,
+        meanByWeek: model.meanByWeek,
+        spread: model.spread,
+        teamSpread: model.teamSpread,
+        sims: SIMS,
+        seed: 2026,
+        toiletBowl: false,
+        forced,
+        live: data.live?.games,
+      }).then((r) => r.teams);
+    let cancelled = false;
+    Promise.all([shown.data === data ? shown.base : job({}), job(picks)]).then(([base, picked]) => {
+      if (!cancelled) setOdds({ data, picks, base, picked });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [data, picks, run]);
+  return odds;
+}
+
 interface WhatIfProps {
   data: PlayoffOddsResponse;
   teamStats: TeamStats[];
@@ -26,8 +70,25 @@ interface WhatIfProps {
  * results fixed. The playoff simulation runs in the browser, with and without the picks on
  * the same random draws, so the change is the picks' effect rather than simulation noise.
  */
-export default function WhatIf({ data, teamStats }: WhatIfProps) {
+export default function WhatIf({ data: loaded, teamStats }: WhatIfProps) {
   const me = useMyTeam();
+  // Once the week has kicked off, its games follow the Live tab's feed (every 10 seconds while a
+  // game is on) rather than the odds' once-a-minute reload, so the picks work from the same live
+  // odds the Live tab shows
+  const feed = useLiveFeed({ season: loaded.season, regularSeasonEnd: loaded.regularSeasonEnd, enabled: !!loaded.live }).live;
+  const data = useMemo((): PlayoffOddsResponse => {
+    const base = loaded.live;
+    if (!base || !feed || feed.week !== base.week || !feed.projections || !feed.games) return loaded;
+    const spread = scoreSpread(teamStats, feed.lastScoredWeek);
+    const games: LiveGameOdds[] = matchupModels(feed.matchups, feed.projections, feed.games, spread, { allowed: feed.allowed, allowedScoring: feed.allowedScoring }).map(
+      (m) => ({ week: feed.week, a: m.a.s.rosterId, b: m.b.s.rosterId, aMean: m.a.s.projected, bMean: m.b.s.projected, sd: m.sd, aWins: m.aWinOdds })
+    );
+    const gameOdds = base.gameOdds?.map((g) => {
+      const l = g.week === base.week ? liveGameFor(games, g.week, g.a, g.b) : null;
+      return l ? { ...g, aWins: l.aWins } : g;
+    }) ?? null;
+    return { ...loaded, live: { ...base, games, gameOdds, fetchedAt: feed.fetchedAt } };
+  }, [loaded, feed, teamStats]);
   const model = data.model;
   const weeks = useMemo(() => [...new Set(model?.remaining.map((g) => g.week) ?? [])].sort((a, b) => a - b), [model]);
   const [week, setWeek] = useState<number | null>(null);
@@ -48,8 +109,7 @@ export default function WhatIf({ data, teamStats }: WhatIfProps) {
   }, [data, model]);
   // A pick made before its game finished no longer counts
   const activePicks = useMemo(() => Object.fromEntries(Object.entries(picks).filter(([i]) => finals[Number(i)] === undefined)), [picks, finals]);
-  const base = useMemo(() => simulate(data, {}), [data]);
-  const picked = useMemo(() => simulate(data, activePicks), [data, activePicks]);
+  const { base, picked } = useWhatIfOdds(data, activePicks);
   if (!model || !weeks.length) return null;
 
   const shownWeek = week ?? weeks[0];
