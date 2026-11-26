@@ -297,6 +297,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       {/* Loading takes the same room, so the line wraps the same before and after */}
       <span>{live ? `Updated ${secondsAgo(live.fetchedAt, now)}` : 'Loading scores…'}</span>
       {week !== null && isCurrentSeason && <span>· {gameOn ? 'live: updates every 10 seconds' : 'updates every minute until games start'}</span>}
+      {!live && <span>· checking whether games are on</span>}
       <button
         type="button"
         onClick={refresh}

@@ -102,7 +102,7 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
             </div>
           </SectionCard>
         ) : !data ? (
-          <LoadingSpinner height={1900} message="Loading rosters and projections..." />
+          <LoadingSpinner height={{ phone: 1950, wide: 1720, from: 'md' }} message="Loading rosters and projections..." />
         ) : data.open ? (
           <TradeAnalyzer key={preset?.key ?? 0} data={data} teamStats={teamStats} initial={preset?.trade ?? null} />
         ) : (

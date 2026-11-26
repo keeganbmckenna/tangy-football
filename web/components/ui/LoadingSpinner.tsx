@@ -2,6 +2,7 @@
 
 import { FootballSpinner } from '@/components/ui/Football';
 import SectionCard from '@/components/ui/SectionCard';
+import type { CSSProperties } from 'react';
 import type { GRADIENT_STYLES } from '@/lib/constants';
 
 interface LoadingSpinnerProps {
@@ -10,9 +11,10 @@ interface LoadingSpinnerProps {
   fullScreen?: boolean;
   /**
    * The placeholder's height in pixels: about what it stands in for, so nothing below it moves
-   * when the content arrives
+   * when the content arrives. Content that's a different height on wider screens gives both, and
+   * the width (Tailwind's sm, 640px, or md, 768px) where the wider one takes over.
    */
-  height?: number;
+  height?: number | { phone: number; wide: number; from: 'sm' | 'md' };
   /** The card it stands in for: its header shows straight away, with the spinner as its body */
   title?: string;
   subtitle?: string;
@@ -41,8 +43,15 @@ export default function LoadingSpinner({ message = 'Loading...', fullScreen = fa
     );
   }
   // The spinner sits near the top, where it's seen, however tall the space it holds
+  const { phone, wide, from } = typeof height === 'number' ? { phone: height, wide: height, from: 'sm' } : height;
   const body = (
-    <div className="flex justify-center px-4 pt-16 text-center" style={{ minHeight: height }} aria-busy="true">
+    <div
+      className={`flex min-h-[var(--placeholder-h)] justify-center px-4 pt-16 text-center ${
+        from === 'md' ? 'md:min-h-[var(--placeholder-wide-h)]' : 'sm:min-h-[var(--placeholder-wide-h)]'
+      }`}
+      style={{ '--placeholder-h': `${phone}px`, '--placeholder-wide-h': `${wide}px` } as CSSProperties}
+      aria-busy="true"
+    >
       <div>
         <FootballSpinner />
         <p className="mt-4 text-[var(--muted)]">{message}</p>
@@ -67,14 +76,14 @@ export function MatchupPlaceholders({ count }: { count: number }) {
     <div className={`flex items-center justify-between gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
       <div className={`h-9 w-9 shrink-0 rounded-full ${bar}`} />
       <div className={`flex flex-col gap-1 ${align === 'right' ? 'items-start' : 'items-end'}`}>
-        <div className={`h-6 w-14 ${bar}`} />
+        <div className={`h-[26px] w-14 ${bar}`} />
         <div className={`h-3 w-12 ${bar}`} />
       </div>
     </div>
   );
   const name = (align: 'left' | 'right') => (
     <div className={`flex min-w-0 flex-1 flex-col gap-1 ${align === 'right' ? 'items-end' : ''}`}>
-      <div className={`h-4 w-24 ${bar}`} />
+      <div className={`h-[18px] w-24 ${bar}`} />
       <div className={`h-3 w-16 ${bar}`} />
     </div>
   );

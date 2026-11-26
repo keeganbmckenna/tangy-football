@@ -88,7 +88,7 @@ export default function OddsHistoryChart({ season, teamStats, liveOdds, lastScor
       </SectionCard>
     );
   }
-  if (!data) return <LoadingSpinner title={title} gradientType="info" height={560} message="Replaying the season's odds..." />;
+  if (!data) return <LoadingSpinner title={title} gradientType="info" height={636} message="Replaying the season's odds..." />;
   if (data.checkpoints.length < 2) return null;
   const selected = options.some((o) => o.key === outcome) ? outcome : 'playoffs';
 

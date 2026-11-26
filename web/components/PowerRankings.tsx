@@ -31,7 +31,7 @@ export default function PowerRankings({ season, teamStats }: PowerRankingsProps)
   const { data: history } = useOddsHistory(season);
   // While the odds load, a placeholder of the card's size (a row per team), so nothing pops in
   if (!data && !error) {
-    return <LoadingSpinner title="Power Rankings" gradientType="accent" height={teamStats.length * 58} message="Ranking the teams..." />;
+    return <LoadingSpinner title="Power Rankings" gradientType="accent" height={{ phone: teamStats.length * 66, wide: teamStats.length * 64.5, from: 'sm' }} message="Ranking the teams..." />;
   }
   if (!data?.strength || data.status !== 'in_progress') return null;
 

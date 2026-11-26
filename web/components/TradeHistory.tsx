@@ -180,7 +180,7 @@ export default function TradeHistory({ history }: TradeHistoryProps) {
   if (!seasons) {
     return (
       <SectionCard title="Trades" subtitle={subtitle} gradientType="secondary">
-        <LoadingSpinner height={1600} message="Grading trades..." />
+        <LoadingSpinner height={{ phone: 5500, wide: 3400, from: 'md' }} message="Grading trades..." />
       </SectionCard>
     );
   }

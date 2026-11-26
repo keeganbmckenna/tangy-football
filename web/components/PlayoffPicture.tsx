@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { usePlayoffOdds } from '@/hooks/useOddsData';
 import SectionCard from '@/components/ui/SectionCard';
 import RetryButton from '@/components/ui/RetryButton';
@@ -79,7 +79,20 @@ export default function PlayoffPicture({ teamStats }: PlayoffPictureProps) {
       </SectionCard>
     );
   }
-  if (!data) return <LoadingSpinner title="Playoff Odds" gradientType="info" height={900} message="Simulating the rest of the season..." />;
+  if (!data) {
+    // The odds card's placeholder, then the room the cards below it take (they come with the same
+    // data), about a 12-team league's worth scaled by teams, so the cards after them don't jump
+    return (
+      <div className="space-y-8">
+        <LoadingSpinner title="Playoff Odds" gradientType="info" height={{ phone: 970, wide: 885, from: 'sm' }} message="Simulating the rest of the season..." />
+        <div
+          aria-hidden="true"
+          className="h-[var(--rest-h)] md:h-[var(--rest-wide-h)]"
+          style={{ '--rest-h': `${teamStats.length * 487}px`, '--rest-wide-h': `${teamStats.length * 395}px` } as CSSProperties}
+        />
+      </div>
+    );
+  }
   if (data.status !== 'in_progress') return null;
 
   const stats = new Map(teamStats.map((t) => [t.rosterId, t]));

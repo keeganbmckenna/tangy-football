@@ -392,7 +392,7 @@ export default function DraftBoard({ season, leagueData }: DraftBoardProps) {
   }, [season, isLive]);
 
   if (loading) {
-    return <LoadingSpinner title="Draft Results" subtitle="Teams ranked by Core/wk" gradientType="info" height={650} message={`Loading ${season} draft...`} />;
+    return <LoadingSpinner title="Draft Results" subtitle="Teams ranked by Core/wk" gradientType="info" height={{ phone: 720, wide: 820, from: 'sm' }} message={`Loading ${season} draft...`} />;
   }
 
   if (notFound || !data || !core) {
