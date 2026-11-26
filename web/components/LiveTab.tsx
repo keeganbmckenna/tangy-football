@@ -6,7 +6,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
 import LiveScore from '@/components/ui/LiveScore';
-import { SideName, SideScore } from '@/components/ui/MatchupSides';
+import { OddsBar, SideName, SideScore } from '@/components/ui/MatchupSides';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import WinSwing from '@/components/WinSwing';
@@ -80,8 +80,6 @@ const isPregame = (m: { a: LiveSide; b: LiveSide }) => m.a.score === 0 && m.b.sc
 /** Whether a response was made before the one shown */
 const isOlder = (fetchedAt: string, shown: string) => Date.parse(fetchedAt) < Date.parse(shown);
 
-/** The least of the odds bar either side gets, so a lopsided matchup still shows who's ahead */
-const MIN_BAR_SHARE = 0.03;
 
 /** Each real matchup with its live win odds */
 function LiveMatchups({
@@ -104,8 +102,6 @@ function LiveMatchups({
       {odds.map((m) => {
         const mine = m.a.rosterId === myRosterId || m.b.rosterId === myRosterId;
         const a = m.aWinOdds;
-        // The bar keeps a sliver of each side (the numbers stay exact), so the favorite shows at >99%
-        const bar = Math.min(Math.max(a, MIN_BAR_SHARE), 1 - MIN_BAR_SHARE);
         const nameA = names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`;
         const nameB = names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`;
         return (
@@ -121,14 +117,7 @@ function LiveMatchups({
               <span className="text-[10px] font-semibold uppercase text-[var(--muted)]">vs</span>
               <SideScore name={nameB} avatarUrl={avatar(m.b.rosterId)} align="right" score={m.b.started ? <LiveScore value={m.b.score} align={"left"} /> : <span className="text-[var(--muted)]" title="No starter has played yet">–</span>} sub={`proj ${m.b.projected.toFixed(1)}`} />
             </div>
-            <div className="mt-1.5 flex items-center gap-2 text-xs font-semibold tabular-nums">
-              <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>
-              <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--neutral-bg)]" role="img" aria-label={`Win odds ${oddsText(a)} to ${oddsText(1 - a)}`}>
-                <div style={{ width: `${bar * 100}%`, backgroundColor: a >= 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
-                <div style={{ width: `${(1 - bar) * 100}%`, backgroundColor: a < 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
-              </div>
-              <span className="w-9 text-right" style={{ color: a <= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(1 - a)}</span>
-            </div>
+            <OddsBar a={a} />
             <div className="mt-1.5 flex gap-3">
               <SideName name={nameA} username={username(m.a.rosterId)} align="left" />
               <SideName name={nameB} username={username(m.b.rosterId)} align="right" />

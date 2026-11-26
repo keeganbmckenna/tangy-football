@@ -1196,6 +1196,12 @@ export interface PlayoffOddsResponse {
    */
   gameOdds: Array<{ week: number; a: number; b: number; aWins: number }> | null;
   /**
+   * The single-game model's expected score for each team in each remaining regular-season week (the
+   * league's average so far plus its margin): the future weeks' matchup cards. Display only; gameOdds
+   * is what's logged and scored.
+   */
+  gamePoints?: Record<number, Record<number, number>> | null;
+  /**
    * Once a game of the week being played has kicked off: its games' live odds (the Live tab's), the
    * season odds and every remaining game's odds with them, as shown. `odds` and `gameOdds` stay
    * the before-kickoff models' (what the 2026 evaluation logs and scores).

@@ -22,7 +22,7 @@ import { weeklyWinProbability } from '@/lib/analyze/trade';
 export const dynamic = 'force-dynamic';
 
 // Bump when the model or response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v21'; // v21: ifWinOut, winOutTies
+const CACHE_VERSION = 'v22'; // v22: gamePoints
 
 async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
   const inputs = await loadOddsInputs(league);
@@ -66,6 +66,15 @@ async function build(league: SleeperLeague): Promise<PlayoffOddsResponse> {
           return { week: g.week, a: g.a, b: g.b, aWins: weeklyWinProbability(mean[g.a] ?? 0, mean[g.b] ?? 0, inputs.games!.spreadByWeek[g.week] ?? 25) };
         })
       : null,
+    gamePoints:
+      inputs.games && lastScoredWeek > 0
+        ? (() => {
+            const league = teams.reduce((t, x) => t + x.pointsFor, 0) / (teams.length * lastScoredWeek);
+            return Object.fromEntries(
+              Object.entries(inputs.games!.meanByWeek).map(([w, m]) => [w, Object.fromEntries(Object.entries(m).map(([id, v]) => [id, league + v]))])
+            );
+          })()
+        : null,
     strength: inputs.fitted
       ? strengthRanks(
           Object.fromEntries(teams.map((t) => [t.rosterId, Object.values(inputs.fitted!.meanByWeek)[0]?.[t.rosterId] ?? 0])),

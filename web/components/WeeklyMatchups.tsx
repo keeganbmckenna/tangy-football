@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LiveTab from '@/components/LiveTab';
 import { useMatchupLineups } from '@/components/useMatchupLineups';
-import { SideName, SideScore } from '@/components/ui/MatchupSides';
+import { OddsBar, SideName, SideScore } from '@/components/ui/MatchupSides';
+import { usePlayoffOdds } from '@/hooks/useOddsData';
+import { getTeamName } from '@/lib/analyze/teamIdentity';
+import { myMatchupFirst } from '@/lib/analyze/myMatchup';
 import ShareButton from '@/components/ui/ShareButton';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { myWeekMatchupFirst } from '@/lib/analyze/myMatchup';
@@ -32,6 +35,17 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
   // The week being played first, otherwise the most recent completed week
   const [selectedWeek, setSelectedWeek] = useState(live?.week ?? (weeks[weeks.length - 1] || 1));
   const showLive = !!live && selectedWeek === live.week && !!leagueData;
+
+  // The weeks still to come (after the one being played): each game with the model's win odds and projections
+  const { data: odds } = usePlayoffOdds(!!leagueData);
+  const upcoming = useMemo(() => {
+    const after = live?.week ?? lastScoredWeek ?? 0;
+    const byWeek = new Map<number, Array<{ a: number; b: number; aWins: number }>>();
+    for (const g of odds?.gameOdds ?? []) if (g.week > after) byWeek.set(g.week, [...(byWeek.get(g.week) ?? []), g]);
+    return byWeek;
+  }, [odds, live?.week, lastScoredWeek]);
+  const futureWeeks = [...upcoming.keys()].sort((a, b) => a - b);
+  const future = upcoming.get(selectedWeek) ?? null;
 
   // My matchup first, with me on the left
   const me = useMyTeam();
@@ -91,7 +105,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
       <div className="section-header bg-gradient-to-r from-green-600 to-green-800 px-4 py-3 sm:px-6 sm:py-4" data-tone="green">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-white sm:text-2xl">Weekly Matchups</h2>
-          {leagueData && (
+          {leagueData && !future && (
             <ShareButton
               path={`/?season=${leagueData.league.season}&week=${selectedWeek}`}
               title={`Week ${selectedWeek} ${showLive ? 'so far' : 'recap'}`}
@@ -130,12 +144,56 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
               W{live.week}
             </button>
           )}
+          {futureWeeks.map((week) => (
+            <button
+              key={week}
+              onClick={() => setSelectedWeek(week)}
+              aria-label={`Week ${week}, to come`}
+              aria-pressed={selectedWeek === week}
+              className={`shrink-0 rounded-md border border-dashed px-3 py-1.5 text-xs font-medium transition-colors ${
+                selectedWeek === week
+                  ? 'border-transparent bg-[var(--surface-elevated)] text-[var(--foreground)]'
+                  : 'border-white/40 text-white hover:bg-white/15'
+              }`}
+            >
+              W{week}
+            </button>
+          ))}
         </div>
       </div>
       {showLive && leagueData && live && (
         <LiveTab compact initialMatchup={liveLink} leagueData={leagueData} regularSeasonEnd={live.regularSeasonEnd} playoffTeams={live.playoffTeams} hasDivisions={live.hasDivisions} />
       )}
-      {!showLive && awards.length > 0 && (
+      {future && leagueData && (
+        <>
+          <p className="px-4 pt-3 text-xs text-[var(--muted)] sm:px-6">
+            Projected from today’s rosters and projections, with the playoff model’s odds for each game. They’ll move with injuries, byes and roster moves.
+          </p>
+          <div className="grid grid-cols-1 gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
+            {myMatchupFirst(future, (g) => (me.rosterId === null ? null : g.a === me.rosterId ? 'left' : g.b === me.rosterId ? 'right' : null), (g) => ({ a: g.b, b: g.a, aWins: 1 - g.aWins })).map((g) => {
+              const name = (id: number) => getTeamName(id, leagueData).name;
+              const proj = (id: number) => odds?.gamePoints?.[selectedWeek]?.[id];
+              const sub = (id: number) => (proj(id) === undefined ? undefined : `proj ${proj(id)!.toFixed(1)}`);
+              const dash = <span className="text-[var(--muted)]">–</span>;
+              return (
+                <div key={`${g.a}-${g.b}`} className={`rounded-lg border px-3 py-2.5 ${g.a === me.rosterId ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                    <SideScore name={name(g.a)} avatarUrl={teamAvatarUrl(leagueData, g.a)} align="left" score={dash} sub={sub(g.a)} />
+                    <span className="text-[10px] font-semibold uppercase text-[var(--muted)]">vs</span>
+                    <SideScore name={name(g.b)} avatarUrl={teamAvatarUrl(leagueData, g.b)} align="right" score={dash} sub={sub(g.b)} />
+                  </div>
+                  <OddsBar a={g.aWins} />
+                  <div className="mt-1.5 flex gap-3">
+                    <SideName name={name(g.a)} username={getTeamName(g.a, leagueData).username} align="left" />
+                    <SideName name={name(g.b)} username={getTeamName(g.b, leagueData).username} align="right" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {!showLive && !future && awards.length > 0 && (
         <div className="border-b border-[var(--border)] py-3">
           {/* One row that scrolls sideways on phones, wrapping on wider screens */}
           <ul className="flex gap-2 overflow-x-auto px-4 sm:flex-wrap sm:px-6" aria-label={`Week ${selectedWeek} awards`}>
@@ -152,7 +210,7 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
           </ul>
         </div>
       )}
-      {!showLive && <div className="grid grid-cols-1 gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
+      {!showLive && !future && <div className="grid grid-cols-1 gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
         {currentMatchups.length === 0 ? (
           <p className="col-span-full text-center text-[var(--muted)] py-8">
             No matchups available for this week
