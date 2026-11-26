@@ -4,8 +4,8 @@
   --background: #ffffff;
   --foreground: #111827;
   /* Cards are slightly see-through so the chalkboard shows faintly; --solid-* for what must stay opaque */
-  --surface: rgb(249 250 251 / 0.7);
-  --surface-elevated: rgb(255 255 255 / 0.8);
+  --surface: rgb(249 250 251 / 0.5);
+  --surface-elevated: rgb(255 255 255 / 0.6);
   --solid-surface: #f9fafb;
   --solid-elevated: #ffffff;
   --chalk: rgb(15 23 42 / 0.09);
@@ -50,8 +50,8 @@
   :root {
     --background: #000000;
     --foreground: #f4f4f5;
-    --surface: rgb(7 7 8 / 0.7);
-    --surface-elevated: rgb(10 10 11 / 0.8);
+    --surface: rgb(7 7 8 / 0.5);
+    --surface-elevated: rgb(10 10 11 / 0.6);
     --solid-surface: #070708;
     --solid-elevated: #0a0a0b;
     --chalk: rgb(255 255 255 / 0.1);
@@ -97,8 +97,8 @@
   --background: #ffffff;
   --foreground: #111827;
   /* Cards are slightly see-through so the chalkboard shows faintly; --solid-* for what must stay opaque */
-  --surface: rgb(249 250 251 / 0.7);
-  --surface-elevated: rgb(255 255 255 / 0.8);
+  --surface: rgb(249 250 251 / 0.5);
+  --surface-elevated: rgb(255 255 255 / 0.6);
   --solid-surface: #f9fafb;
   --solid-elevated: #ffffff;
   --chalk: rgb(15 23 42 / 0.09);
@@ -142,8 +142,8 @@
 :root[data-theme='dark'] {
   --background: #000000;
   --foreground: #f4f4f5;
-  --surface: rgb(7 7 8 / 0.7);
-  --surface-elevated: rgb(10 10 11 / 0.8);
+  --surface: rgb(7 7 8 / 0.5);
+  --surface-elevated: rgb(10 10 11 / 0.6);
   --solid-surface: #070708;
   --solid-elevated: #0a0a0b;
   --chalk: rgb(255 255 255 / 0.1);

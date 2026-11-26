@@ -46,14 +46,17 @@ export default function Chalkboard() {
     const svg = svgRef.current;
     if (!svg) return;
     const pan = svg.parentElement!;
+    const layer = pan.parentElement!;
     const board = svg.querySelector<SVGGElement>('.chalk-board')!;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const timers: number[] = [];
     let play = 0;
 
     const draw = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      // The layer's own size: the screen with the browser's toolbars hidden, so it doesn't
+      // stretch (and the plays shift) as a phone's address bar slides away while scrolling
+      const w = layer.clientWidth;
+      const h = layer.clientHeight;
       // The drift moves the whole layer (so the browser slides it rather than redrawing
       // it every frame); it overhangs the screen by the drift distance on every side
       const dist = Math.hypot(w, h) * 0.05;
@@ -132,7 +135,7 @@ export default function Chalkboard() {
   }, []);
 
   return (
-    <div className="chalkboard pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+    <div className="chalkboard pointer-events-none fixed inset-x-0 top-0 z-0 h-lvh overflow-hidden" aria-hidden>
       <div className="absolute inset-0 will-change-transform">
         <svg ref={svgRef} className="h-full w-full">
           <defs>
