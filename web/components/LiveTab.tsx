@@ -6,7 +6,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
 import LiveScore from '@/components/ui/LiveScore';
-import TeamAvatar from '@/components/ui/TeamAvatar';
+import { SideName, SideScore } from '@/components/ui/MatchupSides';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import WinSwing from '@/components/WinSwing';
@@ -80,35 +80,6 @@ const isPregame = (m: { a: LiveSide; b: LiveSide }) => m.a.score === 0 && m.b.sc
 /** Whether a response was made before the one shown */
 const isOlder = (fetchedAt: string, shown: string) => Date.parse(fetchedAt) < Date.parse(shown);
 
-/**
- * One side's score block, as compact as Sleeper's: the avatar at the outer edge, the score toward the middle,
- * the projected final under it. The layout never changes with the game state: the score is always the big
- * number (a dash until a starter kicks off).
- */
-function SideScore({ side, name, avatarUrl, align }: { side: LiveSide; name: string; avatarUrl: string | null; align: 'left' | 'right' }) {
-  return (
-    <div className={`flex min-w-0 items-center justify-between gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-      <TeamAvatar url={avatarUrl} name={name} size="h-9 w-9" />
-      <div className={align === 'right' ? 'text-left' : 'text-right'}>
-        <div className="text-xl font-bold leading-tight tabular-nums text-[var(--foreground)]">
-          {side.started ? <LiveScore value={side.score} align={align === 'right' ? 'left' : 'right'} /> : <span className="text-[var(--muted)]" title="No starter has played yet">–</span>}
-        </div>
-        <div className="text-[11px] tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
-      </div>
-    </div>
-  );
-}
-
-/** A side's name and handle, under the odds bar */
-function SideName({ name, username, align }: { name: string; username: string; align: 'left' | 'right' }) {
-  return (
-    <div className={`min-w-0 flex-1 ${align === 'right' ? 'text-right' : ''}`}>
-      <div className="truncate text-sm font-semibold leading-tight text-[var(--foreground)]" title={name}>{name}</div>
-      <div className="truncate text-[11px] text-[var(--muted)]">@{username}</div>
-    </div>
-  );
-}
-
 /** The least of the odds bar either side gets, so a lopsided matchup still shows who's ahead */
 const MIN_BAR_SHARE = 0.03;
 
@@ -146,9 +117,9 @@ function LiveMatchups({
             className={`rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-[var(--hover)] ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
           >
             <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-              <SideScore side={m.a} name={nameA} avatarUrl={avatar(m.a.rosterId)} align="left" />
+              <SideScore name={nameA} avatarUrl={avatar(m.a.rosterId)} align="left" score={m.a.started ? <LiveScore value={m.a.score} align={"right"} /> : <span className="text-[var(--muted)]" title="No starter has played yet">–</span>} sub={`proj ${m.a.projected.toFixed(1)}`} />
               <span className="text-[10px] font-semibold uppercase text-[var(--muted)]">vs</span>
-              <SideScore side={m.b} name={nameB} avatarUrl={avatar(m.b.rosterId)} align="right" />
+              <SideScore name={nameB} avatarUrl={avatar(m.b.rosterId)} align="right" score={m.b.started ? <LiveScore value={m.b.score} align={"left"} /> : <span className="text-[var(--muted)]" title="No starter has played yet">–</span>} sub={`proj ${m.b.projected.toFixed(1)}`} />
             </div>
             <div className="mt-1.5 flex items-center gap-2 text-xs font-semibold tabular-nums">
               <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>

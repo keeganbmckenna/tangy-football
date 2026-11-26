@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LiveTab from '@/components/LiveTab';
 import { useMatchupLineups } from '@/components/useMatchupLineups';
-import TeamAvatar from '@/components/ui/TeamAvatar';
+import { SideName, SideScore } from '@/components/ui/MatchupSides';
 import ShareButton from '@/components/ui/ShareButton';
 import { teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { myWeekMatchupFirst } from '@/lib/analyze/myMatchup';
@@ -165,80 +165,31 @@ export default function WeeklyMatchups({ matchups, lastScoredWeek, leagueData, l
               onClick={() => lineups.openLineups(game(matchup))}
               disabled={!leagueData}
               aria-label={`${matchup.team1.name} vs ${matchup.team2.name}: see lineups`}
-              className={`block w-full rounded-lg border p-4 text-left transition-colors hover:bg-[var(--hover)] disabled:hover:bg-transparent ${matchup.team1.rosterId === me.rosterId ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
+              className={`block w-full rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-[var(--hover)] disabled:hover:bg-transparent ${matchup.team1.rosterId === me.rosterId ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
             >
-              <div className="flex items-center justify-between">
-                {/* Team 1 */}
-                <div
-                  className={`min-w-0 flex-1 ${
-                    matchup.winner === 'team1'
-                      ? 'font-bold text-[var(--success-text)]'
-                      : 'text-[var(--foreground)]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-base lg:text-lg">
-                    <TeamAvatar url={teamAvatarUrl(leagueData, matchup.team1.rosterId)} name={matchup.team1.name} />
-                    <span className="min-w-0 truncate">{matchup.team1.name}</span>
-                  </div>
-                  <div className="truncate text-sm text-[var(--muted)]">
-                    @{matchup.team1.username}
-                  </div>
-
-                  <div className="mt-2 text-xl font-bold tabular-nums lg:text-2xl">
-                    {matchup.team1.points.toFixed(2)}
-                  </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                <SideScore name={matchup.team1.name} avatarUrl={teamAvatarUrl(leagueData, matchup.team1.rosterId)} align="left" score={matchup.team1.points.toFixed(2)} faded={matchup.winner === 'team2'} />
+                {/* The result in the middle: who won is the trophy and the faded score, so just the margin here */}
+                <div className="text-center text-[10px] font-semibold uppercase leading-tight text-[var(--muted)]">
+                  {lineups.isLoading(game(matchup)) ? (
+                    'loading'
+                  ) : matchup.winner === 'tie' ? (
+                    'tie'
+                  ) : matchup.winner ? (
+                    <>
+                      final
+                      <div className="font-medium normal-case tabular-nums">by {Math.abs(matchup.team1.points - matchup.team2.points).toFixed(2)}</div>
+                    </>
+                  ) : (
+                    'vs'
+                  )}
                 </div>
-
-                {/* VS */}
-                {/* Only where there's room: half-width cards need it for the names */}
-                <div className="hidden px-6 text-[var(--muted)] font-semibold lg:block">VS</div>
-                <div className="w-3 shrink-0 lg:hidden" />
-
-                {/* Team 2 */}
-                <div
-                  className={`min-w-0 flex-1 text-right ${
-                    matchup.winner === 'team2'
-                      ? 'font-bold text-[var(--success-text)]'
-                      : 'text-[var(--foreground)]'
-                  }`}
-                >
-                  <div className="flex flex-row-reverse items-center gap-2 text-base lg:text-lg">
-                    <TeamAvatar url={teamAvatarUrl(leagueData, matchup.team2.rosterId)} name={matchup.team2.name} />
-                    <span className="min-w-0 truncate">{matchup.team2.name}</span>
-                  </div>
-                  <div className="truncate text-sm text-[var(--muted)]">
-                    @{matchup.team2.username}
-                  </div>
-
-                  <div className="mt-2 text-xl font-bold tabular-nums lg:text-2xl">
-                    {matchup.team2.points.toFixed(2)}
-                  </div>
-                </div>
+                <SideScore name={matchup.team2.name} avatarUrl={teamAvatarUrl(leagueData, matchup.team2.rosterId)} align="right" score={matchup.team2.points.toFixed(2)} faded={matchup.winner === 'team1'} />
               </div>
-
-              {/* Winner indicator */}
-              {matchup.winner && matchup.winner !== 'tie' && (
-                <div className="mt-3 text-center text-sm text-[var(--success-text)] font-medium">
-                  {matchup.winner === 'team1'
-                    ? matchup.team1.name
-                    : matchup.team2.name}{' '}
-                  wins by{' '}
-                  {Math.abs(matchup.team1.points - matchup.team2.points).toFixed(
-                    2
-                  )}{' '}
-                  points
-                </div>
-              )}
-              {matchup.winner === 'tie' && (
-                <div className="mt-3 text-center text-sm text-[var(--warning-text)] font-medium">
-                  Tie
-                </div>
-              )}
-              {leagueData && (
-                <div className="mt-1.5 text-center text-[11px] text-[var(--muted)]">
-                  {lineups.isLoading(game(matchup)) ? 'Loading lineups…' : 'Tap for lineups'}
-                </div>
-              )}
+              <div className="mt-1.5 flex gap-3">
+                <SideName name={matchup.team1.name} username={matchup.team1.username} align="left" won={matchup.winner === 'team1'} />
+                <SideName name={matchup.team2.name} username={matchup.team2.username} align="right" won={matchup.winner === 'team2'} />
+              </div>
             </button>
           ))
         )}

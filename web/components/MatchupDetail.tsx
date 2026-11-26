@@ -273,7 +273,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
         {s.username && <div className="truncate text-xs text-[var(--muted)]">@{s.username}</div>}
         <div className={`flex items-baseline gap-1.5 text-xl font-bold tabular-nums sm:text-2xl ${right ? 'flex-row-reverse' : ''} ${final && !won ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'}`}>
           {s.started === false ? <span className="text-[var(--muted)]" title="No starter has played yet">–</span> : <LiveScore value={s.score} align={right ? 'right' : 'left'} />}
-          {won && <span className="rounded-full bg-[var(--success-bg)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--success-text)]">Won</span>}
+          {won && <span role="img" aria-label="Won" className="text-base leading-none">🏆</span>}
         </div>
         {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
       </div>
