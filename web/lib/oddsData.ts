@@ -178,6 +178,8 @@ export interface OddsInputs {
   remainingWeeks: number[];
   /** Remaining regular-season weeks plus the playoff weeks */
   strengthWeeks: number[];
+  /** The next week to be scored, and each roster's lineup set for it in Sleeper (by slot order) */
+  setLineups?: { week: number; starters: Record<number, string[]> } | null;
   /** Weeks that had projections */
   projectionWeeks: number[];
   /** week -> every player's projection, for the weeks that had them */
@@ -392,6 +394,13 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     )
   );
 
+  // The lineups managers have set for the next week to be scored
+  const nextWeek = lastScoredWeek + 1;
+  const setLineups =
+    nextWeek <= regularSeasonEnd && matchups[nextWeek - 1]
+      ? { week: nextWeek, starters: Object.fromEntries(matchups[nextWeek - 1].map((m) => [m.roster_id, m.starters ?? []])) }
+      : null;
+
   const weeklyScores: Record<number, number[]> = Object.fromEntries(teams.map((t) => [t.rosterId, [] as number[]]));
   const remaining: RemainingGame[] = [];
   matchups.forEach((week, i) => {
@@ -457,6 +466,7 @@ export async function loadOddsInputs(league: SleeperLeague): Promise<OddsInputs>
     remaining,
     remainingWeeks,
     strengthWeeks,
+    setLineups,
     projectionWeeks,
     players,
     values,

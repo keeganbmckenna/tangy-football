@@ -488,6 +488,8 @@ export interface TradeDataResponse {
   model: TradeModel;
   inputs: TradeInputs;
   players: Record<string, TradePlayerInfo>;
+  /** The next week to be scored and each team's lineup set for it in Sleeper (slot order; '0' empty) */
+  setLineups?: { week: number; starters: Record<number, string[]> } | null;
   /** FantasyCalc values loaded */
   marketValues: boolean;
   generatedAt: string;

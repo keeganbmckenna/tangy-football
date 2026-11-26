@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SectionCard from '@/components/ui/SectionCard';
+import LineupAssistant from '@/components/LineupAssistant';
 import RetryButton from '@/components/ui/RetryButton';
 import TradeAnalyzer, { type TradePreset } from '@/components/TradeAnalyzer';
 import TradeFinder from '@/components/TradeFinder';
@@ -148,8 +149,18 @@ export default function TradesTab({ teamStats }: TradesTabProps) {
     </>
   );
 
+  // Your lineup for the coming week, first while the season is on
+  const assistant = data && data.remaining.length > 0 && data.setLineups && (
+    <ErrorBoundary>
+      <section>
+        <LineupAssistant data={data} teamStats={teamStats} />
+      </section>
+    </ErrorBoundary>
+  );
+
   return (
     <div className="space-y-6">
+      {assistant}
       {closed ? (
         <>
           {waivers}

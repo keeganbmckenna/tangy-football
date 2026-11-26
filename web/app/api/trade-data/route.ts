@@ -9,7 +9,7 @@ import { earlierTradeModel, type TradeDataResponse, type TradeInputs, type Trade
 export const dynamic = 'force-dynamic';
 
 // Bump when the response shape changes: cached results outlive deploys
-const CACHE_VERSION = 'v12';
+const CACHE_VERSION = 'v13'; // v13: setLineups
 const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current';
 /** Free agents per position offered as pickups for roster spots a trade opens */
 const FREE_AGENTS_PER_POSITION = 15;
@@ -142,6 +142,7 @@ async function build(league: SleeperLeague): Promise<TradeDataResponse> {
     },
     players,
     marketValues: values !== null,
+    setLineups: odds.setLineups ?? null,
     generatedAt: new Date().toISOString(),
   };
 }
