@@ -186,6 +186,27 @@ describe('liveStandings', () => {
     expect(wildCard).toEqual([]);
   });
 
+  it('decides each game by its projected finals instead, from before kickoff', () => {
+    // Thursday: team 1 leads 10-0 but team 2 is projected to win 110-95; 3 and 4 haven't played
+    const live = liveWeek([m(1, 1, 10), m(2, 1, 0), m(3, 2, 0), m(4, 2, 0)]);
+    const projected = new Map([
+      [1, { score: 95, opponent: 110 }],
+      [2, { score: 110, opponent: 95 }],
+      [3, { score: 100, opponent: 90 }],
+      [4, { score: 90, opponent: 100 }],
+    ]);
+    const { rows } = liveStandings(liveTeamStats(league(), live), 2, 2, true, projected);
+    const byId = new Map(rows.map((r) => [r.team.rosterId, r]));
+    expect(byId.get(1)?.liveResult).toBe('L');
+    expect(byId.get(2)?.liveResult).toBe('W');
+    // At 0-0, still a projected result rather than a tie
+    expect(byId.get(3)?.liveResult).toBe('W');
+    expect(byId.get(4)?.now).toMatchObject({ losses: byId.get(4)!.before.losses + 1 });
+    // Points for count the projected final, not the current score
+    const current = liveStandings(liveTeamStats(league(), live), 2, 2, true).rows.find((r) => r.team.rosterId === 2)!;
+    expect(byId.get(2)!.team.totalPoints - current.team.totalPoints).toBe(110);
+  });
+
   it('does not change the teams it was given', () => {
     const live = liveWeek([m(1, 1, 40), m(2, 1, 70), m(3, 2, 60), m(4, 2, 80)]);
     const teams = liveTeamStats(league(), live);

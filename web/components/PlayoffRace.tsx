@@ -33,6 +33,8 @@ export interface StandingAnnotation {
   liveResult: 'W' | 'L' | 'T' | null;
   /** Moving into or dropping out of a playoff spot compared with before the week */
   playoffChange: 'in' | 'out' | null;
+  /** Projected standings: a game close to even (under 60/40), so its projected result is far from sure */
+  tossUp?: boolean;
 }
 
 interface PlayoffRaceProps {
@@ -148,6 +150,7 @@ function TeamRow({
           {team.wins}-{team.losses}
           {team.ties > 0 && `-${team.ties}`}
           {annotation && <span className="ml-2"><ResultDot result={annotation.liveResult} live /></span>}
+          {annotation?.tossUp && <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">toss-up</span>}
         </td>
         {cols && odds !== undefined && (
           <td className={`${cols.col('odds')} whitespace-nowrap px-4 py-3 text-sm tabular-nums text-[var(--foreground)]`}>

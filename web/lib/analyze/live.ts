@@ -815,7 +815,8 @@ function playoffPicture(teams: TeamStats[], playoffTeams: number, hasDivisions: 
 }
 
 /**
- * Standings before the live week and as if it ended at the current scores.
+ * Standings before the live week and as if it ended at the current scores, or with `projected`
+ * (each team's projected final and its opponent's) as if every game ends as projected.
  * teams must come from league data that includes the live week's matchups;
  * their wins/losses/points (from Sleeper roster settings) don't include it yet.
  */
@@ -823,11 +824,15 @@ export function liveStandings(
   teams: TeamStats[],
   week: number,
   playoffTeams: number,
-  hasDivisions: boolean
+  hasDivisions: boolean,
+  projected?: Map<number, { score: number; opponent: number }>
 ): LiveStandings {
   // Before anyone has scored (the week is shown from when the last one is scored) there's no
-  // result yet; once games are on, a matchup still at 0-0 is a tie as things stand
-  const started = teams.some((t) => (t.weeklyScores[week - 1] ?? 0) > 0);
+  // result yet; once games are on, a matchup still at 0-0 is a tie as things stand. Projected
+  // finals decide every matchup from the start.
+  const started = !!projected || teams.some((t) => (t.weeklyScores[week - 1] ?? 0) > 0);
+  const scoreOf = (t: TeamStats) => projected?.get(t.rosterId)?.score ?? t.weeklyScores[week - 1] ?? 0;
+  const opponentOf = (t: TeamStats) => (projected ? projected.get(t.rosterId)?.opponent : t.weeklyOpponentScores[week - 1]);
   const matchupResult = (score: number, opponent: number | undefined) =>
     opponent === undefined || !started ? null : liveResult(score, opponent);
   // Copies, since ranking and playoff calculations mutate teams
@@ -836,9 +841,8 @@ export function liveStandings(
 
   const now = rankTeams(
     teams.map((t) => {
-      const score = t.weeklyScores[week - 1] ?? 0;
-      const opponent = t.weeklyOpponentScores[week - 1];
-      const result = matchupResult(score, opponent);
+      const score = scoreOf(t);
+      const result = matchupResult(score, opponentOf(t));
       return {
         ...t,
         wins: t.wins + (result === 'W' ? 1 : 0),
@@ -858,10 +862,7 @@ export function liveStandings(
       team: t,
       before: { rank: b.standing, wins: b.wins, losses: b.losses, ties: b.ties, status: beforeStatus.get(t.rosterId)! },
       now: { rank: t.standing, wins: t.wins, losses: t.losses, ties: t.ties, status: nowStatus.get(t.rosterId)! },
-      liveResult: (() => {
-        const opponent = t.weeklyOpponentScores[week - 1];
-        return matchupResult(t.weeklyScores[week - 1] ?? 0, opponent);
-      })(),
+      liveResult: matchupResult(scoreOf(t), opponentOf(t)),
     };
   });
   return { rows, standings: now, divisions: picture.divisions, wildCard: picture.wildCard };

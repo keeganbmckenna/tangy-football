@@ -7,6 +7,7 @@ import PlayoffRace, { type StandingAnnotation } from '@/components/PlayoffRace';
 import ResultDot from '@/components/ui/ResultDot';
 import LiveScore from '@/components/ui/LiveScore';
 import { OddsBar, SideName, SideScore } from '@/components/ui/MatchupSides';
+import Segmented from '@/components/ui/Segmented';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import WinSwing from '@/components/WinSwing';
@@ -73,6 +74,19 @@ function TeamCell({ team }: { team: TeamStats }) {
 }
 
 const oddsText = (p: number) => percent(p);
+
+/** Live Standings' view: as projected (the default) or at the current scores. Remembered per viewer. */
+type StandingsView = 'projected' | 'current';
+const STANDINGS_VIEW_KEY = 'tangy-football:live-standings-view';
+const readStandingsView = (): StandingsView => {
+  try {
+    return window.localStorage.getItem(STANDINGS_VIEW_KEY) === 'current' ? 'current' : 'projected';
+  } catch {
+    return 'projected';
+  }
+};
+/** A game this close to even is flagged in the projected standings */
+const TOSS_UP = 0.6;
 
 /** Nobody in the matchup has played yet: the projections are the story, not 0.00 to 0.00 */
 const isPregame = (m: { a: LiveSide; b: LiveSide }) => m.a.score === 0 && m.b.score === 0 && !m.a.playing && !m.b.playing && m.a.toPlay + m.b.toPlay > 0;
@@ -224,12 +238,33 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
     return () => window.clearInterval(id);
   }, []);
 
+  const [standingsView, setStandingsView] = useState<StandingsView>(readStandingsView);
+  const pickStandingsView = (v: StandingsView) => {
+    setStandingsView(v);
+    try {
+      window.localStorage.setItem(STANDINGS_VIEW_KEY, v);
+    } catch {
+      // Not remembered (private browsing): it still switches
+    }
+  };
   const view = useMemo(() => {
     if (!live || week === null || !isCurrentSeason) return null;
     const teams = liveTeamStats(leagueData, live);
     const statuses = liveMatchupStatus(live.matchups);
     const names = new Map(teams.map((t) => [t.rosterId, t.teamName]));
-    const standings = liveStandings(teams, week, playoffTeams, hasDivisions);
+    // My matchup first, with me on the left (in its lineups too)
+    const models = live.projections && live.games
+      ? matchupModels(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek), { allowed: live.allowed, allowedScoring: live.allowedScoring })
+      : null;
+    const odds = models ? myLiveMatchupFirst(models.map(({ matchupId, a, b, aWinOdds, sd }) => ({ matchupId, a: a.s, b: b.s, aWinOdds, sd })), me.rosterId) : null;
+    // Every starter done: the projected finals are the scores, so there's only one view
+    const final = !!models && models.every((m) => m.a.s.toPlay + m.a.s.playing + m.b.s.toPlay + m.b.s.playing === 0);
+    const projectedView = standingsView === 'projected' && !!models && !final;
+    const projected = projectedView
+      ? new Map(models!.flatMap((m) => [[m.a.s.rosterId, { score: m.a.s.projected, opponent: m.b.s.projected }], [m.b.s.rosterId, { score: m.b.s.projected, opponent: m.a.s.projected }]] as const))
+      : undefined;
+    const tossUps = new Set(projectedView ? models!.filter((m) => Math.max(m.aWinOdds, 1 - m.aWinOdds) < TOSS_UP).flatMap((m) => [m.a.s.rosterId, m.b.s.rosterId]) : []);
+    const standings = liveStandings(teams, week, playoffTeams, hasDivisions, projected);
     // Before anyone has scored there's no before → now to show
     const annotations = new Map<number, StandingAnnotation>(
       standings.rows.filter((row) => row.liveResult !== null).map((row) => [
@@ -238,25 +273,23 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           previousRecord: formatRecord(row.before.wins, row.before.losses, row.before.ties),
           liveResult: row.liveResult,
           playoffChange: isIn(row.before.status) === isIn(row.now.status) ? null : isIn(row.now.status) ? 'in' : 'out',
+          tossUp: tossUps.has(row.team.rosterId),
         },
       ])
     );
-    // My matchup first, with me on the left (in its lineups too)
-    const models = live.projections && live.games
-      ? matchupModels(live.matchups, live.projections, live.games, scoreSpread(teams, live.lastScoredWeek), { allowed: live.allowed, allowedScoring: live.allowedScoring })
-      : null;
-    const odds = models ? myLiveMatchupFirst(models.map(({ matchupId, a, b, aWinOdds, sd }) => ({ matchupId, a: a.s, b: b.s, aWinOdds, sd })), me.rosterId) : null;
     return {
       odds,
       models: new Map((models ?? []).map((m) => [m.matchupId, m])),
       playAll: livePlayAll(teams, week),
       standings,
       annotations,
+      projectedView,
+      final,
       statuses,
       names,
       started: live.matchups.some((m) => (m.points ?? 0) > 0),
     };
-  }, [live, week, isCurrentSeason, leagueData, playoffTeams, hasDivisions, me.rosterId]);
+  }, [live, week, isCurrentSeason, leagueData, playoffTeams, hasDivisions, me.rosterId, standingsView]);
 
   const statusBar = (
     <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
@@ -455,11 +488,22 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
 
       <div className="space-y-3">
         <div>
-          <h2 className="text-2xl font-bold text-[var(--foreground)]">Live Standings</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-2xl font-bold text-[var(--foreground)]">Live Standings</h2>
+            {!view.final && view.odds && (
+              <Segmented
+                label="Decide this week's games by"
+                options={[{ id: 'projected', label: 'Projected' }, { id: 'current', label: 'Current score' }]}
+                value={standingsView}
+                onChange={pickStandingsView}
+              />
+            )}
+          </div>
           <p className="text-sm text-[var(--muted)]">
-            If week {week} ended now: this week&apos;s real matchups decided at the current scores, laid out like the
-            Overview tab. Each record shows before → now, with the dot for the real matchup right now (equal scores, including 0-0, are ties),
-            and teams moving into or dropping out of a playoff spot are flagged.
+            {view.projectedView
+              ? `If every week ${week} game goes as projected, with projected finals counted in points for. Toss-up: a game closer than 60/40.`
+              : `If week ${week} ended now, at the current scores (level scores, 0-0 included, are ties).`}{' '}
+            Records show before → now; teams moving into or out of a playoff spot are flagged.
           </p>
         </div>
         <PlayoffRace
