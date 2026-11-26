@@ -310,6 +310,8 @@ export interface LiveSide {
   toPlay: number;
   /** Starters whose games are in progress */
   playing: number;
+  /** Starters whose games have kicked off (in progress or over): none, and the score shows as a dash, as Sleeper does */
+  started: number;
 }
 
 export interface LiveMatchupOdds {
@@ -486,6 +488,7 @@ export function sideModel(
   let variance = 0;
   let toPlay = 0;
   let playing = 0;
+  let started = 0;
   // Its starters still to play, for the one-sided case (remainingPointsOdds)
   const players: RemainingPlayer[] = [];
   const defenses: RemainingDefense[] = [];
@@ -498,6 +501,7 @@ export function sideModel(
     variance += v;
     if (g?.state === 'pre') toPlay++;
     else if (g?.state === 'in') playing++;
+    if (g?.state === 'in' || g?.state === 'post') started++;
     if (remaining <= 0) continue;
     const term: PlayerTerm = { id, add, variance: v, remaining };
     if (p.defense && defense.allowedScoring) defenses.push((term.defense = { mean: add, sd: Math.sqrt(v), sign }));
@@ -505,7 +509,7 @@ export function sideModel(
     terms.push(term);
   }
   const score = m.points ?? 0;
-  return { s: { rosterId: m.roster_id, score, projected: score + left, toPlay, playing }, variance, players, defenses, terms };
+  return { s: { rosterId: m.roster_id, score, projected: score + left, toPlay, playing, started }, variance, players, defenses, terms };
 }
 
 /** a's chance of winning from both sides' models (the normal margin, blended into the one-sided distributions) */

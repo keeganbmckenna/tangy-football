@@ -36,13 +36,6 @@ const SWAPS_SHOWN = 3;
 const pts = (v: number) => v.toFixed(1);
 const players = (n: number) => `${n} player${n === 1 ? '' : 's'}`;
 
-/** The card's line: what the side with work to do needs (null when there's nothing to say) */
-export function needText(line: { need: number; players: number; expected: number; exact: boolean }, name: string): string {
-  return line.exact
-    ? `${name} needs ${pts(line.need)} from ${players(line.players)} (proj ${pts(line.expected)})`
-    : `${name} needs about ${pts(line.need)} from ${players(line.players)} to be favored (proj ${pts(line.expected)})`;
-}
-
 interface Props {
   model: MatchupModel;
   /** The team shown on the left (the dialog puts mine there) */

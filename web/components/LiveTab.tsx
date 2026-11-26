@@ -10,7 +10,7 @@ import TeamAvatar from '@/components/ui/TeamAvatar';
 import { getTeamName, teamAvatarUrl } from '@/lib/analyze/teamIdentity';
 import { formatStatLine } from '@/lib/analyze/statLine';
 import WinSwing from '@/components/WinSwing';
-import WhatItTakes, { needText } from '@/components/WhatItTakes';
+import WhatItTakes from '@/components/WhatItTakes';
 import MatchupDetail, { type MatchupPlayer, type MatchupSide } from '@/components/MatchupDetail';
 import SortableTh, { SortStatus } from '@/components/ui/SortableTh';
 import { AccuracyLink } from '@/components/OddsAccuracy';
@@ -35,7 +35,6 @@ import {
   liveTeamStats,
   liveWeekNumber,
   type LiveMatchupOdds,
-  type MatchupModel,
   type LiveScoresData,
   type LiveSide,
   type LiveWeekData,
@@ -43,7 +42,6 @@ import {
 } from '@/lib/analyze/live';
 import type { LeagueData, TeamStats } from '@/lib/types';
 import { percent } from '@/lib/format';
-import { needLine } from '@/lib/analyze/whatItTakes';
 
 // While a week is in progress and the tab is visible: scores and game clocks every 10
 // seconds while an NFL game is being played (once a minute between games), and the rest
@@ -82,29 +80,31 @@ const isPregame = (m: { a: LiveSide; b: LiveSide }) => m.a.score === 0 && m.b.sc
 /** Whether a response was made before the one shown */
 const isOlder = (fetchedAt: string, shown: string) => Date.parse(fetchedAt) < Date.parse(shown);
 
-function SideSummary({ side, name, username, avatarUrl, align, pregame = false }: { side: LiveSide; name: string; username: string; avatarUrl: string | null; align: 'left' | 'right'; pregame?: boolean }) {
-  const left = [side.playing && `${side.playing} playing`, side.toPlay && `${side.toPlay} to play`].filter(Boolean).join(' · ') || 'done';
+/**
+ * One side's score block, as compact as Sleeper's: the avatar at the outer edge, the score toward the middle,
+ * the projected final under it. The layout never changes with the game state: the score is always the big
+ * number (a dash until a starter kicks off).
+ */
+function SideScore({ side, name, avatarUrl, align }: { side: LiveSide; name: string; avatarUrl: string | null; align: 'left' | 'right' }) {
+  return (
+    <div className={`flex min-w-0 items-center justify-between gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+      <TeamAvatar url={avatarUrl} name={name} size="h-9 w-9" />
+      <div className={align === 'right' ? 'text-left' : 'text-right'}>
+        <div className="text-xl font-bold leading-tight tabular-nums text-[var(--foreground)]">
+          {side.started ? <LiveScore value={side.score} align={align === 'right' ? 'left' : 'right'} /> : <span className="text-[var(--muted)]" title="No starter has played yet">–</span>}
+        </div>
+        <div className="text-[11px] tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
+      </div>
+    </div>
+  );
+}
+
+/** A side's name and handle, under the odds bar */
+function SideName({ name, username, align }: { name: string; username: string; align: 'left' | 'right' }) {
   return (
     <div className={`min-w-0 flex-1 ${align === 'right' ? 'text-right' : ''}`}>
-      <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-        <TeamAvatar url={avatarUrl} name={name} size="h-7 w-7" />
-        <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={name}>{name}</div>
-      </div>
-      <div className="truncate text-xs text-[var(--muted)]">@{username}</div>
-      {pregame ? (
-        <>
-          <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">
-            {side.projected.toFixed(1)} <span className="text-xs font-semibold text-[var(--muted)]">proj</span>
-          </div>
-          <div className="text-xs tabular-nums text-[var(--muted)]">0.00 so far</div>
-        </>
-      ) : (
-        <>
-          <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]"><LiveScore value={side.score} align={align} /></div>
-          <div className="text-xs tabular-nums text-[var(--muted)]">proj {side.projected.toFixed(1)}</div>
-        </>
-      )}
-      <div className="whitespace-nowrap text-xs text-[var(--muted)]">{left}</div>
+      <div className="truncate text-sm font-semibold leading-tight text-[var(--foreground)]" title={name}>{name}</div>
+      <div className="truncate text-[11px] text-[var(--muted)]">@{username}</div>
     </div>
   );
 }
@@ -118,13 +118,10 @@ function LiveMatchups({
   names,
   username,
   avatar,
-  models,
   myRosterId,
   onOpen,
 }: {
   odds: LiveMatchupOdds[];
-  /** The model behind each matchup's odds, by matchup, for what the side behind needs */
-  models: Map<number, MatchupModel>;
   names: Map<number, string>;
   username: (rosterId: number) => string;
   avatar: (rosterId: number) => string | null;
@@ -138,21 +135,22 @@ function LiveMatchups({
         const a = m.aWinOdds;
         // The bar keeps a sliver of each side (the numbers stay exact), so the favorite shows at >99%
         const bar = Math.min(Math.max(a, MIN_BAR_SHARE), 1 - MIN_BAR_SHARE);
-        const model = models.get(m.matchupId);
-        const need = model && needLine(model);
+        const nameA = names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`;
+        const nameB = names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`;
         return (
           <button
             type="button"
             key={m.matchupId}
             onClick={() => onOpen(m.matchupId)}
-            aria-label={`${names.get(m.a.rosterId)} vs ${names.get(m.b.rosterId)}: see lineups`}
-            className={`rounded-lg border p-3 text-left transition-colors hover:bg-[var(--hover)] ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
+            aria-label={`${nameA} vs ${nameB}: see lineups`}
+            className={`rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-[var(--hover)] ${mine ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
           >
-            <div className="flex items-start gap-3">
-              <SideSummary side={m.a} name={names.get(m.a.rosterId) ?? `Team ${m.a.rosterId}`} username={username(m.a.rosterId)} avatarUrl={avatar(m.a.rosterId)} align="left" pregame={isPregame(m)} />
-              <SideSummary side={m.b} name={names.get(m.b.rosterId) ?? `Team ${m.b.rosterId}`} username={username(m.b.rosterId)} avatarUrl={avatar(m.b.rosterId)} align="right" pregame={isPregame(m)} />
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <SideScore side={m.a} name={nameA} avatarUrl={avatar(m.a.rosterId)} align="left" />
+              <span className="text-[10px] font-semibold uppercase text-[var(--muted)]">vs</span>
+              <SideScore side={m.b} name={nameB} avatarUrl={avatar(m.b.rosterId)} align="right" />
             </div>
-            <div className="mt-2 flex items-center gap-2 text-xs font-semibold tabular-nums">
+            <div className="mt-1.5 flex items-center gap-2 text-xs font-semibold tabular-nums">
               <span className="w-9" style={{ color: a >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(a)}</span>
               <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--neutral-bg)]" role="img" aria-label={`Win odds ${oddsText(a)} to ${oddsText(1 - a)}`}>
                 <div style={{ width: `${bar * 100}%`, backgroundColor: a >= 0.5 ? RESULT_DOT_COLORS.W : RESULT_DOT_COLORS.L, transition: 'width .6s ease' }} />
@@ -160,10 +158,10 @@ function LiveMatchups({
               </div>
               <span className="w-9 text-right" style={{ color: a <= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(1 - a)}</span>
             </div>
-            {need && model && (
-              <div className="mt-1.5 text-center text-xs text-[var(--foreground)]">{needText(need, names.get(model[need.side].s.rosterId) ?? `Team ${model[need.side].s.rosterId}`)}</div>
-            )}
-            <div className="mt-1.5 text-center text-[11px] text-[var(--muted)]">Tap for lineups</div>
+            <div className="mt-1.5 flex gap-3">
+              <SideName name={nameA} username={username(m.a.rosterId)} align="left" />
+              <SideName name={nameB} username={username(m.b.rosterId)} align="right" />
+            </div>
           </button>
         );
       })}
@@ -397,11 +395,11 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
           username: getTeamName(s.rosterId, leagueData).username,
           avatarUrl: teamAvatarUrl(leagueData, s.rosterId),
           score: s.score,
+          started: s.started > 0,
           projected: s.projected,
-          // Before kickoff the projection is already the big number: just the odds under it
           sub: (
             <>
-              {m && isPregame(m) ? '0.00 so far · ' : `proj ${s.projected.toFixed(1)} · `}
+              {`proj ${s.projected.toFixed(1)} · `}
               <span className="font-semibold" style={{ color: odds >= 0.5 ? RESULT_DOT_COLORS.W : 'var(--muted)' }}>{oddsText(odds)}</span>
             </>
           ),
@@ -461,7 +459,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       <div>
         <div className="px-4 pt-4 sm:px-6">{statusBar}</div>
         {view.odds ? (
-          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} models={view.models} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
+          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
         ) : (
           <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
         )}
@@ -489,7 +487,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
       >
         <div className="px-6 pt-4">{statusBar}</div>
         {view.odds ? (
-          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} models={view.models} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
+          <LiveMatchups odds={view.odds} names={view.names} username={(id) => getTeamName(id, leagueData).username} avatar={(id) => teamAvatarUrl(leagueData, id)} myRosterId={me.rosterId} onOpen={setOpenMatchup} />
         ) : (
           <p className="px-6 py-4 text-sm text-[var(--muted)]">Win odds are unavailable right now (projections or the NFL scoreboard didn&apos;t load).</p>
         )}

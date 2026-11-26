@@ -40,7 +40,9 @@ export interface MatchupSide {
   /** The team's photo */
   avatarUrl?: string | null;
   score: number;
-  /** Projected points: the big number before kickoff (with status 'pregame') */
+  /** Whether any starter has kicked off: until one has, the score shows as a dash (as Sleeper does). Absent: yes */
+  started?: boolean;
+  /** Projected final points */
   projected?: number;
   /** Under the score, e.g. projected final and win odds */
   sub?: ReactNode;
@@ -257,8 +259,7 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
     };
   }, [onClose]);
 
-  // Before kickoff the projection is the number that matters; once final, the winner stands out
-  const pregame = status === 'pregame';
+  // The score is always the big number (a dash before kickoff), so the layout never changes; once final, the winner stands out
   const final = status === 'final' && a.score !== b.score;
   const head = (s: MatchupSide, right: boolean) => {
     const other = s === a ? b : a;
@@ -270,16 +271,10 @@ export default function MatchupDetail({ title, a, b, slots, projLabel = 'proj', 
           <div className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]" title={s.name}>{s.name}</div>
         </div>
         {s.username && <div className="truncate text-xs text-[var(--muted)]">@{s.username}</div>}
-        {pregame && s.projected !== undefined ? (
-          <div className="text-xl font-bold tabular-nums text-[var(--foreground)] sm:text-2xl">
-            {s.projected.toFixed(1)} <span className="text-xs font-semibold text-[var(--muted)]">proj</span>
-          </div>
-        ) : (
-          <div className={`flex items-baseline gap-1.5 text-xl font-bold tabular-nums sm:text-2xl ${right ? 'flex-row-reverse' : ''} ${final && !won ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'}`}>
-            <LiveScore value={s.score} align={right ? 'right' : 'left'} />
-            {won && <span className="rounded-full bg-[var(--success-bg)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--success-text)]">Won</span>}
-          </div>
-        )}
+        <div className={`flex items-baseline gap-1.5 text-xl font-bold tabular-nums sm:text-2xl ${right ? 'flex-row-reverse' : ''} ${final && !won ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'}`}>
+          {s.started === false ? <span className="text-[var(--muted)]" title="No starter has played yet">–</span> : <LiveScore value={s.score} align={right ? 'right' : 'left'} />}
+          {won && <span className="rounded-full bg-[var(--success-bg)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--success-text)]">Won</span>}
+        </div>
         {s.sub && <div className="text-xs tabular-nums text-[var(--muted)]">{s.sub}</div>}
       </div>
     );
