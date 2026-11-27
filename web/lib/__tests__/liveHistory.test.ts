@@ -47,6 +47,19 @@ describe('live win history', () => {
     expect(await readSnapshots('2026', 8)).toBeNull();
   });
 
+  it('keeps each save\'s projected finals, and none for saves made before they were kept', async () => {
+    const { saveSnapshot, readSnapshots } = await import('../liveHistory');
+    const withProjected = odds(0.6, 10, 8);
+    withProjected[0].a.projected = 112.34;
+    withProjected[0].b.projected = 98.06;
+    // A save from before projected finals were kept: six numbers per matchup
+    store.lists.set('win:2026:10', [JSON.stringify({ t: 1, m: [[1, 3, 5, 0.55, 4, 2]] })]);
+    expect(await saveSnapshot('2026', 10, { odds: withProjected })).toBe(true);
+    expect((await readSnapshots('2026', 10))?.matchups[0].projected).toEqual([null, [112.3, 98.1]]);
+    store.lists.set('win:2026:11', [JSON.stringify({ t: 1, m: [[1, 3, 5, 0.55, 4, 2]] })]);
+    expect((await readSnapshots('2026', 11))?.matchups[0].projected).toBeUndefined();
+  });
+
   // One starter q (TEN) against r; a's odds rise 3 points per point q has over 10
   const starters = [{ matchupId: 1, a: ['q'], b: ['r'] }];
   const live = (q: number, plays: Array<{ t: number; text: string; scoring: boolean }>) => ({

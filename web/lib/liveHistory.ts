@@ -43,11 +43,16 @@ async function redis(commands: Array<Array<string | number>>, timeoutMs = 3000):
 
 const key = (season: string, week: number) => `win:${season}:${week}`;
 
-/** One saved moment: time (Unix seconds) and [matchupId, a, b, a's odds, a's score, b's score] per matchup */
+/**
+ * One saved moment: time (Unix seconds) and [matchupId, a, b, a's odds, a's score, b's score,
+ * a's projected final, b's] per matchup (saves before 2026-11-27 have no projected finals)
+ */
 interface Snapshot {
   t: number;
-  m: Array<[number, number, number, number, number, number]>;
+  m: Array<[number, number, number, number, number, number, number?, number?]>;
 }
+
+const tenth = (x: number) => Math.round(x * 10) / 10;
 
 /** One matchup's starters by side, for spotting big moments between saves */
 export interface MatchupStarters {
@@ -90,7 +95,7 @@ export async function saveSnapshot(season: string, week: number, input: SaveInpu
   const t = Math.round(Date.now() / 1000);
   const snapshot: Snapshot = {
     t,
-    m: odds.map((o) => [o.matchupId, o.a.rosterId, o.b.rosterId, roundOdds(o.aWinOdds), Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]),
+    m: odds.map((o) => [o.matchupId, o.a.rosterId, o.b.rosterId, roundOdds(o.aWinOdds), tenth(o.a.score), tenth(o.b.score), tenth(o.a.projected), tenth(o.b.projected)]),
   };
   const commands: Array<Array<string | number>> = [
     ['RPUSH', k, JSON.stringify(snapshot)],
@@ -133,18 +138,23 @@ export async function readSnapshots(season: string, week: number): Promise<WinHi
   const snapshots = rows.map((r) => JSON.parse(r) as Snapshot).sort((x, y) => x.t - y.t);
   const matchups = new Map<number, WinHistory['matchups'][number]>();
   snapshots.forEach((s, i) => {
-    for (const [matchupId, a, b, odds, sa, sb] of s.m) {
-      const m = matchups.get(matchupId) ?? { matchupId, a, b, odds: [], scores: [] };
+    for (const [matchupId, a, b, odds, sa, sb, pa, pb] of s.m) {
+      const m = matchups.get(matchupId) ?? { matchupId, a, b, odds: [], scores: [], projected: [] };
+      const projected: [number, number] | null = pa !== undefined && pb !== undefined ? [pa, pb] : null;
       // A matchup missing from earlier snapshots starts where it first appears
       while (m.odds.length < i) {
         m.odds.push(odds);
         m.scores.push([sa, sb]);
+        m.projected!.push(projected);
       }
       m.odds.push(odds);
       m.scores.push([sa, sb]);
+      m.projected!.push(projected);
       matchups.set(matchupId, m);
     }
   });
+  // Projected finals only where some save has them
+  for (const m of matchups.values()) if (!m.projected?.some(Boolean)) delete m.projected;
   // Only moments with their play: one without (a score taken back, or saved before plays were
   // matched one by one) says nothing about what happened
   for (const m of matchups.values()) m.events = biggestPlays(dropRetractions(events.get(m.matchupId) ?? []).filter((e) => e.desc), BIG_PLAYS_KEPT);
@@ -178,7 +188,13 @@ export async function replaceSnapshots(history: WinHistory, finished: string[] =
     return event.t > firstLater && !event.players.some((p) => done.has(p.id ?? '') || done.has(p.name));
   });
   const replayed = history.times.map((t, i) =>
-    JSON.stringify({ t, m: history.matchups.map((m) => [m.matchupId, m.a, m.b, m.odds[i], m.scores[i][0], m.scores[i][1]]) } satisfies Snapshot)
+    JSON.stringify({
+      t,
+      m: history.matchups.map((m) => {
+        const p = m.projected?.[i];
+        return p ? [m.matchupId, m.a, m.b, m.odds[i], m.scores[i][0], m.scores[i][1], p[0], p[1]] : [m.matchupId, m.a, m.b, m.odds[i], m.scores[i][0], m.scores[i][1]];
+      }),
+    } satisfies Snapshot)
   );
   // The replay's plays, which have descriptions, in place of the live events they cover
   const replayedEvents = history.matchups.flatMap((m) => (m.events ?? []).map((event) => JSON.stringify({ matchupId: m.matchupId, event })));

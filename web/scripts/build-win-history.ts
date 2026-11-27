@@ -209,15 +209,16 @@ async function buildWeek(
     return { points, odds: liveWinOdds(atT, projections, games, spread, { allowed, allowedScoring: ptsAllowed }) };
   };
 
-  const series = new Map<number, { a: number; b: number; odds: number[]; scores: Array<[number, number]>; events: PlayEvent[] }>();
+  const series = new Map<number, { a: number; b: number; odds: number[]; scores: Array<[number, number]>; projected: Array<[number, number]>; events: PlayEvent[] }>();
   // For research (--diagnostics): each sample's projected finals and spread, per matchup
   const diag = new Map<number, Array<[number, number, number, number, number, number]>>();
   for (const t of sampled) {
     for (const o of evaluate(t).odds) {
       diag.set(o.matchupId, [...(diag.get(o.matchupId) ?? []), [t, o.a.score, o.b.score, o.a.projected, o.b.projected, o.sd]]);
-      const s = series.get(o.matchupId) ?? { a: o.a.rosterId, b: o.b.rosterId, odds: [], scores: [], events: [] };
+      const s = series.get(o.matchupId) ?? { a: o.a.rosterId, b: o.b.rosterId, odds: [], scores: [], projected: [], events: [] };
       s.odds.push(roundOdds(o.aWinOdds));
       s.scores.push([Math.round(o.a.score * 10) / 10, Math.round(o.b.score * 10) / 10]);
+      s.projected.push([Math.round(o.a.projected * 10) / 10, Math.round(o.b.projected * 10) / 10]);
       series.set(o.matchupId, s);
     }
   }

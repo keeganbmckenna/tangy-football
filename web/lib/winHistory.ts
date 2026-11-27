@@ -13,6 +13,8 @@ export interface WinHistoryMatchup {
   odds: number[];
   /** [a's score, b's score] at each time */
   scores: Array<[number, number]>;
+  /** [a's projected final, b's] at each time: the score plus what's still expected (null where not saved) */
+  projected?: Array<[number, number] | null>;
   /** Its biggest plays (biggestPlays, up to BIG_PLAYS_KEPT), in time order */
   events?: PlayEvent[];
 }

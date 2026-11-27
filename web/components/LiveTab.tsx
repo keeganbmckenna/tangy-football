@@ -360,7 +360,7 @@ export default function LiveTab({ leagueData, regularSeasonEnd, playoffTeams, ha
               a={{ rosterId: m.a.rosterId, name: a.name }}
               b={{ rosterId: m.b.rosterId, name: b.name }}
               refreshKey={live.fetchedAt}
-              now={{ odds: m.aWinOdds, sa: m.a.score, sb: m.b.score }}
+              now={{ odds: m.aWinOdds, sa: m.a.score, sb: m.b.score, pa: m.a.projected, pb: m.b.projected }}
             />
           }
           panel={

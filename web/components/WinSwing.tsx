@@ -16,8 +16,8 @@ interface WinSwingProps {
   /** The week in progress: the odds saved so far (/api/live/history), reloaded when refreshKey changes */
   live?: boolean;
   refreshKey?: string;
-  /** The week in progress: a's odds and both scores right now (the Live tab's), drawn as the last point */
-  now?: { odds: number; sa: number; sb: number };
+  /** The week in progress: a's odds, both scores and projected finals right now (the Live tab's), drawn as the last point */
+  now?: { odds: number; sa: number; sb: number; pa?: number; pb?: number };
   /** Full screen: a tall chart and every saved big play, listed; onClose leaves it */
   full?: boolean;
   onClose?: () => void;
@@ -90,13 +90,17 @@ export default function WinSwing(props: WinSwingProps) {
   const points = data.times.map((t, i) => {
     const p = flip ? 1 - m.odds[i] : m.odds[i];
     const [sa, sb] = flip ? [m.scores[i][1], m.scores[i][0]] : m.scores[i];
+    const proj = m.projected?.[i];
+    const [pa, pb] = proj ? (flip ? [proj[1], proj[0]] : proj) : [null, null];
     // In percent, unrounded: it's rounded once where it's shown
-    return { i, t, p: p * 100, sa, sb };
+    return { i, t, p: p * 100, sa, sb, pa: pa as number | null, pb: pb as number | null };
   });
   // Live, the chart ends at the odds the card shows now: saves come every 30 seconds at most
   if (live && now) {
     const t = Math.max(Math.floor(Date.now() / 1000), data.times[data.times.length - 1]);
-    points.push({ i: points.length, t, p: now.odds * 100, sa: now.sa, sb: now.sb });
+    // Its projected finals only after saved ones, so a week saved without them draws no stub
+    const withProjected = now.pa !== undefined && now.pb !== undefined && (points.length === 0 || points[points.length - 1].pa !== null);
+    points.push({ i: points.length, t, p: now.odds * 100, sa: now.sa, sb: now.sb, pa: withProjected ? now.pa! : null, pb: withProjected ? now.pb! : null });
   }
   // Where each game day starts, for its label
   const days = points.filter((pt, i) => i === 0 || DAY.format(pt.t * 1000) !== DAY.format(points[i - 1].t * 1000));
@@ -108,6 +112,8 @@ export default function WinSwing(props: WinSwingProps) {
     if (now && side && now !== side) swings++;
     if (now) side = now;
   }
+  // Projected finals (score plus what's still expected), dashed on the score view, where saved
+  const hasProjected = points.some((pt) => pt.pa !== null);
   const low = Math.min(...points.map((pt) => pt.p));
   const high = Math.max(...points.map((pt) => pt.p));
   const won = points[points.length - 1].p > 50;
@@ -133,6 +139,11 @@ export default function WinSwing(props: WinSwingProps) {
         <div className="font-semibold text-[var(--chart-tooltip-text)]">
           {pt.sa.toFixed(1)}–{pt.sb.toFixed(1)} · {favored(pt.p)}
         </div>
+        {view === 'score' && pt.pa !== null && pt.pb !== null && (
+          <div className="text-[var(--chart-tooltip-muted)]">
+            Projected {pt.pa.toFixed(1)}–{pt.pb.toFixed(1)}
+          </div>
+        )}
       </div>
     );
   };
@@ -281,6 +292,12 @@ export default function WinSwing(props: WinSwingProps) {
               <Tooltip isAnimationActive={false} cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }} content={tooltip} />
               <Line type="stepAfter" dataKey="sa" stroke={A_COLOR} strokeWidth={1.75} dot={false} isAnimationActive={false} />
               <Line type="stepAfter" dataKey="sb" stroke={B_COLOR} strokeWidth={1.75} dot={false} isAnimationActive={false} />
+              {hasProjected && (
+                <Line type="stepAfter" dataKey="pa" stroke={A_COLOR} strokeOpacity={0.6} strokeWidth={1.25} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
+              )}
+              {hasProjected && (
+                <Line type="stepAfter" dataKey="pb" stroke={B_COLOR} strokeOpacity={0.6} strokeWidth={1.25} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
+              )}
             </LineChart>
           ) : (
             <AreaChart data={points} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
@@ -359,6 +376,12 @@ export default function WinSwing(props: WinSwingProps) {
               <span className="h-0.5 w-3 shrink-0" style={{ backgroundColor: A_COLOR }} />
               <span className="truncate">{a.name}</span>
             </span>
+            {hasProjected && (
+              <span className="flex shrink-0 items-center gap-1">
+                <span className="w-3 border-t border-dashed border-[var(--muted)]" />
+                projected
+              </span>
+            )}
             <span className="flex min-w-0 items-center gap-1">
               <span className="h-0.5 w-3 shrink-0" style={{ backgroundColor: B_COLOR }} />
               <span className="truncate">{b.name}</span>
