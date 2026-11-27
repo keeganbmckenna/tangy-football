@@ -53,6 +53,26 @@ interface ProjectionRow {
   stats?: { pts_half_ppr?: number } & Record<string, number>;
 }
 
+/** Sleeper's standard half-PPR scoring for a quarterback's stat line */
+const QB_HALF_PPR: Record<string, number> = {
+  pass_yd: 0.04, pass_td: 4, pass_int: -1, pass_2pt: 2, rush_yd: 0.1, rush_td: 6, rush_2pt: 2,
+  rec: 0.5, rec_yd: 0.1, rec_td: 6, rec_2pt: 2, fum_lost: -2,
+};
+
+/**
+ * A player's projected half-PPR points. Quarterbacks' come from their projected stat line:
+ * for 2018-2025, Sleeper's projected totals score an interception as +2 (not -1) and lost
+ * fumbles too lightly, about 2 points too many per QB. This scoring gives back exactly
+ * Sleeper's correct 2026 totals (ffbrains research/projections/FINDINGS.md).
+ */
+export function projectedPoints(position: string, stats: Record<string, number> | undefined): number {
+  if (!stats) return 0;
+  if (position !== 'QB') return stats.pts_half_ppr ?? 0;
+  let total = 0;
+  for (const [k, w] of Object.entries(QB_HALF_PPR)) total += (stats[k] ?? 0) * w;
+  return Math.round(total * 100) / 100;
+}
+
 /**
  * Every player's half-PPR projection for one week (null if unavailable).
  * Too big for the fetch cache, so callers cache what they build from it.
@@ -70,7 +90,7 @@ export async function weekProjections(season: string, week: number): Promise<Rec
         : `${r.player?.first_name ?? ''} ${r.player?.last_name ?? ''}`.trim() || r.player_id;
       out[r.player_id] = {
         position,
-        points: r.stats?.pts_half_ppr ?? 0,
+        points: projectedPoints(position, r.stats),
         name,
         team: r.team ?? r.player?.team ?? null,
         injury: r.player?.injury_status ?? null,
